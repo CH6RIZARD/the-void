@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "The Void",
+    "slug": "the-void",
+    "scheme": "thevoid",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#04020c",
+    "assetBundlePatterns": ["assets/**/*"],
+    "ios": {
+      "bundleIdentifier": "com.thevoid.app",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "The Void uses the rear camera only during an explicit, opt-in calm-state reading to estimate heart rate on-device. Frames never leave your phone.",
+        "NSMotionUsageDescription": "The Void reads device motion on-device to discard readings taken while you move. Motion data never leaves your phone.",
+        "NSHealthShareUsageDescription": "With your permission, The Void reads heart-rate/HRV from Health on-device to improve personalization. It is never used for ads and never leaves your phone.",
+        "NSFaceIDUsageDescription": "Used only to protect on-device settings.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.thevoid.app",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.ACTIVITY_RECOGNITION",
+        "android.permission.health.READ_HEART_RATE"
+      ],
+      "blockedPermissions": ["android.permission.RECORD_AUDIO"]
+    },
+    "plugins": [
+      "expo-dev-client",
+      ["expo-camera", { "cameraPermission": "The Void uses the camera only for an opt-in on-device heart-rate reading. Frames never leave your phone." }],
+      "./modules/expo-void-sensing/app.plugin.js"
+    ],
+    "extra": {
+      "eas": { "projectId": "REPLACE_WITH_YOUR_EAS_PROJECT_ID" },
+      "voidProxyBase": ""
+    }
+  }
+}

@@ -1,0 +1,22 @@
+# EAS upload excludes for THIS project root (void-app). Because app.json + eas.json
+# live here, run `eas build` from inside void-app/ so EAS roots the archive here and
+# the repo-root .easignore (which excludes /The Void/) does NOT apply.
+#
+# Note on the nested git: `The Void/.git` exists. If EAS's VCS archiver picks it up and
+# treats void-app as untracked, set `EAS_NO_VCS=1` (or eas.json cli.requireCommit=false)
+# so EAS archives the working directory instead of the git tree. See README.
+
+node_modules/
+.expo/
+dist/
+web-build/
+*.log
+.git/
+
+# Never upload secrets / signing material
+.env
+*.keystore
+*.p8
+*.p12
+*.mobileprovision
+google-service-account*.json

@@ -1,0 +1,36 @@
+{
+  "name": "the-void-app",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "sync:ui": "node scripts/sync-ui.js",
+    "prestart": "npm run sync:ui",
+    "preios": "npm run sync:ui",
+    "preandroid": "npm run sync:ui",
+    "start": "expo start --dev-client",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "prebuild": "npm run sync:ui && expo prebuild --clean",
+    "typecheck": "tsc --noEmit",
+    "build:ios": "npm run sync:ui && eas build -p ios --profile production",
+    "build:android": "npm run sync:ui && eas build -p android --profile production",
+    "submit:ios": "eas submit -p ios --latest",
+    "submit:android": "eas submit -p android --latest"
+  },
+  "dependencies": {
+    "expo": "~51.0.0",
+    "expo-asset": "~10.0.0",
+    "expo-camera": "~15.0.0",
+    "expo-constants": "~16.0.0",
+    "expo-dev-client": "~4.0.0",
+    "expo-modules-core": "~1.12.0",
+    "react": "18.2.0",
+    "react-native": "0.74.0",
+    "react-native-webview": "13.8.6"
+  },
+  "devDependencies": {
+    "@types/react": "~18.2.0",
+    "typescript": "~5.3.0"
+  }
+}

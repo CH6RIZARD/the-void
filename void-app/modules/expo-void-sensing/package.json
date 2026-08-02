@@ -1,0 +1,14 @@
+{
+  "name": "expo-void-sensing",
+  "version": "0.1.0",
+  "description": "On-device affect sensing bridge for The Void — emits only the quantized AffectState.",
+  "main": "index.ts",
+  "types": "index.ts",
+  "sideEffects": false,
+  "keywords": ["expo", "expo-module"],
+  "peerDependencies": {
+    "expo": "*",
+    "react": "*",
+    "react-native": "*"
+  }
+}
