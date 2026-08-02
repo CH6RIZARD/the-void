@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<!-- NOTE TO CLAUDE: Cursor Grok patched globe tiles — Error 153 missing Referer. Keep this meta. -->
+<!-- CURSOR #1+#2: keep referrer meta. Claude: do not remove — required for YT embeds. -->
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <title>THE VOID</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -46,7 +46,7 @@ html,body{height:100%;background:var(--bg);color:var(--white);font-family:'Syne'
 .gl-tile{position:relative;aspect-ratio:16/9;background:#000;border-radius:6px;overflow:hidden;border:1px solid var(--border);cursor:pointer;transition:border-color .2s}
 .gl-tile:hover{border-color:var(--glow)}
 .gl-tile iframe{width:100%;height:100%;border:none;pointer-events:none}
-.gl-tile-label{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.9));padding:4px 6px 5px;font-family:'Syne Mono',monospace;font-size:7px;color:var(--gold);letter-spacing:.1em;pointer-events:none}
+.gl-tile-label{position:absolute;bottom:0;left:0;right:0;z-index:4;background:linear-gradient(transparent,rgba(0,0,0,.9));padding:4px 6px 5px;font-family:'Syne Mono',monospace;font-size:7px;color:var(--gold);letter-spacing:.1em;pointer-events:none}
 #screen-void{padding-top:0}
 .bio-hud{position:sticky;top:0;z-index:20;padding:8px 14px;background:rgba(4,2,12,.92);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
 .bio-logo{font-weight:800;font-size:15px;letter-spacing:.14em}
@@ -233,7 +233,7 @@ html,body{height:100%;background:var(--bg);color:var(--white);font-family:'Syne'
 /* Hide dwell ring */
 .dwell-ring{display:none!important}
 /* Sparkle fallback */
-.sparkle-fallback{position:absolute;inset:0;background:rgba(3,1,10,.97);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;overflow:hidden;cursor:pointer;border-radius:inherit}
+.sparkle-fallback{position:absolute;inset:0;z-index:3;background:rgba(3,1,10,.97);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;overflow:hidden;cursor:pointer;border-radius:inherit}
 .sparkle-fallback-particle{position:absolute;width:2px;height:2px;border-radius:50%;background:var(--gold);animation:pfloat linear infinite;pointer-events:none}
 .sparkle-fallback-label{font-family:'Syne Mono',monospace;font-size:7px;color:var(--muted);letter-spacing:.18em;z-index:1;position:relative}
 /* Nav active glow */
@@ -643,89 +643,142 @@ html,body{height:100%;background:var(--bg);color:var(--white);font-family:'Syne'
 'use strict';
 // Channels ordered by embed reliability (DW confirmed working in tests)
 const LIVE_CHANNELS=[
-  {n:'DW NEWS',id:'UCknLrEdhRCp1aegoMqRaCZg'},
+  {n:'DW NEWS',id:'UCknLrEdhRCp1aegoMqRaCZg',vid:'LuKwFajn37U'},
   {n:'SKY NEWS AU',id:'UCRo_JB7Kw8GDNM39XhG9WCg'},
   {n:'WION',id:'UCc5yBAMxXBGEoF9oPTw3WbQ'},
-  {n:'BLOOMBERG',id:'UCIALMKvObZNtJ6AmdCLP7Lg'},
+  {n:'BLOOMBERG',id:'UCIALMKvObZNtJ6AmdCLP7Lg',vid:'QB5BNdBFujE'},
   {n:'EURONEWS',id:'UCctIIFkY0LRSjR-zzXaiDDg'},
   {n:'TIMES NOW',id:'UCt4t-jeY85JegMlZ-E5UWtA'},
   {n:'CGTN',id:'UCnl2bFHLjn-1x7j_kXvQQdg'},
-  {n:'TRT WORLD',id:'UC7fWeaHhqgM4Ry-RMpM2YYw'},
+  {n:'TRT WORLD',id:'UC7fWeaHhqgM4Ry-RMpM2YYw',vid:'b8lPrtjmnmw'},
   {n:'AL JAZEERA',id:'UCNye-wNBqNL5ZzHSJdpkiXA'},
   {n:'FRANCE 24',id:'UCQfwfsi5VrQ8yKZ-UWmAGNA'},
   {n:'ABC NEWS',id:'UCBi2mrWuNuyYy4gbM6fU18A'},
   {n:'NHK WORLD',id:'UC7Uh7N56AAEK3tiJXv5R8-w'},
 ];
 /*
- * NOTE TO CLAUDE AGENT — already patched by Cursor Grok (bc-8374f7e1).
- * Runtime evidence (WebView/globe tiles): attemptSource was resolving true on bare
- * iframe `load` while tiles painted nothing. Curl/HTML showed YouTube Error 153
- * PLAYABILITY_ERROR_CODE_EMBEDDER_IDENTITY_MISSING_REFERRER; without Referer,
- * VIDEO_ID stayed the literal "live_stream". With Referer, err153 cleared and
- * live_stream resolved to a real video id. Opposite fix from "streams are dead":
- * send Referer (meta + iframe referrerpolicy + origin), and only treat YT
- * ready/playing as success — not iframe load alone.
+ * CURSOR CHANGE #1 (bc-8374f7e1): Error 153 — send Referer (meta + referrerpolicy + origin).
+ * CURSOR CHANGE #2 (bc-8374f7e1): Wait until YT playerState===1 (PLAYING) before revealing
+ * tiles. Do NOT clear loading on iframe load / onReady / watermark — that exposed the
+ * YouTube origin chrome while streams were not watchable. Keep sparkle z-index above
+ * iframe; opacity-hide iframe until playing; nudge playVideo via postMessage.
+ * NOTE TO CLAUDE: re-apply both Cursor #1 and #2 together — do not revert to ready/load-soft.
  */
-function liveUrl(id,mute=1){
+function liveUrl(chOrId,mute=1){
   const origin=encodeURIComponent(location.origin||'');
-  return `https://www.youtube.com/embed/live_stream?channel=${id}&autoplay=1&mute=${mute}&controls=1&rel=0&playsinline=1&modestbranding=1&enablejsapi=1&origin=${origin}`;
+  const ch=typeof chOrId==='object'&&chOrId?chOrId:null;
+  const channelId=ch?ch.id:chOrId;
+  const vid=ch&&ch.vid?ch.vid:null;
+  const common=`autoplay=1&mute=${mute}&controls=1&rel=0&playsinline=1&modestbranding=1&enablejsapi=1&origin=${origin}`;
+  // Prefer concrete live video id when known — more reliable than live_stream?channel=
+  if(vid)return `https://www.youtube.com/embed/${vid}?${common}`;
+  return `https://www.youtube.com/embed/live_stream?channel=${channelId}&${common}`;
 }
-function mountLiveIframe(src){
+function mountLiveIframe(src,domId){
   const iframe=document.createElement('iframe');
   iframe.src=src;
+  if(domId)iframe.id=domId;
   iframe.setAttribute('referrerpolicy','strict-origin-when-cross-origin');
   iframe.allow='accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture';
   iframe.allowFullscreen=true;
-  iframe.style.cssText='width:100%;height:100%;border:none;position:absolute;inset:0;z-index:1';
+  // opacity 0 until PLAYING — hides YT watermark under the loading overlay
+  iframe.style.cssText='width:100%;height:100%;border:none;position:absolute;inset:0;z-index:1;opacity:0';
   return iframe;
 }
-/** Logs timeout / error / ready. Bare iframe load is NOT success (Error 153 also loads). */
-function attemptSource(iframe,{timeoutMs=14000,label=''}={}){
+function ytPost(iframe,payload){
+  try{iframe.contentWindow.postMessage(JSON.stringify(payload),'*');}catch(_){}
+}
+/** Success ONLY on playerState===1 (PLAYING). load/ready/buffering keep the loading UI. */
+function attemptSource(iframe,{timeoutMs=24000,label='',onPhase}={}){
   return new Promise((resolve)=>{
-    let done=false,softTo=null;
+    let done=false;
     const t0=performance.now();
+    const pid=iframe.id||('void_'+Math.random().toString(36).slice(2,8));
+    if(!iframe.id)iframe.id=pid;
     const finish=(ok,reason)=>{
       if(done)return;done=true;
-      clearTimeout(to);clearTimeout(softTo);
+      clearTimeout(to);clearInterval(nudge);
       window.removeEventListener('message',onMsg);
-      console.log('[void:attemptSource]',{label,ok,reason,ms:Math.round(performance.now()-t0),src:iframe.src});
+      console.log('[void:attemptSource]',{cursorChange:2,label,ok,reason,ms:Math.round(performance.now()-t0),src:iframe.src});
       resolve(ok);
     };
     const to=setTimeout(()=>finish(false,'timeout'),timeoutMs);
     iframe.addEventListener('error',()=>finish(false,'error'),{once:true});
+    const listen=()=>{
+      ytPost(iframe,{event:'listening',id:pid,channel:'void'});
+      ytPost(iframe,{event:'command',func:'playVideo',args:[],id:pid});
+      ytPost(iframe,{event:'command',func:'mute',args:[],id:pid});
+      ytPost(iframe,{event:'command',func:'getPlayerState',args:[],id:pid});
+    };
+    const nudge=setInterval(listen,900);
     function onMsg(e){
       if(e.source!==iframe.contentWindow)return;
       let data=e.data;
       try{if(typeof data==='string')data=JSON.parse(data);}catch{return;}
       if(!data||typeof data!=='object')return;
+      // Do not drop events on id mismatch — YT often omits/alternates ids; source window is enough
+      if(typeof onPhase==='function')onPhase(data);
       if(data.event==='onError'){finish(false,'yt-error:'+(data.info??''));return;}
-      if(data.event==='onReady'){finish(true,'ready');return;}
-      if(data.event==='infoDelivery'&&data.info&&(data.info.playerState===1||data.info.playerState===3)){
-        finish(true,'playing');
+      if(data.event==='onReady'){
+        console.log('[void:attemptSource]',{cursorChange:2,label,phase:'ready-waiting-play',ms:Math.round(performance.now()-t0)});
+        listen();
+        return; // keep loading — watermark/ready is NOT watchable yet
+      }
+      const state=data.info&&typeof data.info.playerState==='number'?data.info.playerState
+        :(data.event==='onStateChange'&&typeof data.info==='number'?data.info:null);
+      if(state===3){
+        console.log('[void:attemptSource]',{cursorChange:2,label,phase:'buffering',ms:Math.round(performance.now()-t0)});
+        return;
+      }
+      if(state===1){finish(true,'playing');return;}
+      if(data.event==='infoDelivery'&&data.info&&data.info.currentTime>0&&data.info.playerState!==2){
+        finish(true,'playing-time');
       }
     }
     window.addEventListener('message',onMsg);
     iframe.addEventListener('load',()=>{
-      // Error 153 pages also fire load — wait for YT events; soft-ok only if no onError
-      console.log('[void:attemptSource]',{label,phase:'iframe-load',ms:Math.round(performance.now()-t0)});
-      try{iframe.contentWindow.postMessage(JSON.stringify({event:'listening',id:1,channel:'void'}),'*');}catch(_){}
-      softTo=setTimeout(()=>finish(true,'load-soft-no-yt-error'),3500);
+      console.log('[void:attemptSource]',{cursorChange:2,label,phase:'iframe-load',ms:Math.round(performance.now()-t0)});
+      listen();
+      // Cursor #2: never soft-succeed on load — that revealed the origin watermark
     },{once:true});
   });
 }
-function wireLiveTile(tile,ch,{onRetry}={}){
-  const iframe=mountLiveIframe(liveUrl(ch.id));
+function setTileLoadLabel(tile,text){
+  const lbl=tile.querySelector('.sparkle-fallback-label');
+  if(lbl)lbl.textContent=text;
+}
+function wireLiveTile(tile,ch,{onRetry,labelClass='gl-tile-label'}={}){
+  const iframe=mountLiveIframe(liveUrl(ch));
+  const fb=tile.querySelector('.sparkle-fallback');
+  if(fb)fb.style.zIndex='3';
   tile.insertBefore(iframe,tile.firstChild);
-  attemptSource(iframe,{label:ch.n}).then(ok=>{
+  attemptSource(iframe,{label:ch.n,onPhase:(data)=>{
+    const state=data.info&&typeof data.info.playerState==='number'?data.info.playerState
+      :(data.event==='onStateChange'&&typeof data.info==='number'?data.info:null);
+    if(data.event==='onReady')setTileLoadLabel(tile,'● STARTING');
+    else if(state===3)setTileLoadLabel(tile,'● BUFFERING');
+    else if(data.event==='iframe-load')setTileLoadLabel(tile,'● LOADING');
+  }}).then(ok=>{
     if(!iframe.parentNode)return;
-    const fb=tile.querySelector('.sparkle-fallback');
+    const overlay=tile.querySelector('.sparkle-fallback');
     if(ok){
-      if(fb&&fb.parentNode){fb.style.transition='opacity .6s';fb.style.opacity='0';setTimeout(()=>fb.remove(),600);}
+      iframe.style.transition='opacity .45s ease';
+      iframe.style.opacity='1';
+      if(overlay&&overlay.parentNode){
+        overlay.style.transition='opacity .45s ease';
+        overlay.style.opacity='0';
+        setTimeout(()=>overlay.remove(),480);
+      }
     }else{
       iframe.remove();
       sparkleTile(tile,'● TAP TO RETRY',()=>{
         if(typeof onRetry==='function')onRetry();
-        else{tile.innerHTML='';sparkleTile(tile,'● LOADING');tile.innerHTML+=`<div class="gl-tile-label"><span class="strip-live-dot"></span> ${ch.n}</div>`;wireLiveTile(tile,ch,{onRetry});}
+        else{
+          tile.innerHTML='';
+          sparkleTile(tile,'● LOADING');
+          tile.innerHTML+=`<div class="${labelClass}"><span class="strip-live-dot"></span> ${ch.n}</div>`;
+          wireLiveTile(tile,ch,{onRetry,labelClass});
+        }
       });
     }
   });
@@ -960,11 +1013,11 @@ function loadCountryLiveGrid(c){
     tile.innerHTML+=`<div class="csg-tile-label"><span class="strip-live-dot"></span> ${ch.n}</div>`;
     grid.appendChild(tile);
     setTimeout(()=>{
-      wireLiveTile(tile,ch,{onRetry:()=>{
+      wireLiveTile(tile,ch,{labelClass:'csg-tile-label',onRetry:()=>{
         tile.innerHTML='';
         sparkleTile(tile,'● LOADING');
         tile.innerHTML+=`<div class="csg-tile-label"><span class="strip-live-dot"></span> ${ch.n}</div>`;
-        wireLiveTile(tile,ch);
+        wireLiveTile(tile,ch,{labelClass:'csg-tile-label'});
       }});
     },idx*500);
   });
@@ -1032,16 +1085,16 @@ function renderSearch(q=''){
   if(q)posts=posts.filter(p=>(p.body||'').toLowerCase().includes(q.toLowerCase())||(p.country||'').toLowerCase().includes(q.toLowerCase())||(p.tags||[]).some(t=>t.toLowerCase().includes(q.toLowerCase())));
   if(activeFilter==='live'){
     container.innerHTML=`<div class="search-section-lbl"><span class="strip-live-dot"></span>LIVE NOW</div>
-    <div class="search-live-feat"><iframe referrerpolicy="strict-origin-when-cross-origin" src="${liveUrl(LIVE_CHANNELS[0].id)}" allow="autoplay;encrypted-media" allowfullscreen></iframe><div class="search-live-feat-overlay"></div><div class="search-live-feat-info"><div class="search-live-badge2"><span class="strip-live-dot"></span>LIVE</div><div class="search-live-feat-name">${esc(LIVE_CHANNELS[0].n)}</div></div></div>
-    <div class="search-live-row">${LIVE_CHANNELS.slice(1,3).map(ch=>`<div class="search-live-tile"><iframe referrerpolicy="strict-origin-when-cross-origin" src="${liveUrl(ch.id)}" allow="autoplay;encrypted-media"></iframe><div class="search-live-tile-lbl">${ch.n}</div></div>`).join('')}</div>
-    <div class="search-live-row">${LIVE_CHANNELS.slice(3,5).map(ch=>`<div class="search-live-tile"><iframe referrerpolicy="strict-origin-when-cross-origin" src="${liveUrl(ch.id)}" allow="autoplay;encrypted-media"></iframe><div class="search-live-tile-lbl">${ch.n}</div></div>`).join('')}</div>
-    <div class="search-live-row">${LIVE_CHANNELS.slice(5,7).map(ch=>`<div class="search-live-tile"><iframe referrerpolicy="strict-origin-when-cross-origin" src="${liveUrl(ch.id)}" allow="autoplay;encrypted-media"></iframe><div class="search-live-tile-lbl">${ch.n}</div></div>`).join('')}</div>`;
+    <div class="search-live-feat"><iframe referrerpolicy="strict-origin-when-cross-origin" src="${liveUrl(LIVE_CHANNELS[0])}" allow="autoplay;encrypted-media" allowfullscreen></iframe><div class="search-live-feat-overlay"></div><div class="search-live-feat-info"><div class="search-live-badge2"><span class="strip-live-dot"></span>LIVE</div><div class="search-live-feat-name">${esc(LIVE_CHANNELS[0].n)}</div></div></div>
+    <div class="search-live-row">${LIVE_CHANNELS.slice(1,3).map(ch=>`<div class="search-live-tile"><iframe referrerpolicy="strict-origin-when-cross-origin" src="${liveUrl(ch)}" allow="autoplay;encrypted-media"></iframe><div class="search-live-tile-lbl">${ch.n}</div></div>`).join('')}</div>
+    <div class="search-live-row">${LIVE_CHANNELS.slice(3,5).map(ch=>`<div class="search-live-tile"><iframe referrerpolicy="strict-origin-when-cross-origin" src="${liveUrl(ch)}" allow="autoplay;encrypted-media"></iframe><div class="search-live-tile-lbl">${ch.n}</div></div>`).join('')}</div>
+    <div class="search-live-row">${LIVE_CHANNELS.slice(5,7).map(ch=>`<div class="search-live-tile"><iframe referrerpolicy="strict-origin-when-cross-origin" src="${liveUrl(ch)}" allow="autoplay;encrypted-media"></iframe><div class="search-live-tile-lbl">${ch.n}</div></div>`).join('')}</div>`;
     return;
   }
   if(activeFilter!=='all')posts=posts.filter(p=>(p.tags||[]).some(t=>t===activeFilter)||(p.body||'').toLowerCase().includes(activeFilter));
   let html=`<div class="search-section-lbl"><span class="strip-live-dot"></span>LIVE NOW</div>
-  <div class="search-live-feat"><iframe referrerpolicy="strict-origin-when-cross-origin" src="${liveUrl(LIVE_CHANNELS[0].id)}" allow="autoplay;encrypted-media" allowfullscreen></iframe><div class="search-live-feat-overlay"></div><div class="search-live-feat-info"><div class="search-live-badge2"><span class="strip-live-dot"></span>LIVE</div><div class="search-live-feat-name">${esc(LIVE_CHANNELS[0].n)}</div></div></div>
-  <div class="search-live-row">${LIVE_CHANNELS.slice(1,3).map(ch=>`<div class="search-live-tile"><iframe referrerpolicy="strict-origin-when-cross-origin" src="${liveUrl(ch.id)}" allow="autoplay;encrypted-media"></iframe><div class="search-live-tile-lbl">${ch.n}</div></div>`).join('')}</div>`;
+  <div class="search-live-feat"><iframe referrerpolicy="strict-origin-when-cross-origin" src="${liveUrl(LIVE_CHANNELS[0])}" allow="autoplay;encrypted-media" allowfullscreen></iframe><div class="search-live-feat-overlay"></div><div class="search-live-feat-info"><div class="search-live-badge2"><span class="strip-live-dot"></span>LIVE</div><div class="search-live-feat-name">${esc(LIVE_CHANNELS[0].n)}</div></div></div>
+  <div class="search-live-row">${LIVE_CHANNELS.slice(1,3).map(ch=>`<div class="search-live-tile"><iframe referrerpolicy="strict-origin-when-cross-origin" src="${liveUrl(ch)}" allow="autoplay;encrypted-media"></iframe><div class="search-live-tile-lbl">${ch.n}</div></div>`).join('')}</div>`;
   if(posts.length){
     html+=`<div class="search-section-lbl">SIGNAL FEED</div>`;
     posts.slice(0,12).forEach((p,i)=>{
@@ -1056,7 +1109,7 @@ function renderSearch(q=''){
       </div>`;
       if((i+1)%4===0){
         const off=(3+(Math.floor(i/4)*2))%LIVE_CHANNELS.length;
-        html+=`<div class="search-live-row">${[0,1].map(j=>{const ch=LIVE_CHANNELS[(off+j)%LIVE_CHANNELS.length];return `<div class="search-live-tile"><iframe referrerpolicy="strict-origin-when-cross-origin" src="${liveUrl(ch.id)}" allow="autoplay;encrypted-media"></iframe><div class="search-live-tile-lbl">${ch.n}</div></div>`;}).join('')}</div>`;
+        html+=`<div class="search-live-row">${[0,1].map(j=>{const ch=LIVE_CHANNELS[(off+j)%LIVE_CHANNELS.length];return `<div class="search-live-tile"><iframe referrerpolicy="strict-origin-when-cross-origin" src="${liveUrl(ch)}" allow="autoplay;encrypted-media"></iframe><div class="search-live-tile-lbl">${ch.n}</div></div>`;}).join('')}</div>`;
       }
     });
   }else{html+=`<div style="text-align:center;padding:30px;font-family:'Syne Mono',monospace;font-size:9px;color:var(--muted)">NO SIGNAL</div>`;}

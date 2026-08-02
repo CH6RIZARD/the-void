@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>Cursor #2 play proof</title>
+<style>
+body{background:#04020c;color:#fff;font-family:monospace;padding:12px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:900px}
+.tile{position:relative;aspect-ratio:16/9;background:#000;border:1px solid #333;overflow:hidden}
+.sparkle-fallback{position:absolute;inset:0;z-index:3;background:rgba(3,1,10,.97);display:flex;align-items:center;justify-content:center;flex-direction:column}
+.sparkle-fallback-label{font-size:11px;letter-spacing:.15em;color:#c9a84c}
+.gl-tile-label{position:absolute;bottom:0;left:0;right:0;z-index:4;padding:4px 6px;background:linear-gradient(transparent,rgba(0,0,0,.85));font-size:10px;color:#c9a84c}
+#log{white-space:pre-wrap;font-size:11px;margin-top:12px;max-height:260px;overflow:auto;border:1px solid #333;padding:8px}
+#verdict{margin-top:10px;padding:8px;border:1px solid #333}
+.pass{color:#10b981}.fail{color:#ef4444}
+</style>
+</head>
+<body>
+<h3>CURSOR CHANGE #2 — wait until PLAYING (proof)</h3>
+<p>Left: fake YT protocol player (same-origin). Right: real YT (may bot-wall in datacenter).</p>
+<div class="grid" id="grid"></div>
+<div id="verdict">running…</div>
+<pre id="log"></pre>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+'use strict';
+/* Pull the same production helpers by inlining the Cursor #1+#2 block from void2-final semantics */
+const LIVE_CHANNELS=[
+  {n:'FAKE PROOF',id:'fake',vid:'FAKE'},
+  {n:'DW NEWS',id:'UCknLrEdhRCp1aegoMqRaCZg',vid:'LuKwFajn37U'},
+];
+function liveUrl(chOrId,mute=1){
+  const origin=encodeURIComponent(location.origin||'');
+  const ch=typeof chOrId==='object'&&chOrId?chOrId:null;
+  if(ch&&ch.vid==='FAKE')return new URL('fake-yt-player.html',location.href).href;
+  const channelId=ch?ch.id:chOrId;
+  const vid=ch&&ch.vid?ch.vid:null;
+  const common=`autoplay=1&mute=${mute}&controls=1&rel=0&playsinline=1&modestbranding=1&enablejsapi=1&origin=${origin}`;
+  if(vid)return `https://www.youtube.com/embed/${vid}?${common}`;
+  return `https://www.youtube.com/embed/live_stream?channel=${channelId}&${common}`;
+}
+function mountLiveIframe(src,domId){
+  const iframe=document.createElement('iframe');
+  iframe.src=src;
+  if(domId)iframe.id=domId;
+  iframe.setAttribute('referrerpolicy','strict-origin-when-cross-origin');
+  iframe.allow='accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture';
+  iframe.allowFullscreen=true;
+  iframe.style.cssText='width:100%;height:100%;border:none;position:absolute;inset:0;z-index:1;opacity:0';
+  return iframe;
+}
+function ytPost(iframe,payload){
+  try{iframe.contentWindow.postMessage(JSON.stringify(payload),'*');}catch(_){}
+}
+function attemptSource(iframe,{timeoutMs=24000,label='',onPhase}={}){
+  return new Promise((resolve)=>{
+    let done=false;
+    const t0=performance.now();
+    const pid=iframe.id||('void_'+Math.random().toString(36).slice(2,8));
+    if(!iframe.id)iframe.id=pid;
+    const finish=(ok,reason)=>{
+      if(done)return;done=true;
+      clearTimeout(to);clearInterval(nudge);
+      window.removeEventListener('message',onMsg);
+      console.log('[void:attemptSource]',{cursorChange:2,label,ok,reason,ms:Math.round(performance.now()-t0),src:iframe.src});
+      resolve(ok);
+    };
+    const to=setTimeout(()=>finish(false,'timeout'),timeoutMs);
+    iframe.addEventListener('error',()=>finish(false,'error'),{once:true});
+    const listen=()=>{
+      ytPost(iframe,{event:'listening',id:pid,channel:'void'});
+      ytPost(iframe,{event:'command',func:'playVideo',args:[],id:pid});
+      ytPost(iframe,{event:'command',func:'mute',args:[],id:pid});
+      ytPost(iframe,{event:'command',func:'getPlayerState',args:[],id:pid});
+    };
+    const nudge=setInterval(listen,900);
+    function onMsg(e){
+      if(e.source!==iframe.contentWindow)return;
+      let data=e.data;
+      try{if(typeof data==='string')data=JSON.parse(data);}catch{return;}
+      if(!data||typeof data!=='object')return;
+      if(typeof onPhase==='function')onPhase(data);
+      if(data.event==='onError'){finish(false,'yt-error:'+(data.info??''));return;}
+      if(data.event==='onReady'){
+        console.log('[void:attemptSource]',{cursorChange:2,label,phase:'ready-waiting-play',ms:Math.round(performance.now()-t0)});
+        listen();
+        return;
+      }
+      const state=data.info&&typeof data.info.playerState==='number'?data.info.playerState
+        :(data.event==='onStateChange'&&typeof data.info==='number'?data.info:null);
+      if(state===3){
+        console.log('[void:attemptSource]',{cursorChange:2,label,phase:'buffering',ms:Math.round(performance.now()-t0)});
+        return;
+      }
+      if(state===1){finish(true,'playing');return;}
+      if(data.event==='infoDelivery'&&data.info&&data.info.currentTime>0&&data.info.playerState!==2){
+        finish(true,'playing-time');
+      }
+    }
+    window.addEventListener('message',onMsg);
+    iframe.addEventListener('load',()=>{
+      console.log('[void:attemptSource]',{cursorChange:2,label,phase:'iframe-load',ms:Math.round(performance.now()-t0)});
+      listen();
+    },{once:true});
+  });
+}
+function setTileLoadLabel(tile,text){
+  const lbl=tile.querySelector('.sparkle-fallback-label');
+  if(lbl)lbl.textContent=text;
+}
+function sparkleTile(container,label='● LOADING',onRetry){
+  const fb=document.createElement('div');
+  fb.className='sparkle-fallback';
+  fb.innerHTML=`<div class="sparkle-fallback-label">${label}</div>`;
+  if(onRetry)fb.addEventListener('click',onRetry);
+  container.innerHTML='';
+  container.appendChild(fb);
+}
+function wireLiveTile(tile,ch,{onRetry,labelClass='gl-tile-label'}={}){
+  const iframe=mountLiveIframe(liveUrl(ch));
+  const fb=tile.querySelector('.sparkle-fallback');
+  if(fb)fb.style.zIndex='3';
+  tile.insertBefore(iframe,tile.firstChild);
+  attemptSource(iframe,{label:ch.n,onPhase:(data)=>{
+    const state=data.info&&typeof data.info.playerState==='number'?data.info.playerState:null;
+    if(data.event==='onReady')setTileLoadLabel(tile,'● STARTING');
+    else if(state===3)setTileLoadLabel(tile,'● BUFFERING');
+  }}).then(ok=>{
+    if(!iframe.parentNode)return;
+    const overlay=tile.querySelector('.sparkle-fallback');
+    if(ok){
+      iframe.style.transition='opacity .45s ease';
+      iframe.style.opacity='1';
+      if(overlay&&overlay.parentNode){
+        overlay.style.transition='opacity .45s ease';
+        overlay.style.opacity='0';
+        setTimeout(()=>overlay.remove(),480);
+      }
+    }else{
+      iframe.remove();
+      sparkleTile(tile,'● TAP TO RETRY',()=>{if(typeof onRetry==='function')onRetry();});
+    }
+  });
+  return iframe;
+}
+
+const logEl=document.getElementById('log');
+const _log=console.log.bind(console);
+console.log=function(...a){_log(...a);try{logEl.textContent+=a.map(x=>typeof x==='object'?JSON.stringify(x):String(x)).join(' ')+'\n';}catch(e){}};
+
+const grid=document.getElementById('grid');
+const results={};
+LIVE_CHANNELS.forEach(ch=>{
+  const tile=document.createElement('div');
+  tile.className='tile';
+  tile.dataset.name=ch.n;
+  sparkleTile(tile,'● LOADING');
+  tile.innerHTML+=`<div class="gl-tile-label">${ch.n}</div>`;
+  grid.appendChild(tile);
+  // intercept finish via MutationObserver on overlay removal + opacity
+  wireLiveTile(tile,ch);
+});
+
+window.__collectProof=()=>[...document.querySelectorAll('.tile')].map(t=>{
+  const iframe=t.querySelector('iframe');
+  const fb=t.querySelector('.sparkle-fallback');
+  return {
+    n:t.dataset.name,
+    opacity:iframe?getComputedStyle(iframe).opacity:null,
+    overlay:fb?.querySelector('.sparkle-fallback-label')?.textContent||null,
+    overlayGone:!fb,
+    visiblePlay: !!(iframe && getComputedStyle(iframe).opacity==='1' && !fb),
+    src:iframe?.src||null
+  };
+});
+
+// Early snapshot: overlay must still cover (iframe opacity not 1, overlay present)
+setTimeout(()=>{
+  window.__early=window.__collectProof();
+  console.log('TILEPROOF early', JSON.stringify(window.__early));
+},250);
+
+// Final verdict after fake player reaches PLAYING (~1s) + fade
+setTimeout(()=>{
+  const late=window.__collectProof();
+  window.__late=late;
+  const fake=late.find(x=>x.n==='FAKE PROOF');
+  const earlyFake=(window.__early||[]).find(x=>x.n==='FAKE PROOF');
+  const A=!!(earlyFake && earlyFake.overlayGone===false && earlyFake.opacity!=='1' && !earlyFake.visiblePlay);
+  const B=!!(fake && fake.visiblePlay===true && fake.opacity==='1');
+  const logText=logEl.textContent;
+  const C=/reason":"playing/.test(logText)||/reason":"playing-time/.test(logText)||logText.includes("reason\":\"playing\"");
+  // also accept structured console serialization variants
+  const C2=logText.includes('"ok":true') && (logText.includes('playing'));
+  const verdict={cursorChange:2,A_overlayUntilPlay:A,B_fakeVisiblePlaying:B,C_attemptSourcePlayingLog:C||C2,early:window.__early,late,pass:!!(A&&B&&(C||C2))};
+  window.__verdict=verdict;
+  document.getElementById('verdict').innerHTML=verdict.pass
+    ? '<span class="pass">PASS Cursor #2 — overlay held until PLAYING, then stream visible</span>'
+    : '<span class="fail">FAIL '+JSON.stringify(verdict)+'</span>';
+  console.log('TILEPROOF verdict', JSON.stringify(verdict));
+},2800);
+</script>
+</body>
+</html>
