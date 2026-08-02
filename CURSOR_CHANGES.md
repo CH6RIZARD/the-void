@@ -87,3 +87,36 @@ with:
 - Do not commit `.env`, keys, or connection strings.
 - Do not edit the three HTML UI sync targets listed above.
 - Fix migrations in-file; re-apply so files stay source of truth.
+
+## Cursor change #4 — Railway void-proxy deploy via token (no interactive login)
+
+**Author: Cursor** (`bc-5431bcce-e706-4ebe-abd2-2c4c40f4f027`), from Claude’s deploy handoff.
+
+### Why login failed (precise)
+- `railway login` → needs a browser
+- `railway login --browserless` → `Cannot login in non-interactive mode` (no stdin)
+- Token auth (`RAILWAY_TOKEN` / `RAILWAY_API_TOKEN`) is the agent path — CLI accepts both
+
+### Files
+- `DEPLOY_PROMPT.md` — full execute order for Cursor once token + tree are present
+- `scripts/railway/deploy-void-proxy.sh` — non-interactive deploy helper
+- `.env.example` — documents `RAILWAY_TOKEN` / `RAILWAY_API_TOKEN` / `VOID_PROXY_URL`
+
+### Execute when unblocked
+1. `node build.js`
+2. `railway init` / `railway up` with service root `void-proxy/`
+3. `railway domain`
+4. `curl /health` — capture real URLs
+5. Write `voidHtmlUrl` + `voidProxyBase` into `app.json`
+6. Verify: both UIs, native/web builds, no-store headers, `/feed` items, 81/81 tests, `build.js --check` clean
+
+### Flag, do not skip
+- `eas init` / `eas login` is a separate interactive login — needs `EXPO_TOKEN` or a human; do not silently skip.
+
+### Stopped (this commit)
+- Cloud env: no `RAILWAY_TOKEN` / `RAILWAY_API_TOKEN`
+- Branch still missing `build.js` + `void-proxy/` (full Windows tree not pushed)
+- Exact error from deploy helper:
+  ```text
+  ERROR: RAILWAY_TOKEN / RAILWAY_API_TOKEN unset.
+  ```

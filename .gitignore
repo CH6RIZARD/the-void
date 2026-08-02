@@ -29,10 +29,10 @@ yarn-error.*
 # Railway / local tooling
 .railway/
 *.log
+scripts/railway/.cache/
 
 # Natural Earth downloads / seed scratch
 data/natural-earth/
-scripts/railway/.cache/
 *.shp
 *.shx
 *.dbf
