@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Fake YT player (Cursor #2 proof)</title>
+  <style>
+    html,body{margin:0;background:#000;overflow:hidden;height:100%}
+    canvas{display:block;width:100%;height:100%}
+    #badge{position:absolute;top:8px;left:8px;color:#0f0;font:12px monospace;z-index:2}
+  </style>
+</head>
+<body>
+  <div id="badge">FAKE STREAM PLAYING</div>
+  <canvas id="c"></canvas>
+  <script>
+    // Emulates YouTube iframe API postMessage protocol for Cursor #2 proof.
+    const canvas=document.getElementById('c');
+    const ctx=canvas.getContext('2d');
+    function resize(){canvas.width=innerWidth*devicePixelRatio;canvas.height=innerHeight*devicePixelRatio;}
+    resize();addEventListener('resize',resize);
+    let t0=performance.now(), playing=false, id='void';
+    function post(payload){
+      if(!parent||parent===window)return;
+      parent.postMessage(JSON.stringify(Object.assign({id},payload)),'*');
+    }
+    addEventListener('message',(e)=>{
+      let data=e.data;
+      try{if(typeof data==='string')data=JSON.parse(data);}catch{return;}
+      if(!data||typeof data!=='object')return;
+      if(data.event==='listening'){
+        id=data.id||id;
+        post({event:'onReady',info:null});
+        setTimeout(()=>{post({event:'infoDelivery',info:{playerState:3}});},200);
+        setTimeout(()=>{
+          playing=true;
+          post({event:'infoDelivery',info:{playerState:1,currentTime:0.2}});
+        },700);
+      }
+      if(data.event==='command'&&data.func==='playVideo'){
+        // Delay PLAYING so parent overlay proof can observe STARTING/BUFFERING first
+        post({event:'infoDelivery',info:{playerState:3}});
+        setTimeout(()=>{
+          playing=true;
+          post({event:'infoDelivery',info:{playerState:1,currentTime:0.5}});
+        },900);
+      }
+      if(data.event==='command'&&data.func==='getPlayerState'){
+        post({event:'infoDelivery',info:{playerState:playing?1:3}});
+      }
+    });
+    // Also auto-start shortly after load so parent load-listener can latch
+    setTimeout(()=>{post({event:'onReady',info:null});},100);
+    function frame(now){
+      const t=(now-t0)/1000;
+      const g=ctx.createLinearGradient(0,0,canvas.width,canvas.height);
+      g.addColorStop(0,`hsl(${(t*40)%360} 70% 35%)`);
+      g.addColorStop(1,`hsl(${(t*40+80)%360} 70% 15%)`);
+      ctx.fillStyle=g;ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle='#fff';
+      ctx.font=`${48*devicePixelRatio}px monospace`;
+      ctx.fillText(playing?'▶ LIVE':'… BUFFER', 24*devicePixelRatio, canvas.height/2);
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  </script>
+</body>
+</html>
