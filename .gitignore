@@ -1,0 +1,41 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/*
+!.vscode/settings.json
+
+# Node / Expo
+node_modules/
+.expo/
+dist/
+web-build/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# Railway / local tooling
+.railway/
+*.log
+
+# Natural Earth downloads / seed scratch
+data/natural-earth/
+scripts/railway/.cache/
+*.shp
+*.shx
+*.dbf
+*.prj
+*.cpg
+*.qix
