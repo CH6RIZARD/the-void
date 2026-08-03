@@ -2618,6 +2618,56 @@ const REEL_BLOCK_TOPIC={test:(t)=>REEL_BLOCK_TOPIC_WORDS.test(t)||REEL_BLOCK_TOP
 const REEL_PEERTUBE=[
   {host:'spook.tube',path:'/api/v1/videos?count=20&sort=-views&isLocal=true&nsfw=false&isLive=false',depth:2700,lane:'absurd'},
 ];
+// ── ON-TOPIC VIDEO ──────────────────────────────────────────
+// Measured 2026-08-03. The reel used to be sourced from wrestling feeds
+// (wrestletok + aewtok were half the rotation weight), which is why it never
+// resembled this app. The obvious fix - source video from the topical Bluesky
+// feeds instead - does not work: 984 posts across 2 pages of 5 topical feeds
+// yielded ELEVEN on-topic videos (1.1%). Serious-subject feeds are text.
+//
+// PeerTube SEARCH inverts that, because it queries an archive by subject rather
+// than sampling recency and filtering:
+//   kolektiva.media  101 hits -> 74 on-topic (73%)
+//   framatube.org     77 hits -> 46 on-topic (60%)
+// 120 usable cards from 2 hosts x 6 terms, against 11 from all of Bluesky.
+// Sampling those same hosts by -publishedAt gave 1/50 - the search is the
+// whole difference, not the host.
+const REEL_TOPIC_HOSTS=['kolektiva.media','framatube.org'];
+const REEL_TOPIC_TERMS=['war','surveillance','protest','resistance','police',
+  'capitalism','propaganda','border','military','occupation','uprising','censorship'];
+async function pullPeerTubeSearch(){
+  const host=REEL_TOPIC_HOSTS[Math.floor(Math.random()*REEL_TOPIC_HOSTS.length)];
+  const term=REEL_TOPIC_TERMS[Math.floor(Math.random()*REEL_TOPIC_TERMS.length)];
+  // Random offset into the result set, or the same top hits repeat every session.
+  const start=Math.floor(Math.random()*60);
+  try{
+    const u=`https://${host}/api/v1/search/videos?search=${encodeURIComponent(term)}&count=20&start=${start}&nsfw=false&isLive=false`;
+    const r=await fetch(u,{headers:{Accept:'application/json'}});
+    if(!r.ok)return 0;
+    const j=await r.json();
+    const rows=(j.data||[]).filter(v=>v&&v.uuid&&!v.isLive&&!v.nsfw&&(v.duration||0)>2&&(v.duration||0)<900);
+    let added=0;
+    for(const v of rows.slice(0,8)){
+      if(reelPosts.some(x=>x.id==='pt_'+host+':'+v.uuid))continue;
+      const det=await ptDetail(host,v.uuid);
+      if(!det)continue;
+      const p={id:'pt_'+host+':'+v.uuid, style:'video', country:'', iso:'',
+        tags:inferTags(v.name,[]), _graphic:false,
+        body:v.name||'', score:v.views||0, replies:0, _reposts:0, _quotes:0,
+        time:Date.parse(v.publishedAt||v.createdAt||'')||Date.now(), source:'peertube',
+        _author:(v.account&&(v.account.displayName||v.account.name))||host,
+        _handle:'@'+((v.account&&v.account.name)||host),
+        _img:det.thumb, _video:det.url, _url:`https://${host}/w/${v.uuid}`,
+        _social:true, _wire:false, _link:'', provenance:{sourceHost:host}, imgHue:270};
+      if(!p.tags.length)continue;            // same intent gate the feed enforces
+      if(isMuted(p))continue;
+      if(REEL_BLOCK_TOPIC.test(p.body||''))continue;
+      if(!admitPost(p))continue;
+      reelPosts.push(p);added++;
+    }
+    return added;
+  }catch(e){return 0;}
+}
 const _ptCache={};
 async function ptDetail(host,uuid){
   if(_ptCache[uuid])return _ptCache[uuid];
@@ -2688,7 +2738,11 @@ async function pullReelPage(){
   // Roughly every other pull goes to PeerTube: it is the genuinely absurd lane and
   // the Bluesky feeds bury it on volume alone. Falls through to Bluesky if it
   // yields nothing.
-  if(Math.random()<0.5){
+  // ON-TOPIC FIRST. PeerTube search is the only measured source that yields
+  // subject-matching video at volume (73%/60% vs 1.1% from Bluesky topical
+  // feeds), so it leads. spook.tube keeps the 'absurd' lane as a minority.
+  try{ const n=await pullPeerTubeSearch(); if(n)return true; }catch(e){}
+  if(Math.random()<0.25){
     try{ const n=await pullPeerTubeReels(); if(n)return true; }catch(e){}
   }
   // Reels-only sources. It used to fall through to BSKY_FEEDS — the feed's own
@@ -2707,6 +2761,8 @@ async function pullReelPage(){
         for(const it of (d.feed||[])){
           const p=bskyToPost(it);
           if(!p||!p._video)continue;                 // pure video only — the whole point
+          if(!p.tags.length)continue;                // same intent gate the feed enforces:
+                                                     // no topical signal, not this app's content
           if(isFeedMeta(p.body))continue;
           // Safety and news gates, all three measured as necessary on these feeds.
           if(reelBlocked(it))continue;               // moderation / author labels
