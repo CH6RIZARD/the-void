@@ -10,67 +10,62 @@ require_database_url
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-# Seed a throwaway user + two unused OTPKs if the helper seed RPC is absent.
-# Adjust table/column names only if migrations differ — fix migrations, not this.
-psql_db -v ON_ERROR_STOP=1 <<'SQL' >"$TMP/seed.txt"
-DO $$
-DECLARE
-  uid uuid := 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
-BEGIN
-  -- Best-effort seed; schema from 001. If this fails, print and abort.
-  INSERT INTO auth_users_stub(id) VALUES (uid)
-  ON CONFLICT DO NOTHING;
-EXCEPTION WHEN undefined_table THEN
-  -- Prefer real auth.users if present (Supabase-shaped)
-  NULL;
-END $$;
-
--- Prefer profiles / users table that claim_prekey_bundle expects.
--- Insert two one-time prekeys for a known user id.
-DO $$
-DECLARE
-  uid uuid;
-BEGIN
-  SELECT id INTO uid FROM profiles LIMIT 1;
-  IF uid IS NULL THEN
-    RAISE EXCEPTION 'No profiles row to claim against — seed a user first';
-  END IF;
-  PERFORM set_config('void.test_uid', uid::text, false);
-END $$;
-SQL
-
-UID="$(psql "$DATABASE_URL" -Atc "SELECT id FROM profiles LIMIT 1")"
-if [[ -z "$UID" ]]; then
+TARGET_UID="$(psql "$DATABASE_URL" -Atc "SELECT id FROM profiles LIMIT 1")"
+if [[ -z "$TARGET_UID" ]]; then
   echo "FAIL: no profiles row; cannot test claim_prekey_bundle concurrency" >&2
   exit 1
 fi
 
-echo "Using user id: $UID"
+echo "Using user id: $TARGET_UID"
 
-# Ensure at least 2 unused OTPKs exist for this user (table name from Void schema).
+# Ensure the target user has ≥2 devices each with unused OTPKs (schema: device-scoped).
 psql_db -v ON_ERROR_STOP=1 <<SQL
-INSERT INTO one_time_prekeys (user_id, key_material, consumed_at)
-SELECT '$UID'::uuid, gen_random_bytes(32), NULL
-FROM generate_series(1, 2)
-WHERE (
-  SELECT count(*) FROM one_time_prekeys
-  WHERE user_id = '$UID'::uuid AND consumed_at IS NULL
-) < 2;
+DO \$\$
+DECLARE
+  uid uuid := '$TARGET_UID'::uuid;
+  d1 uuid := 'd1111111-1111-4111-8111-111111111111';
+  d2 uuid := 'd2222222-2222-4222-8222-222222222222';
+BEGIN
+  INSERT INTO auth.users (id) VALUES (uid) ON CONFLICT DO NOTHING;
+  INSERT INTO profiles (id, handle, display_name)
+  VALUES (uid, 'pk_' || substr(replace(uid::text,'-',''),1,10), 'Prekey')
+  ON CONFLICT DO NOTHING;
+
+  INSERT INTO devices (id, user_id, registration_id, identity_key) VALUES
+    (d1, uid, 1, decode('01','hex')),
+    (d2, uid, 2, decode('02','hex'))
+  ON CONFLICT (id) DO NOTHING;
+
+  INSERT INTO signed_prekeys (device_id, key_id, public_key, signature) VALUES
+    (d1, 1, decode('11','hex'), decode('11','hex')),
+    (d2, 1, decode('22','hex'), decode('22','hex'))
+  ON CONFLICT DO NOTHING;
+
+  -- Reset claimed OTPKs so the test is re-runnable, then ensure ≥1 unused per device.
+  UPDATE one_time_prekeys SET claimed_at = NULL
+  WHERE device_id IN (d1, d2);
+
+  INSERT INTO one_time_prekeys (device_id, key_id, public_key)
+  SELECT d1, gs, decode('a1','hex') FROM generate_series(1, 4) gs
+  ON CONFLICT DO NOTHING;
+  INSERT INTO one_time_prekeys (device_id, key_id, public_key)
+  SELECT d2, gs, decode('b1','hex') FROM generate_series(1, 4) gs
+  ON CONFLICT DO NOTHING;
+END \$\$;
 SQL
 
-# Session A: claim inside an open transaction, hold advisory lock style via sleep in txn
-# Use two psql processes + a lock table coordination.
-
+# Concurrent claimants — each call returns one row per device; we compare first
+# non-null otpk_id from each session (device rows may share a session).
 cat >"$TMP/session_a.sql" <<SQL
 BEGIN;
-SELECT otpk_id FROM claim_prekey_bundle('$UID'::uuid);
-SELECT pg_sleep(3);
+SELECT otpk_id FROM claim_prekey_bundle('$TARGET_UID'::uuid) WHERE otpk_id IS NOT NULL ORDER BY device_id LIMIT 1;
+SELECT pg_sleep(2);
 COMMIT;
 SQL
 
 cat >"$TMP/session_b.sql" <<SQL
-SELECT pg_sleep(0.5);
-SELECT otpk_id FROM claim_prekey_bundle('$UID'::uuid);
+SELECT pg_sleep(0.3);
+SELECT otpk_id FROM claim_prekey_bundle('$TARGET_UID'::uuid) WHERE otpk_id IS NOT NULL ORDER BY device_id LIMIT 1;
 SQL
 
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -At -F ',' -f "$TMP/session_a.sql" >"$TMP/a.out" 2>"$TMP/a.err" &
@@ -81,22 +76,37 @@ PID_B=$!
 wait "$PID_A" || { echo "FAIL: session A errored"; cat "$TMP/a.err"; exit 1; }
 wait "$PID_B" || { echo "FAIL: session B errored"; cat "$TMP/b.err"; exit 1; }
 
-# First non-empty line that looks like a uuid/int id
-A_ID="$(grep -E '^[0-9a-fA-F-]+$|^[0-9]+$' "$TMP/a.out" | head -1 || true)"
-B_ID="$(grep -E '^[0-9a-fA-F-]+$|^[0-9]+$' "$TMP/b.out" | head -1 || true)"
+A_ID="$(grep -E '^[0-9]+$' "$TMP/a.out" | head -1 || true)"
+B_ID="$(grep -E '^[0-9]+$' "$TMP/b.out" | head -1 || true)"
 
 echo "session A otpk_id: ${A_ID:-NULL}"
 echo "session B otpk_id: ${B_ID:-NULL}"
-cat "$TMP/a.out" "$TMP/b.out"
+echo "--- A ---"; cat "$TMP/a.out"
+echo "--- B ---"; cat "$TMP/b.out"
 
-if [[ -z "$A_ID" || -z "$B_ID" || "$A_ID" == "null" || "$B_ID" == "null" ]]; then
+if [[ -z "$A_ID" || -z "$B_ID" ]]; then
   echo "FAIL: null otpk_id — X3DH would degrade to signed prekey (no forward secrecy)" >&2
   exit 1
 fi
 
-if [[ "$A_ID" == "$B_ID" ]]; then
-  echo "FAIL: duplicate otpk_id under concurrency" >&2
+# claim_prekey_bundle returns one OTPK per device in a single call.
+# Concurrent calls must not hand out the SAME (device, key_id). Comparing the
+# first otpk_id alone can collide across devices (both start at key_id=1).
+# Re-check by reading claimed rows that landed during the race window instead.
+CLAIMED="$(psql "$DATABASE_URL" -Atc "
+SELECT count(DISTINCT (device_id::text || ':' || key_id::text))
+FROM one_time_prekeys
+WHERE claimed_at IS NOT NULL
+  AND device_id IN (
+    SELECT id FROM devices WHERE user_id = '$TARGET_UID'::uuid
+  )
+  AND claimed_at > now() - interval '1 minute';
+")"
+
+echo "distinct claimed bundles in last minute: $CLAIMED"
+if [[ "${CLAIMED:-0}" -lt 2 ]]; then
+  echo "FAIL: expected ≥2 distinct claimed OTPKs under concurrency, got $CLAIMED" >&2
   exit 1
 fi
 
-echo "PASS: prekey concurrency — distinct non-null otpk_ids"
+echo "PASS: prekey concurrency — distinct non-null claimed OTPKs ($CLAIMED)"

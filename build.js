@@ -130,7 +130,8 @@ for (const t of TARGETS) {
 // current UI, and so the over-the-air URL (VOID_HTML_URL) has something to point at.
 //   /void.html  NATIVE build — what the phone loads at runtime
 //   /index.html WEB build    — what a browser gets at the root
-const PUBLIC = path.join(ROOT, '..', 'void-proxy', 'public');
+// void-proxy lives next to build.js at repo root (NOT parent-of-root).
+const PUBLIC = path.join(ROOT, 'void-proxy', 'public');
 const DEPLOY = [
   ['native', 'void.html'],
   ['web', 'index.html'],

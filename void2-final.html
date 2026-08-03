@@ -1229,29 +1229,110 @@ function __voidNativePost(o){try{var rn=window.ReactNativeWebView;if(rn&&typeof 
 function __voidRequestAffect(){__voidNativePost({type:'getAffect'});return window.__VOID_AFFECT_STATE__;}
 /* ─── BACKEND ADAPTER ────────────────────────────────────────────────────
    Every bolt / reply / repost / share / follow in the app goes through this one
-   object. With `base` null it resolves {ok:true,local:true} and the local
-   scorers stay authoritative, so the app is fully functional offline; pointing
-   `base` at the backend is the only change needed to go live. UI updates
+   object. Modes:
+     1) `base` set → REST API at that origin (custom proxy)
+     2) `base` null + VoidAuth session → Supabase PostgREST (Decision 1)
+     3) otherwise → {ok:true,local:true}; local scorers stay authoritative
+   Seed/demo posts use non-UUID ids and ALWAYS stay local. UI updates
    optimistically and rolls back on rejection. */
 const VoidAPI={
-  base:null, // set to backend origin when ready; null = local-only mode
+  base:null, // custom REST origin; leave null to use Supabase PostgREST when authed
   token:null, // set by VoidAuth; every write authenticates as the signed-in user
+  _uuid(id){return typeof id==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);},
+  _uid(){try{return VoidAuth.session&&VoidAuth.session.user&&VoidAuth.session.user.id||null;}catch(e){return null;}},
+  _sbReady(){return !this.base&&typeof VoidAuth!=='undefined'&&VoidAuth.configured()&&!!this._uid()&&!!this.token;},
   async call(method,path,body){
     if(!this.base) return {ok:true,local:true};
     const r=await fetch(this.base+path,{method,headers:Object.assign({'Content-Type':'application/json'},
       this.token?{Authorization:'Bearer '+this.token}:{}),body:body&&JSON.stringify(body)});
     if(!r.ok) throw new Error(path+' '+r.status);
-    return r.json();
+    return r.status===204?{ok:true}:r.json();
   },
-  bolt:(id,on)=>VoidAPI.call(on?'POST':'DELETE',`/posts/${id}/bolt`),
-  reply:(id,body,parentId)=>VoidAPI.call('POST',`/posts/${id}/replies`,{body,parentId}),
-  replies:(id,cursor)=>VoidAPI.call('GET',`/posts/${id}/replies?cursor=${cursor||''}`),
-  repost:(id,on)=>VoidAPI.call(on?'POST':'DELETE',`/posts/${id}/repost`),
-  share:(id)=>VoidAPI.call('POST',`/posts/${id}/share`),
-  follow:(handle,on)=>VoidAPI.call(on?'POST':'DELETE',`/follow/${handle}`),
-  reels:(seed)=>VoidAPI.call('GET',`/feed/reels?seed=${seed||''}`),
-  nationFeed:(iso,cursor)=>VoidAPI.call('GET',`/feed/nation/${iso}?cursor=${cursor||''}`),
-  nationTop3:(iso)=>VoidAPI.call('GET',`/rank/nation/${iso}/top3`)
+  async _sb(path,method,body,extraHeaders){
+    const headers=Object.assign(
+      {'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+this.token},
+      extraHeaders||{}
+    );
+    const r=await fetch(SUPABASE_URL+path,{method:method||'GET',headers,body:body!=null?JSON.stringify(body):undefined});
+    const text=await r.text();
+    let data=null; try{data=text?JSON.parse(text):null;}catch(e){data=text;}
+    if(!r.ok) throw new Error((data&&(data.message||data.error_description||data.msg))||(path+' '+r.status));
+    return data;
+  },
+  async bolt(id,on){
+    if(this.base) return this.call(on?'POST':'DELETE',`/posts/${id}/bolt`);
+    if(!this._uuid(id)||!this._sbReady()) return {ok:true,local:true};
+    const uid=this._uid();
+    if(on){
+      await this._sb('/rest/v1/reactions','POST',[{post_id:id,user_id:uid,kind:'rank'}],
+        {'Prefer':'resolution=merge-duplicates,return=minimal'});
+    }else{
+      await this._sb('/rest/v1/reactions?post_id=eq.'+encodeURIComponent(id)+'&user_id=eq.'+encodeURIComponent(uid),'DELETE');
+    }
+    const rows=await this._sb('/rest/v1/posts?id=eq.'+encodeURIComponent(id)+'&select=rank_score');
+    return {ok:true,rank_score:rows&&rows[0]&&rows[0].rank_score};
+  },
+  async reply(id,body,parentId){
+    if(this.base) return this.call('POST',`/posts/${id}/replies`,{body,parentId});
+    if(!this._uuid(id)||!this._sbReady()) return {ok:true,local:true};
+    const row={author_id:this._uid(),body:String(body||'').slice(0,4000),reply_to:parentId&&this._uuid(parentId)?parentId:id};
+    const data=await this._sb('/rest/v1/posts','POST',[row],{'Prefer':'return=representation'});
+    return {ok:true,reply:data&&data[0]};
+  },
+  async replies(id,cursor){
+    if(this.base) return this.call('GET',`/posts/${id}/replies?cursor=${cursor||''}`);
+    if(!this._uuid(id)||!this._sbReady()) return {ok:true,local:true,items:[]};
+    let q='/rest/v1/posts?reply_to=eq.'+encodeURIComponent(id)+'&select=id,author_id,body,rank_score,created_at,profiles:author_id(handle,display_name)&order=created_at.asc&limit=50';
+    if(cursor) q+='&created_at=gt.'+encodeURIComponent(cursor);
+    const items=await this._sb(q,'GET');
+    return {ok:true,items:items||[],count:(items||[]).length};
+  },
+  async repost(id,on){
+    if(this.base) return this.call(on?'POST':'DELETE',`/posts/${id}/repost`);
+    // No dedicated reposts table yet — local until schema grows one.
+    return {ok:true,local:true};
+  },
+  async share(id){
+    if(this.base) return this.call('POST',`/posts/${id}/share`);
+    return {ok:true,local:true};
+  },
+  async follow(handle,on){
+    if(this.base) return this.call(on?'POST':'DELETE',`/follow/${handle}`);
+    if(!this._sbReady()) return {ok:true,local:true};
+    const me=this._uid();
+    const rows=await this._sb('/rest/v1/profiles?handle=eq.'+encodeURIComponent(String(handle||'').replace(/^@/,''))+'&select=id','GET');
+    const other=rows&&rows[0]&&rows[0].id;
+    if(!other||other===me) return {ok:true,local:true};
+    if(on){
+      await this._sb('/rest/v1/follows','POST',[{follower_id:me,followee_id:other}],
+        {'Prefer':'resolution=merge-duplicates,return=minimal'});
+    }else{
+      await this._sb('/rest/v1/follows?follower_id=eq.'+encodeURIComponent(me)+'&followee_id=eq.'+encodeURIComponent(other),'DELETE');
+    }
+    return {ok:true};
+  },
+  async reels(seed){
+    if(this.base) return this.call('GET',`/feed/reels?seed=${seed||''}`);
+    return {ok:true,local:true,items:[]};
+  },
+  async nationFeed(iso,cursor){
+    if(this.base) return this.call('GET',`/feed/nation/${iso}?cursor=${cursor||''}`);
+    if(!iso||!(this.base||(typeof SUPABASE_URL!=='undefined'&&SUPABASE_URL))) return {ok:true,local:true,items:[]};
+    // Public read — works with anon key even before a session.
+    try{
+      let q='/rest/v1/posts?region_code=eq.'+encodeURIComponent(iso)+'&reply_to=is.null&select=id,author_id,body,rank_score,created_at,region_code&order=rank_score.desc,created_at.desc&limit=40';
+      if(cursor) q+='&created_at=lt.'+encodeURIComponent(cursor);
+      const headers={'apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+(this.token||SUPABASE_ANON_KEY)};
+      const r=await fetch(SUPABASE_URL+q,{headers});
+      if(!r.ok) return {ok:true,local:true,items:[]};
+      return {ok:true,items:await r.json()};
+    }catch(e){ return {ok:true,local:true,items:[]}; }
+  },
+  async nationTop3(iso){
+    if(this.base) return this.call('GET',`/rank/nation/${iso}/top3`);
+    const feed=await this.nationFeed(iso);
+    return {ok:true,items:(feed.items||[]).slice(0,3)};
+  }
 };
 // Single failure surface for rejected engagement, so a dropped write is visible
 // instead of silently diverging from the server.
@@ -4209,7 +4290,10 @@ function openThread(postId){const p=allPosts.find(x=>x.id===postId);if(!p)return
   // the avatar, so every thread claimed the same author and looked nothing like
   // the feed card you tapped to get here. Same fields, same order as renderPost:
   // author name, @handle, then time.
-  document.getElementById('thread-original').innerHTML=`<div class="post-head"><div class="post-av seeded" style="background:${_col}">${_av}</div><div class="post-meta"><div class="post-name">${esc(p._author||p.country||'void')} <span class="post-handle">${esc(p._handle||'@void')}</span></div><div class="post-time">${ago(p.time)}</div></div></div><div class="body-${p.style==='drop'?'drop':p.style==='quiet'?'quiet':'take'}" id="thread-body-text">${esc(p.body)}</div>${_tm}<div class="thread-acts"><span class="ta-bolt${(postReactions[p.id]||{}).mf?' on':''}" onclick="react('${p.id}','fire',event)">${(postReactions[p.id]||{}).mf?VICON.boltFill:VICON.bolt}${fmt(p.score)}</span><span>${VICON.reply}${fmt(p.replies||0)}</span><span class="ta-repost${(postReactions[p.id]||{}).mrp?' on':''}" onclick="repost('${p.id}',event)">${VICON.repost}${fmt(p.reposts||0)}</span><span class="ta-share" onclick="vwShare('${p.id}')">${VICON.share}</span></div><div class="thread-source-bar">${srcHref!=='#'?`<a class="thread-source-link" href="${srcHref}" target="_blank">${srcLabel}</a>`:`<span class="thread-source-link">${srcLabel}</span>`}</div>`;renderThreadComments(postId);const _tb=document.querySelector('#thread-overlay .thread-back');if(_tb&&!_tb.innerHTML)_tb.innerHTML=VICON.back;const _tt=document.querySelector('#thread-overlay .btn-translate');if(_tt&&!_tt.innerHTML)_tt.innerHTML=VICON.globe+' TR';const _ta=document.querySelector('#thread-overlay .thread-attach-btn');if(_ta&&!_ta.querySelector('.vi'))_ta.insertAdjacentHTML('afterbegin',VICON.attach);const _tp=document.querySelector('#thread-overlay .thread-post-btn');if(_tp&&!_tp.innerHTML)_tp.innerHTML=VICON.send;document.getElementById('thread-overlay').classList.add('open');document.getElementById('compose-av').textContent=(USER.name||'?')[0].toUpperCase();document.getElementById('thread-input').value='';pendingAttach=null;document.getElementById('attach-preview').style.display='none';}
+  document.getElementById('thread-original').innerHTML=`<div class="post-head"><div class="post-av seeded" style="background:${_col}">${_av}</div><div class="post-meta"><div class="post-name">${esc(p._author||p.country||'void')} <span class="post-handle">${esc(p._handle||'@void')}</span></div><div class="post-time">${ago(p.time)}</div></div></div><div class="body-${p.style==='drop'?'drop':p.style==='quiet'?'quiet':'take'}" id="thread-body-text">${esc(p.body)}</div>${_tm}<div class="thread-acts"><span class="ta-bolt${(postReactions[p.id]||{}).mf?' on':''}" onclick="react('${p.id}','fire',event)">${(postReactions[p.id]||{}).mf?VICON.boltFill:VICON.bolt}${fmt(p.score)}</span><span>${VICON.reply}${fmt(p.replies||0)}</span><span class="ta-repost${(postReactions[p.id]||{}).mrp?' on':''}" onclick="repost('${p.id}',event)">${VICON.repost}${fmt(p.reposts||0)}</span><span class="ta-share" onclick="vwShare('${p.id}')">${VICON.share}</span></div><div class="thread-source-bar">${srcHref!=='#'?`<a class="thread-source-link" href="${srcHref}" target="_blank">${srcLabel}</a>`:`<span class="thread-source-link">${srcLabel}</span>`}</div>`;renderThreadComments(postId);const _tb=document.querySelector('#thread-overlay .thread-back');if(_tb&&!_tb.innerHTML)_tb.innerHTML=VICON.back;const _tt=document.querySelector('#thread-overlay .btn-translate');if(_tt&&!_tt.innerHTML)_tt.innerHTML=VICON.globe+' TR';const _ta=document.querySelector('#thread-overlay .thread-attach-btn');if(_ta&&!_ta.querySelector('.vi'))_ta.insertAdjacentHTML('afterbegin',VICON.attach);const _tp=document.querySelector('#thread-overlay .thread-post-btn');if(_tp&&!_tp.innerHTML)_tp.innerHTML=VICON.send;document.getElementById('thread-overlay').classList.add('open');document.getElementById('compose-av').textContent=(USER.name||'?')[0].toUpperCase();document.getElementById('thread-input').value='';pendingAttach=null;document.getElementById('attach-preview').style.display='none';
+  // Pull DB (UUID) or Bluesky replies so the thread count matches what's renderable.
+  loadRemoteReplies(postId);
+}
 function closeThread(){document.getElementById('thread-overlay').classList.remove('open');currentThreadPost=null;}
 async function translateThreadBody(){const el=document.getElementById('thread-body-text');if(!el)return;if(el.dataset.translated){el.innerHTML=el.dataset.original;delete el.dataset.translated;document.querySelector('.btn-translate')?.classList.remove('on');return;}el.dataset.original=el.innerHTML;try{const r=await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${SETTINGS.lang}&dt=t&q=${encodeURIComponent(el.innerText)}`);const d=await r.json();el.innerHTML=esc(d[0].map(x=>x[0]).join(''))+`<span class="translated-badge">&#x21BA; ${SETTINGS.lang.toUpperCase()}</span>`;el.dataset.translated='1';document.querySelector('.btn-translate')?.classList.add('on');}catch{el.innerHTML=el.dataset.original;}}
 // Replies are a two-level tree now: a reply with a parentId renders indented
@@ -4244,7 +4328,10 @@ function bskyReplyToComment(node,parentId){
 }
 async function loadRemoteReplies(postId){
   const p=allPosts.find(x=>x.id===postId);
-  if(!p||!p._uri||_remoteReplies[postId]||_remoteLoading[postId])return;
+  if(!p||_remoteLoading[postId])return;
+  // Prefer Void/Supabase replies for UUID posts; Bluesky for AT-URI posts.
+  if(VoidAPI._uuid(postId)){ return loadVoidReplies(postId); }
+  if(!p._uri||_remoteReplies[postId])return;
   _remoteLoading[postId]=1;
   try{
     const u='https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?depth=2&parentHeight=0&uri='+encodeURIComponent(p._uri);
@@ -4276,7 +4363,36 @@ async function loadRemoteReplies(postId){
     if(currentThreadPost===postId)renderThreadComments(postId);
   }finally{ delete _remoteLoading[postId]; }
 }
+async function loadVoidReplies(postId){
+  if(_remoteLoading[postId])return;
+  _remoteLoading[postId]=1;
+  try{
+    const res=await VoidAPI.replies(postId);
+    if(res&&res.local){ syncReplyCount(postId); return; }
+    const items=res&&res.items||[];
+    _remoteReplies[postId]=items.map(row=>{
+      const prof=row.profiles||{};
+      return {
+        id:row.id,
+        author:prof.display_name||prof.handle||'void',
+        handle:prof.handle?('@'+String(prof.handle).replace(/^@/,'')):'@void',
+        text:row.body||'',
+        time:row.created_at?Date.parse(row.created_at):Date.now(),
+        bolts:row.rank_score||0,
+        parentId:null,
+        remote:true
+      };
+    });
+    // DB-backed reply list is authoritative for the count on UUID posts.
+    syncReplyCount(postId);
+    if(currentThreadPost===postId)renderThreadComments(postId);
+  }catch(e){
+    if(!_remoteReplies[postId])_remoteReplies[postId]=[];
+    syncReplyCount(postId);
+  }finally{ delete _remoteLoading[postId]; }
+}
 // One number, everywhere: post object, feed counter, thread divider.
+// For UUID posts after loadVoidReplies, this equals the DB reply list length.
 function syncReplyCount(postId){
   const p=allPosts.find(x=>x.id===postId); if(!p)return;
   const n=threadComments(postId).length;
