@@ -57,6 +57,19 @@ setTimeout(function(){
      it: "hls.js@1" floated to whatever the latest 1.x happened to be, meaning the
      code with access to that storage could change without this file changing. Both
      are now version-exact and hash-verified; a mismatched byte fails to execute. -->
+<!-- Every origin below is hit on a cold start (scripts, fonts, YT embeds and
+     thumbs, Bluesky CDN, GDELT). On mobile each NEW origin costs DNS + TCP +
+     TLS before a byte moves; preconnect overlaps that with parsing instead of
+     paying it serially at first use. -->
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="dns-prefetch" href="https://www.youtube.com">
+<link rel="dns-prefetch" href="https://i.ytimg.com">
+<link rel="dns-prefetch" href="https://public.api.bsky.app">
+<link rel="dns-prefetch" href="https://cdn.bsky.app">
+<link rel="dns-prefetch" href="https://api.gdeltproject.org">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"
         integrity="sha384-CI3ELBVUz9XQO+97x6nwMDPosPR5XvsxW2ua7N1Xeygeh1IxtgqtCkGfQY9WWdHu"
         crossorigin="anonymous" referrerpolicy="no-referrer"></script>
@@ -586,6 +599,9 @@ body.tab-void .bio-hud{display:flex}
 .strip-live-dot{width:5px;height:5px;border-radius:50%;background:var(--red);animation:blink 1.3s infinite;flex-shrink:0;display:inline-block}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.1}}
 @media(max-width:360px){.search-grid{grid-template-columns:1fr}}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+}
 /* Hide dwell ring */
 .dwell-ring{display:none!important}
 /* IMAGE loading (6c) — twin counter-rotating orbits. This is for IMAGES ONLY.
@@ -925,7 +941,7 @@ body.tab-void .bio-hud{display:flex}
     <div class="globe-hint-line">DRAG &middot; PINCH &middot; TAP NATION</div>
     <div id="globe-search-modal">
       <div class="gsm-row">
-        <input class="gsm-input" id="gsm-input" placeholder="search nation&#x2026;" autocomplete="off" oninput="searchGlobe(this.value)">
+        <input class="gsm-input" id="gsm-input" placeholder="search nation&#x2026;" autocomplete="off" oninput="debounced('globe',()=>searchGlobe(this.value),180)">
         <button class="gsm-close" onclick="closeGlobeSearch()"></button>
       </div>
       <div class="gsm-results" id="gsm-results">
@@ -1145,7 +1161,7 @@ body.tab-void .bio-hud{display:flex}
     <div class="msg-enc-badge">NOT ENCRYPTED</div>
   </div>
   <div class="msg-search-wrap">
-    <input id="msg-search" class="msg-search" placeholder="search people and messages&#x2026;" oninput="renderConvList()" autocomplete="off">
+    <input id="msg-search" class="msg-search" placeholder="search people and messages&#x2026;" oninput="debounced('conv',renderConvList,140)" autocomplete="off">
   </div>
   <div class="conv-list" id="conv-list"></div>
   <div id="chat-window">
@@ -1322,7 +1338,7 @@ function sparkleMarkup(label){
 }
 // Wrap markup for an image that should show the orbit loader while it fetches.
 function imgWithLoader(src,cls,extra){
-  return `${IMG_LOADER}<img class="${cls||''}" src="${src}" loading="lazy" referrerpolicy="no-referrer" ${IMG_HOOK} ${extra||''}>`;
+  return `${IMG_LOADER}<img class="${cls||''}" src="${src}" loading="lazy" decoding="async" referrerpolicy="no-referrer" ${IMG_HOOK} ${extra||''}>`;
 }
 // ─── THEME ───────────────────────────────────────────────────
 // The <html data-theme> attribute is the single switch; every colour lives in a
@@ -3212,7 +3228,7 @@ function renderPost(p,i){
     // No "PHOTO"/"VIDEO" caption and no grey/striped stand-in. An image loads
     // behind the orbit spiral; a video loads behind the sparkle float. Whichever
     // one is showing is removed the moment the media paints.
-    const realImg=p._img?`${p.style==='video'?sparkleMarkup(''):IMG_LOADER}<img class="post-media-img" src="${p._img}" loading="lazy" referrerpolicy="no-referrer" onload="imgLoaded(this)" onerror="mediaFailed(this)">`:(p._video?sparkleMarkup(''):'');
+    const realImg=p._img?`${p.style==='video'?sparkleMarkup(''):IMG_LOADER}<img class="post-media-img" src="${p._img}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onload="imgLoaded(this)" onerror="mediaFailed(this)">`:(p._video?sparkleMarkup(''):'');
     // A video post used to render as a DEAD STILL — the clip only ever played once
     // you opened the reel. Now the real <video> renders in the card and plays in
     // place. It stays muted + playsinline (the only way iOS permits autoplay) and
@@ -3226,7 +3242,7 @@ function renderPost(p,i){
     const slides=(p._imgs&&p._imgs.length?p._imgs:[p._img].filter(Boolean));
     mediaHtml=slides.length?`<div class="post-car" onclick="event.stopPropagation()">
       <div class="post-car-strip" onscroll="carScroll(this)">${slides.map((u,k)=>
-        `<div class="post-car-cell" onclick="openPhoto('${p.id}',${k})">${IMG_LOADER}<img class="post-car-slide" src="${u}" loading="lazy" referrerpolicy="no-referrer" onload="imgLoaded(this)" onerror="imgLoaded(this);this.remove()"></div>`).join('')}</div>
+        `<div class="post-car-cell" onclick="openPhoto('${p.id}',${k})">${IMG_LOADER}<img class="post-car-slide" src="${u}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onload="imgLoaded(this)" onerror="imgLoaded(this);this.remove()"></div>`).join('')}</div>
       <div class="post-car-dots">${slides.map((_,k)=>`<i class="${k?'':'on'}"></i>`).join('')}</div>
       <div class="post-car-count">1/${slides.length}</div></div>`
       :'';   // no slides -> no media block at all (no stand-in placeholder)
@@ -4443,7 +4459,7 @@ function renderSearch(q=''){
       const isUser=p._user;
       const bodyClass=p.style==='drop'||p.style==='image'?'':'take';
       html+=`<div class="search-post-card" onclick="openThread('${p.id}')">
-        ${isImg&&p._img?`<div class="search-post-cover"><div class="search-post-card-cover-bg search-post-cover-bg" style="background:linear-gradient(135deg,hsl(${p.imgHue||270},70%,8%),hsl(${(p.imgHue||270)+30},50%,3%))"></div>${p._img?`${IMG_LOADER}<img class="search-post-img" src="${p._img}" loading="lazy" referrerpolicy="no-referrer" onload="imgLoaded(this)" onerror="imgLoaded(this);this.remove()">`:''}</div>`:''}
+        ${isImg&&p._img?`<div class="search-post-cover"><div class="search-post-card-cover-bg search-post-cover-bg" style="background:linear-gradient(135deg,hsl(${p.imgHue||270},70%,8%),hsl(${(p.imgHue||270)+30},50%,3%))"></div>${p._img?`${IMG_LOADER}<img class="search-post-img" src="${p._img}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onload="imgLoaded(this)" onerror="imgLoaded(this);this.remove()">`:''}</div>`:''}
         <div class="search-post-card-head">${VICON.pin} ${esc(p.country||'world')}${isUser?` &nbsp;<span class="search-user-badge">YOUR DROP</span>`:''}</div>
         <div class="search-post-tag">${(p.tags||['void'])[0]}</div>
         <div class="search-post-body ${bodyClass}">${esc(p.body||'')}</div>
@@ -4535,6 +4551,11 @@ function refreshDmBadge(){
 // The wall is now built ONCE and simply resumed; leaving the tab parks its
 // players instead of destroying them.
 function switchTab(tab){const _was=activeTab;document.body.classList.toggle('tab-void',tab==='void');document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.querySelectorAll('.ni').forEach(n=>n.classList.remove('on'));document.getElementById('screen-'+tab).classList.add('active');document.getElementById('nav-'+tab).classList.add('on');activeTab=tab;if(tab!=='globe'){liveParkAll();stopGlobeReels();}if(tab==='globe')setGlobeMode(globeMode)/* no announcement on tab entry */;if(tab==='profile')renderProfile();if(tab==='search'){renderSearch('');pullSearchContent(activeFilter);}if(tab==='void'){ if(_was==='void'){refreshVoidFeed();} else {renderFeed();pullLivePosts();} }if(tab==='messages')openMessages();}
+// Coalesce rapid input. Typing fired the full handler per keystroke — and the
+// globe path tears down live players, so an 8-character query rebuilt every
+// tile 8 times. One trailing run is what the user actually meant.
+const _dbT={};
+function debounced(key,fn,ms){clearTimeout(_dbT[key]);_dbT[key]=setTimeout(fn,ms||160);}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')}
 function fmt(n){return n>=1000?(n/1000).toFixed(1)+'k':String(n)}
 function ago(ts){const d=Math.floor((Date.now()-ts)/1000);if(d<60)return d+'s';if(d<3600)return Math.floor(d/60)+'m';if(d<86400)return Math.floor(d/3600)+'h';return Math.floor(d/86400)+'d';}
@@ -4873,6 +4894,16 @@ function vwObserve(ctEl){
       if(p)vwBump(p.tags,.3); // dwell = mild positive signal
       e.target.querySelector('.vw-spine i').style.width='100%'; // spine fills per item
       vwPlay(e.target);
+      // Buffer the NEXT two items while this one plays, so a scroll lands on
+      // video that is already downloading instead of starting from zero.
+      // Anything further than two away is released, so this cannot pile up
+      // unbounded HLS instances on a phone.
+      (function(cur){
+        const items=[...ct.querySelectorAll('.vw-item')],at=items.indexOf(cur);
+        if(at<0)return;
+        vwWarm(items[at+1]); vwWarm(items[at+2]);
+        items.forEach((el,k)=>{ if(Math.abs(k-at)>2) vwRelease(el); });
+      })(e.target);
     }else vwPause(e.target);}),{threshold:.5});
   if(ct.id==='reel-container')window._vwObs=ct.__obs;
   ct.querySelectorAll('.vw-item').forEach(el=>ct.__obs.observe(el));
@@ -4907,32 +4938,51 @@ function vwTryPlay(v){
   const pr=v.play();
   if(pr&&pr.catch)pr.catch(()=>{});
 }
+// Attach the media source WITHOUT playing. Split out of vwPlay so the next
+// items can buffer while you are still watching the current one — previously the
+// source was only attached once an item was >50% on screen, so every scroll
+// started downloading from zero and the next video was never instant.
+function vwAttach(v){
+  if(!v||v.dataset.ready)return;
+  v.dataset.ready='1';
+  v.muted=true;v.defaultMuted=true;v.playsInline=true;
+  v.setAttribute('muted','');v.setAttribute('playsinline','');
+  v.preload='auto';
+  ['loadeddata','canplay','canplaythrough','playing'].forEach(ev=>v.addEventListener(ev,()=>vwClearLoad(v),{passive:true}));
+  ['loadeddata','canplay','canplaythrough'].forEach(ev=>
+    v.addEventListener(ev,()=>{if(v.isConnected&&!v.__gone&&v.__want)vwTryPlay(v);},{passive:true}));
+  const src=v.dataset.src||'';
+  if(/\.m3u8(\?|$)/i.test(src)){
+    if(v.canPlayType('application/vnd.apple.mpegurl'))v.src=src;
+    else if(window.Hls&&window.Hls.isSupported()){
+      const h=new window.Hls({maxBufferLength:8});
+      h.on(window.Hls.Events.MANIFEST_PARSED,()=>{if(v.__want)vwTryPlay(v);});
+      h.loadSource(src);h.attachMedia(v);v.__hls=h;
+    }
+  }else v.src=src;
+}
+// Buffer ahead. __want stays false so a warmed item downloads but never plays.
+function vwWarm(el){
+  const v=el&&el.querySelector&&el.querySelector('.vw-vid');
+  if(!v)return; v.__want=false; vwAttach(v);
+}
+// Free a video that is far from the viewport, so buffering ahead cannot pile up
+// unbounded HLS instances and decoders on a phone.
+function vwRelease(el){
+  const v=el&&el.querySelector&&el.querySelector('.vw-vid');
+  if(!v||!v.dataset.ready)return;
+  try{v.pause();}catch(e){}
+  if(v.__hls){try{v.__hls.destroy();}catch(e){}v.__hls=null;}
+  try{v.removeAttribute('src');v.load();}catch(e){}
+  delete v.dataset.ready; v.__want=false;
+}
 function vwPlay(el){
   const v=el.querySelector('.vw-vid');if(!v)return;
-  v.__gone=0;
-  if(!v.dataset.ready){
-    v.dataset.ready='1';
-    v.muted=true;v.defaultMuted=true;v.playsInline=true;v.autoplay=true;
-    v.setAttribute('muted','');v.setAttribute('playsinline','');
-    // Retry whenever the element becomes playable - covers a late HLS manifest,
-    // a slow first segment, and the WebView deferring the start.
-    ['loadeddata','canplay','canplaythrough','playing'].forEach(ev=>v.addEventListener(ev,()=>vwClearLoad(v),{passive:true}));
-    ['loadeddata','canplay','canplaythrough'].forEach(ev=>
-      v.addEventListener(ev,()=>{if(v.isConnected&&!v.__gone)vwTryPlay(v);},{passive:true}));
-    const src=v.dataset.src||'';
-    if(/\.m3u8(\?|$)/i.test(src)){
-      if(v.canPlayType('application/vnd.apple.mpegurl'))v.src=src;
-      else if(window.Hls&&window.Hls.isSupported()){
-        const h=new window.Hls({maxBufferLength:8});
-        // Start on MANIFEST_PARSED - the same signal the live wall waits for.
-        h.on(window.Hls.Events.MANIFEST_PARSED,()=>vwTryPlay(v));
-        h.loadSource(src);h.attachMedia(v);v.__hls=h;
-      }
-      else return; // no HLS support -> poster stays up
-    }else v.src=src;
-  }
+  v.__gone=0; v.__want=true;
+  vwAttach(v);
   vwTryPlay(v);
 }
+
 function vwPause(el){const v=el&&el.querySelector('.vw-vid');if(v){v.__gone=1;try{v.pause();}catch(e){}}}
 function closeReel(){
   const ct=document.getElementById('reel-container');
