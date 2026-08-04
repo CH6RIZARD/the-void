@@ -39,3 +39,6 @@ scripts/railway/.cache/
 *.prj
 *.cpg
 *.qix
+
+# Wrangler local cache — holds the Cloudflare account id + email
+.wrangler/
