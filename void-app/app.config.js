@@ -24,5 +24,9 @@ module.exports = {
     ...base.expo.extra,
     voidProxyBase: configuredBase.replace(/\/$/, ''),
     voidHtmlUrl: htmlUrl.trim(),
+    // EAS project id. `eas project:init` cannot write to a dynamic config, so it
+    // lives here by hand. Not a secret - it identifies the project, it does not
+    // grant access to it.
+    eas: { projectId: '7520e2f4-88ca-4c82-83c1-df7aeed7a5dd' },
   },
 };
