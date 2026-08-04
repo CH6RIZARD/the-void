@@ -14,7 +14,6 @@ if [[ -z "$POST_ID" || -z "$USER_ID" ]]; then
   exit 1
 fi
 
-# Discover reactions table shape lightly
 COLS="$(psql "$DATABASE_URL" -Atc "
 SELECT string_agg(column_name, ',')
 FROM information_schema.columns
@@ -22,22 +21,14 @@ WHERE table_schema='public' AND table_name='reactions';
 ")"
 echo "reactions columns: $COLS"
 
+# Schema uses kind IN ('rank','slash') — never invent other values.
 PLAN="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<SQL
 EXPLAIN (ANALYZE, BUFFERS)
 INSERT INTO reactions (post_id, user_id, kind)
-VALUES ('$POST_ID'::uuid, '$USER_ID'::uuid, 'up')
-ON CONFLICT DO NOTHING;
-SQL
-)" || {
-  # kind column may differ — try emoji/type
-  PLAN="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<SQL
-EXPLAIN (ANALYZE, BUFFERS)
-INSERT INTO reactions (post_id, user_id, reaction)
-VALUES ('$POST_ID'::uuid, '$USER_ID'::uuid, '🔥')
+VALUES ('$POST_ID'::uuid, '$USER_ID'::uuid, 'rank')
 ON CONFLICT DO NOTHING;
 SQL
 )"
-}
 
 echo "$PLAN"
 

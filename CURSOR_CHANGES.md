@@ -159,3 +159,27 @@ the fixed-key XOR mock.
 - Streams are **not yet confirmed playing on a device**. Console logs
   `[void:attemptSource]` with `reason`: `playing` / `playing-time` = real
   playback · `yt-error:N` = refusal code · `timeout` = handshake never landed.
+
+---
+
+## Cursor change #4 — End-to-end backend prep (local proven; live Supabase blocked on password)
+
+**Author: Cursor** (`bc-8374f7e1-4036-4c1b-a104-add28de96e03`). Branch `claude/audits-void-2jdkgt` from `claude/railway-000-compat`.
+
+### What landed
+1. **`build.js` deploy path fix** — writes to `void-proxy/public/` (repo-local), not `/void-proxy/public`. `node build.js --check` → OK.
+2. **`000` parked** at `supabase/railway-only/` so real Supabase never gets the Railway auth shim. `apply-migrations.sh` updated.
+3. **`supabase/APPLY.sql` + `003_regions_seed.sql`** (99 countries incl. PS) + `verify.mjs` + `scripts/apply-supabase.sh`.
+4. **Phase 2 scripts fixed against real schema** (UID bash bug, `kind='rank'`, RLS expectation = members of own conversations, not own rows only). Local Postgres+PostGIS: all four tests **PASS**.
+5. **Phase 3 VoidAPI** — when `base` is null and VoidAuth has a session, UUID posts talk Supabase PostgREST (`reactions.kind='rank'` for bolt, replies as `posts.reply_to`, follows by handle). Non-UUID seed posts stay local. `NOT ENCRYPTED` DM badge preserved (do not reintroduce false `ENCRYPTED`).
+
+### Live project — UNBLOCKED (2026-08-04)
+Project `zsrpsdufwgfyfoulmazt` (AWS us-east-2):
+- Schema applied via SQL Editor (`APPLY.sql` = 001+002+003)
+- Anonymous sign-ins **ON**
+- `node supabase/verify.mjs` → **ALL CHECKS PASSED**
+  (tables visible, 99 countries + PS, anon RLS denials, anonymous session,
+  `/auth/v1/user`, profile upsert under RLS)
+- `node build.js --check` → OK
+
+Leave Google / Apple / Phone providers OFF until Client IDs / SMS are configured.
