@@ -173,12 +173,13 @@ the fixed-key XOR mock.
 4. **Phase 2 scripts fixed against real schema** (UID bash bug, `kind='rank'`, RLS expectation = members of own conversations, not own rows only). Local Postgres+PostGIS: all four tests **PASS**.
 5. **Phase 3 VoidAPI** — when `base` is null and VoidAuth has a session, UUID posts talk Supabase PostgREST (`reactions.kind='rank'` for bolt, replies as `posts.reply_to`, follows by handle). Non-UUID seed posts stay local. `NOT ENCRYPTED` DM badge preserved (do not reintroduce false `ENCRYPTED`).
 
-### Live project still blocked (credentials only)
-Project `zsrpsdufwgfyfoulmazt`:
-- Tables: **not applied** (`PGRST205` on `regions`/`profiles`/`posts`)
-- Anonymous sign-ins: **OFF** (`422 anonymous_provider_disabled`)
-- DB password: **not in env / not recoverable** — reset at
-  https://supabase.com/dashboard/project/zsrpsdufwgfyfoulmazt/database/settings
-  or paste `APPLY.sql` in the SQL Editor (no password needed).
+### Live project — UNBLOCKED (2026-08-04)
+Project `zsrpsdufwgfyfoulmazt` (AWS us-east-2):
+- Schema applied via SQL Editor (`APPLY.sql` = 001+002+003)
+- Anonymous sign-ins **ON**
+- `node supabase/verify.mjs` → **ALL CHECKS PASSED**
+  (tables visible, 99 countries + PS, anon RLS denials, anonymous session,
+  `/auth/v1/user`, profile upsert under RLS)
+- `node build.js --check` → OK
 
-Once schema is applied + anonymous ON → `node supabase/verify.mjs` must print **ALL CHECKS PASSED**.
+Leave Google / Apple / Phone providers OFF until Client IDs / SMS are configured.
