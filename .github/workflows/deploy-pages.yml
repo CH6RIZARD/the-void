@@ -1,0 +1,81 @@
+# Auto-deploy the two builds to Cloudflare Pages on every push to main.
+#
+# WHY THIS EXISTS
+# void-app-d35c is a DIRECT-UPLOAD Pages project (`wrangler pages project list`
+# reports `Git Provider: No`). It has no repository connection, so pushing to
+# main never redeployed it — the live URLs sat two days stale while four pushes
+# landed. There is no "production branch" setting to fix on a project of that
+# type; something has to upload. This does.
+#
+# ONE-TIME SETUP (repo → Settings → Secrets and variables → Actions):
+#   CLOUDFLARE_API_TOKEN   create at dash.cloudflare.com/profile/api-tokens
+#                          template "Edit Cloudflare Workers", or a custom token
+#                          with Account → Cloudflare Pages → Edit
+#   CLOUDFLARE_ACCOUNT_ID  dash.cloudflare.com → right-hand sidebar of any domain
+#
+# Until both secrets exist this workflow fails loudly rather than silently
+# publishing nothing.
+name: Deploy builds to Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'void2-final.html'
+      - 'copy33thevoid.html'
+      - 'build.js'
+      - '.github/workflows/deploy-pages.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Regenerate rather than trusting what was committed: the two variants are
+      # generated from void2-final.html, and a hand-edited copy would ship drift.
+      - name: Regenerate builds
+        run: node build.js
+
+      # Fail before deploying if a build is broken, rather than publishing it.
+      - name: Verify builds parse
+        run: |
+          node -e "
+          const fs=require('fs');
+          let bad=0;
+          for (const f of ['void2-final.html','copy33thevoid.html']) {
+            const h=fs.readFileSync(f,'utf8');
+            const re=/<script(?![^>]*src=)[^>]*>([\s\S]*?)<\/script>/g;
+            let m,n=0,e=0;
+            while ((m=re.exec(h))) { n++; try { new Function(m[1]); } catch(err) { e++; console.error(f,err.message); } }
+            console.log(f, n+' scripts', e+' errors', h.length+'B');
+            bad += e;
+          }
+          if (bad) { console.error('refusing to deploy a build that does not parse'); process.exit(1); }
+          "
+
+      - name: Stage the public directory
+        run: |
+          mkdir -p public
+          cp void2-final.html   public/void2-final.html
+          cp copy33thevoid.html public/copy33thevoid.html
+          cat > public/index.html <<'HTML'
+          <!doctype html><meta charset="utf-8"><title>THE VOID — builds</title>
+          <style>body{background:#04020c;color:#f4f0ff;font-family:system-ui,sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center;gap:28px;flex-wrap:wrap;margin:0}
+          a{color:#c9a84c;text-decoration:none;border:1px solid rgba(201,168,76,.4);padding:22px 30px;border-radius:16px;font-size:15px;letter-spacing:.08em}
+          a:hover{background:rgba(201,168,76,.1)}small{display:block;color:#6a58a0;margin-top:8px;letter-spacing:0}</style>
+          <a href="/void2-final">2-WIDE · MOBILE<small>void2-final</small></a>
+          <a href="/copy33thevoid">3-WIDE · WEB<small>copy33thevoid</small></a>
+          HTML
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy public --project-name=void-app-d35c --commit-dirty=true

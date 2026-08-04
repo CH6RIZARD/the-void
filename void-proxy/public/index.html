@@ -587,6 +587,10 @@ body.tab-void .bio-hud{display:flex}
 .si-enter:hover{filter:brightness(1.06)}
 .si-ghost{width:100%;margin-top:12px;padding:12px;border:none;border-radius:24px;background:transparent;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);color:var(--dim);font-family:'Syne Mono',monospace;font-size:8px;letter-spacing:.2em;cursor:pointer;transition:color .2s}
 .si-ghost:hover{color:var(--white)}
+.si-alt{display:flex;gap:8px;justify-content:center;margin-top:14px;flex-wrap:wrap}
+.si-alt-btn{padding:9px 14px;border-radius:20px;border:none;cursor:pointer;background:rgba(255,255,255,.05);color:var(--dim);font-family:'Syne Mono',monospace;font-size:8px;letter-spacing:.16em;transition:color .18s,background .18s}
+.si-alt-btn:hover{color:var(--white);background:rgba(255,255,255,.09)}
+.si-alt-btn.on{color:var(--gold);background:rgba(201,168,76,.12)}
 .si-legal{font-family:'Syne Mono',monospace;font-size:7px;letter-spacing:.2em;color:var(--muted);text-align:center;margin-top:22px}
 :root[data-theme="light"] #signin{background-image:var(--bg-radial)}
 .loader-logo{font-family:'Syne',sans-serif;font-weight:800;font-size:26px;letter-spacing:.18em}
@@ -905,10 +909,29 @@ body.tab-void .bio-hud{display:flex}
       <span class="si-lbl">DISPLAY NAME</span>
       <input id="si-name" placeholder="what they call you" maxlength="32" autocomplete="off" onkeydown="if(event.key==='Enter')submitSignIn()">
     </div>
+    <!-- Optional credentials, hidden until asked for: anonymous stays the default
+         identity. VoidAuth has carried signUpWithEmail / signInWithEmail / oauthUrl
+         since Cursor #4 with NOTHING calling them, so anonymous was the only
+         reachable path. This exposes what already existed. -->
+    <div class="si-field si-cred" id="si-cred-email" style="display:none">
+      <span class="si-lbl">EMAIL</span>
+      <input id="si-email" type="email" placeholder="you@example.com" autocomplete="email"
+             autocapitalize="none" spellcheck="false" onkeydown="if(event.key==='Enter')submitEmailAuth()">
+    </div>
+    <div class="si-field si-cred" id="si-cred-pass" style="display:none">
+      <span class="si-lbl">PASSWORD</span>
+      <input id="si-pass" type="password" placeholder="8+ characters" autocomplete="current-password"
+             onkeydown="if(event.key==='Enter')submitEmailAuth()">
+    </div>
     <div class="si-err" id="si-err"></div>
     <button class="si-enter" onclick="submitSignIn()">ENTER THE VOID</button>
     <button class="si-ghost" onclick="signInAnon()">CONTINUE ANONYMOUSLY</button>
-    <div class="si-legal">NO EMAIL &middot; NO PASSWORD &middot; STORED ON THIS DEVICE</div>
+    <div class="si-alt" id="si-alt">
+      <button class="si-alt-btn" id="si-email-toggle" onclick="toggleEmailAuth()">EMAIL &amp; PASSWORD</button>
+      <button class="si-alt-btn" onclick="oauthSignIn('google')">GOOGLE</button>
+      <button class="si-alt-btn" onclick="oauthSignIn('apple')">APPLE</button>
+    </div>
+    <div class="si-legal" id="si-legal">NO EMAIL &middot; NO PASSWORD &middot; STORED ON THIS DEVICE</div>
   </div>
 </div>
 
@@ -3088,6 +3111,67 @@ function submitSignIn(){
   VoidAPI.follow(USER.handle,true).catch(()=>{});
   renderProfile();
   hideSignIn();
+}
+// ─── EMAIL / OAUTH SIGN-IN ──────────────────────────────────────────────
+// VoidAuth already had signUpWithEmail / signInWithEmail / oauthUrl. Nothing
+// called them, so anonymous was the only reachable identity. These are the
+// missing call sites.
+let _emailMode=false;
+function toggleEmailAuth(){
+  _emailMode=!_emailMode;
+  document.getElementById("si-cred-email").style.display=_emailMode?"":"none";
+  document.getElementById("si-cred-pass").style.display=_emailMode?"":"none";
+  document.getElementById("si-email-toggle").classList.toggle("on",_emailMode);
+  const enter=document.querySelector(".si-enter");
+  if(enter){enter.textContent=_emailMode?"SIGN IN / SIGN UP":"ENTER THE VOID";
+    enter.setAttribute("onclick",_emailMode?"submitEmailAuth()":"submitSignIn()");}
+  const legal=document.getElementById("si-legal");
+  if(legal)legal.innerHTML=_emailMode
+    ? "AN ACCOUNT SYNCS YOUR SIGNAL ACROSS DEVICES"
+    : "NO EMAIL &middot; NO PASSWORD &middot; STORED ON THIS DEVICE";
+  if(_emailMode)setTimeout(()=>{const e=document.getElementById("si-email");if(e)e.focus();},60);
+}
+// One button for both: try sign-in, and only fall back to sign-up when the
+// credentials are genuinely unrecognised. Two buttons would make the user
+// remember whether they already exist, which they will get wrong.
+async function submitEmailAuth(){
+  const email=(document.getElementById("si-email").value||"").trim();
+  const pass=document.getElementById("si-pass").value||"";
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))return siError("ENTER A VALID EMAIL");
+  if(pass.length<8)return siError("PASSWORD MUST BE 8+ CHARACTERS");
+  if(!VoidAuth.configured())return siError("BACKEND NOT CONFIGURED");
+  siError("");
+  const handle=(document.getElementById("si-handle").value||"").trim().toLowerCase();
+  const name=(document.getElementById("si-name").value||"").trim();
+  try{
+    try{ await VoidAuth.signInWithEmail(email,pass); }
+    catch(err){
+      const m=String(err&&err.message||err);
+      if(!/invalid|credential|not found|400/i.test(m))throw err;
+      await VoidAuth.signUpWithEmail(email,pass,{handle,display_name:name});
+    }
+    if(handle)USER.handle=handle.startsWith("@")?handle:"@"+handle;
+    if(name)USER.name=name;
+    saveUser();
+    await VoidAuth.upsertProfile({handle:USER.handle,display_name:USER.name});
+    try{ localStorage.setItem(SIGNED_IN_KEY,'true'); }catch(e){}
+    renderProfile(); hideSignIn();
+  }catch(e){
+    console.error("[auth] email",e);
+    siError((String(e&&e.message||e).slice(0,80)||"SIGN-IN FAILED").toUpperCase());
+  }
+}
+// Redirects out to the provider and back. Google/Apple must ALSO be enabled in
+// Supabase -> Authentication -> Providers with their client IDs, or this 400s
+// on arrival - the button existing is not the same as the provider existing.
+function oauthSignIn(provider){
+  if(!VoidAuth.configured())return siError("BACKEND NOT CONFIGURED");
+  try{
+    const handle=(document.getElementById("si-handle").value||"").trim().toLowerCase();
+    const name=(document.getElementById("si-name").value||"").trim();
+    try{ localStorage.setItem("void_pending_profile",JSON.stringify({handle,name})); }catch(e){}
+    location.href=VoidAuth.oauthUrl(provider);
+  }catch(e){ siError(("OAUTH FAILED: "+(e&&e.message||"")).slice(0,80).toUpperCase()); }
 }
 function signInAnon(){
   try{ localStorage.setItem(SIGNED_IN_KEY,'true'); }catch(e){}
