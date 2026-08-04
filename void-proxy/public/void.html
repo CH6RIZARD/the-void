@@ -3508,12 +3508,19 @@ function initGlobe(){const gsi=document.getElementById('globe-search-icon');if(g
     // MSAA (antialias) is one of the most expensive things a mobile GPU tile
     // renderer does — it multiplies fragment work across every triangle edge.
     // Desktop GPUs eat this for free, so only drop it on mobile.
-    antialias:!_globeMobile,
+    // MSAA back ON for mobile: it was disabled to fight lag that was NOT the
+    // globe (up to 14 concurrent YouTube decoders + a render loop that ran on
+    // every tab). Both fixed; idle frame-skip below funds the cost. Without it
+    // the sphere silhouette and marker edges stair-step, which is the most
+    // visible "cheap 3D" tell on a high-DPR phone.
+    antialias:true,
     powerPreference:'high-performance',
     // highp fragment math is unnecessary for this scene's soft phong lighting;
     // mediump roughly halves ALU cost per-fragment on mobile GPUs with no
     // perceptible difference at phone viewing distance/density.
-    precision:_globeMobile?'mediump':'highp'});
+    // highp everywhere: mediump banded the terminator on a lit sphere with a
+    // specular term, which is exactly where the eye lands.
+    precision:'highp'});
   // Mobile was capped at pixelRatio 1. On a 3x-DPR phone that renders the globe
   // at ONE THIRD of the screen's linear resolution and lets the compositor
   // upscale it — which is precisely why it looked chunky and soft. The geometry
