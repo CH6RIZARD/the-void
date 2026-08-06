@@ -27,25 +27,47 @@ const HTML_URL: string =
 // Kept short: this runs on a cold start, and a slow host must not hold the app on
 // a spinner. Miss the window and we render the bundled copy instead.
 const REMOTE_TIMEOUT_MS = 4000;
+// A real build is ~470KB. A captive-portal login page or a host error page served
+// as 200 is a few KB — the size alone separates them, which is the whole reason
+// the probe can be a HEAD.
+const MIN_PLAUSIBLE_BYTES = 100_000;
 
-async function resolveRemote(): Promise<string | null> {
+// The probe used to be a GET: it pulled the entire ~470KB document over the wire
+// purely to regex one attribute out of it, threw the body away, and then handed
+// the URL to the WebView — which downloaded the SAME 470KB a second time. Two full
+// transfers, in series, before a single pixel. A HEAD answers the same question
+// (is a plausible build there, and which version) in one round trip and no body.
+type Remote = { url: string; tag: string };
+async function probeRemote(): Promise<Remote | null> {
   if (!HTML_URL) return null;
   try {
     const ctl = new AbortController();
     const t = setTimeout(() => ctl.abort(), REMOTE_TIMEOUT_MS);
-    // cache:'no-store' on the probe so a stale CDN copy cannot pin an old UI.
-    const r = await fetch(HTML_URL, { method: "GET", cache: "no-store", signal: ctl.signal });
+    const r = await fetch(HTML_URL, { method: "HEAD", cache: "no-store", signal: ctl.signal });
     clearTimeout(t);
     if (!r.ok) return null;
-    const body = await r.text();
-    // Guard against a captive portal or an error page being served as 200 — those
-    // would replace the app with a login screen and look like a total failure.
-    if (!/id=["']void-feed["']/.test(body)) return null;
-    return HTML_URL;
+    const type = r.headers.get("content-type") || "";
+    if (!/text\/html/i.test(type)) return null;
+    const len = Number(r.headers.get("content-length") || 0);
+    // Absent length means a chunked response, which is legitimate — accept it and
+    // let onError handle a load that turns out to be broken.
+    if (len && len < MIN_PLAUSIBLE_BYTES) return null;
+    // Version identity, in preference order. This is what decides whether a
+    // foreground is allowed to reload — so it must change when, and only when,
+    // the deployed file changes.
+    const tag =
+      r.headers.get("etag") || r.headers.get("last-modified") || String(len) || "1";
+    return { url: HTML_URL, tag };
   } catch {
     return null;
   }
 }
+
+// Stable per version, so the WebView's HTTP cache can actually serve a repeat
+// launch. The old `?v=${Date.now()}` was a new URL on every single resolve, which
+// guaranteed a cache miss forever and made the cacheEnabled prop decorative.
+const remoteUri = (r: Remote) =>
+  `${r.url}${r.url.includes("?") ? "&" : "?"}v=${encodeURIComponent(r.tag)}`;
 
 export default function App() {
   const webRef = useRef<WebView>(null);
@@ -55,9 +77,18 @@ export default function App() {
     () => Sensing.getConsent().affectConsent || Sensing.getConsent().nonBiometricFeed,
   );
 
+  // The version tag currently rendering. A foreground that finds this same tag
+  // still deployed changes NOTHING — see the AppState effect below.
+  const tagRef = useRef<string | null>(null);
+
   const load = useCallback(async () => {
-    const remote = await resolveRemote();
-    if (remote) { setSource("remote"); setUri(`${remote}${remote.includes("?") ? "&" : "?"}v=${Date.now()}`); return; }
+    const remote = await probeRemote();
+    if (remote) {
+      tagRef.current = remote.tag;
+      setSource("remote");
+      setUri(remoteUri(remote));
+      return;
+    }
     const a = await Asset.fromModule(VOID_HTML).downloadAsync();
     setSource("bundled");
     setUri(a.localUri ?? a.uri);
@@ -68,12 +99,27 @@ export default function App() {
   // Re-check on foreground so a UI update lands without the user reinstalling —
   // only when we are already on the remote copy, so returning to the app offline
   // never yanks a working screen out from under them.
+  //
+  // This used to call load() on EVERY foreground, and load() always built a new
+  // `?v=${Date.now()}` URI. A changed uri prop remounts the WebView's source, so
+  // every single resume — including a two-second glance at a notification — threw
+  // the entire app away and cold-started it: re-parse 470KB, re-run boot, re-connect
+  // every stream, lose scroll position and lose the feed. That is what "unusably
+  // slow when switching back to the app" was.
+  //
+  // Now a resume costs one HEAD. The URI is replaced only when the deployed file
+  // is genuinely a different version; otherwise the running app is left alone.
   useEffect(() => {
-    const sub = AppState.addEventListener("change", (s) => {
-      if (s === "active" && source === "remote") load();
+    const sub = AppState.addEventListener("change", async (s) => {
+      if (s !== "active" || source !== "remote") return;
+      const remote = await probeRemote();
+      if (!remote) return;                       // offline / host down — keep what works
+      if (remote.tag === tagRef.current) return; // same build — do not touch the WebView
+      tagRef.current = remote.tag;
+      setUri(remoteUri(remote));
     });
     return () => sub.remove();
-  }, [load, source]);
+  }, [source]);
 
   // Push the latest quantized AffectState (or nothing) into the web ranker.
   useEffect(() => {

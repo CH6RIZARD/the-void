@@ -18,8 +18,28 @@ const configuredBase = process.env.VOID_PROXY_BASE || base.expo.extra?.voidProxy
 // trivially injectable.
 const htmlUrl = process.env.VOID_HTML_URL || base.expo.extra?.voidHtmlUrl || '';
 
+// expo-void-sensing is a hand-written native module (CameraX + Health Connect +
+// TensorFlow Lite) that has never compiled — two EAS builds died with
+// EAS_BUILD_UNKNOWN_GRADLE_ERROR. It currently lives in native-modules-disabled/
+// so Expo does not autolink it (autolinking picks up ANYTHING under modules/ by
+// convention — removing the config plugin alone does NOT unlink it, which is why
+// the first 'without sensing' build compiled it anyway and failed identically,
+// and `expo.autolinking.exclude` does not apply to local modules either).
+//
+// The plugin entry is dropped when the module directory is absent, so the config
+// stays valid in both states rather than pointing at a path that no longer
+// exists. Move the folder back into modules/ to re-enable it.
+const fs = require('fs');
+const path = require('path');
+const SENSING_DIR = path.join(__dirname, 'modules', 'expo-void-sensing');
+const sensingPresent = fs.existsSync(SENSING_DIR);
+const plugins = (base.expo.plugins || []).filter(
+  (p) => sensingPresent || !(typeof p === 'string' && p.includes('expo-void-sensing'))
+);
+
 module.exports = {
   ...base.expo,
+  plugins,
   extra: {
     ...base.expo.extra,
     voidProxyBase: configuredBase.replace(/\/$/, ''),

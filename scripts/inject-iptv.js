@@ -41,7 +41,12 @@ const block = [
   '// Why HLS: the wall was ~96% YouTube, and most non-YouTube entries answer',
   '// X-Frame-Options: SAMEORIGIN so they can never render. An .m3u8 needs CORS,',
   '// not embed permission, and hls.js is already wired into attemptSource.',
-  'const IPTV_SOURCES = ' + JSON.stringify(data.sources) + ';',
+  '//',
+  '// Emitted as a STRING, not an object literal. A ~66KB literal is parsed eagerly',
+  '// as JavaScript during initial script evaluation — on every launch, whether or',
+  '// not the user ever opens a stream. As a string it costs nothing at boot, and',
+  '// iptvFor() JSON.parses it once, lazily, when the globe wall first asks.',
+  'const IPTV_JSON = ' + JSON.stringify(JSON.stringify(data.sources)) + ';',
   END,
 ].join(nl);
 
@@ -62,7 +67,12 @@ if (html.includes(START)) {
 // 2. wallSlots must actually read it, or the block is dead weight
 const oldSrc = 'src:shuffle([...(CAM_SOURCES[n]||[]),...(RAW_FOOTAGE[n]||[])])';
 const newSrc = 'src:shuffle([...(CAM_SOURCES[n]||[]),...(RAW_FOOTAGE[n]||[])])' +
-               '.concat(shuffle([...((typeof IPTV_SOURCES!=="undefined"&&IPTV_SOURCES[n])||[])]))';
+               '.concat(shuffle(iptvFor(n)))';
+// Migrate the previous eager-literal wiring, so re-running this script upgrades
+// an old source in place instead of leaving two spellings behind.
+const legacySrc = 'src:shuffle([...(CAM_SOURCES[n]||[]),...(RAW_FOOTAGE[n]||[])])' +
+                  '.concat(shuffle([...((typeof IPTV_SOURCES!=="undefined"&&IPTV_SOURCES[n])||[])]))';
+if (html.includes(legacySrc)) html = html.replace(legacySrc, newSrc);
 if (html.includes(newSrc)) {
   console.log('wallSlots already merges IPTV_SOURCES');
 } else if (html.includes(oldSrc)) {
