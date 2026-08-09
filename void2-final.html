@@ -224,19 +224,26 @@ html,body{height:100%;background:var(--bg);background-image:var(--bg-radial);col
    permanently animating layers, growing by 168 per scroll batch and re-created every
    time a connect fails. Off-screen tiles were animating too. This is the same
    treatment .post already gets, and it stops work for tiles nobody can see. */
-.gl-tile{position:relative;aspect-ratio:16/9;background:#000;border-radius:6px;overflow:hidden;border:1px solid var(--border);cursor:pointer;transition:border-color .2s;content-visibility:auto;contain-intrinsic-size:auto 120px}
+/* CURSOR #5.1 — content-visibility:auto was freezing off-screen <video>/YT and
+   painting play glyphs / black cells on scroll-back. Wall tiles stay fully live. */
+.gl-tile{position:relative;aspect-ratio:16/9;background:#000;border-radius:6px;overflow:hidden;border:1px solid var(--border);cursor:pointer;transition:border-color .2s;content-visibility:visible}
 /* A tile that ended on NO SIGNAL is not loading anything — it has no reason to keep
    14 particles animating for the rest of the session. */
 .csg-offline .sparkle-fallback-particle{animation:none;opacity:.18}
 
 .gl-tile iframe,.gl-tile video,.gl-tile img{width:100%;height:100%;border:none;object-fit:cover;pointer-events:none;position:absolute;inset:0}
-/* CURSOR #5 — never show native / poster play chrome on the wall. Pausing used
-   to paint iOS + YouTube center play glyphs on scroll; keep media pointer-dead
-   and hide every start-playback control + channel-poster once the tile is live. */
+/* CURSOR #5 / #5.1 — never show native / poster play chrome on the wall. */
 .gl-tile video::-webkit-media-controls{display:none!important}
 .gl-tile video::-webkit-media-controls-start-playback-button{display:none!important;-webkit-appearance:none}
-.gl-tile.playing .csg-poster{opacity:0;pointer-events:none;transition:opacity .25s ease}
-.gl-tile.playing .csg-status,.gl-tile.playing .sparkle-fallback{display:none!important}
+.gl-tile video::-webkit-media-controls-overlay-play-button{display:none!important}
+.gl-tile.playing .csg-poster,
+.gl-tile:has(iframe) .csg-poster,
+.gl-tile:has(video) .csg-poster{opacity:0;pointer-events:none;transition:opacity .25s ease}
+.gl-tile.playing .csg-status,.gl-tile.playing .sparkle-fallback,
+.gl-tile:has(iframe.playing-media) .csg-status,
+.gl-tile:has(iframe.playing-media) .sparkle-fallback,
+.gl-tile:has(video.playing-media) .csg-status,
+.gl-tile:has(video.playing-media) .sparkle-fallback{display:none!important}
 .gl-tile-label{position:absolute;bottom:0;left:0;right:0;z-index:4;background:linear-gradient(transparent,rgba(0,0,0,.9));padding:4px 6px 5px;font-family:'Syne Mono',monospace;font-size:7px;color:var(--gold);letter-spacing:.1em;pointer-events:none}
 #screen-void{padding-top:0}
 .bio-hud{position:fixed;top:0;left:0;z-index:60;padding:14px 18px 10px;display:flex;align-items:center;pointer-events:none;transition:opacity .22s ease,transform .22s ease}
@@ -4003,7 +4010,9 @@ function sparkleTile(container,label='● CLICK TO LOAD',onRetry){
 // PLAYING in well under 3s; live_stream?channel= on a channel that is NOT
 // broadcasting can only ever time out. Measured 2026-08-02: 8/12 channels
 // dead, each holding a lane 24s, so nothing appeared for over a minute.
-const CONNECT_TIMEOUT={hls:8000,mjpeg:6000,youtube:4000,iframe:7000};
+// CURSOR #5.1 — YouTube was 4s and aborted mid-handshake on mobile radios,
+// leaving posters with play art. Cap stays under the 10s product budget.
+const CONNECT_TIMEOUT={hls:8000,mjpeg:6000,youtube:9000,iframe:7000};
 // Hosts whose iframe embeds actually render (X-Frame friendly). Any other iframe
 // source fails fast so a blocked/broken frame is NEVER shown — the chain advances.
 const EMBEDDABLE_IFRAME=/(windy\.com|viewsurf\.com|worldcams\.tv|worldcam\.eu|world-livecam\.com|worldlivecamera\.com|seoul\.go\.kr|khh\.travel|ali-nsa\.net|tw\.live|koryo\.tv|worldviewstream\.com)/i;
@@ -4044,7 +4053,7 @@ function teardownLiveIn(root){
   [...liveInstances.keys()].forEach(cell=>{if(root===cell||root.contains(cell))disposeCell(cell);});
 }
 
-// ─── LIVE MEDIA KEEP-ALIVE (Cursor #5 — 2026-08-09) ──────────────────────
+// ─── LIVE MEDIA KEEP-ALIVE (Cursor #5 / #5.1 — 2026-08-09) ───────────────
 // Product rule: once a wall tile is PLAYING it must KEEP streaming through
 // scroll and app backgrounding. Only true source death, a reload, or a full
 // app refresh may stop it.
@@ -4054,8 +4063,12 @@ function teardownLiveIn(root){
 //   · Soft park called YouTube pauseVideo → giant center play glyph on scroll
 //   · iOS <video>.pause() → native start-playback overlay
 //   · visibilitychange tore everything down → "leave and come back breaks"
+//   · #5 cleared the YT nudge on PLAYING, so a later soft-pause (state 2) sat
+//     with a center play button until a full remount
+//   · content-visibility:auto froze off-screen decoders
 //
 // Keep-alive: never pause, never detach. On return / near-view, nudge play.
+// On YT state 2 after success, immediately playVideo again.
 const liveCells=new Set();
 const LIVE_PARK_DELAY=1e9; // effectively never — kept so call sites still compile
 function liveNudgePlay(cell){
@@ -4113,19 +4126,30 @@ document.addEventListener('visibilitychange',()=>{
   liveWakeVisible();
   setTimeout(liveWakeVisible,400);
   setTimeout(liveWakeVisible,1200);
+  setTimeout(liveWakeVisible,2800);
 });
-// Watchdog: if a near-screen tile stopped (OS stall, YT soft-pause), kick it.
+// iOS Safari bfcache / app-switch often fires pageshow without a useful
+// visibilitychange pair. Resume from the last mounted wall, never rebuild.
+window.addEventListener('pageshow',(e)=>{
+  if(document.hidden)return;
+  liveWakeVisible();
+  setTimeout(liveWakeVisible,500);
+  if(e&&e.persisted)setTimeout(liveWakeVisible,1500);
+});
+// Watchdog: near-screen stalled <video> OR YouTube soft-pause → nudge play.
+// #5 only checked <video>, so YT play glyphs survived scroll/background.
 setInterval(()=>{
   if(document.hidden||typeof activeTab==='undefined'||activeTab!=='globe')return;
   if(typeof globeMode!=='undefined'&&globeMode!=='globe')return;
   liveCells.forEach(c=>{
     if(!c.isConnected)return;
     const r=c.getBoundingClientRect();
-    if(r.bottom<-100||r.top>innerHeight+100)return;
+    if(r.bottom<-200||r.top>innerHeight+200)return;
     const v=c.querySelector('video');
-    if(v&&v.paused)liveNudgePlay(c);
+    const yt=c.querySelector('iframe');
+    if((v&&v.paused)||(yt&&yt.__ytPost))liveNudgePlay(c);
   });
-},3000);
+},2500);
 let _ytApiP=null;                            // lazy YouTube IFrame API loader
 const USED_STREAMS_KEY='void_used_stream_sources_v1';
 function streamKey(source){return source.type==='youtube'?`youtube:${source.id}`:`${source.type}:${source.url||''}`;}
@@ -4197,12 +4221,19 @@ function attemptSource(cell,source){
       // timed out here becomes permanently unavailable to every other tile.
       if(ok){
         if(cell.classList)cell.classList.add('playing');
-        const _if=cell.querySelector('iframe');if(_if&&_if.__reveal)_if.__reveal();
+        const _if=cell.querySelector('iframe');
+        if(_if){_if.classList.add('playing-media');if(_if.__reveal)_if.__reveal();}
+        const _vid=cell.querySelector('video');if(_vid)_vid.classList.add('playing-media');
         const _ov=cell.querySelector('.sparkle-fallback');
         if(_ov){_ov.style.transition='opacity .45s ease';_ov.style.opacity='0';setTimeout(()=>_ov.remove(),480);}
-        cell.querySelectorAll('.csg-poster').forEach(p=>{p.style.opacity='0';p.style.pointerEvents='none';});
+        cell.querySelectorAll('.csg-poster').forEach(p=>{p.style.opacity='0';p.style.pointerEvents='none';p.remove();});
         addLiveInstance(cell,()=>{try{teardown();}catch(e){}releaseLiveKey(source);});liveGate(cell);}
-      else{try{teardown();}catch(e){}releaseLiveKey(source);}
+      else{
+        try{teardown();}catch(e){}
+        releaseLiveKey(source);
+        // CURSOR #5.1 — failed attempts left channel posters (play-glyph art) behind.
+        cell.querySelectorAll('.csg-poster').forEach(p=>{try{p.remove();}catch(e){}});
+      }
       resolve(ok);
     }
     try{
@@ -4212,10 +4243,10 @@ function attemptSource(cell,source){
         v.setAttribute('webkit-playsinline','');
         v.setAttribute('disablePictureInPicture','');
         v.controls=false;                     // CURSOR #5 — no native play chrome
-        v.addEventListener('playing',()=>{if(cell.classList)cell.classList.add('playing');finish(true);},{once:true});
+        v.addEventListener('playing',()=>{if(cell.classList)cell.classList.add('playing');v.classList.add('playing-media');finish(true);},{once:true});
         v.addEventListener('error',()=>finish(false),{once:true});
         // If OS pauses later, nudge — do not show a controls UI.
-        v.addEventListener('pause',()=>{if(!document.hidden&&cell.__live!==false){try{v.play&&v.play().catch(()=>{});}catch(e){}}});
+        v.addEventListener('pause',()=>{if(!document.hidden&&cell.__live!==false){try{v.muted=true;v.play&&v.play().catch(()=>{});}catch(e){}}});
         cell.insertBefore(v,cell.firstChild);
         if(v.canPlayType('application/vnd.apple.mpegurl')){          // Safari native
           v.src=source.url;if(v.play)v.play().catch(()=>{});
@@ -4267,33 +4298,47 @@ function attemptSource(cell,source){
         const ytPost=o=>{try{ifr.contentWindow.postMessage(JSON.stringify(o),'*');}catch(_){}};
         // CURSOR #5 — expose for keep-alive nudge (never pauseVideo on scroll).
         ifr.__ytPost=ytPost;
+        let ytAlive=false;
         const listen=()=>{
           ytPost({event:'listening',id:pid,channel:'void'});
           ytPost({event:'command',func:'playVideo',args:[],id:pid});
           ytPost({event:'command',func:'mute',args:[],id:pid});
           ytPost({event:'command',func:'getPlayerState',args:[],id:pid});
         };
+        // Bootstrap nudge — cleared on first PLAYING. Keep-alive after that is
+        // driven by state===2 (paused) + the global watchdog, not a 900ms spam.
         const nudge=setInterval(listen,900);
         const onMsg=e=>{
           if(e.source!==ifr.contentWindow)return;
           let data=e.data;
           try{ if(typeof data==='string') data=JSON.parse(data); }catch(_){ return; }
           if(!data||typeof data!=='object')return;
-          if(data.event==='onError'){ytLog(source,false,'yt-error:'+(data.info==null?'':data.info));finish(false);return;}
+          if(data.event==='onError'){
+            // Fatal only before we have a confirmed live tile. After PLAYING, a
+            // transient error must not tear down — watchdog / nudge recovers.
+            if(!ytAlive){ytLog(source,false,'yt-error:'+(data.info==null?'':data.info));finish(false);}
+            return;
+          }
           if(data.event==='onReady'){listen();return;}       // still not watchable
           const st=(data.info&&typeof data.info.playerState==='number')?data.info.playerState
                   :((data.event==='onStateChange'&&typeof data.info==='number')?data.info:null);
           if(st===3)return;                                   // buffering — hold the overlay
-          // Stop nudging the moment it is confirmed PLAYING. The interval used to be
-          // cleared only by teardown — which on the success path is handed to
-          // addLiveInstance as a disposer, so it kept firing four JSON.stringify +
-          // cross-origin postMessage calls every 900ms for the entire life of a
-          // playing tile. Six live tiles meant ~27 postMessages a second, forever,
-          // and the viewport park gate does not touch it (that pauses players, not
-          // timers). The nudge exists to get the player started; it is done here.
-          if(st===1){clearInterval(nudge);ytLog(source,true,'playing');if(cell.classList)cell.classList.add('playing');finish(true);return;}
+          // CURSOR #5.1 — after success, state 2 (paused) is the play-button bug.
+          // Immediately resume; never leave the big YT glyph on a wall tile.
+          if(st===2&&ytAlive){listen();return;}
+          if(st===1){
+            clearInterval(nudge);ytAlive=true;
+            ytLog(source,true,'playing');
+            if(cell.classList)cell.classList.add('playing');
+            ifr.classList.add('playing-media');
+            finish(true);return;
+          }
           if(data.event==='infoDelivery'&&data.info&&data.info.currentTime>0&&data.info.playerState!==2){
-            ytLog(source,true,'playing-time');if(cell.classList)cell.classList.add('playing');finish(true);
+            clearInterval(nudge);ytAlive=true;
+            ytLog(source,true,'playing-time');
+            if(cell.classList)cell.classList.add('playing');
+            ifr.classList.add('playing-media');
+            finish(true);
           }
         };
         window.addEventListener('message',onMsg);
@@ -4443,10 +4488,39 @@ let _slots=[], _slotIdx=0, _wallConn=0, _wallBusy=false;
 const WALL_BATCH=12;   // boxes added per scroll batch (boxes are cheap now)
 // The wall is an INFINITE continuously-filled column — 2-wide or 3-wide — and it
 // must keep loading as you scroll. Capping the number of tiles is the wrong lever
-// and stalls the wall. Decoder pressure is handled by livePark(), which strips the
-// iframe src of any offscreen tile, so only tiles actually in view ever hold a
-// video decoder no matter how long the column gets.
+// and stalls the wall. Decoder pressure used to be handled by parking (src strip /
+// pauseVideo) — that painted play buttons. CURSOR #5+: tiles stay mounted; the
+// OS/browser may throttle far-off tiles, and liveWake nudges them back.
 const IS_MOBILE=(matchMedia('(pointer:coarse)').matches)||Math.min(innerWidth,innerHeight)<820;
+// CURSOR #5.1 — one dead HLS URL used to leave a permanent NO SIGNAL box. Try a
+// short same-country cascade (HLS → cam → raw) so visible grids fill under 10s.
+function wallCascadeFor(name,first){
+  const seen=new Set();
+  const out=[];
+  const push=s=>{
+    if(!s)return;
+    const k=streamKey(s);
+    if(!k||seen.has(k))return;
+    seen.add(k);out.push(s);
+  };
+  push(first);
+  try{(iptvFor(name)||[]).forEach(push);}catch(e){}
+  try{(CAM_SOURCES[name]||[]).forEach(push);}catch(e){}
+  try{(RAW_FOOTAGE[name]||[]).forEach(push);}catch(e){}
+  // Max 2 keeps a screenful inside the 10s budget (6 parallel lanes).
+  return out.slice(0,2);
+}
+async function connectWallCell(cell,name,firstSrc){
+  const chain=wallCascadeFor(name,firstSrc);
+  for(let i=0;i<chain.length;i++){
+    if(!cell.isConnected)return {ok:false};
+    sparkleTile(cell,i===0?'● CONNECTING':'● RETRYING');
+    let ok=false;
+    try{ok=await attemptSource(cell,chain[i]);}catch(e){ok=false;}
+    if(ok)return {ok:true,src:chain[i]};
+  }
+  return {ok:false};
+}
 // Spawn one tile for the next slot. Resolves true if it actually connected; a
 // tile that fails to connect is removed (never a broken/empty tile on the wall).
 function spawnWallTile(){
@@ -4456,11 +4530,11 @@ function spawnWallTile(){
   const cell=document.createElement('div');
   cell.className='gl-tile';cell.style.position='relative';cell.style.order='999999';
   sparkleTile(cell,'● CONNECTING'); grid.appendChild(cell);
-  return attemptSource(cell,src).then(ok=>{
-    if(ok){
+  return connectWallCell(cell,name,src).then(res=>{
+    if(res.ok){
       const fb=cell.querySelector('.sparkle-fallback');if(fb)fb.remove();
       cell.style.order=String(_wallConn++);                         // loaded tiles rise to the top
-      cell.insertAdjacentHTML('beforeend',tileLabel(name.toUpperCase()+' · '+(src.label||''))); return true;
+      cell.insertAdjacentHTML('beforeend',tileLabel(name.toUpperCase()+' · '+(res.src.label||''))); return true;
     }
     // Was cell.remove(). Removing every failed tile is why the wall collapsed to a
     // handful of boxes: with ~240 candidates but most failing to connect, the
@@ -4515,20 +4589,22 @@ async function loadWallBatch(want){
 
   // PHASE 2 — connect through a fixed number of lanes. Cursor #5 bumped mobile
   // to 6 so a screenful of HLS tiles can all reach PLAYING inside ~10s.
+  // #5.1 uses connectWallCell (same-country cascade) so one dead URL does not
+  // leave a black / play-button tile in the first viewport.
   const LANES=IS_MOBILE?6:8;
   let qi=0;
   await Promise.all(Array.from({length:Math.min(LANES,queue.length)},async()=>{
     while(qi<queue.length){
       const {cell,name,src}=queue[qi++];
-      let ok=false;
-      try{ ok=await attemptSource(cell,src); }catch(e){}
-      if(ok){
+      let res={ok:false};
+      try{ res=await connectWallCell(cell,name,src); }catch(e){}
+      if(res.ok){
         const fb=cell.querySelector('.sparkle-fallback');if(fb)fb.remove();
         clearStreamStatus&&clearStreamStatus(cell);
         cell.style.order=String(_wallConn++);           // connected tiles rise
-        cell.insertAdjacentHTML('beforeend',tileLabel(name.toUpperCase()+' · '+(src.label||'')));
-        rememberStream(src);                            // so the next launch varies
-        if(typeof liveGate==='function')liveGate(cell);  // park/wake with the rest
+        cell.insertAdjacentHTML('beforeend',tileLabel(name.toUpperCase()+' · '+(res.src.label||'')));
+        rememberStream(res.src);                        // so the next launch varies
+        if(typeof liveGate==='function')liveGate(cell);  // wake with the rest
       }else{
         // Never remove the box — the wall must stay full top to bottom.
         clearStreamStatus&&clearStreamStatus(cell);

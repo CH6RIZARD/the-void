@@ -215,3 +215,31 @@ Leave Google / Apple / Phone providers OFF until Client IDs / SMS are configured
 - Do **not** restore the false `🔒 ENCRYPTED` DM badge.
 - Base UI on current `void2-final.html`; run `node build.js` (never hand-edit generated targets).
 - Deploy: push to `main` triggers `.github/workflows/deploy-pages.yml` → `void-app-d35c`.
+
+---
+
+## Cursor change #5.1 — Play-button / resume hardening (follow-up)
+
+**Author: Cursor** · **When: 2026-08-09** · Branch `cursor/globe-stream-persist-6e03` · Cloud agent `bc-8374f7e1-4036-4c1b-a104-add28de96e03`
+
+### Why #5 was not enough on device
+- After first PLAYING, the YT nudge interval was cleared; a later soft-pause (playerState `2`) left the **center play glyph** while scrolling.
+- Watchdog only resumed stalled `<video>`, not YouTube iframes.
+- `content-visibility:auto` on `.gl-tile` froze off-screen decoders → black / play chrome on scroll-back.
+- Channel posters with baked-in play art survived failed attempts.
+- One dead HLS URL → permanent empty tile (no same-country fallback).
+- YouTube connect timeout (4s) aborted mid-handshake on mobile.
+
+### Fix (same rules: edit `void2-final.html`, then `node build.js`)
+- YT `onStateChange` **state 2 after success** → immediate `playVideo` / `mute` (keep-alive).
+- Watchdog (2.5s) nudges near-screen **video + YT**; `pageshow` + longer `visibilitychange` resume chain (0/400/1200/2800ms).
+- `.gl-tile { content-visibility:visible }`; CSS hides posters when `:has(iframe|video)` / `.playing-media`.
+- Failed attempts **remove** `.csg-poster`; success removes posters entirely.
+- `connectWallCell` / `wallCascadeFor` — up to **2** same-country sources per tile.
+- YouTube `CONNECT_TIMEOUT` **9s** (still under 10s product budget); HLS-first wall order unchanged.
+- Mobile lanes stay at **6**.
+
+### Claude — do not revert
+- Same as #5: no pause/src-detach parking; no false ENCRYPTED badge.
+- Do not re-enable `content-visibility:auto` on `.gl-tile`.
+- Do not clear YT keep-alive on soft-pause without a resume path.
