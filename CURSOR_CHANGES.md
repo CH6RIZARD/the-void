@@ -183,3 +183,35 @@ Project `zsrpsdufwgfyfoulmazt` (AWS us-east-2):
 - `node build.js --check` → OK
 
 Leave Google / Apple / Phone providers OFF until Client IDs / SMS are configured.
+
+---
+
+## Cursor change #5 — Globe wall keep-alive (no play buttons, resume on return)
+
+**Author: Cursor** · **When: 2026-08-09** · Branch `cursor/globe-stream-persist-6e03` · Cloud agent `bc-8374f7e1-4036-4c1b-a104-add28de96e03`
+
+### Symptom (device, https://void-app-d35c.pages.dev/void2-final)
+- Wall tiles painted giant center **play buttons** while scrolling
+- Leaving the app and returning left the grid black / SEARCHING / broken
+- Streams would not stay continuous
+
+### Root cause
+1. Viewport park called YouTube `pauseVideo` (or stripped `iframe.src`) → YouTube / iOS draw a play glyph; wake renegotiated from zero.
+2. `visibilitychange` hard-parked every tile on background → resume was a full remount, not a continue.
+3. Channel posters with play art stayed stacked over live video on `.gl-tile` (only `.csg-tile.playing` hid them).
+4. Wall ordered YouTube before HLS, so first paint waited on slow embeds.
+
+### Fix (edit `void2-final.html` only, then `node build.js`)
+- **Keep-alive park**: `livePark` is a no-op (no `pauseVideo`, no src detach). Scroll never stops a playing tile.
+- **Resume on return**: `visibilitychange` does **not** tear down; on visible, nudge `playVideo` / `video.play()` at 0/400/1200ms + 3s watchdog for near-screen stalled `<video>`.
+- **`ifr.__ytPost`** exposed for nudges.
+- **CSS**: hide webkit start-playback controls; `.gl-tile.playing` fades posters / sparkle.
+- **HLS first** in `wallSlots()` (`iptvFor` before CAM/RAW YouTube).
+- **Mobile connect lanes** 3→6 so a screenful can hit PLAYING under ~10s when sources are live.
+- Success path marks `.playing` and clears posters/sparkle immediately.
+
+### Claude — do not revert
+- Do **not** reintroduce `pauseVideo` / `removeAttribute('src')` parking for globe wall tiles.
+- Do **not** restore the false `🔒 ENCRYPTED` DM badge.
+- Base UI on current `void2-final.html`; run `node build.js` (never hand-edit generated targets).
+- Deploy: push to `main` triggers `.github/workflows/deploy-pages.yml` → `void-app-d35c`.
