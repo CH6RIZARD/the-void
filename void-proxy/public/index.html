@@ -4055,10 +4055,12 @@ function teardownLiveIn(root){
   [...liveInstances.keys()].forEach(cell=>{if(root===cell||root.contains(cell))disposeCell(cell);});
 }
 
-// ─── LIVE MEDIA KEEP-ALIVE (Cursor #5 / #5.1 — 2026-08-09) ───────────────
+// ─── LIVE MEDIA KEEP-ALIVE (Cursor #5 / #5.1 / #6 — 2026-08-09) ──────────
 // Product rule: once a wall tile is PLAYING it must KEEP streaming through
 // scroll and app backgrounding. Only true source death, a reload, or a full
-// app refresh may stop it.
+// app refresh may stop it. Dead tiles in view self-heal; mid-stream HLS
+// fatals recover in place. The wall preface is CONNECTING sparkle only —
+// never channel posters with baked-in play glyphs.
 //
 // History that caused the play-button / black-grid bugs:
 //   · Hard park stripped iframe src → full renegotiate on wake (sparkle, stalls)
@@ -4068,6 +4070,8 @@ function teardownLiveIn(root){
 //   · #5 cleared the YT nudge on PLAYING, so a later soft-pause (state 2) sat
 //     with a center play button until a full remount
 //   · content-visibility:auto froze off-screen decoders
+//   · Post-PLAYING HLS fatal errors left black tiles forever (finish already done)
+//   · NO SIGNAL boxes never retried while the user kept watching
 //
 // Keep-alive: never pause, never detach. On return / near-view, nudge play.
 // On YT state 2 after success, immediately playVideo again.
@@ -4129,6 +4133,7 @@ document.addEventListener('visibilitychange',()=>{
   setTimeout(liveWakeVisible,400);
   setTimeout(liveWakeVisible,1200);
   setTimeout(liveWakeVisible,2800);
+  setTimeout(()=>{try{wallHealVisible();}catch(e){}},900);
 });
 // iOS Safari bfcache / app-switch often fires pageshow without a useful
 // visibilitychange pair. Resume from the last mounted wall, never rebuild.
@@ -4137,6 +4142,7 @@ window.addEventListener('pageshow',(e)=>{
   liveWakeVisible();
   setTimeout(liveWakeVisible,500);
   if(e&&e.persisted)setTimeout(liveWakeVisible,1500);
+  setTimeout(()=>{try{wallHealVisible();}catch(e){}},700);
 });
 // Watchdog: near-screen stalled <video> OR YouTube soft-pause → nudge play.
 // #5 only checked <video>, so YT play glyphs survived scroll/background.
@@ -4149,8 +4155,10 @@ setInterval(()=>{
     if(r.bottom<-200||r.top>innerHeight+200)return;
     const v=c.querySelector('video');
     const yt=c.querySelector('iframe');
+    if(v&&(v.error||v.ended)){c.__needsHeal=true;return;}
     if((v&&v.paused)||(yt&&yt.__ytPost))liveNudgePlay(c);
   });
+  try{wallHealVisible();}catch(e){}
 },2500);
 let _ytApiP=null;                            // lazy YouTube IFrame API loader
 const USED_STREAMS_KEY='void_used_stream_sources_v1';
@@ -4246,12 +4254,24 @@ function attemptSource(cell,source){
         v.setAttribute('disablePictureInPicture','');
         v.controls=false;                     // CURSOR #5 — no native play chrome
         v.addEventListener('playing',()=>{if(cell.classList)cell.classList.add('playing');v.classList.add('playing-media');finish(true);},{once:true});
-        v.addEventListener('error',()=>finish(false),{once:true});
+        // Connect-time error fails the attempt. After PLAYING, mark for heal —
+        // do NOT leave a black tile with a play glyph forever.
+        v.addEventListener('error',()=>{
+          if(!done)finish(false);
+          else{cell.__needsHeal=true;}
+        });
         // If OS pauses later, nudge — do not show a controls UI.
         v.addEventListener('pause',()=>{if(!document.hidden&&cell.__live!==false){try{v.muted=true;v.play&&v.play().catch(()=>{});}catch(e){}}});
         cell.insertBefore(v,cell.firstChild);
         if(v.canPlayType('application/vnd.apple.mpegurl')){          // Safari native
           v.src=source.url;if(v.play)v.play().catch(()=>{});
+          // Mid-stream stall on iOS: soft reload the same live URL once, then heal.
+          v.__nativeRecover=()=>{
+            try{
+              const u=source.url;
+              v.src=u;v.load();v.muted=true;v.play&&v.play().catch(()=>{});
+            }catch(e){cell.__needsHeal=true;}
+          };
           teardown=()=>{try{v.pause();v.removeAttribute('src');v.load();}catch(e){}v.remove();};
         }else{
           // hls.js is no longer in the document head — it is fetched HERE, on the
@@ -4262,9 +4282,19 @@ function attemptSource(cell,source){
           loadLib('hls').then(()=>{
             if(done){v.remove();return;}              // timed out while the library loaded
             if(!(window.Hls&&window.Hls.isSupported())){v.remove();finish(false);return;}
-            const hls=new Hls({maxBufferLength:6,liveDurationInfinity:true});
+            const hls=new Hls({maxBufferLength:8,liveDurationInfinity:true,enableWorker:true});
             hls.on(Hls.Events.MANIFEST_PARSED,()=>{if(v.play)v.play().catch(()=>{});});
-            hls.on(Hls.Events.ERROR,(_,d)=>{if(d&&d.fatal)finish(false);});
+            // CURSOR #6 — post-PLAYING fatals used to no-op (finish already done)
+            // and leave a black cell. Recover in place; only heal on hard death.
+            hls.on(Hls.Events.ERROR,(_,d)=>{
+              if(!d||!d.fatal)return;
+              if(!done){finish(false);return;}
+              try{
+                if(d.type===Hls.ErrorTypes.NETWORK_ERROR){hls.startLoad();return;}
+                if(d.type===Hls.ErrorTypes.MEDIA_ERROR){hls.recoverMediaError();return;}
+              }catch(e){}
+              cell.__needsHeal=true;
+            });
             hls.loadSource(source.url);hls.attachMedia(v);
             teardown=()=>{try{hls.destroy();}catch(e){}v.remove();};
           }).catch(()=>{v.remove();finish(false);});
@@ -4328,6 +4358,8 @@ function attemptSource(cell,source){
           // CURSOR #5.1 — after success, state 2 (paused) is the play-button bug.
           // Immediately resume; never leave the big YT glyph on a wall tile.
           if(st===2&&ytAlive){listen();return;}
+          // Ended / cued after we were live → try resume; else heal to next source.
+          if((st===0||st===5)&&ytAlive){listen();cell.__needsHeal=true;return;}
           if(st===1){
             clearInterval(nudge);ytAlive=true;
             ytLog(source,true,'playing');
@@ -4494,34 +4526,108 @@ const WALL_BATCH=12;   // boxes added per scroll batch (boxes are cheap now)
 // pauseVideo) — that painted play buttons. CURSOR #5+: tiles stay mounted; the
 // OS/browser may throttle far-off tiles, and liveWake nudges them back.
 const IS_MOBILE=(matchMedia('(pointer:coarse)').matches)||Math.min(innerWidth,innerHeight)<820;
-// CURSOR #5.1 — one dead HLS URL used to leave a permanent NO SIGNAL box. Try a
-// short same-country cascade (HLS → cam → raw) so visible grids fill under 10s.
+// CURSOR #5.1 / #6 — same-country cascade so one dead URL does not strand a tile.
+// HLS first inside the chain; max 3 with parallel lanes keeps first paint <10s.
 function wallCascadeFor(name,first){
   const seen=new Set();
-  const out=[];
+  const hls=[],rest=[];
   const push=s=>{
     if(!s)return;
     const k=streamKey(s);
     if(!k||seen.has(k))return;
-    seen.add(k);out.push(s);
+    seen.add(k);
+    (s.type==='hls'?hls:rest).push(s);
   };
   push(first);
   try{(iptvFor(name)||[]).forEach(push);}catch(e){}
   try{(CAM_SOURCES[name]||[]).forEach(push);}catch(e){}
   try{(RAW_FOOTAGE[name]||[]).forEach(push);}catch(e){}
-  // Max 2 keeps a screenful inside the 10s budget (6 parallel lanes).
-  return out.slice(0,2);
+  return hls.concat(rest).slice(0,3);
 }
-async function connectWallCell(cell,name,firstSrc){
-  const chain=wallCascadeFor(name,firstSrc);
+function tagWallCell(cell,name,src){
+  if(!cell)return;
+  cell.__wallName=name||cell.__wallName||'';
+  if(src)cell.__wallSrc=src;
+  cell.__needsHeal=false;
+}
+async function connectWallCell(cell,name,firstSrc,opts){
+  tagWallCell(cell,name,firstSrc);
+  let chain=wallCascadeFor(name,firstSrc);
+  // On heal, try a different source first — the previous one just died.
+  if(opts&&opts.rotate&&firstSrc&&chain.length>1){
+    const k=streamKey(firstSrc);
+    chain=chain.filter(s=>streamKey(s)!==k).concat(chain.filter(s=>streamKey(s)===k));
+  }
   for(let i=0;i<chain.length;i++){
     if(!cell.isConnected)return {ok:false};
+    // Preface: sparkle only — never channel posters (play-glyph art).
     sparkleTile(cell,i===0?'● CONNECTING':'● RETRYING');
     let ok=false;
     try{ok=await attemptSource(cell,chain[i]);}catch(e){ok=false;}
-    if(ok)return {ok:true,src:chain[i]};
+    if(ok){tagWallCell(cell,name,chain[i]);return {ok:true,src:chain[i]};}
   }
   return {ok:false};
+}
+// CURSOR #6 — visible dead / black / NO SIGNAL tiles silently reconnect.
+// Caps concurrent heals so the wall never thrash-reconnects the whole column.
+let _wallHealBusy=0;
+const WALL_HEAL_MAX=2;
+const WALL_HEAL_COOLDOWN=12000;
+async function healWallCell(cell){
+  if(!cell||!cell.isConnected||cell.__healing)return false;
+  if(_wallHealBusy>=WALL_HEAL_MAX)return false;
+  const now=Date.now();
+  if(cell.__healAt&&now-cell.__healAt<WALL_HEAL_COOLDOWN)return false;
+  const name=cell.__wallName;
+  if(!name)return false;
+  const first=cell.__wallSrc||null;
+  cell.__healing=true;cell.__healAt=now;_wallHealBusy++;
+  try{
+    const keepName=name,keepSrc=first;
+    try{disposeCell(cell);}catch(e){}
+    cell.__wallName=keepName;cell.__wallSrc=keepSrc;
+    cell.classList.remove('csg-offline','playing');
+    cell.querySelectorAll('iframe,video,img.csg-poster,.sparkle-fallback,.csg-status,.csg-tile-label').forEach(n=>{try{n.remove();}catch(e){}});
+    const res=await connectWallCell(cell,keepName,keepSrc,{rotate:true});
+    if(res.ok){
+      const fb=cell.querySelector('.sparkle-fallback');if(fb)fb.remove();
+      clearStreamStatus&&clearStreamStatus(cell);
+      if(!cell.querySelector('.csg-tile-label'))
+        cell.insertAdjacentHTML('beforeend',tileLabel(name.toUpperCase()+' · '+(res.src.label||'')));
+      rememberStream(res.src);
+      if(typeof liveGate==='function')liveGate(cell);
+      cell.__needsHeal=false;
+      return true;
+    }
+    cell.classList.add('csg-offline');
+    sparkleTile(cell,'● NO SIGNAL');
+    return false;
+  }finally{
+    cell.__healing=false;_wallHealBusy=Math.max(0,_wallHealBusy-1);
+  }
+}
+function wallHealVisible(){
+  if(document.hidden||typeof activeTab==='undefined'||activeTab!=='globe')return;
+  if(typeof globeMode!=='undefined'&&globeMode!=='globe')return;
+  const grid=document.getElementById('gl-grid');if(!grid)return;
+  const cells=[...grid.querySelectorAll('.gl-tile')];
+  for(const c of cells){
+    if(_wallHealBusy>=WALL_HEAL_MAX)break;
+    const r=c.getBoundingClientRect();
+    if(r.bottom<-40||r.top>innerHeight+40)continue;
+    const v=c.querySelector('video');
+    const media=c.querySelector('video,iframe');
+    const dead=c.classList.contains('csg-offline')||c.__needsHeal||
+      (c.classList.contains('playing')&&!media)||
+      (v&&(v.error||v.ended||(v.readyState===0&&!v.src)));
+    if(!dead)continue;
+    // Native HLS soft-recover once before a full heal.
+    if(v&&v.__nativeRecover&&!c.__nativeTried){
+      c.__nativeTried=true;
+      try{v.__nativeRecover();continue;}catch(e){}
+    }
+    healWallCell(c);
+  }
 }
 // Spawn one tile for the next slot. Resolves true if it actually connected; a
 // tile that fails to connect is removed (never a broken/empty tile on the wall).
@@ -4576,7 +4682,9 @@ async function loadWallBatch(want){
     const {name,src}=_slots[_slotIdx++];
     const cell=document.createElement('div');
     cell.className='gl-tile';cell.style.position='relative';cell.style.order='999999';
-    showStreamPoster&&showStreamPoster(cell,src);
+    // CURSOR #6 — no showStreamPoster on the wall preface. Channel thumbs carry
+    // a baked-in play glyph that looked like a broken player while CONNECTING.
+    tagWallCell(cell,name,src);
     sparkleTile(cell,'● CONNECTING');
     grid.appendChild(cell);
     queue.push({cell,name,src});
@@ -4591,9 +4699,8 @@ async function loadWallBatch(want){
 
   // PHASE 2 — connect through a fixed number of lanes. Cursor #5 bumped mobile
   // to 6 so a screenful of HLS tiles can all reach PLAYING inside ~10s.
-  // #5.1 uses connectWallCell (same-country cascade) so one dead URL does not
-  // leave a black / play-button tile in the first viewport.
-  const LANES=IS_MOBILE?6:8;
+  // #6: 8 mobile lanes + HLS prefetch; cascade up to 3; heal fills gaps later.
+  const LANES=IS_MOBILE?8:10;
   let qi=0;
   await Promise.all(Array.from({length:Math.min(LANES,queue.length)},async()=>{
     while(qi<queue.length){
@@ -4606,11 +4713,14 @@ async function loadWallBatch(want){
         cell.style.order=String(_wallConn++);           // connected tiles rise
         cell.insertAdjacentHTML('beforeend',tileLabel(name.toUpperCase()+' · '+(res.src.label||'')));
         rememberStream(res.src);                        // so the next launch varies
+        tagWallCell(cell,name,res.src);
         if(typeof liveGate==='function')liveGate(cell);  // wake with the rest
       }else{
         // Never remove the box — the wall must stay full top to bottom.
+        // #6 healer will retry visible NO SIGNAL tiles without a full rebuild.
         clearStreamStatus&&clearStreamStatus(cell);
         cell.classList.add('csg-offline');
+        tagWallCell(cell,name,src);
         sparkleTile(cell,'● NO SIGNAL');
       }
     }
@@ -4623,6 +4733,7 @@ async function loadWallBatch(want){
   // screen and stays there while the wall is short, so keep pulling while it is
   // still in view.
   if(_slotIdx<_slots.length && wallSentinelNear()) setTimeout(()=>loadWallBatch(WALL_BATCH),0);
+  setTimeout(()=>{try{wallHealVisible();}catch(e){}},1500);
 }
 // Enough tiles to cover the visible area plus a little, so the wall fills with
 // CONNECTING boxes immediately rather than trickling in a handful at a time.
@@ -5604,6 +5715,9 @@ function setGlobeMode(mode,announce){
     fillGlobeReels();
   }else{
     stopGlobeReels();
+    // CURSOR #6 — prefetch hls.js as soon as the wall is shown so the first
+    // CONNECTING tiles do not serialize behind the library download.
+    try{loadLib('hls');}catch(e){}
     // three.js is fetched HERE — the first time the globe is actually revealed —
     // not in the document head on every launch. _initing guards the window between
     // requesting the library and globeReady being set inside initGlobe's texture
@@ -5630,6 +5744,7 @@ function setGlobeMode(mode,announce){
       // IntersectionObserver will not restart it if the sentinel was already
       // intersecting when you left (no boundary is crossed on return). Re-kick it.
       if(wallSentinelNear())loadWallBatch(WALL_BATCH);
+      setTimeout(()=>{try{wallHealVisible();}catch(e){}},600);
     }
   }
 }

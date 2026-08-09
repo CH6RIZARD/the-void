@@ -243,3 +243,26 @@ Leave Google / Apple / Phone providers OFF until Client IDs / SMS are configured
 - Same as #5: no pause/src-detach parking; no false ENCRYPTED badge.
 - Do not re-enable `content-visibility:auto` on `.gl-tile`.
 - Do not clear YT keep-alive on soft-pause without a resume path.
+
+---
+
+## Cursor change #6 — Wall almost-never-breaks (heal + preface)
+
+**Author: Cursor** · **When: 2026-08-09** · Branch `cursor/globe-stream-persist-6e03` · Cloud agent `bc-8374f7e1-4036-4c1b-a104-add28de96e03`
+
+### Goal
+Simulate real use (scroll, leave app, return, mid-stream death) and keep the LIVE FEEDS wall playing with near-zero breakages unless the source is truly gone or the user refreshes.
+
+### Fix
+- **Preface**: wall tiles never use `showStreamPoster` (play-glyph channel art). CONNECTING sparkle only.
+- **HLS mid-stream**: fatal network/media errors recover in place (`startLoad` / `recoverMediaError`); hard death sets `__needsHeal`.
+- **Safari native HLS**: one soft `src` reload, then heal.
+- **YT ended/cued after live**: resume nudge + heal flag.
+- **`wallHealVisible`**: visible `.csg-offline` / black / errored tiles reconnect (max 2 concurrent, 12s cooldown, rotated cascade).
+- **Cascade** up to 3, HLS-first; mobile connect lanes **8**; prefetch `hls.js` when GLOBE mode opens.
+- Resume path also runs healer after `visibilitychange` / `pageshow`.
+
+### Claude — do not revert
+- Keep healer + in-place HLS recovery.
+- Do not bring back wall posters during CONNECTING.
+- Do not pause/detach for viewport parking.
