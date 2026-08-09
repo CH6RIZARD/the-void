@@ -232,6 +232,13 @@ html,body{height:100%;background:var(--bg);background-image:var(--bg-radial);col
 .csg-offline .sparkle-fallback-particle{animation:none;opacity:.18}
 
 .gl-tile iframe,.gl-tile video,.gl-tile img{width:100%;height:100%;border:none;object-fit:cover;pointer-events:none;position:absolute;inset:0}
+/* CURSOR #5 — never show native / poster play chrome on the wall. Pausing used
+   to paint iOS + YouTube center play glyphs on scroll; keep media pointer-dead
+   and hide every start-playback control + channel-poster once the tile is live. */
+.gl-tile video::-webkit-media-controls{display:none!important}
+.gl-tile video::-webkit-media-controls-start-playback-button{display:none!important;-webkit-appearance:none}
+.gl-tile.playing .csg-poster{opacity:0;pointer-events:none;transition:opacity .25s ease}
+.gl-tile.playing .csg-status,.gl-tile.playing .sparkle-fallback{display:none!important}
 .gl-tile-label{position:absolute;bottom:0;left:0;right:0;z-index:4;background:linear-gradient(transparent,rgba(0,0,0,.9));padding:4px 6px 5px;font-family:'Syne Mono',monospace;font-size:7px;color:var(--gold);letter-spacing:.1em;pointer-events:none}
 #screen-void{padding-top:0}
 .bio-hud{position:fixed;top:0;left:0;z-index:60;padding:14px 18px 10px;display:flex;align-items:center;pointer-events:none;transition:opacity .22s ease,transform .22s ease}
@@ -4039,29 +4046,43 @@ function teardownLiveIn(root){
   [...liveInstances.keys()].forEach(cell=>{if(root===cell||root.contains(cell))disposeCell(cell);});
 }
 
-// ─── LIVE MEDIA VIEWPORT GATE ────────────────────────────────────────────
-// Every tile that connected used to keep decoding forever: off screen, after you
-// scrolled past it, and even after switching to another tab. With a wall fill of
-// 20-60 tiles that is 20-60 concurrent video players / third-party iframes all
-// running at once — the single biggest reason the app crawled on device.
-// Now a tile only runs while it is on (or near) screen. Off screen it is PARKED:
-// <video> paused, <iframe> src detached so the embedded player stops entirely.
-// It wakes on the way back in. Nothing the user can see ever stops.
-const liveCells=new Set();                   // connected tiles under viewport control
-const LIVE_PARK_DELAY=1500;                  // grace period, so a fast scroll-by doesn't churn
-function livePark(cell){
-  if(cell.__live===false)return; cell.__live=false;
-  cell.querySelectorAll('video').forEach(v=>{try{v.pause();}catch(e){}});
+// ─── LIVE MEDIA KEEP-ALIVE (Cursor #5 — 2026-08-09) ──────────────────────
+// Product rule: once a wall tile is PLAYING it must KEEP streaming through
+// scroll and app backgrounding. Only true source death, a reload, or a full
+// app refresh may stop it.
+//
+// History that caused the play-button / black-grid bugs:
+//   · Hard park stripped iframe src → full renegotiate on wake (sparkle, stalls)
+//   · Soft park called YouTube pauseVideo → giant center play glyph on scroll
+//   · iOS <video>.pause() → native start-playback overlay
+//   · visibilitychange tore everything down → "leave and come back breaks"
+//
+// Keep-alive: never pause, never detach. On return / near-view, nudge play.
+const liveCells=new Set();
+const LIVE_PARK_DELAY=1e9; // effectively never — kept so call sites still compile
+function liveNudgePlay(cell){
+  if(!cell)return;
   cell.querySelectorAll('iframe').forEach(f=>{
-    const s=f.getAttribute('src'); if(s){f.dataset.parkedSrc=s;f.removeAttribute('src');}
+    if(!f.__ytPost)return;
+    try{
+      f.__ytPost({event:'command',func:'mute',args:[]});
+      f.__ytPost({event:'command',func:'playVideo',args:[]});
+      f.__ytPaused=false;
+    }catch(e){}
   });
+  cell.querySelectorAll('video').forEach(v=>{
+    try{v.muted=true;if(v.paused&&v.play)v.play().catch(()=>{});}catch(e){}
+  });
+  if(cell.classList)cell.classList.add('playing');
+}
+function livePark(cell){
+  // Intentional no-op for continuous streaming. Do NOT pauseVideo / detach src.
+  if(cell)cell.__live=true;
 }
 function liveWake(cell){
-  if(cell.__live!==false)return; cell.__live=true;
-  cell.querySelectorAll('iframe').forEach(f=>{
-    if(f.dataset.parkedSrc){f.setAttribute('src',f.dataset.parkedSrc);delete f.dataset.parkedSrc;}
-  });
-  cell.querySelectorAll('video').forEach(v=>{try{v.play&&v.play().catch(()=>{});}catch(e){}});
+  if(!cell)return;
+  cell.__live=true;
+  liveNudgePlay(cell);
 }
 let _liveObs=null;
 function liveGate(cell){
@@ -4069,24 +4090,44 @@ function liveGate(cell){
   liveCells.add(cell); cell.__live=true;
   if(!_liveObs)_liveObs=new IntersectionObserver(es=>es.forEach(e=>{
     const el=e.target;
-    if(e.isIntersecting){clearTimeout(el.__parkT);el.__parkT=null;if(!document.hidden)liveWake(el);}
-    else if(!el.__parkT)el.__parkT=setTimeout(()=>{el.__parkT=null;livePark(el);},LIVE_PARK_DELAY);
-  }),{rootMargin:'200px'});
+    // Only WAKE/nudge when near — never park. Far tiles keep decoding so scroll
+    // never paints a play button or forces a reconnect.
+    if(e.isIntersecting&&!document.hidden)liveWake(el);
+  }),{rootMargin:'900px'});
   _liveObs.observe(cell);
 }
-// Leaving the globe tab / backgrounding the app parks everything at once — an
-// IntersectionObserver alone can't see either of those (the tiles are still
-// "visible", just on a hidden screen).
-function liveParkAll(){liveCells.forEach(c=>{clearTimeout(c.__parkT);c.__parkT=null;livePark(c);});}
+function liveParkAll(){
+  // Soft mark only. Used when leaving the globe surface so callers keep working,
+  // but players are NOT torn down (resume must be instant).
+  liveCells.forEach(c=>{clearTimeout(c.__parkT);c.__parkT=null;c.__live=true;});
+}
 function liveWakeVisible(){
   if(document.hidden)return;
   liveCells.forEach(c=>{
-    if(!c.isConnected||!c.offsetParent){livePark(c);return;}
-    const r=c.getBoundingClientRect();
-    if(r.bottom>-200&&r.top<innerHeight+200&&r.right>0&&r.left<innerWidth)liveWake(c);
+    const _scr=c.closest?c.closest('.screen'):null;
+    if(!c.isConnected||(_scr&&!_scr.classList.contains('active')))return;
+    liveNudgePlay(c);
   });
 }
-document.addEventListener('visibilitychange',()=>{document.hidden?liveParkAll():liveWakeVisible();});
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden)return;                 // stay mounted while backgrounded
+  // OS may have suspended media — nudge every connected tile back to PLAYING.
+  liveWakeVisible();
+  setTimeout(liveWakeVisible,400);
+  setTimeout(liveWakeVisible,1200);
+});
+// Watchdog: if a near-screen tile stopped (OS stall, YT soft-pause), kick it.
+setInterval(()=>{
+  if(document.hidden||typeof activeTab==='undefined'||activeTab!=='globe')return;
+  if(typeof globeMode!=='undefined'&&globeMode!=='globe')return;
+  liveCells.forEach(c=>{
+    if(!c.isConnected)return;
+    const r=c.getBoundingClientRect();
+    if(r.bottom<-100||r.top>innerHeight+100)return;
+    const v=c.querySelector('video');
+    if(v&&v.paused)liveNudgePlay(c);
+  });
+},3000);
 let _ytApiP=null;                            // lazy YouTube IFrame API loader
 const USED_STREAMS_KEY='void_used_stream_sources_v1';
 function streamKey(source){return source.type==='youtube'?`youtube:${source.id}`:`${source.type}:${source.url||''}`;}
@@ -4168,8 +4209,13 @@ function attemptSource(cell,source){
       if(source.type==='hls'){
         const v=document.createElement('video');
         v.muted=true;v.autoplay=true;v.playsInline=true;v.setAttribute('playsinline','');
-        v.addEventListener('playing',()=>finish(true),{once:true});
+        v.setAttribute('webkit-playsinline','');
+        v.setAttribute('disablePictureInPicture','');
+        v.controls=false;                     // CURSOR #5 — no native play chrome
+        v.addEventListener('playing',()=>{if(cell.classList)cell.classList.add('playing');finish(true);},{once:true});
         v.addEventListener('error',()=>finish(false),{once:true});
+        // If OS pauses later, nudge — do not show a controls UI.
+        v.addEventListener('pause',()=>{if(!document.hidden&&cell.__live!==false){try{v.play&&v.play().catch(()=>{});}catch(e){}}});
         cell.insertBefore(v,cell.firstChild);
         if(v.canPlayType('application/vnd.apple.mpegurl')){          // Safari native
           v.src=source.url;if(v.play)v.play().catch(()=>{});
@@ -4219,6 +4265,8 @@ function attemptSource(cell,source){
         ifr.style.cssText='width:100%;height:100%;border:none;position:absolute;inset:0;z-index:1;opacity:0';
         cell.insertBefore(ifr,cell.firstChild);
         const ytPost=o=>{try{ifr.contentWindow.postMessage(JSON.stringify(o),'*');}catch(_){}};
+        // CURSOR #5 — expose for keep-alive nudge (never pauseVideo on scroll).
+        ifr.__ytPost=ytPost;
         const listen=()=>{
           ytPost({event:'listening',id:pid,channel:'void'});
           ytPost({event:'command',func:'playVideo',args:[],id:pid});
@@ -4243,9 +4291,9 @@ function attemptSource(cell,source){
           // playing tile. Six live tiles meant ~27 postMessages a second, forever,
           // and the viewport park gate does not touch it (that pauses players, not
           // timers). The nudge exists to get the player started; it is done here.
-          if(st===1){clearInterval(nudge);ytLog(source,true,'playing');finish(true);return;}
+          if(st===1){clearInterval(nudge);ytLog(source,true,'playing');if(cell.classList)cell.classList.add('playing');finish(true);return;}
           if(data.event==='infoDelivery'&&data.info&&data.info.currentTime>0&&data.info.playerState!==2){
-            ytLog(source,true,'playing-time');finish(true);
+            ytLog(source,true,'playing-time');if(cell.classList)cell.classList.add('playing');finish(true);
           }
         };
         window.addEventListener('message',onMsg);
@@ -4285,7 +4333,9 @@ function clearStreamStatus(cell){
   cell.querySelector('.csg-status')?.remove();
   // Reveal the actual stream: fade the poster out instead of leaving the
   // thumbnail (channel avatar + play glyph) stacked on top of live video.
+  // Applies to both .csg-tile and .gl-tile (Cursor #5).
   if(cell.classList)cell.classList.add('playing');
+  cell.querySelectorAll('.sparkle-fallback').forEach(el=>el.remove());
 }
 function tileLabel(text,source={}){return `<div class="csg-tile-label"><span class="strip-live-dot"></span> ${esc(text)}</div>`;}
 // Walk a source chain in ONE cell sequentially; first success stops & labels;
@@ -4375,7 +4425,10 @@ function wallSlots(){
   names.forEach(n=>{const t=Math.floor(rankOf(n)/12);(tiers[t]=tiers[t]||[]).push(n);});
   const ordered=Object.keys(tiers).sort((a,b)=>a-b).flatMap(t=>shuffle(tiers[t]));
 
-  const per=ordered.map(n=>({n,src:shuffle([...(CAM_SOURCES[n]||[]),...(RAW_FOOTAGE[n]||[])]).concat(shuffle(iptvFor(n)))}));
+  // CURSOR #5 — HLS/IPTV first. Direct .m3u8 reaches PLAYING in ~1–3s; YouTube
+  // embeds often take longer and paint play chrome on stall. Prefer verified HLS
+  // so every visible grid cell is watchable under 10s when the source is alive.
+  const per=ordered.map(n=>({n,src:shuffle(iptvFor(n)).concat(shuffle([...(CAM_SOURCES[n]||[]),...(RAW_FOOTAGE[n]||[])]))}));
   const out=[]; let more=true,i=0;
   while(more){ more=false; for(const c of per){ if(i<c.src.length){ out.push({name:c.n,src:c.src[i]}); more=true; } } i++; }
 
@@ -4460,9 +4513,9 @@ async function loadWallBatch(want){
     }
   }
 
-  // PHASE 2 — connect through a fixed number of lanes. Only this many decoders
-  // are ever in flight at once, so a 60-box wall costs the same as a 6-box one.
-  const LANES=IS_MOBILE?3:6;
+  // PHASE 2 — connect through a fixed number of lanes. Cursor #5 bumped mobile
+  // to 6 so a screenful of HLS tiles can all reach PLAYING inside ~10s.
+  const LANES=IS_MOBILE?6:8;
   let qi=0;
   await Promise.all(Array.from({length:Math.min(LANES,queue.length)},async()=>{
     while(qi<queue.length){
