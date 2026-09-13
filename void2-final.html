@@ -229,7 +229,7 @@ html,body{height:100%;background:var(--bg);background-image:var(--bg-radial);col
 .gl-tile{position:relative;aspect-ratio:16/9;background:#000;border-radius:6px;overflow:hidden;border:1px solid var(--border);cursor:pointer;transition:border-color .2s;content-visibility:visible}
 /* A tile that ended on NO SIGNAL is not loading anything — it has no reason to keep
    14 particles animating for the rest of the session. */
-.csg-offline .sparkle-fallback-particle{animation:none;opacity:.18}
+/* (removed: .csg-offline froze the particles — a visible sparkle loader must ALWAYS be moving) */
 
 .gl-tile iframe,.gl-tile video,.gl-tile img{width:100%;height:100%;border:none;object-fit:cover;pointer-events:none;position:absolute;inset:0}
 /* CURSOR #5 / #5.1 — never show native / poster play chrome on the wall. */
@@ -439,6 +439,11 @@ html.g3 .c-stream-grid{grid-template-columns:1fr 1fr 1fr}
 /* Tap-for-sound: the tile itself takes the tap (a YouTube frame would pause on it),
    and the one audible stream wears a quiet gold ring + speaker mark. */
 .csg-tile iframe,.csg-tile video,.search-live-slot iframe,.search-live-slot video{pointer-events:none}
+/* YouTube still paints its title strip and logo for a few seconds on load even
+   with controls=0. Overscan the frame so those edges fall outside the tile's
+   overflow:hidden box — the picture fills the tile, the chrome never shows. */
+.gl-tile iframe,.csg-tile iframe,.search-live-slot iframe{transform:scale(1.32);transform-origin:50% 50%}
+.nh-play{display:none!important}
 .gl-tile.playing,.csg-tile.playing,.search-live-slot.playing{cursor:pointer}
 .gl-tile.audio-on,.csg-tile.audio-on,.search-live-slot.audio-on{box-shadow:inset 0 0 0 1.5px rgba(201,168,76,.75)}
 .gl-tile.audio-on::after,.csg-tile.audio-on::after,.search-live-slot.audio-on::after{content:'';position:absolute;top:7px;right:7px;z-index:6;width:18px;height:18px;border-radius:50%;background:rgba(4,2,12,.72) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c9a84c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M11 5 6 9H3v6h3l5 4z'/%3E%3Cpath d='M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13'/%3E%3C/svg%3E") center/11px no-repeat;pointer-events:none}
@@ -842,6 +847,15 @@ body.tab-void .bio-hud{display:flex}
 @media(max-width:360px){.search-grid{grid-template-columns:1fr}}
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+}
+/* The TWO loaders are hard-locked (user rule): they animate even with reduced motion on.
+   Windows sets prefers-reduced-motion whenever system animation effects are off, and
+   the rule above then froze every sparkle and orbit mid-frame — a loader that doesn't
+   move reads as a crash. Class-level !important outranks the * !important above. */
+@media (prefers-reduced-motion: reduce){
+  .sparkle-fallback .sparkle-fallback-particle{animation-duration:var(--pd,3.5s)!important;animation-iteration-count:infinite!important}
+  .img-load .img-load-out{animation-duration:3.4s!important;animation-iteration-count:infinite!important}
+  .img-load .img-load-in{animation-duration:2.2s!important;animation-iteration-count:infinite!important}
 }
 /* Hide dwell ring */
 .dwell-ring{display:none!important}
@@ -1799,11 +1813,19 @@ setInterval(()=>{
   document.querySelectorAll('.img-load').forEach(l=>{
     const host=l.parentNode; if(!host){l.remove();return;}
     const img=host.querySelector('img');
-    // complete+naturalWidth means it actually decoded; complete alone can mean
-    // "finished by failing", which should also clear the loader.
-    if(img&&img.complete){l.remove();return;}
-    const born=+l.dataset.t||(l.dataset.t=Date.now(),Date.now());
-    if(Date.now()-born>12000)l.remove();       // hard expiry
+    if(!img){l.remove();return;}
+    // Decoded → the picture is there, clear the loader.
+    if(img.complete&&img.naturalWidth>0){l.remove();return;}
+    // Finished by FAILING → never leave an empty black box: drop the whole media
+    // block, exactly like the onerror path (mediaFailed) would have.
+    if(img.complete&&img.getAttribute('src')){
+      if(host.classList.contains('post-media')||host.classList.contains('post-car-cell'))host.remove();else l.remove();
+      return;
+    }
+    // Still loading → the loader STAYS. There used to be a 12s hard expiry here;
+    // feed images are loading="lazy", so anything below the fold had its loader
+    // expired before its request even started and then loaded as a bare black
+    // box with no animation. A loader may only leave when its image is done.
   });
 },1200);
 // The app has exactly TWO loading animations and no others:
@@ -1814,7 +1836,7 @@ setInterval(()=>{
 // form of sparkleTile(), which can only decorate an existing element.
 function sparkleMarkup(label){
   let pts='';
-  for(let i=0;i<14;i++)pts+=`<div class="sparkle-fallback-particle" style="left:${Math.random()*100}%;bottom:${Math.random()*40}px;animation-duration:${2.5+Math.random()*4}s;animation-delay:${Math.random()*3}s;opacity:${.15+Math.random()*.45}"></div>`;
+  for(let i=0;i<14;i++)pts+=`<div class="sparkle-fallback-particle" style="left:${Math.random()*100}%;bottom:${Math.random()*40}px;--pd:${(2.5+Math.random()*4).toFixed(2)}s;animation-duration:var(--pd);animation-delay:-${(Math.random()*6).toFixed(2)}s;opacity:${.15+Math.random()*.45}"></div>`;
   return `<div class="sparkle-fallback">${pts}${label?`<div class="sparkle-fallback-label">${label}</div>`:''}</div>`;
 }
 // Wrap markup for an image that should show the orbit loader while it fetches.
@@ -4441,7 +4463,7 @@ function searchGlobe(q){
 // Sparkle placeholder overlay (reused as connecting / no-signal state)
 function sparkleTile(container,label='● CLICK TO LOAD',onRetry){
   let pts='';
-  for(let i=0;i<14;i++)pts+=`<div class="sparkle-fallback-particle" style="left:${Math.random()*100}%;bottom:${Math.random()*40}px;animation-duration:${2.5+Math.random()*4}s;animation-delay:${Math.random()*3}s;opacity:${.15+Math.random()*.45}"></div>`;
+  for(let i=0;i<14;i++)pts+=`<div class="sparkle-fallback-particle" style="left:${Math.random()*100}%;bottom:${Math.random()*40}px;--pd:${(2.5+Math.random()*4).toFixed(2)}s;animation-duration:var(--pd);animation-delay:-${(Math.random()*6).toFixed(2)}s;opacity:${.15+Math.random()*.45}"></div>`;
   const fb=document.createElement('div');
   fb.className='sparkle-fallback';
   fb.innerHTML=pts+`<div class="sparkle-fallback-label">${label}</div>`;
@@ -4632,9 +4654,15 @@ function streamSetAudio(cell,on){
   });
   cell.querySelectorAll('iframe').forEach(f=>{
     if(!f.__ytPost)return;
-    f.__ytPost({event:'command',func:on?'unMute':'mute',args:[]});
-    if(on)f.__ytPost({event:'command',func:'setVolume',args:[100]});
-    f.__ytPost({event:'command',func:'playVideo',args:[]});   // belt and braces: never paused by the toggle
+    // Sent at once and re-sent twice: a YouTube frame drops a command that lands
+    // while it is mid state-change, which read as "sound sometimes doesn't come on".
+    const send=()=>{
+      if(!f.isConnected||(cell===_audioCell)!==!!on)return;   // the user already moved on
+      f.__ytPost({event:'command',func:on?'unMute':'mute',args:[]});
+      if(on)f.__ytPost({event:'command',func:'setVolume',args:[100]});
+    };
+    send();setTimeout(send,200);setTimeout(send,700);
+    if(f.__ytState!==1)f.__ytPost({event:'command',func:'playVideo',args:[]});   // only if not already playing (no chrome flash)
   });
   cell.classList.toggle('audio-on',!!on);
 }
@@ -4737,7 +4765,10 @@ setInterval(()=>{
     if(v&&(v.error||v.ended)){c.__needsHeal=true;return;}
     checkTileSignal(c);                      // live feed went to test bars / slate
     if(c.__needsHeal)return;
-    if((v&&v.paused)||(yt&&yt.__ytPost))liveNudgePlay(c);
+    // YouTube is nudged ONLY when its last reported state is not PLAYING (1). It
+    // used to get mute+playVideo every 2.5s while playing, and each command made
+    // the player flash its pause glyph / title overlay — the "janky" chrome.
+    if((v&&v.paused)||(yt&&yt.__ytPost&&yt.__ytState!==1))liveNudgePlay(c);
   });
   try{wallHealVisible();}catch(e){}
 },2500);
@@ -4907,8 +4938,12 @@ function attemptSource(cell,source){
         const id=source.id||'';
         const origin=encodeURIComponent(location.origin||'');
         let base;
-        if(/^(PL|UU|OLAK)/.test(id))  base='https://www.youtube.com/embed/videoseries?list='+id+'&autoplay=1&mute=1&playsinline=1&rel=0';
-        else if(id.length===11)       base='https://www.youtube.com/embed/'+id+'?autoplay=1&mute=1&playsinline=1&rel=0';
+        // No YouTube chrome on a tile: walking tours / VODs were embedded WITHOUT
+        // controls=0, so every one showed the title bar, pause glyph, progress bar
+        // and logo over the picture. Same player params the live_stream path uses.
+        const YT_CLEAN='&autoplay=1&mute=1&playsinline=1&rel=0&controls=0&disablekb=1&fs=0&iv_load_policy=3&modestbranding=1&cc_load_policy=0';
+        if(/^(PL|UU|OLAK)/.test(id))  base='https://www.youtube.com/embed/videoseries?list='+id+YT_CLEAN;
+        else if(id.length===11)       base='https://www.youtube.com/embed/'+id+'?'+YT_CLEAN.slice(1)+'&loop=1&playlist='+id;
         else{const _v=liveVidFor(source);base=liveUrl(_v?{id:id,vid:_v}:id);}
         // CURSOR #1: without a Referer, YouTube returns Error 153 and live_stream
         // never resolves to a real video id.
@@ -4950,6 +4985,8 @@ function attemptSource(cell,source){
             return;
           }
           if(data.event==='onReady'){listen();return;}       // still not watchable
+          if(data.info&&typeof data.info.playerState==='number')ifr.__ytState=data.info.playerState;
+          else if(data.event==='onStateChange'&&typeof data.info==='number')ifr.__ytState=data.info;
           const st=(data.info&&typeof data.info.playerState==='number')?data.info.playerState
                   :((data.event==='onStateChange'&&typeof data.info==='number')?data.info:null);
           if(st===3)return;                                   // buffering — hold the overlay
