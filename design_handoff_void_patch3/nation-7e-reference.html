@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nation 7e — Cinema LIVE reference</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Syne:wght@400;600;700;800&family=Syne+Mono&display=swap" rel="stylesheet">
+<style>
+  body{margin:0;background:#1a1030;display:flex;justify-content:center;padding:40px 0;font-family:'Syne',sans-serif}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes spinRev{to{transform:rotate(-360deg)}}
+  @keyframes floatUp{0%{transform:translateY(6px);opacity:0}30%{opacity:1}100%{transform:translateY(-14px);opacity:0}}
+</style>
+</head>
+<body>
+<!-- 390px phone-width reference. Hero/feed media backgrounds are PLAIN DARK (#05020e / #0d0820) —
+     never colored gradients — with the app's loaders shown in their loading state. -->
+<div style="width:390px;background:radial-gradient(120% 35% at 50% 0%,#12082e 0%,#04020c 55%);padding-bottom:24px">
+
+  <!-- overlay header: UNCHANGED from the user's app — shown indicatively -->
+  <div style="padding:20px 22px 0;display:flex;align-items:flex-start">
+    <div>
+      <div style="font-family:'Syne Mono',monospace;font-size:8px;letter-spacing:.3em;color:#c9a84c;margin-bottom:4px">JP · ASIA-PACIFIC</div>
+      <div style="font-family:'DM Serif Display',serif;font-size:32px;color:#f4f0ff;line-height:1">Japan</div>
+    </div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+      <div style="display:flex;align-items:center;gap:5px;font-family:'Syne Mono',monospace;font-size:7px;letter-spacing:.2em;color:#ef4444"><span style="width:5px;height:5px;border-radius:50%;background:#ef4444;box-shadow:0 0 8px #ef4444"></span>LIVE</div>
+      <span style="color:#5c4d8a"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M5 5l14 14M19 5 5 19"></path></svg></span>
+    </div>
+  </div>
+
+  <!-- label row -->
+  <div style="display:flex;align-items:center;gap:10px;padding:16px 22px 10px">
+    <span style="font-family:'Syne Mono',monospace;font-size:7px;letter-spacing:.25em;color:#c9a84c">FOR YOU · RANKED FOR JAPAN</span>
+    <span style="flex:1;height:1px;background:linear-gradient(90deg,rgba(201,168,76,.3),transparent)"></span>
+    <span style="font-family:'Syne Mono',monospace;font-size:7px;letter-spacing:.15em;color:#5c4d8a">TAP → REELS</span>
+  </div>
+
+  <!-- CINEMA LIVE HERO — full-bleed, buffering state: plain dark bg + ORIGINAL sparkle/float loader -->
+  <div style="aspect-ratio:16/10;position:relative;overflow:hidden;background:#05020e">
+    <!-- sparkle/float loader (stand-in for the app's own — Claude Code: mount the REAL one) -->
+    <div style="position:absolute;inset:0">
+      <span style="position:absolute;left:30%;top:55%;width:3px;height:3px;border-radius:50%;background:#c9a84c;box-shadow:0 0 6px rgba(201,168,76,.7);animation:floatUp 2.2s ease-in-out infinite"></span>
+      <span style="position:absolute;left:48%;top:60%;width:2px;height:2px;border-radius:50%;background:#c9a84c;opacity:.6;animation:floatUp 2.6s .5s ease-in-out infinite"></span>
+      <span style="position:absolute;left:62%;top:52%;width:2.5px;height:2.5px;border-radius:50%;background:#a78bfa;opacity:.6;animation:floatUp 2.4s 1s ease-in-out infinite"></span>
+      <span style="position:absolute;left:55%;top:65%;width:1.5px;height:1.5px;border-radius:50%;background:#c9a84c;opacity:.4;animation:floatUp 3s 1.4s ease-in-out infinite"></span>
+      <span style="position:absolute;left:38%;top:48%;width:2px;height:2px;border-radius:50%;background:#c9a84c;opacity:.5;animation:floatUp 2.8s .8s ease-in-out infinite"></span>
+    </div>
+    <!-- <video autoplay muted playsinline> fades in over the loader when 'playing' fires -->
+    <div style="position:absolute;top:12px;left:16px;display:flex;align-items:center;gap:6px">
+      <span style="padding:3px 9px;border-radius:14px;background:rgba(239,68,68,.85);font-family:'Syne Mono',monospace;font-size:6.5px;letter-spacing:.12em;color:#fff;white-space:nowrap;flex-shrink:0">◉ LIVE</span>
+      <span style="font-family:'Syne Mono',monospace;font-size:7px;letter-spacing:.12em;color:rgba(255,255,255,.55)">412K WATCHING</span>
+    </div>
+    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:44px;height:44px;border-radius:50%;background:rgba(13,8,32,.6);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;color:#f4f0ff"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5-13-7.5z"></path></svg></div>
+    <div style="position:absolute;bottom:0;left:0;right:0;padding:30px 16px 12px;background:linear-gradient(transparent,rgba(4,2,12,.95))">
+      <div style="font-family:'DM Serif Display',serif;font-style:italic;font-size:17px;color:#f4f0ff;line-height:1.35">Shibuya crossing, typhoon inbound — the city keeps walking.</div>
+    </div>
+  </div>
+
+  <!-- TRENDING + ABOUT quiet cards -->
+  <div style="display:flex;gap:8px;padding:10px 16px 0">
+    <div style="flex:1;border-radius:12px;background:rgba(13,8,32,.8);box-shadow:inset 0 1px 0 rgba(255,255,255,.05);padding:10px 11px">
+      <span style="font-family:'Syne Mono',monospace;font-size:6.5px;letter-spacing:.14em;color:#c9a84c">TRENDING</span>
+      <div style="font-size:11.5px;font-weight:600;color:#f4f0ff;margin-top:5px;line-height:1.4">Yen crisis street view</div>
+      <div style="font-family:'Syne Mono',monospace;font-size:6.5px;color:#5c4d8a;margin-top:5px">88K · TAP → REELS</div>
+    </div>
+    <div style="flex:1;border-radius:12px;background:rgba(13,8,32,.8);box-shadow:inset 0 1px 0 rgba(255,255,255,.05);padding:10px 11px">
+      <span style="font-family:'Syne Mono',monospace;font-size:6.5px;letter-spacing:.14em;color:#a78bfa">ABOUT JP</span>
+      <div style="font-size:11.5px;font-weight:600;color:#f4f0ff;margin-top:5px;line-height:1.4">The aging nation, in five drops</div>
+      <div style="font-family:'Syne Mono',monospace;font-size:6.5px;color:#5c4d8a;margin-top:5px">1.1M · TAP → REELS</div>
+    </div>
+  </div>
+
+  <!-- NATION FEED -->
+  <div style="display:flex;align-items:center;gap:10px;padding:18px 22px 8px">
+    <span style="font-family:'Syne Mono',monospace;font-size:7px;letter-spacing:.25em;color:#5c4d8a">THE FEED · JAPAN</span>
+    <span style="flex:1;height:1px;background:linear-gradient(90deg,rgba(201,168,76,.2),transparent)"></span>
+    <span style="font-family:'Syne Mono',monospace;font-size:7px;letter-spacing:.15em;color:#5c4d8a">SCROLL ↓</span>
+  </div>
+  <div style="padding:4px 22px 0">
+    <div style="display:flex;align-items:center;gap:9px;margin-bottom:10px">
+      <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#2a1060);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#f4f0ff">H</div>
+      <div><div style="font-size:11.5px;font-weight:700;color:#f4f0ff">Hollow</div><div style="font-family:'Syne Mono',monospace;font-size:7.5px;color:#5c4d8a">@hollow · OSAKA · 12m</div></div>
+    </div>
+    <!-- image post loading: plain dark bg + 6c twin orbit (images ONLY) -->
+    <div style="border-radius:14px;overflow:hidden;margin-bottom:10px;aspect-ratio:16/9;position:relative;background:#0d0820;display:flex;align-items:center;justify-content:center">
+      <div style="position:absolute;width:62px;height:62px;animation:spin 3.4s linear infinite">
+        <span style="position:absolute;top:0;left:50%;width:3px;height:3px;border-radius:50%;background:#c9a84c;opacity:.8;box-shadow:0 0 6px rgba(201,168,76,.6)"></span>
+        <span style="position:absolute;bottom:6%;right:18%;width:2px;height:2px;border-radius:50%;background:#c9a84c;opacity:.4"></span>
+        <span style="position:absolute;bottom:6%;left:18%;width:2.5px;height:2.5px;border-radius:50%;background:#c9a84c;opacity:.55"></span>
+      </div>
+      <div style="position:absolute;width:34px;height:34px;animation:spinRev 2.2s linear infinite">
+        <span style="position:absolute;top:0;left:50%;width:2.5px;height:2.5px;border-radius:50%;background:#a78bfa;opacity:.7"></span>
+        <span style="position:absolute;bottom:0;left:50%;width:2px;height:2px;border-radius:50%;background:#a78bfa;opacity:.35"></span>
+      </div>
+      <div style="position:absolute;bottom:10px;left:0;right:0;text-align:center;font-family:'Syne Mono',monospace;font-size:7px;letter-spacing:.3em;color:#5c4d8a">LOADING IMAGE</div>
+    </div>
+    <div style="font-size:12.5px;font-weight:600;line-height:1.5;color:#f4f0ff">Dotonbori at 3am — the canal reflects a city that refuses to end.</div>
+    <div style="display:flex;gap:18px;align-items:center;font-family:'Syne Mono',monospace;font-size:8.5px;color:#5c4d8a;margin-top:9px">
+      <span style="display:inline-flex;align-items:center;gap:5px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"></path></svg>96</span>
+      <span style="display:inline-flex;align-items:center;gap:5px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H4l2.2-2.6A8 8 0 1 1 21 12z"></path></svg>12</span>
+      <span style="display:inline-flex;align-items:center;gap:5px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"></path><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><path d="M7 22l-4-4 4-4"></path><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>4</span>
+    </div>
+  </div>
+</div>
+</body>
+</html>

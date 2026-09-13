@@ -266,3 +266,17 @@ Simulate real use (scroll, leave app, return, mid-stream death) and keep the LIV
 - Keep healer + in-place HLS recovery.
 - Do not bring back wall posters during CONNECTING.
 - Do not pause/detach for viewport parking.
+
+---
+
+## Claude — LIVE FEEDS wall mix (life vs news)
+
+**Author: Claude** · follow-up to Cursor #5 / #6 (`void2-final.html`, then `node build.js`)
+
+- `wallSlots()` builds two pools per country: **life** = CAM_SOURCES + RAW_FOOTAGE + `lifeFor()` (shuffled; iframe cams last, dropped if they fail the iframe gate) and **news** = `iptvFor()` (shuffled). Fixed mix `WALL_MIX = {life:2, news:1}`: every 3-slot window is 1 HLS news tile (fast first paint) + 2 life tiles; leftovers fill the tail. Rank tiers and used-stream sink (per pool) kept; `isBadStream` keys skipped.
+- `wallCascadeFor()` is **same-kind**: a life tile cascades to other same-country life sources with at most 1 HLS as last resort (cap 3), so a heal replaces a walk with a walk. News tiles keep the HLS-first chain.
+- YouTube onError 100/101/150/153 (removed / embed disabled) -> `markBadStream(source)`: one attempt per session.
+- `lifeFor(country)` parses `LIFE_JSON` from the `LIFE_SOURCES:GENERATED` block (placeholder `"{}"` right after the IPTV block).
+
+### Cursor — do not revert
+- **Do not put IPTV first again.** IPTV is demoted below curated life footage on purpose (see scripts/inject-iptv.js).

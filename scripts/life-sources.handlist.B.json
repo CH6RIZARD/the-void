@@ -1,0 +1,609 @@
+{
+  "Brazil": [
+    {
+      "id": "5U4ueZkx6Pk",
+      "label": "SAO PAULO 4K Brazil - The Most Vibrant Street Walk!",
+      "kind": "walk"
+    },
+    {
+      "id": "OPtlGtwZ82s",
+      "label": "Walking Downtown São Paulo Brazil — 2025 4K UHD",
+      "kind": "walk"
+    },
+    {
+      "id": "RNORODJUCBY",
+      "label": "SÃO PAULO, BRAZIL — COMPLETE WALKING TOUR IN 4K",
+      "kind": "walk"
+    },
+    {
+      "id": "EABeK0P_4dA",
+      "label": "SÃO PAULO Brazil 4K Walk | Faria Lima: The Brazilian Wall",
+      "kind": "walk"
+    },
+    {
+      "id": "b2jsWCrce3E",
+      "label": "Rio de Janeiro Copacabana Beach Walking Tour 2026 4K",
+      "kind": "walk"
+    },
+    {
+      "id": "2PJfQY9LUoU",
+      "label": "EarthCam Live: Rio de Janeiro Cam - Copacabana South (Rio",
+      "kind": "livecam"
+    },
+    {
+      "id": "SqTZNXHsHSg",
+      "label": "Webcam Rio de Janeiro Copacabana Posto 6",
+      "kind": "livecam"
+    }
+  ],
+  "Argentina": [
+    {
+      "id": "CwUfliWsKA4",
+      "label": "BUENOS AIRES Argentina 4K Walking Tour | Recoleta Fair and",
+      "kind": "walk"
+    },
+    {
+      "id": "noyVhx-AiUI",
+      "label": "ARGENTINA, BUENOS AIRES: 4K 60fps HDR First Person Walking",
+      "kind": "walk"
+    },
+    {
+      "id": "mJ7TeXNFn1Y",
+      "label": "[4K] Downtown Buenos Aires Walking Tour | Busy Streets",
+      "kind": "walk"
+    },
+    {
+      "id": "R3QQr6qVOn0",
+      "label": "Buenos Aires Night — Walking Tour",
+      "kind": "walk"
+    }
+  ],
+  "Mexico": [
+    {
+      "id": "d3lX1iSEkT8",
+      "label": "MEXICO CITY Walking Tour 2025 CDMX City Walk incl. Zocalo",
+      "kind": "walk"
+    },
+    {
+      "id": "UJw2HGqlHPg",
+      "label": "Evening in Mexico City Walking Tour 2025 4K Sunset Stroll",
+      "kind": "walk"
+    },
+    {
+      "id": "yynU6cjshcY",
+      "label": "4K Mexico City Walking Tour - 230 min Tour with Captions",
+      "kind": "walk"
+    },
+    {
+      "id": "VF-dBUHjIc8",
+      "label": "Mexico City Historic Center - 4K Walking Tour",
+      "kind": "walk"
+    },
+    {
+      "id": "ljZW5DU00hc",
+      "label": "Mexico City — Walking Tour 4K",
+      "kind": "walk"
+    }
+  ],
+  "Colombia": [
+    {
+      "id": "u6mM2xzgCAc",
+      "label": "4K Medellín Colombia Walking Tour - Comuna 13",
+      "kind": "walk"
+    },
+    {
+      "id": "BvF5IqthS5M",
+      "label": "4K Colombia Walking Tour | Medellin's Most Exciting",
+      "kind": "walk"
+    },
+    {
+      "id": "-CSMfkbM2QY",
+      "label": "Bogotá 4K Walk | Colombia’s Historic Center, Local Life",
+      "kind": "walk"
+    },
+    {
+      "id": "gb10D12nyOw",
+      "label": "4K Walking Tour of Bogota, Colombia (With LoFi Music)",
+      "kind": "walk"
+    }
+  ],
+  "Peru": [
+    {
+      "id": "oA7JL7pF9Is",
+      "label": "MIRAFLORES Walking Tour | 4K Lima Walk",
+      "kind": "walk"
+    },
+    {
+      "id": "tqTIgZjtrwE",
+      "label": "Walking Tour \"Miraflores\" LIMA 4K | Walk with Captions",
+      "kind": "walk"
+    },
+    {
+      "id": "2mVWnmCkcdc",
+      "label": "EXPLORING MODERN LIMA | MIRAFLORES CITY WALK 4K | WALKING",
+      "kind": "walk"
+    },
+    {
+      "id": "lwuIyMPpBHk",
+      "label": "Lima PERU - Night Walk in Miraflores 4K/60fps Walking Tour",
+      "kind": "walk"
+    }
+  ],
+  "Chile": [
+    {
+      "id": "uKtlzEYTSOY",
+      "label": "SANTIAGO, Chile – Lastarria | 4K Walking Tour (First-Person",
+      "kind": "walk"
+    },
+    {
+      "id": "w6uoJ1fUBpM",
+      "label": "Santiago de Chile Walking Tour | City Under the Andes | 4K",
+      "kind": "walk"
+    },
+    {
+      "id": "3PQ5uHVXRSs",
+      "label": "CHILE, Santiago: Immersive Virtual City Walk in 4K HDR",
+      "kind": "walk"
+    },
+    {
+      "id": "KFjvvbbv8jY",
+      "label": "4K Free Walking Tour Santiago, Chile 2026",
+      "kind": "walk"
+    }
+  ],
+  "Bolivia": [
+    {
+      "id": "Kz4odqc9KFc",
+      "label": "La Paz, Bolivia 4K Walking Tour | Exploring the World’s",
+      "kind": "walk"
+    },
+    {
+      "id": "Y-MimX9TBqA",
+      "label": "LA PAZ Bolivia | City Center | 4K Street Walking Tour",
+      "kind": "walk"
+    },
+    {
+      "id": "Xn5HSCbkYBQ",
+      "label": "La Paz, BOLIVIA - Walking Around Zona Sur 4K Walking Tour",
+      "kind": "walk"
+    },
+    {
+      "id": "raMTDbvu0Ds",
+      "label": "LA PAZ Bolivia | Sopocachi District | 4K Street Walking",
+      "kind": "walk"
+    }
+  ],
+  "Cuba": [
+    {
+      "id": "dR8U1yRRdXY",
+      "label": "Walking Through Havana, Cuba | 4K City Tour",
+      "kind": "walk"
+    },
+    {
+      "id": "ZldmVls4dxY",
+      "label": "WALKING in LA HABANA, Habana Vieja, CUBA I 4K 60fps",
+      "kind": "walk"
+    },
+    {
+      "id": "gAPF99p9BNg",
+      "label": "Walking Tour 4K | La Habana Vieja , Cuba | Historia",
+      "kind": "walk"
+    },
+    {
+      "id": "ojgfUOeAELc",
+      "label": "Old Havana Walk | Obispo, Obra Pía, Aguiar & Mercaderes",
+      "kind": "walk"
+    },
+    {
+      "id": "nU3mqcKSs_A",
+      "label": "Havana Beyond the Postcards: The Intense Daily Reality of",
+      "kind": "life"
+    },
+    {
+      "id": "-s_uO9MOu2o",
+      "label": "This is what real life looks like in HAVANA, CUBA today!",
+      "kind": "life"
+    }
+  ],
+  "Canada": [
+    {
+      "id": "0QaVLgyOuKM",
+      "label": "Montreal, Canada Walking Tour 2025 (4K)",
+      "kind": "walk"
+    },
+    {
+      "id": "twayYZKqM_I",
+      "label": "Montreal Canada 4K Walking Tour | Downtown Montreal at",
+      "kind": "walk"
+    },
+    {
+      "id": "yNun-Rs-OU4",
+      "label": "Toronto, Canada 4K Walking Tour: Downtown’s Iconic",
+      "kind": "walk"
+    },
+    {
+      "id": "xnzWL0q_wps",
+      "label": "Toronto Canada Walking Tour - Front Street and Waterfront 4K",
+      "kind": "walk"
+    },
+    {
+      "id": "SYzzp-khjiQ",
+      "label": "Vancouver 4K Walking Tour (Canada) - Captions & Immersive",
+      "kind": "walk"
+    },
+    {
+      "id": "qx7gry390YA",
+      "label": "EarthCam Live: Niagara Falls",
+      "kind": "livecam"
+    }
+  ],
+  "Venezuela": [
+    {
+      "id": "lzM8IviedHw",
+      "label": "Walking Tour Caracas 4K | El Paraíso – Av. Páez, Zoológico",
+      "kind": "walk"
+    },
+    {
+      "id": "3YFNGrc1Vds",
+      "label": "Walking City Tour Caracas 4K: El Centro y La Candelaria",
+      "kind": "walk"
+    },
+    {
+      "id": "0Aohh8HSuBg",
+      "label": "Caracas - 4K Walking Tour | Strolling Caracas’ old town at",
+      "kind": "walk"
+    },
+    {
+      "id": "NyElKQs9Iko",
+      "label": "Walking City Tour Caracas 4K: Centro | Historia, metro",
+      "kind": "walk"
+    }
+  ],
+  "Spain": [
+    {
+      "id": "ez02Yo8bZK8",
+      "label": "Madrid City Walking Tour 4K | Explore the Heart of Spain",
+      "kind": "walk"
+    },
+    {
+      "id": "kdh_7FWM_eg",
+      "label": "Madrid, Spain The Grand Summer Walk 2025 - 4K 60fps Full",
+      "kind": "walk"
+    },
+    {
+      "id": "1uadxxpsAIo",
+      "label": "Barcelona, Spain - Summer 2025 - 4K-HDR Walking Tour",
+      "kind": "walk"
+    },
+    {
+      "id": "OnGu5XgeZ3E",
+      "label": "MADRID Walking Tour | SPAIN City Walk with Captions",
+      "kind": "walk"
+    }
+  ],
+  "Italy": [
+    {
+      "id": "IJAG7sR-tms",
+      "label": "Evening in ROME | Relaxing Sunset Walk 2025 [4K HDR]",
+      "kind": "walk"
+    },
+    {
+      "id": "2nEraFhA1DA",
+      "label": "Rome, Italy – This Is Rome Right Now (November 2025) | 4K",
+      "kind": "walk"
+    },
+    {
+      "id": "djFJaNsVWNY",
+      "label": "Rome Italy 4K Walk | Colosseo, Trevi Fountain & Navona",
+      "kind": "walk"
+    },
+    {
+      "id": "0rU_V7h7Ayc",
+      "label": "Rome, Italy – Summer 2025 | 4K HDR Walking Tour",
+      "kind": "walk"
+    },
+    {
+      "id": "Kmf_wiTFuXY",
+      "label": "4k Venice Italy Live Cam - Rialto Bridge Live Streaming",
+      "kind": "livecam"
+    }
+  ],
+  "Portugal": [
+    {
+      "id": "FFUJKOzaCBI",
+      "label": "[4K WALK] Lisbon Walking Tour 2025 | Saldanha & Alameda",
+      "kind": "walk"
+    },
+    {
+      "id": "bO0srR_Yikw",
+      "label": "[4K WALK] Lisbon Evening Walking Tour | Portugal 2025",
+      "kind": "walk"
+    },
+    {
+      "id": "rAdDPOIzRlo",
+      "label": "Lisbon, Portugal Walking Tour 2025 (4K)",
+      "kind": "walk"
+    },
+    {
+      "id": "mD1J68ce2-s",
+      "label": "LISBON Walking Tour 2025 for Big TVs | Scenic Views, Yellow",
+      "kind": "walk"
+    }
+  ],
+  "Netherlands": [
+    {
+      "id": "qj8x4eBJFwo",
+      "label": "Amsterdam Summer Walk 2025 Walking Tour 4K",
+      "kind": "walk"
+    },
+    {
+      "id": "dJGsWFYA4NQ",
+      "label": "Walking tour in iconic Amsterdam, Netherlands | Amsterdam",
+      "kind": "walk"
+    },
+    {
+      "id": "Gwfq7moxzKw",
+      "label": "AMSTERDAM Walking Tour 2025 | Dutch Canals & Netherlands’s",
+      "kind": "walk"
+    },
+    {
+      "id": "uL6z9v7Cf9Y",
+      "label": "Amsterdam, Netherlands Walking Tour | 4K 60fps with",
+      "kind": "walk"
+    },
+    {
+      "id": "43qH0tDA6lM",
+      "label": "WebCam.NL | damrakbeursplein.amsterdam | live ultraHD PTZ",
+      "kind": "livecam"
+    },
+    {
+      "id": "Gd9d4q6WvUY",
+      "label": "Now4Rent.NL | Amsterdam De Dam | Pan Tilt Zoom Camera",
+      "kind": "livecam"
+    }
+  ],
+  "Belgium": [
+    {
+      "id": "HdKO_HZhpHQ",
+      "label": "BRUSSELS BELGIUM WALKING TOUR - HISTORIC CENTRE [ 4K HDR",
+      "kind": "walk"
+    },
+    {
+      "id": "7DNf0c0KSqw",
+      "label": "BRUSSELS, Belgium Europe’s Secret Capital | 4K Walking Tour",
+      "kind": "walk"
+    },
+    {
+      "id": "9UhUx-HkdAs",
+      "label": "Brussels (Bruxelles), Belgium Walking Tour (4k Ultra HD 60",
+      "kind": "walk"
+    }
+  ],
+  "Austria": [
+    {
+      "id": "5h2S1jSOiJw",
+      "label": "Vienna Walking Tour 4K in Historic City Center | Autumn in",
+      "kind": "walk"
+    },
+    {
+      "id": "w4T0D02n8Ho",
+      "label": "Vienna Walking Tour | Exploring the Beauty of Vienna in",
+      "kind": "walk"
+    },
+    {
+      "id": "dD9wtWpe2-4",
+      "label": "Magical Vienna Old Town Walk | 4K City Tour Through",
+      "kind": "walk"
+    },
+    {
+      "id": "09IWbKbsGF4",
+      "label": "Vienna Walking Tour Summer 2025 - Relaxing City Walk In 4K",
+      "kind": "walk"
+    }
+  ],
+  "Sweden": [
+    {
+      "id": "HSI5vfWnQKk",
+      "label": "Stockholm Sweden in 4K HDR | City walk in Golden Hour|4K",
+      "kind": "walk"
+    },
+    {
+      "id": "G3WhlOkNVt0",
+      "label": "Sweden: Central Stockholm Walking Tour in 4K",
+      "kind": "walk"
+    },
+    {
+      "id": "lZL886zY_zs",
+      "label": "Sweden: Stockholm in Spring 4K Walking Tour",
+      "kind": "walk"
+    }
+  ],
+  "Norway": [
+    {
+      "id": "ES9-xYLN2i0",
+      "label": "OSLO: -20°C STREET WALK",
+      "kind": "walk"
+    },
+    {
+      "id": "jgNeXBzHvJk",
+      "label": "Oslo, Norway Walking Tour - 4K Downtown tour｜Jul 2025",
+      "kind": "walk"
+    },
+    {
+      "id": "lNOjxsgsWjs",
+      "label": "OSLO, Norway The Most Underrated Capital in Europe? | 4K",
+      "kind": "walk"
+    }
+  ],
+  "Poland": [
+    {
+      "id": "LdQXnlC2m2Y",
+      "label": "Poland - Sunny Warsaw Walking Tour - 4K 60fps",
+      "kind": "walk"
+    },
+    {
+      "id": "pH0lJyy5Cek",
+      "label": "WARSAW, Poland Europe’s Most Ambitious City | 4K Walking",
+      "kind": "walk"
+    },
+    {
+      "id": "Bdnq5P7tn1M",
+      "label": "WARSAW Walking Tour 4K | Stunning Old Town & Modern City",
+      "kind": "walk"
+    },
+    {
+      "id": "M26KSY-SdkU",
+      "label": "WARSAW, Poland Europe’s Next Economic Power | 4K Walking",
+      "kind": "walk"
+    }
+  ],
+  "Romania": [
+    {
+      "id": "SIzAcoxSdR0",
+      "label": "Bucharest, Romania walking tour 4K 60 FPS. The most",
+      "kind": "walk"
+    },
+    {
+      "id": "YivBgjid3WA",
+      "label": "Bucharest, Romania Walking Tour - From Old Town to Modern",
+      "kind": "walk"
+    },
+    {
+      "id": "SwAXw2pt4E4",
+      "label": "Bucharest 4K Walking Tour — Spring on Calea Victoriei",
+      "kind": "walk"
+    },
+    {
+      "id": "ckUFKvEQhrw",
+      "label": "Exploring Bucharest, Romania - Old Town Streets Walking",
+      "kind": "walk"
+    }
+  ],
+  "Bulgaria": [
+    {
+      "id": "ZKEmfqQ44Eo",
+      "label": "Walking in Sofia, Bulgaria 4K HDR | Hidden Gems & Iconic",
+      "kind": "walk"
+    },
+    {
+      "id": "0wml7y84NRs",
+      "label": "[4K] Sofia Bulgaria Walking Tour",
+      "kind": "walk"
+    },
+    {
+      "id": "mpwsTKJkjno",
+      "label": "Night Walking Tour in Sofia, Bulgaria | 4K, POV",
+      "kind": "walk"
+    },
+    {
+      "id": "p4RNcqcmX_0",
+      "label": "Sofia, Bulgaria Walking Tour - 4K 60fps with Immersive",
+      "kind": "walk"
+    }
+  ],
+  "Greece": [
+    {
+      "id": "MBfo2GhCk0Y",
+      "label": "ATHENS AS IT IS: Athens, Greece walking tour 4K 60 FPS 2025",
+      "kind": "walk"
+    },
+    {
+      "id": "gxuOVhViuGg",
+      "label": "Athens Greece - September 2025 - 4K HDR Walking Tour",
+      "kind": "walk"
+    },
+    {
+      "id": "5DYmBVb6GPU",
+      "label": "Virtual Tour of Athens | Explore the Acropolis & Ancient",
+      "kind": "walk"
+    },
+    {
+      "id": "n_hx_rQQ6sw",
+      "label": "ATHENS, Greece 4K Walking Tour with Acropolis (Parthenon)",
+      "kind": "walk"
+    }
+  ],
+  "Serbia": [
+    {
+      "id": "Vc5Hn7G_7mA",
+      "label": "Belgrade Serbia Walking Tour 2026 - City Center Walk [4K]",
+      "kind": "walk"
+    },
+    {
+      "id": "TVdePgj-ssE",
+      "label": "Belgrade, Serbia walking tour 2024 4K 60 FPS | Belgrade",
+      "kind": "walk"
+    },
+    {
+      "id": "UTczSDLuuXQ",
+      "label": "Nightlife in Belgrade Is NOT What I Expected! 4K Walking",
+      "kind": "walk"
+    },
+    {
+      "id": "UW_0wHG81KA",
+      "label": "Belgrade, Serbia 4K - Walking Tour of City Center of",
+      "kind": "walk"
+    }
+  ],
+  "Albania": [
+    {
+      "id": "5-2u4gMjIhU",
+      "label": "Tirana Albania WALKING TOUR 4K UHD 60fps – Europe’s MOST",
+      "kind": "walk"
+    },
+    {
+      "id": "0HSQ-iAQDVU",
+      "label": "Tirana City Center Walk Is It Worth Visiting?",
+      "kind": "walk"
+    },
+    {
+      "id": "1HQgyXV9vGA",
+      "label": "Albania Like You've Never Seen It Before – 4K Walking Tour",
+      "kind": "walk"
+    },
+    {
+      "id": "er9vHKnG6cM",
+      "label": "TIRANA, Albania Walking Tour | 4K",
+      "kind": "walk"
+    }
+  ],
+  "Ireland": [
+    {
+      "id": "v_q4xiefCRE",
+      "label": "Dublin Ireland 2025 | 4k walking tour of Dublin City Centre",
+      "kind": "walk"
+    },
+    {
+      "id": "cLBXm7wWNVA",
+      "label": "Dublin City centre walking tour March 2025| Dublin Ireland",
+      "kind": "walk"
+    },
+    {
+      "id": "cSNLOqsSTgU",
+      "label": "Dublin – 4K Walking Tour | A Summer Day Trip in Ireland’s",
+      "kind": "walk"
+    },
+    {
+      "id": "bb1EtaKLeCg",
+      "label": "DUBLIN, Ireland Streets of Pubs & Irish Spirit | 4K Walking",
+      "kind": "walk"
+    }
+  ],
+  "Belarus": [
+    {
+      "id": "8X34Wvaoxgo",
+      "label": "Minsk, Belarus, walking tour 4k 60fps",
+      "kind": "walk"
+    },
+    {
+      "id": "eo2b0i3Bv7s",
+      "label": "Minsk Walking Tour: Top 20 Sights You Can't Miss! [4K]",
+      "kind": "walk"
+    },
+    {
+      "id": "L4pB6N__Ck0",
+      "label": "Walking through the famous streets of Minsk, Belarus",
+      "kind": "walk"
+    }
+  ]
+}
