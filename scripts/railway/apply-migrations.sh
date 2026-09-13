@@ -17,8 +17,9 @@ M0="$ROOT/supabase/railway-only/000_supabase_compat.sql"
 M1="$ROOT/supabase/migrations/001_void_schema.sql"
 M2="$ROOT/supabase/migrations/002_contention_split.sql"
 M3="$ROOT/supabase/migrations/003_regions_seed.sql"
+M4="$ROOT/supabase/migrations/004_ranking_security.sql"
 
-for f in "$M0" "$M1" "$M2"; do
+for f in "$M0" "$M1" "$M2" "$M4"; do
   if [[ ! -f "$f" ]]; then
     echo "ERROR: missing migration: $f" >&2
     exit 1
@@ -45,6 +46,9 @@ if [[ -f "$M3" ]]; then
   echo "==> Applying 003_regions_seed.sql"
   psql_db -f "$M3"
 fi
+
+echo "==> Applying 004_ranking_security.sql"
+psql_db -f "$M4"
 
 echo "==> Migrations applied OK"
 "$SCRIPT_DIR/verify-schema.sh"

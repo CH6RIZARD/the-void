@@ -444,7 +444,8 @@ html.g3 .c-stream-grid{grid-template-columns:1fr 1fr 1fr}
 /* YouTube still paints its title strip and logo for a few seconds on load even
    with controls=0. Overscan the frame so those edges fall outside the tile's
    overflow:hidden box — the picture fills the tile, the chrome never shows. */
-.gl-tile iframe,.csg-tile iframe,.search-live-slot iframe{transform:scale(1.32);transform-origin:50% 50%}
+/* (overscan removed: it enlarged YouTube's overlay instead of cropping it) */
+.yt-hold{position:absolute;inset:0;z-index:3;background:rgba(3,1,10,.97);overflow:hidden;pointer-events:none;border-radius:inherit}
 .nh-play{display:none!important}
 .gl-tile.playing,.csg-tile.playing,.search-live-slot.playing{cursor:pointer}
 .gl-tile.audio-on,.csg-tile.audio-on,.search-live-slot.audio-on{box-shadow:inset 0 0 0 1.5px rgba(201,168,76,.75)}
@@ -4025,7 +4026,9 @@ const _evicted=new Set();   // post ids currently in the DOM, in display order
 function renderFeed(){
   const feed=document.getElementById('void-feed');
   if(!feed)return;
-  let fresh=allPosts.filter(p=>!_rendered.has(p.id)&&!_evicted.has(p.id)&&!p._offFeed&&laneFree(p,'feed'));
+  // surfaceFree: anything SEARCH has already shown (by id, same text or same link)
+  // never renders here — the two surfaces are mutually exclusive (see SURFACES).
+  let fresh=allPosts.filter(p=>!_rendered.has(p.id)&&!_evicted.has(p.id)&&!p._offFeed&&laneFree(p,'feed')&&surfaceFree(p,'feed'));
   if(!allPosts.length){
     feed.innerHTML='<div class="post-media-lbl" style="position:relative;padding:48px 18px">SCANNING VERIFIED PUBLIC SOURCES…</div>';
     return;
@@ -4041,7 +4044,7 @@ function renderFeed(){
   }else{
     feed.innerHTML=html+'<div id="feed-sentinel" style="height:1px"></div>';
   }
-  fresh.forEach(p=>{_rendered.add(p.id);laneClaim(p,'feed');});
+  fresh.forEach(p=>{_rendered.add(p.id);laneClaim(p,'feed');surfaceClaim(p,'feed');});
   observeNewPosts();     // observe only the nodes just added
   ensureFeedSentinel();
   trimFeedDOM();
@@ -4850,7 +4853,27 @@ function attemptSource(cell,source){
       if(ok){
         if(cell.classList)cell.classList.add('playing');
         const _if=cell.querySelector('iframe');
-        if(_if){_if.classList.add('playing-media');if(_if.__reveal)_if.__reveal();}
+        if(_if){
+          _if.classList.add('playing-media');
+          if(_if.__ytPost){
+            // YouTube paints its own title bar, pause glyph and logo for the first
+            // ~3s of playback no matter what embed params say (measured headless:
+            // present at 1s, gone by 4s). The frame stays invisible (opacity 0) and
+            // a sparkle HOLD layer sits over the tile until that overlay has timed
+            // out, then the picture fades in clean. The hold is its own class so no
+            // sparkle-fallback cleanup elsewhere can strip it early.
+            const hold=document.createElement('div');hold.className='yt-hold';
+            hold.innerHTML=sparkleMarkup('').replace(/^<div class="sparkle-fallback">/,'').replace(/<\/div>$/,'');
+            cell.appendChild(hold);
+            const noCaptions=()=>{try{_if.__ytPost({event:'command',func:'unloadModule',args:['captions']});_if.__ytPost({event:'command',func:'unloadModule',args:['cc']});}catch(e){}};
+            noCaptions();
+            setTimeout(()=>{
+              noCaptions();
+              if(_if.__reveal)_if.__reveal();
+              hold.style.transition='opacity .45s ease';hold.style.opacity='0';setTimeout(()=>hold.remove(),480);
+            },3200);
+          }else if(_if.__reveal)_if.__reveal();
+        }
         const _vid=cell.querySelector('video');if(_vid)_vid.classList.add('playing-media');
         const _ov=cell.querySelector('.sparkle-fallback');
         if(_ov){_ov.style.transition='opacity .45s ease';_ov.style.opacity='0';setTimeout(()=>_ov.remove(),480);}
@@ -4945,7 +4968,7 @@ function attemptSource(cell,source){
         // and logo over the picture. Same player params the live_stream path uses.
         const YT_CLEAN='&autoplay=1&mute=1&playsinline=1&rel=0&controls=0&disablekb=1&fs=0&iv_load_policy=3&modestbranding=1&cc_load_policy=0';
         if(/^(PL|UU|OLAK)/.test(id))  base='https://www.youtube.com/embed/videoseries?list='+id+YT_CLEAN;
-        else if(id.length===11)       base='https://www.youtube.com/embed/'+id+'?'+YT_CLEAN.slice(1)+'&loop=1&playlist='+id;
+        else if(id.length===11)       base='https://www.youtube.com/embed/'+id+'?'+YT_CLEAN.slice(1);
         else{const _v=liveVidFor(source);base=liveUrl(_v?{id:id,vid:_v}:id);}
         // CURSOR #1: without a Referer, YouTube returns Error 153 and live_stream
         // never resolves to a real video id.
@@ -7098,6 +7121,180 @@ const SEARCH_SEED=[
 // effect was a second full teardown-and-rebuild of the LIVE NOW tiles: 7 YouTube
 // iframes destroyed and 7 recreated, each with its own 900ms nudge interval, for
 // data that was discarded. Deleted, along with the dead variable it fed.
+//
+// ─── SURFACES: SEARCH ≠ VOID FEED ──────────────────────────────────────────
+// SEARCH's SIGNAL FEED used to be `[...allPosts]` sorted by score — the VOID
+// feed's own pool, re-ordered. Measured headless: 34 of 34 search cards were posts
+// the feed had already rendered (100% id overlap). Search now has its own
+// discovery sources (below) and the two surfaces are mutually exclusive for the
+// session, on the same three keys admitPost dedupes by: post id, normalised text
+// (_normText/_h), and link (_linkKey/_h over _link/_url/sourceUrl).
+//   feed   owns: every post it rendered, plus everything QUEUED for it (allPosts
+//                minus nation-pane _offFeed items) — synced incrementally.
+//   search owns: every card it rendered.
+// First claim wins; each surface refuses anything the other owns. admitPost and
+// its persisted seen-sets are untouched — these registries are session-only.
+const SURFACES={feed:{ids:new Set(),text:new Set(),link:new Set()},search:{ids:new Set(),text:new Set(),link:new Set()}};
+const _surfKeyCache=new WeakMap();
+function _surfKeys(p){
+  let k=_surfKeyCache.get(p);if(k)return k;
+  const t=_normText(p.body);
+  const l=[...new Set([p._link,p._url,p.sourceUrl].map(u=>u?_linkKey(u):'').filter(Boolean).map(_h))];
+  k={t:t.length>15?_h(t):'',l};_surfKeyCache.set(p,k);return k;
+}
+function _surfHas(name,p){
+  const R=SURFACES[name];if(!p||!(R.ids.size||R.text.size||R.link.size))return false;
+  if(R.ids.has(p.id))return true;
+  const k=_surfKeys(p);
+  return (!!k.t&&R.text.has(k.t))||k.l.some(x=>R.link.has(x));
+}
+function surfaceClaim(p,name){
+  if(!p||!p.id)return;const R=SURFACES[name],k=_surfKeys(p);
+  R.ids.add(p.id);if(k.t)R.text.add(k.t);k.l.forEach(x=>R.link.add(x));
+}
+let _fqRef=null,_fqN=0;
+function _syncFeedQueue(){
+  if(_fqRef!==allPosts||_fqN>allPosts.length){_fqRef=allPosts;_fqN=0;}
+  for(;_fqN<allPosts.length;_fqN++){
+    const p=allPosts[_fqN];
+    // _offFeed = nation pane / opened-from-search: not the feed's. A post search
+    // already showed can land in allPosts later; renderFeed refuses it, so it is
+    // not the feed's either.
+    if(p&&!p._offFeed&&!_surfHas('search',p))surfaceClaim(p,'feed');
+  }
+}
+function surfaceFree(p,mine){
+  if(mine==='search'){_syncFeedQueue();return !_surfHas('feed',p);}
+  return !_surfHas('search',p);
+}
+// ─── SEARCH DISCOVERY SOURCES ──────────────────────────────────────────────
+// None of these is read by the feed, reels or the nation pane's discovery calls.
+// All keyless and browser-direct, verified live 2026-09-13 (HTTP 200 + CORS):
+//   mastodon.social /api/v1/trends/statuses, /trends/links, /trends/tags (+ the
+//     top tag's timeline)                                          ACAO: *
+//   lemmy.world /api/v3/post/list?type_=All&sort=Hot                 ACAO: reflects Origin (incl. null)
+//   sepiasearch.org /api/v1/search/videos?sort=-trending             ACAO: *
+//   Bluesky getFeed, unauthenticated: 'hot-classic' (NOT 'whats-hot', which is in
+//     BSKY_FEEDS) and 'for-science' — neither URI is in BSKY_FEEDS or REEL_FEEDS.
+const SEARCH_BSKY_FEEDS=[
+  'at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/hot-classic',
+  'at://did:plc:jfhpnnst6flqway4eaeqzj2a/app.bsky.feed.generator/for-science',
+];
+let searchPosts=[];
+const _searchById=new Map(),_searchPoolKeys={ids:new Set(),text:new Set(),link:new Set()};
+const _sd={mOff:0,lPage:1,ptStart:0,tagIdx:0,bskyIdx:0,bskyCur:{},loading:false,last:0};
+const _sqPool=new Map();      // query -> posts pulled live for that query
+function searchPostById(id){return _searchById.get(id)||null;}
+function _sdOk(p){
+  if(!p||!p.id||_searchById.has(p.id))return false;
+  if(!(String(p.body||'').trim().length>=12||p._img||p._video))return false;
+  if(p._graphic||isFeedMeta(p.body)||isMuted(p))return false;
+  const k=_surfKeys(p);            // no duplicate cards inside search's own pool either
+  if(_searchPoolKeys.ids.has(p.id)||(k.t&&_searchPoolKeys.text.has(k.t))||k.l.some(x=>_searchPoolKeys.link.has(x)))return false;
+  _searchPoolKeys.ids.add(p.id);if(k.t)_searchPoolKeys.text.add(k.t);k.l.forEach(x=>_searchPoolKeys.link.add(x));
+  _searchById.set(p.id,p);return true;
+}
+const _SD_NATION={n:''};
+async function _sdMastoStatuses(){
+  const d=await nfFetchJson(`https://mastodon.social/api/v1/trends/statuses?limit=40&offset=${_sd.mOff}`);
+  if(!Array.isArray(d))return [];
+  _sd.mOff=d.length?_sd.mOff+d.length:0;
+  return d.map(x=>mastoToPost(x,_SD_NATION)).filter(Boolean);
+}
+async function _sdMastoLinks(){
+  const d=await nfFetchJson('https://mastodon.social/api/v1/trends/links?limit=20');
+  if(!Array.isArray(d))return [];
+  return d.filter(x=>x&&x.url&&x.title).map(x=>{
+    const host=nfHost(x.url);
+    const uses=(x.history||[]).reduce((s,h)=>s+(+h.uses||0),0),accts=(x.history||[]).reduce((s,h)=>s+(+h.accounts||0),0);
+    return {id:'mdl_'+urlKey(x.url),style:x.image?'image':'take',country:'',iso:'',tags:inferTags(x.title+' '+(x.description||''),[]),
+      body:decodeEnt(x.title),_desc:decodeEnt(String(x.description||'')).slice(0,400),score:uses,replies:accts,
+      time:Date.parse(x.published_at||'')||Date.now(),source:'news',_author:x.provider_name||host,_handle:'@'+host,
+      _img:x.image||'',_video:'',_link:x.url,_url:x.url,sourceUrl:x.url,_social:false,provenance:{sourceHost:host},imgHue:270};
+  });
+}
+async function _sdMastoTag(){
+  const tags=await nfFetchJson('https://mastodon.social/api/v1/trends/tags?limit=10');
+  if(!Array.isArray(tags)||!tags.length)return [];
+  const t=tags[_sd.tagIdx++%tags.length];
+  const d=await nfFetchJson(`https://mastodon.social/api/v1/timelines/tag/${encodeURIComponent(t.name)}?limit=20`);
+  return Array.isArray(d)?d.map(x=>mastoToPost(x,_SD_NATION)).filter(Boolean):[];
+}
+async function _sdLemmy(){
+  const d=await nfFetchJson(`https://lemmy.world/api/v3/post/list?type_=All&sort=Hot&limit=30&page=${_sd.lPage}`);
+  const list=(d&&d.posts)||[];
+  _sd.lPage=list.length?_sd.lPage+1:1;
+  return list.map(v=>lemmyToPost(v,_SD_NATION)).filter(Boolean);
+}
+async function _ptRows(list,cap){
+  const hits=list.filter(x=>x&&x.uuid&&x.url&&!x.nsfw&&!x.isLive&&(x.duration||0)>0&&x.duration<=5400).slice(0,cap);
+  const out=await Promise.all(hits.map(async x=>{
+    const host=nfHost(x.url);if(!host)return null;
+    const src=peertubeSrc(await nfFetchJson(`https://${host}/api/v1/videos/${x.uuid}`,7000));
+    if(!src)return null;
+    const ch=x.channel||x.account||{},desc=String(x.truncatedDescription||x.description||'');
+    // style 'image' so the search card shows its existing cover (the thumbnail);
+    // the thread still plays _video.
+    return {id:'pt_'+x.uuid,style:x.thumbnailUrl||x.previewUrl?'image':'take',country:'',iso:'',tags:inferTags(x.name+' '+desc,[]),
+      body:x.name,_desc:desc.slice(0,400),score:x.likes||0,replies:x.comments||0,reposts:0,views:x.views||0,
+      time:Date.parse(x.publishedAt||x.createdAt)||Date.now(),source:'peertube',
+      _author:ch.displayName||ch.name||host,_handle:'@'+(ch.name||'peertube')+'@'+(ch.host||host),
+      _img:x.thumbnailUrl||x.previewUrl||'',_video:src,_dur:x.duration,_url:x.url,sourceUrl:x.url,_social:true,
+      provenance:{sourceHost:host},imgHue:270};
+  }));
+  return out.filter(Boolean);
+}
+async function _sdPeertube(){
+  const d=await nfFetchJson(`https://sepiasearch.org/api/v1/search/videos?sort=-trending&count=15&start=${_sd.ptStart}&nsfw=false`,10000);
+  const list=(d&&d.data)||[];
+  _sd.ptStart=list.length&&_sd.ptStart<300?_sd.ptStart+list.length:0;
+  return _ptRows(list,8);
+}
+async function _sdBsky(){
+  const feed=SEARCH_BSKY_FEEDS[_sd.bskyIdx++%SEARCH_BSKY_FEEDS.length],cur=_sd.bskyCur[feed]||'';
+  const d=await nfFetchJson('https://public.api.bsky.app/xrpc/app.bsky.feed.getFeed?feed='+encodeURIComponent(feed)+'&limit=30'+(cur?'&cursor='+encodeURIComponent(cur):''));
+  if(!d)return [];
+  _sd.bskyCur[feed]=d.cursor||'';
+  return (d.feed||[]).filter(it=>!/Repost/i.test((it.reason&&it.reason.$type)||'')).map(bskyToPost).filter(Boolean);
+}
+async function pullSearchDiscovery(){
+  if(_sd.loading||Date.now()-_sd.last<4000)return 0;
+  _sd.loading=true;
+  try{
+    const buckets=(await Promise.allSettled([_sdMastoStatuses(),_sdLemmy(),_sdBsky(),_sdPeertube(),_sdMastoLinks(),_sdMastoTag()]))
+      .map(r=>r.status==='fulfilled'&&Array.isArray(r.value)?r.value.filter(_sdOk):[]);
+    // Round-robin across sources so no single network owns the grid.
+    const add=[];
+    for(let i=0,more=true;more;i++){more=false;for(const b of buckets)if(i<b.length){add.push(b[i]);more=true;}}
+    searchPosts.push(...add);
+    if(add.length&&activeTab==='search'){const si=document.getElementById('si');renderSearch(si?si.value:'');}
+    return add.length;
+  }catch(e){return 0;}
+  finally{_sd.loading=false;_sd.last=Date.now();}
+}
+// A typed query also asks the open sources directly (Lemmy search, PeerTube
+// search, Mastodon hashtag timeline), once per query.
+async function pullSearchQuery(q){
+  if(_sqPool.has(q))return;_sqPool.set(q,[]);
+  const qe=encodeURIComponent(q),tag=/^[\p{L}\p{N}_]{3,}$/u.test(q)?q:'';
+  const res=await Promise.allSettled([
+    nfFetchJson(`https://lemmy.world/api/v3/search?q=${qe}&type_=Posts&sort=TopMonth&limit=20`).then(d=>((d&&d.posts)||[]).map(v=>lemmyToPost(v,_SD_NATION)).filter(Boolean)),
+    nfFetchJson(`https://sepiasearch.org/api/v1/search/videos?search=${qe}&sort=-match&count=10&nsfw=false`,10000).then(d=>_ptRows((d&&d.data)||[],5)),
+    tag?nfFetchJson(`https://mastodon.social/api/v1/timelines/tag/${encodeURIComponent(tag)}?limit=20`).then(d=>Array.isArray(d)?d.map(x=>mastoToPost(x,_SD_NATION)).filter(Boolean):[]):Promise.resolve([]),
+  ]);
+  const got=res.flatMap(r=>r.status==='fulfilled'&&Array.isArray(r.value)?r.value:[]).filter(_sdOk);
+  _sqPool.set(q,got);
+  const si=document.getElementById('si');
+  if(got.length&&activeTab==='search'&&si&&si.value.trim().toLowerCase()===q)renderSearch(si.value);
+}
+// Search cards are not in allPosts, and openThread resolves ids there. Register
+// the tapped post OFF the feed (_offFeed) — the same way the nation pane does — so
+// the thread opens and the feed still never renders it.
+function openSearchPost(id){
+  if(!allPosts.some(x=>x.id===id)){const p=searchPostById(id)||findPost(id);if(!p)return;p._offFeed=true;allPosts.push(p);}
+  openThread(id);
+}
+addEventListener('load',()=>setTimeout(()=>pullSearchDiscovery(),5000));
 // The pill highlight and the rebuild used to run in the SAME task, so the highlight
 // could not paint until the whole grid had been torn down and rebuilt — that is the
 // visible beat between tapping a filter and it looking pressed. One frame is enough.
@@ -7126,13 +7323,42 @@ function renderSearch(q=''){
   // reconnected from zero — for pixel-identical output. Tab switching was the
   // most common way to trigger it. If the query, the filter and the post pool are
   // all unchanged, what is on screen is already correct; leave it alone.
-  const sig=activeFilter+' '+q+' '+allPosts.length;
-  if(renderSearch._sig===sig&&container.firstChild)return;
-  renderSearch._sig=sig;
-  teardownLiveIn(container);
-  let posts=[...allPosts].map(p=>({...p,_boost:(p.tags||[]).reduce((s,t)=>s+(BIO.tags[t]||0),0)}))
-    .sort((a,b)=>b._boost-a._boost||b.score-a.score);
-  if(q)posts=posts.filter(p=>(p.body||'').toLowerCase().includes(q.toLowerCase())||(p.country||'').toLowerCase().includes(q.toLowerCase())||(p.tags||[]).some(t=>t.toLowerCase().includes(q.toLowerCase())));
+  // The signature is now the exact set of cards that would render, so the grid
+  // is only rebuilt when what it shows actually changes.
+  // Content comes from SEARCH's own discovery pool, never the feed's allPosts pool
+  // (see SURFACES). A typed query may draw from any source, but anything the feed
+  // has rendered or queued is still refused.
+  const lq=String(q||'').trim().toLowerCase();
+  if(activeFilter==='live'){
+    const lsig='live|'+q;
+    if(renderSearch._sig===lsig&&container.firstChild)return;
+    renderSearch._sig=lsig;teardownLiveIn(container);
+  }
+  let posts=[];
+  if(activeFilter!=='live'){
+    if(lq)pullSearchQuery(lq);
+    const base=lq?[...(_sqPool.get(lq)||[]),...searchPosts,...reelPosts,...allPosts]:searchPosts;
+    const boost=new Map(),seenId=new Set();
+    let pool=base.filter(p=>p&&p.id&&!seenId.has(p.id)&&seenId.add(p.id));
+    if(lq)pool=pool.filter(p=>[p.body,p._desc,p.country,p._author].some(x=>String(x||'').toLowerCase().includes(lq))||(p.tags||[]).some(t=>t.toLowerCase().includes(lq)));
+    if(activeFilter!=='all')pool=pool.filter(p=>(p.tags||[]).some(t=>t===activeFilter)||(p.body||'').toLowerCase().includes(activeFilter));
+    pool.forEach(p=>boost.set(p,(p.tags||[]).reduce((n,t)=>n+(BIO.tags[t]||0),0)));
+    pool=pool.map((p,i)=>[p,i]).sort((a,b)=>boost.get(b[0])-boost.get(a[0])||(lq?(b[0].score||0)-(a[0].score||0):a[1]-b[1])).map(x=>x[0]);
+    const pickText=new Set();let free=0;
+    for(const p of pool){
+      if(!surfaceFree(p,'search'))continue;
+      free++;
+      if(posts.length>=12)continue;
+      const t=_surfKeys(p).t;if(t&&pickText.has(t))continue;
+      if(t)pickText.add(t);posts.push(p);
+    }
+    if(!lq&&free<24)pullSearchDiscovery();          // keep discovery stocked ahead of the exclusions
+    const sig=activeFilter+'|'+q+'|'+posts.map(p=>p.id).join(',');
+    if(renderSearch._sig===sig&&container.firstChild)return;
+    renderSearch._sig=sig;
+    teardownLiveIn(container);
+    posts.forEach(p=>surfaceClaim(p,'search'));
+  }
   if(activeFilter==='live'){
     container.innerHTML=`<div class="search-section-lbl"><span class="strip-live-dot"></span>LIVE NOW</div>
     ${liveFeatSlot(LIVE_CHANNELS[0])}
@@ -7152,10 +7378,10 @@ function renderSearch(q=''){
       const isImg=p.style==='image';
       const isUser=p._user;
       const bodyClass=p.style==='drop'||p.style==='image'?'':'take';
-      html+=`<div class="search-post-card" onclick="openThread('${p.id}')">
-        ${isImg&&p._img?`<div class="search-post-cover"><div class="search-post-card-cover-bg search-post-cover-bg" style="background:linear-gradient(135deg,hsl(${p.imgHue||270},70%,8%),hsl(${(p.imgHue||270)+30},50%,3%))"></div>${p._img?`${IMG_LOADER}<img class="search-post-img" src="${p._img}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onload="imgLoaded(this)" onerror="imgLoaded(this);this.remove()">`:''}</div>`:''}
+      html+=`<div class="search-post-card" onclick="openSearchPost('${esc(p.id).replace(/'/g,'')}')">
+        ${isImg&&p._img?`<div class="search-post-cover"><div class="search-post-card-cover-bg search-post-cover-bg" style="background:linear-gradient(135deg,hsl(${p.imgHue||270},70%,8%),hsl(${(p.imgHue||270)+30},50%,3%))"></div>${p._img?`${IMG_LOADER}<img class="search-post-img" src="${esc(p._img)}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onload="imgLoaded(this)" onerror="imgLoaded(this);this.remove()">`:''}</div>`:''}
         <div class="search-post-card-head">${VICON.pin} ${esc(p.country||'world')}${isUser?` &nbsp;<span class="search-user-badge">YOUR DROP</span>`:''}</div>
-        <div class="search-post-tag">${(p.tags||['void'])[0]}</div>
+        <div class="search-post-tag">${esc((p.tags&&p.tags[0])||'void')}</div>
         <div class="search-post-body ${bodyClass}">${esc(p.body||'')}</div>
         <div class="search-post-meta"><span>${VICON.bolt}${fmt(p.score||0)}</span><span>${VICON.reply}${fmt(p.replies||0)}</span><span>${ago(p.time||Date.now())}</span></div>
       </div>`;
