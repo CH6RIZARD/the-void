@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 // Zero-dependency headless UI check for void2-final.html via Chrome DevTools Protocol.
-// Usage: node scripts/verify-ui.mjs [--only=nation|wall] [--country=Morocco]
+// Usage: node scripts/verify-ui.mjs [--only=nation|wall|ref] [--country=Morocco]
 //        [--compare=Japan|none] [--wait=25] [--chrome=path] [--out=dir]
+//        [--countries=Nepal,Japan,...] [--theme=void|dark|light] [--threads=3]
+//        [--width=412] [--scrolls=2] [--ref] (also renders nation-7e-reference.html at 390px)
+//        --only=hero --all [--pages=4]  nation hero stream audit, see scripts/verify-hero.mjs
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -18,6 +21,12 @@ const ONLY = args.only || 'all';
 const COUNTRY = args.country || 'Morocco';
 const COMPARE = args.compare === 'none' ? null : (args.compare || (args.country ? null : 'Japan'));
 const WAIT_S = Number(args.wait || 25);
+const COUNTRIES = args.countries ? String(args.countries).split(',').map(x => x.trim()).filter(Boolean) : null;
+const THEME = args.theme || null;
+const THREADS = Number(args.threads || 0);
+const WIDTH = Number(args.width || 412);
+const DPR = Number(args.dpr || 1);
+const SCROLLS = args.scrolls === undefined ? 2 : Number(args.scrolls);
 const CHROME = args.chrome || process.env.CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const OUT = path.resolve(args.out || path.join(os.tmpdir(), 'void-verify-ui'));
 fs.mkdirSync(OUT, { recursive: true });
@@ -69,15 +78,22 @@ const summary = { page: null, console: { errors: [], warnings: [], logCount: 0 }
 async function main() {
   const port = await freePort(), dbgPort = await freePort();
   const srv = await serve(port);
-  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'void-chrome-'));
+  // --profile=dir reuses one Chrome profile across runs (cleared at start) instead of a new temp dir per run.
+  const profile = args.profile ? path.resolve(String(args.profile)) : fs.mkdtempSync(path.join(os.tmpdir(), 'void-chrome-'));
+  if (args.profile) { try { fs.rmSync(profile, { recursive: true, force: true }); } catch {} fs.mkdirSync(profile, { recursive: true }); }
   const UA = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36';
   const chrome = spawn(CHROME, [
     '--headless=new', `--remote-debugging-port=${dbgPort}`, `--user-data-dir=${profile}`,
-    '--autoplay-policy=no-user-gesture-required', '--window-size=412,915', `--user-agent=${UA}`,
-    '--no-first-run', '--no-default-browser-check', '--mute-audio', 'about:blank',
+    '--autoplay-policy=no-user-gesture-required', `--window-size=${WIDTH},915`, `--user-agent=${UA}`,
+    '--no-first-run', '--no-default-browser-check', '--mute-audio', '--disk-cache-size=1', '--media-cache-size=1',
+    // hero audit runs several tabs in ONE browser; background tabs must not be throttled
+    '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows',
+    'about:blank',
   ], { stdio: 'ignore' });
   let cdp;
-  const cleanup = async () => { cdp?.close(); try { chrome.kill(); } catch {} srv.close(); await sleep(500); try { fs.rmSync(profile, { recursive: true, force: true }); } catch {} };
+  // chrome.kill() only ends the parent on Windows; its child processes kept the profile
+  // locked, so the rmSync below failed silently and leaked 50-250 MB per run.
+  const cleanup = async () => { cdp?.close(); try { if (process.platform === 'win32') spawn('taskkill', ['/pid', String(chrome.pid), '/T', '/F'], { stdio: 'ignore' }); else chrome.kill(); } catch {} srv.close(); await sleep(1500); for (let i = 0; i < 5; i++) { try { fs.rmSync(profile, { recursive: true, force: true }); break; } catch { await sleep(1000); } } };
   try {
     let target;
     for (let i = 0; i < 60 && !target; i++) {
@@ -104,20 +120,35 @@ async function main() {
       }
     });
     await cdp.send('Runtime.enable'); await cdp.send('Page.enable'); await cdp.send('Log.enable');
-    await cdp.send('Emulation.setDeviceMetricsOverride', { width: 412, height: 915, deviceScaleFactor: 1, mobile: true });
+    await cdp.send('Emulation.setDeviceMetricsOverride', { width: WIDTH, height: 915, deviceScaleFactor: DPR, mobile: true });
     await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true });
+    if (args.ref || ONLY === 'ref') {
+      await cdp.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 1100, deviceScaleFactor: DPR, mobile: true });
+      await cdp.send('Page.navigate', { url: `http://127.0.0.1:${port}/design_handoff_void_patch3/nation-7e-reference.html` });
+      await sleep(3000);
+      await cdp.send('Runtime.evaluate', { expression: `document.body.style.padding='0';document.body.style.display='block'` });
+      await sleep(300);
+      const r = await cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: 70 });
+      const f = path.join(OUT, 'reference-7e-390.jpg'); fs.writeFileSync(f, Buffer.from(r.data, 'base64')); summary.screenshots.push(f);
+      await cdp.send('Emulation.setDeviceMetricsOverride', { width: WIDTH, height: 915, deviceScaleFactor: DPR, mobile: true });
+      if (ONLY === 'ref') { await cleanup(); console.log(JSON.stringify(summary, null, 2)); process.exit(0); }
+    }
     const url = `http://127.0.0.1:${port}/void2-final.html`;
     summary.page = url;
-    await cdp.send('Page.navigate', { url });
+    await cdp.send('Page.navigate', { url });   // --theme is applied with setTheme() after boot
 
     const ev = async (expr, awaitPromise = false) => {
       const r = await cdp.send('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise });
       if (r.exceptionDetails) return { __error: r.exceptionDetails.exception?.description || r.exceptionDetails.text };
       return r.result.value;
     };
+    // --shots=top,thread-1 keeps only captures whose name ends with one of those; JPEG unless --png.
+    const SHOTS = args.shots ? String(args.shots).split(',').filter(Boolean) : null;
     const shot = async name => {
-      const r = await cdp.send('Page.captureScreenshot', { format: 'png' });
-      const f = path.join(OUT, `${name}.png`); fs.writeFileSync(f, Buffer.from(r.data, 'base64')); summary.screenshots.push(f); return f;
+      if (SHOTS && !SHOTS.some(k => name.endsWith(k))) return null;
+      const png = !!args.png;
+      const r = await cdp.send('Page.captureScreenshot', png ? { format: 'png' } : { format: 'jpeg', quality: 55 });
+      const f = path.join(OUT, `${name}.${png ? 'png' : 'jpg'}`); fs.writeFileSync(f, Buffer.from(r.data, 'base64')); summary.screenshots.push(f); return f;
     };
 
     // Boot: wait for document + key globals.
@@ -131,13 +162,34 @@ async function main() {
     // like a first-time user would, so screenshots show the real UI.
     const gate = await ev(`(()=>{try{if(typeof signInAnon==='function'){signInAnon();return 'signInAnon'}return 'none'}catch(e){return 'error: '+(e&&e.stack||e)}})()`);
     await sleep(3000);
+    if (THEME) summary.themeApplied = await ev(`(()=>{try{setTheme(${JSON.stringify(THEME)});return document.documentElement.getAttribute('data-theme')}catch(e){return 'ERR '+e}})()`);
     summary.boot = { ok: booted === true, identityGate: gate };
 
     if (ONLY === 'all' || ONLY === 'nation') {
       summary.nation = {};
-      for (const name of [COUNTRY, COMPARE].filter(Boolean)) summary.nation[name] = await nationCheck(ev, shot, name);
+      for (const name of (COUNTRIES || [COUNTRY, COMPARE].filter(Boolean))) {
+        const ex0 = summary.exceptions.length;
+        try { summary.nation[name] = await nationCheck(ev, shot, name); }
+        catch (e) { summary.nation[name] = { error: String(e && e.stack || e) }; }
+        summary.nation[name].exceptionsDuring = summary.exceptions.slice(ex0).map(x => x.text && String(x.text).split('\n')[0]);
+      }
+    }
+    if (THREADS) {
+      // GDELT is CORS-blocked from a local origin, so the article thread is checked with
+      // a post built by the app's own gdeltToPost from a representative artlist row.
+      summary.articleThread = await ev(`(async()=>{try{
+        const p=gdeltToPost({title:'Test headline for the article thread',url:'https://www.example.com/world/story-1',socialimage:'',domain:'example.com',sourcecountry:'Kenya',seendate:'20260913T120000Z'});
+        allPosts.push(p);openThread(p.id);await new Promise(r=>setTimeout(r,400));
+        const a=document.querySelector('#thread-original .t-article');
+        const out={open:document.getElementById('thread-overlay').classList.contains('open'),title:document.getElementById('thread-body-text')?.textContent,href:a&&a.getAttribute('href'),host:a&&a.querySelector('.t-art-host')?.textContent,source:document.querySelector('#thread-original .thread-source-link')?.textContent,count:document.getElementById('thread-count').textContent};
+        closeThread();return out;}catch(e){return 'ERR '+(e&&e.stack||e)}})()`, true);
     }
     if (ONLY === 'all' || ONLY === 'wall') summary.wall = await wallCheck(ev);
+    if (ONLY === 'hero') {   // nation hero stream audit: --only=hero --all [--pages=4] (scripts/verify-hero.mjs)
+      const { heroAudit } = await import('./verify-hero.mjs');
+      await heroAudit({ ev, url, dbgPort, CDP, sleep, args, WAIT_S, COUNTRY, OUT, WIDTH });
+      await cleanup(); process.exit(0);
+    }
     await shot('final');
   } finally { await cleanup(); }
   console.log(JSON.stringify(summary, null, 2));
@@ -164,6 +216,14 @@ const COLLECT = `(()=>{
     nfStatus: q('.nf-status,.nf-more',feed).map(s=>s.textContent.trim()),
     feedPaneText: posts.length?undefined:(feed?.textContent||'').trim().slice(0,200),
     scroll: body?{top:body.scrollTop,height:body.scrollHeight,client:body.clientHeight}:null,
+    theme: document.documentElement.getAttribute('data-theme')||'void',
+    overflowX: body?body.scrollWidth-body.clientWidth:null,
+    layout: Object.fromEntries(['#c-eyebrow','#c-name','.cn-cta-head','#nation-hero','#nation-hero-badge','#nation-hero-viewers','#nation-hero-caption','#nation-cards','#nation-card-trending','#nation-card-about','#cn-feed-lbl','#cpane-feed .post'].map(s=>{
+      const e=document.querySelector(s);if(!e)return [s,null];const r=e.getBoundingClientRect(),cs=getComputedStyle(e);
+      return [s,{x:Math.round(r.left),y:Math.round(r.top+(body?body.scrollTop:0)),w:Math.round(r.width),h:Math.round(r.height),fs:cs.fontSize,color:cs.color,hidden:e.hidden||cs.display==='none',text:(e.textContent||'').trim().slice(0,90)}];
+    })),
+    heroPlaying: !!document.getElementById('nation-hero')?.classList.contains('playing'),
+    wideChildren: body?[...body.querySelectorAll('*')].filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&(r.right>innerWidth+1||r.left<-1)&&!e.closest('.post-car-strip')}).slice(0,8).map(e=>(e.id?'#'+e.id:'')+'.'+String(e.className).slice(0,40)+' w='+Math.round(e.getBoundingClientRect().width)):[],
   };
 })()`;
 
@@ -190,20 +250,106 @@ async function nationCheck(ev, shot, name) {
   r.timeline = early;
   r.top = await ev(COLLECT);
   r.screenshotTop = await shot(`${name}-top`);
+  await ev(`(()=>{const b=document.getElementById('c-body'),l=document.getElementById('cn-feed-lbl');if(b&&l)b.scrollTop=Math.max(0,l.offsetTop-300);})()`);
+  await sleep(1500);
+  r.screenshotMid = await shot(`${name}-mid`);
+  if (THREADS) r.threads = await threadCheck(ev, shot, name, THREADS);
   const counts = [r.top.postCount];
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < SCROLLS; i++) {
     await ev(`(()=>{const b=document.getElementById('c-body');b.scrollTop=b.scrollHeight;b.dispatchEvent(new Event('scroll'));})()`);
     await sleep(8000);
     counts.push(await ev(`document.querySelectorAll('#cpane-feed .post').length`));
   }
   r.postCountsAcrossScrolls = counts;
-  r.postsGrewOnScroll = counts[2] > counts[0];
+  r.postsGrewOnScroll = counts[counts.length - 1] > counts[0];
   r.afterScroll = await ev(COLLECT);
   r.screenshotScrolled = await shot(`${name}-scrolled`);
+  if (args.styles) r.media = await mediaCheck(ev, name);
   r.genericTileLabels = r.top.tileLabels.filter(l => GENERIC.test(l));
   await ev(`(()=>{try{closeOverlay()}catch(e){}})()`);
   await sleep(1000);
   return r;
+}
+
+// Opens N nation-feed posts (one per source first) the way a tap does, and checks
+// the OP card renders at once, its media is there, and source replies land in the deck.
+async function threadCheck(ev, shot, name, n) {
+  const ids = await ev(`(()=>{const ps=[...document.querySelectorAll('#cpane-feed .post')].map(e=>e.id.slice(5));
+    const by={};for(const id of ps){const p=allPosts.find(x=>x.id===id);if(!p)continue;const k=p.source||'?';(by[k]=by[k]||[]).push(id);}
+    const pref=k=>({mastodon:0,lemmy:1,news:2}[k]??3);const keys=Object.keys(by).sort((a,b)=>pref(a)-pref(b));
+    for(const k of keys)by[k].sort((a,b)=>((allPosts.find(x=>x.id===b)||{}).replies||0)-((allPosts.find(x=>x.id===a)||{}).replies||0));
+    const out=[];for(let r=0;out.length<${n}&&r<20;r++)for(const k of keys){if(out.length>=${n})break;if(by[k][r])out.push(by[k][r]);}
+    return out;})()`);
+  const res = [];
+  for (const id of (Array.isArray(ids) ? ids : [])) {
+    const x = { id };
+    const J = JSON.stringify(id);
+    const t0 = Date.now();
+    x.open = await ev(`(()=>{try{const el=document.getElementById('post-'+${J});if(el)el.scrollIntoView({block:'center'});
+      const b=el&&el.querySelector('.post-body');if(b)b.click();else openThread(${J});
+      return document.getElementById('thread-overlay').classList.contains('open')}catch(e){return 'ERR '+(e&&e.stack||e)}})()`);
+    await sleep(150);
+    x.opInstant = await ev(`(()=>{const o=document.getElementById('thread-original');return {text:(document.getElementById('thread-body-text')?.textContent||'').trim().slice(0,80),media:!!o.querySelector('#thread-op-media > *'),count:document.getElementById('thread-count').textContent,cards:document.querySelectorAll('#thread-comments .tc-wrap').length}})()`);
+    let st;
+    for (let i = 0; i < 24; i++) {
+      st = await ev(`(()=>{const p=allPosts.find(x=>x.id===${J})||{};const rr=_remoteReplies[${J}];return {source:p.source,replies:p.replies,loading:!!_remoteLoading[${J}],cached:Array.isArray(rr)?rr.length:null,
+        cards:document.querySelectorAll('#thread-comments .tc-wrap').length,edges:document.querySelectorAll('#thread-comments .tc-edge').length,count:document.getElementById('thread-count').textContent,
+        empty:(document.querySelector('#thread-comments .tc-empty')?.textContent||''),
+        media:(()=>{const m=document.querySelector('#thread-op-media');return m?[...m.querySelectorAll('img,video,iframe,.au-pill,.img-load,.sparkle-fallback')].map(e=>e.tagName==='DIV'?e.className.split(' ')[0]:e.tagName+(e.tagName==='IMG'?(e.complete&&e.naturalWidth?':ok':':loading'):'')).join(','):''})(),
+        article:(()=>{const a=document.querySelector('#thread-original .t-article');return a?a.getAttribute('href'):null})(),
+        source:(document.querySelector('#thread-original .thread-source-link')?.textContent||'')}})()`);
+      if (st.source !== 'mastodon' && st.source !== 'lemmy') { if (i > 3) break; }
+      else if (!st.loading && st.cached !== null) break;
+      await sleep(500);
+    }
+    x.afterMs = Date.now() - t0;
+    x.state = st;
+    await sleep(700);
+    x.shot = await shot(`${name}-thread-${res.length + 1}`);
+    x.replyOverlay = await ev(`(()=>{const w=document.querySelector('#thread-comments .tc-wrap.s1,#thread-comments .tc-wrap.s2');if(!w)return null;openReplies(w.dataset.cid);return document.querySelectorAll('#ro-body .tc-card').length})()`);
+    if (x.replyOverlay) { await sleep(600); x.replyShot = await shot(`${name}-thread-${res.length + 1}-replies`); await ev(`closeReplies(true,true)`); }
+    await ev(`closeThread()`); await sleep(500);
+    await ev(`openThread(${J})`); await sleep(100);
+    x.reopen = await ev(`({cards:document.querySelectorAll('#thread-comments .tc-wrap').length,loading:!!_remoteLoading[${J}],count:document.getElementById('thread-count').textContent})`);
+    await ev(`closeThread()`); await sleep(400);
+    res.push(x);
+  }
+  return res;
+}
+
+// --styles: nation feed format mix after the scrolls — style histogram, longest
+// same-format run (image+carousel count as one format), posts per source, pool
+// backlog, relevance misses, and whether a tapped audio pill actually buffers.
+async function mediaCheck(ev, name) {
+  const m = await ev(`(()=>{const c=_nf.c||{n:${JSON.stringify(name)}};
+    const ps=[...document.querySelectorAll('#cpane-feed .post')].map(e=>allPosts.find(x=>x.id===e.id.slice(5))).filter(Boolean);
+    const styles={},sources={},seq=ps.map(p=>p.style==='carousel'?'image':(['image','video','audio'].includes(p.style)?p.style:'take'));
+    ps.forEach(p=>{styles[p.style]=(styles[p.style]||0)+1;sources[p.source||'?']=(sources[p.source||'?']||0)+1;});
+    let maxRun=0,cur=0,runAt=0;seq.forEach((g,i)=>{cur=i&&seq[i-1]===g?cur+1:1;if(cur>maxRun){maxRun=cur;runAt=i-cur+1;}});
+    const offTopic=ps.filter(p=>!(nationNamed(c,p.body+' '+(p._desc||''))||nationIsLocal(p.country,c)||p._region===nationCode(c)||p.source==='mastodon')).map(p=>p.source+': '+String(p.body).slice(0,70));
+    return {total:ps.length,styles,sources,maxSameFormatRun:maxRun,first30:seq.slice(0,30).map(g=>g[0]).join(''),maxRunAt:runAt+':'+(seq[runAt]||''),all:seq.map(g=>g[0]).join(''),inflight:Object.keys(_nf.inflight||{}),
+      cursors:{lemmyPage:_nf.lemmyPage,ptQ:_nf.ptQ,ptStart:_nf.ptStart,radioOff:_nf.radioOff,iaPage:_nf.iaPage,commonsOff:_nf.commonsOff,commonsVidOff:_nf.commonsVidOff,masto:!!_nf.mastoMax,mastoMedia:!!_nf.mastoMediaMax},
+      pool:(_nf.pool||[]).length,exhausted:Object.keys(_nf.exhausted||{}).filter(k=>_nf.exhausted[k]),
+      videosWithFile:ps.filter(p=>p.style==='video'&&p._video).length,offTopic:offTopic.slice(0,6)};})()`);
+  const pills = await ev(`[...document.querySelectorAll('#cpane-feed .au-pill[data-src]')].length`);
+  m.audio = { pills };
+  if (pills) {
+    m.audio.tries = [];
+    for (let k = 0; k < Math.min(3, pills); k++) {
+      await ev(`(()=>{const p=[...document.querySelectorAll('#cpane-feed .au-pill[data-src]')][${k}];p.scrollIntoView({block:'center'});p.querySelector('.au-play').click();})()`);
+      let s;
+      for (let i = 0; i < 16; i++) {
+        await sleep(500);
+        s = await ev(`(()=>{const a=_auEl;return a?{src:String(a.currentSrc||a.src).slice(0,90),readyState:a.readyState,paused:a.paused,currentTime:+a.currentTime.toFixed(2),error:a.error&&a.error.code}:null})()`);
+        if (s && (s.readyState >= 3 && s.currentTime > 0.2 || s.error)) break;
+      }
+      m.audio.tries.push(s);
+      await ev(`(()=>{try{auStop()}catch(e){}})()`);
+      if (s && s.readyState >= 3 && s.currentTime > 0.2) break;
+    }
+    m.audio.plays = m.audio.tries.some(s => s && s.readyState >= 3 && s.currentTime > 0.2);
+  }
+  return m;
 }
 
 async function wallCheck(ev) {

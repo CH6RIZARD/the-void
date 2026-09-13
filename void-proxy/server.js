@@ -4,8 +4,9 @@
  * The Void — social-tension proxy server.
  *
  * Feeds the client in ../void2-final.html via two endpoints:
- *   GET /feed?mode=tension&limit=40                     -> { items: [POST, ...] }
- *   GET /social?country=<name>&mode=tension&limit=30    -> { items: [POST, ...] }
+ *   GET /feed?mode=tension&limit=40&offset=0             -> { items, nextOffset, total }
+ *   GET /social?country=<name>&mode=tension&limit=30&offset=0 -> { items, nextOffset, total }
+ *   Every POST carries provenance: { sourceHost, responseHash } (client requires it).
  *
  * POST shape (see README):
  *   { id, platform, author, handle, country, text, url, createdAt(epoch ms),
@@ -27,6 +28,11 @@ const PORT = process.env.PORT || 8787;
 // Unknown countries fall back to the global geopolitics set.
 // ---------------------------------------------------------------------------
 const GLOBAL_SUBS = ['worldnews', 'geopolitics', 'anime_titties', 'CombatFootage'];
+// A global-only source list cannot surface a fast-moving story from a country
+// whose subreddit is not already one of the usual large-world-news communities.
+// Keep this deliberately small: it is a signal lane, not a replacement for the
+// broad feed. High-engagement local reporting can now enter the global ranker.
+const REGIONAL_ALERT_SUBS = [{ sub: 'Nepal', country: 'Nepal' }];
 
 const COUNTRY_SUBS = {
   'ukraine':      ['ukraine', 'UkraineWarVideoReport', 'CombatFootage', 'UkrainianConflict'],
@@ -43,6 +49,7 @@ const COUNTRY_SUBS = {
   'taiwan':       ['taiwan', 'geopolitics'],
   'india':        ['india', 'IndiaSpeaks', 'geopolitics'],
   'pakistan':     ['pakistan', 'geopolitics'],
+  'nepal':        ['Nepal', 'NepalSocial', 'SouthAsia'],
   'united kingdom':['unitedkingdom', 'ukpolitics'],
   'uk':           ['unitedkingdom', 'ukpolitics'],
   'france':       ['france', 'europe'],
@@ -83,7 +90,30 @@ const CONFLICT_TERMS = [
   'ceasefire', 'hostage', 'sanction', 'nuclear', 'crisis', 'coup', 'militant',
   'terror', 'refugee', 'crackdown', 'shooting', 'drone', 'ban', 'scandal',
   'controversy', 'outrage', 'condemn', 'accuse', 'clashes', 'escalate',
+  // Disasters / mass-casualty events. Without these a flood or earthquake that
+  // kills hundreds scored like a cat photo (the Nepal tragedy never ranked).
+  'flood', 'floods', 'earthquake', 'landslide', 'avalanche', 'collapse', 'stampede',
+  'crash', 'disaster', 'tragedy', 'missing', 'rescue', 'curfew', 'evacuate',
+  'casualties', 'victims', 'cyclone', 'typhoon', 'hurricane', 'wildfire', 'explosion',
 ];
+// Whole-word matching: substring matching scored "software" as war and "urban" as ban.
+const CONFLICT_RE = new RegExp('\\b(' + CONFLICT_TERMS.join('|') + ')\\b', 'g');
+
+// Same story from several subs/platforms = corroboration, a strong breaking signal.
+// collect() counts sources per story key; the score gets 1 + 0.3*log2(n).
+function storyKey(post) {
+  if (post.link) return 'l:' + String(post.link).replace(/^https?:\/\/(www\.)?/, '').replace(/[?#].*$/, '').toLowerCase();
+  const t = String(post.text || '').toLowerCase().replace(/[^\p{L}\p{N} ]+/gu, ' ').replace(/\s+/g, ' ').trim();
+  return t.length > 24 ? 't:' + t.slice(0, 90) : null;
+}
+
+function velocityOf(post) {
+  const now = Date.now();
+  const ageHours = Math.max(0.5, (now - (post.createdAt || now)) / 3.6e6);
+  const score = Math.max(0, (post.metrics && post.metrics.score) || 0);
+  const replies = Math.max(0, (post.metrics && post.metrics.replies) || 0);
+  return (score + replies) / Math.pow(ageHours, 0.8);
+}
 
 function tensionScore(post) {
   const now = Date.now();
@@ -99,17 +129,27 @@ function tensionScore(post) {
 
   // 3. Keyword conflict weight.
   const text = ((post.text || '') + ' ' + (post.country || '')).toLowerCase();
-  let hits = 0;
-  for (const term of CONFLICT_TERMS) if (text.includes(term)) hits++;
+  const hits = new Set(text.match(CONFLICT_RE) || []).size;
   const keyword = 1 + Math.min(hits, 5) * 0.25; // cap the boost at +125%
 
-  return velocity * divisiveness * keyword;
+  // 4. Corroboration — set by collect() when the same story arrives from n sources.
+  const corroboration = 1 + 0.3 * Math.log2(Math.max(1, post._sources || 1));
+
+  return velocity * divisiveness * keyword * corroboration;
 }
 
 function rankItems(items, mode) {
   if (mode === 'tension') {
     return items
       .map((it) => ({ it, s: tensionScore(it) }))
+      .sort((a, b) => b.s - a.s)
+      .map((x) => x.it);
+  }
+  // The client rotates tension / hot / recent. 'hot' used to fall through to
+  // newest-first, so a third of pages silently ignored engagement.
+  if (mode === 'hot') {
+    return items
+      .map((it) => ({ it, s: velocityOf(it) * (1 + 0.3 * Math.log2(Math.max(1, it._sources || 1))) }))
       .sort((a, b) => b.s - a.s)
       .map((x) => x.it);
   }
@@ -190,6 +230,9 @@ class RedditProvider extends SocialProvider {
       country: country || '',
       text: text,
       url: d.permalink ? 'https://www.reddit.com' + d.permalink : (d.url || ''),
+      // The external article, separate from the Reddit permalink, so the client's
+      // same-article dedupe/corroboration (_link) and storyKey() can see it.
+      link: d.url && !/^https?:\/\/(www\.|old\.)?reddit\.com\//.test(d.url) && !d.is_self ? d.url : '',
       createdAt: d.created_utc ? Math.round(d.created_utc * 1000) : Date.now(),
       metrics: {
         score: typeof d.score === 'number' ? d.score : (d.ups || 0),
@@ -237,7 +280,13 @@ class RedditProvider extends SocialProvider {
   }
 
   async fetchGlobal({ limit }) {
-    return this.fetchFromSubs(GLOBAL_SUBS, '', limit || 40);
+    const n = limit || 40;
+    const broad = this.fetchFromSubs(GLOBAL_SUBS, '', n);
+    const regional = REGIONAL_ALERT_SUBS.map(({ sub, country }) =>
+      this.fetchFromSubs([sub], country, Math.max(10, Math.ceil(n / 6)))
+    );
+    const results = await Promise.allSettled([broad, ...regional]);
+    return results.flatMap((r) => r.status === 'fulfilled' ? r.value : []);
   }
 
   async fetchByCountry({ country, limit }) {
@@ -346,7 +395,24 @@ async function aggregateGlobal({ mode, limit }) {
   const results = await Promise.allSettled(
     PROVIDERS.map((p) => p.fetchGlobal({ mode, limit }))
   );
-  return collect(results, mode, limit);
+  return collect(results, mode, limit, interleaveRegional);
+}
+
+// Regional-alert items (tagged with a country inside the global feed) come
+// from small communities whose absolute engagement can never outrank
+// r/worldnews, so pure ranking would bury them past any page a user reaches.
+// Keep ranked order within each lane, but place a regional item every
+// REGIONAL_EVERY slots so a local tragedy is visible on the first page.
+const REGIONAL_EVERY = 8;
+function interleaveRegional(ranked) {
+  const regional = ranked.filter((it) => it.country);
+  const broad = ranked.filter((it) => !it.country);
+  const out = [];
+  while (regional.length || broad.length) {
+    if (regional.length && (out.length % REGIONAL_EVERY === REGIONAL_EVERY - 1 || !broad.length)) out.push(regional.shift());
+    else out.push(broad.shift());
+  }
+  return out;
 }
 
 async function aggregateByCountry({ country, mode, limit }) {
@@ -356,20 +422,65 @@ async function aggregateByCountry({ country, mode, limit }) {
   return collect(results, mode, limit).map((it) => ({ ...it, country: it.country || country || '' }));
 }
 
-function collect(results, mode, limit) {
-  const items = [];
+function collect(results, mode, limit, arrange) {
+  const raw = [];
   for (const r of results) {
-    if (r.status === 'fulfilled' && Array.isArray(r.value)) items.push(...r.value);
+    if (r.status === 'fulfilled' && Array.isArray(r.value)) raw.push(...r.value);
     // rejected providers are simply skipped
   }
-  const ranked = rankItems(items, mode);
-  return ranked.slice(0, limit || 40);
+  // Count each story's sources before dropping duplicates: keep the most engaged
+  // copy, carrying _sources so the ranker can reward corroboration.
+  const byStory = new Map(), items = [];
+  for (const it of raw) {
+    const k = storyKey(it);
+    if (!k) { items.push(it); continue; }
+    const cur = byStory.get(k);
+    if (!cur) { const copy = { ...it, _sources: 1 }; byStory.set(k, copy); items.push(copy); continue; }
+    cur._sources++;
+    if (velocityOf(it) > velocityOf(cur)) Object.assign(cur, it, { _sources: cur._sources });
+  }
+  let ranked = rankItems(items, mode);
+  // Arrange (e.g. regional interleave) BEFORE truncation, or low-engagement
+  // regional items are cut from the pool before they can be placed.
+  if (arrange) ranked = arrange(ranked);
+  return ranked.slice(0, limit || 40).map(withProvenance);
+}
+
+// The client refuses proxy content without a source and a stable response
+// fingerprint. Previously this proxy emitted neither, so every /feed and
+// /social result was discarded before ranking. Keep the fingerprint local and
+// deterministic: it is provenance metadata, not a tracking identifier.
+function withProvenance(item) {
+  if (!item) return item;
+  let sourceHost = item.platform === 'reddit' ? 'reddit.com' :
+    item.platform === 'x' ? 'x.com' : String(item.platform || 'unknown');
+  try { if (item.url) sourceHost = new URL(item.url).hostname.replace(/^www\./, ''); } catch (_) {}
+  const basis = [item.id, item.url, item.createdAt, item.text].join('|');
+  let h = 2166136261;
+  for (let i = 0; i < basis.length; i++) h = Math.imul(h ^ basis.charCodeAt(i), 16777619);
+  // Keep upstream-supplied provenance if a provider already set one.
+  const prev = item.provenance || {};
+  return { ...item, provenance: {
+    sourceHost: prev.sourceHost || sourceHost,
+    responseHash: prev.responseHash || (h >>> 0).toString(36),
+  } };
 }
 
 // ---------------------------------------------------------------------------
 // In-memory TTL cache, keyed by endpoint+params.
 // ---------------------------------------------------------------------------
 const CACHE_TTL_MS = 60 * 1000;
+// Size of the ranked pool each endpoint pages over (offset/limit slice it).
+const FEED_POOL = 400;
+const SOCIAL_POOL = 200;
+
+// Slice a ranked pool. nextOffset is the offset of the following page, or 0
+// when the pool is exhausted (the client restarts from the head).
+function page(all, offset, limit) {
+  const items = all.slice(offset, offset + limit);
+  const end = offset + items.length;
+  return { items, nextOffset: items.length && end < all.length ? end : 0, total: all.length };
+}
 const cache = new Map();
 
 async function cached(key, producer) {
@@ -405,18 +516,23 @@ const server = http.createServer(async (req, res) => {
     const path = u.pathname;
     const mode = u.searchParams.get('mode') || 'tension';
     const limit = clampInt(u.searchParams.get('limit'), 40, 1, 100);
+    const offset = clampInt(u.searchParams.get('offset'), 0, 0, FEED_POOL);
 
     if (path === '/feed') {
-      const key = `feed|${mode}|${limit}`;
-      const items = await cached(key, () => aggregateGlobal({ mode, limit }));
-      return sendJson(res, 200, { items });
+      // Page locally over ONE fixed, cached pool. The old endpoint ignored
+      // offset (page one forever); sizing the fetch to offset+limit also made
+      // the pool exactly one page long, so nextOffset could never advance and
+      // each page came from a differently-sized, differently-ranked fetch.
+      const key = `feed|${mode}`;
+      const all = await cached(key, () => aggregateGlobal({ mode, limit: FEED_POOL }));
+      return sendJson(res, 200, page(all, offset, limit));
     }
 
     if (path === '/social') {
       const country = u.searchParams.get('country') || '';
-      const key = `social|${country.toLowerCase()}|${mode}|${limit}`;
-      const items = await cached(key, () => aggregateByCountry({ country, mode, limit }));
-      return sendJson(res, 200, { items });
+      const key = `social|${country.toLowerCase()}|${mode}`;
+      const all = await cached(key, () => aggregateByCountry({ country, mode, limit: SOCIAL_POOL }));
+      return sendJson(res, 200, page(all, offset, limit));
     }
 
     if (path === '/' || path === '/health') {
@@ -427,11 +543,11 @@ const server = http.createServer(async (req, res) => {
       });
     }
 
-    return sendJson(res, 404, { error: 'not found', items: [] });
+    return sendJson(res, 404, { error: 'not found', items: [], nextOffset: 0 });
   } catch (err) {
     // Never 500 the whole response with an empty body — return an empty feed.
     console.error('[void-proxy] handler error:', err && err.message);
-    return sendJson(res, 200, { items: [], error: 'internal' });
+    return sendJson(res, 200, { items: [], nextOffset: 0, error: 'internal' });
   }
 });
 
@@ -503,4 +619,4 @@ function loadDotEnv() {
   } catch (_) { /* ignore */ }
 }
 
-module.exports = { tensionScore, rankItems, subsForCountry, RedditProvider, XProvider, ThreadsProvider };
+module.exports = { tensionScore, rankItems, subsForCountry, withProvenance, interleaveRegional, page, RedditProvider, XProvider, ThreadsProvider };
