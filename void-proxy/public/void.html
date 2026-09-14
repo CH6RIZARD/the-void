@@ -4586,6 +4586,7 @@ function disposeCell(cell){
   // on any tile again. A few rapid filter taps or country opens exhausted the pool.
   if(cell&&cell.__cancel){try{cell.__cancel();}catch(e){}}
   if(cell&&cell===_audioCell){_audioCell=null;cell.classList.remove('audio-on');}   // the audible stream went away
+  if(_ytShadow&&_ytShadow.cell===cell)ytShadowStop();                             // …and its shadow audio with it
   const s=liveInstances.get(cell); if(s){s.forEach(fn=>{try{fn();}catch(e){}});liveInstances.delete(cell);}
   clearTimeout(cell.__parkT); cell.__parkT=null; liveCells.delete(cell);
   if(_liveObs)try{_liveObs.unobserve(cell);}catch(e){}
@@ -4623,13 +4624,96 @@ function teardownLiveIn(root){
 // On YT state 2 after success, immediately playVideo again.
 const liveCells=new Set();
 const LIVE_PARK_DELAY=1e9; // effectively never — kept so call sites still compile
+// ─── YOUTUBE, INVISIBLY ─────────────────────────────────────────────────
+// Rule: a user must never see YouTube's own player chrome (title bar, pause glyph,
+// progress bar, logo). YouTube draws that chrome for ~3s after the player starts
+// AND after every API command it receives (unMute, playVideo, …) — measured, and
+// no embed parameter prevents it. So:
+//   1. Every command to a VISIBLE YouTube frame goes through ytVeil first: the
+//      frame drops to opacity 0 under the app's sparkle hold for 3.2s, and fades
+//      back in only after YouTube's chrome has timed out.
+//   2. Sound never touches the visible frame at all (see ytShadow below).
+function ytVeil(cell,ifr,ms){
+  if(!cell||!ifr||!ifr.isConnected)return;
+  clearTimeout(ifr.__veilT);
+  ifr.style.transition='none';ifr.style.opacity='0';
+  let hold=[...cell.children].find(n=>n.classList&&n.classList.contains('yt-hold'));
+  if(!hold){
+    hold=document.createElement('div');hold.className='yt-hold';
+    hold.innerHTML=sparkleMarkup('').replace(/^<div class="sparkle-fallback">/,'').replace(/<\/div>$/,'');
+    cell.appendChild(hold);
+  }
+  hold.style.transition='none';hold.style.opacity='1';
+  ifr.__veilT=setTimeout(()=>{
+    try{ifr.__ytPost({event:'command',func:'unloadModule',args:['captions']});ifr.__ytPost({event:'command',func:'unloadModule',args:['cc']});}catch(e){}
+    ifr.style.transition='opacity .45s ease';ifr.style.opacity='1';
+    hold.style.transition='opacity .45s ease';hold.style.opacity='0';
+    setTimeout(()=>{if(hold.style.opacity==='0')hold.remove();},480);
+  },ms||3200);
+}
+// 3. SOUND = a SHADOW player. Tapping a YouTube tile does not unmute it (that would
+//    wake its chrome). Instead an invisible second player of the same video starts
+//    unmuted, synced to the tile's position, and carries the audio. The visible
+//    tile never receives a command, so there is nothing for YouTube to draw.
+//    If the shadow cannot start (autoplay blocked), fall back to unmuting the tile
+//    — behind the veil.
+let _ytShadow=null;
+function ytTileTime(f){return (f.__ytTime||0)+(f.__ytAt?(Date.now()-f.__ytAt)/1000:0);}
+function ytShadowStop(){
+  if(!_ytShadow)return;
+  clearInterval(_ytShadow.iv);clearTimeout(_ytShadow.fallbackT);
+  window.removeEventListener('message',_ytShadow.onMsg);
+  try{_ytShadow.el.remove();}catch(e){}
+  _ytShadow=null;
+}
+function ytShadowStart(cell,f){
+  ytShadowStop();
+  let u;try{u=new URL(f.src);}catch(e){return false;}
+  const isVod=(f.__ytDur||0)>0&&ytTileTime(f)<(f.__ytDur-20);
+  u.searchParams.set('mute','0');u.searchParams.set('autoplay','1');
+  if(isVod)u.searchParams.set('start',String(Math.max(0,Math.floor(ytTileTime(f)))));
+  const s=document.createElement('iframe');
+  s.src=u.toString();s.allow='autoplay;encrypted-media';s.setAttribute('referrerpolicy','strict-origin-when-cross-origin');
+  s.setAttribute('aria-hidden','true');s.tabIndex=-1;s.title='';
+  s.style.cssText='position:fixed;left:0;bottom:0;width:320px;height:180px;opacity:0;pointer-events:none;z-index:-1;border:0';
+  document.body.appendChild(s);
+  const post=o=>{try{s.contentWindow.postMessage(JSON.stringify(o),'*');}catch(e){}};
+  const kick=()=>{post({event:'listening',id:'void-shadow',channel:'void'});post({event:'command',func:'unMute',args:[]});post({event:'command',func:'setVolume',args:[100]});post({event:'command',func:'playVideo',args:[]});};
+  const sh={el:s,cell,playing:false};
+  sh.onMsg=e=>{
+    if(e.source!==s.contentWindow)return;
+    let d=e.data;try{if(typeof d==='string')d=JSON.parse(d);}catch(_){return;}
+    const st=d&&d.info&&typeof d.info.playerState==='number'?d.info.playerState:(d&&d.event==='onStateChange'?d.info:null);
+    if(st===1&&!sh.playing){
+      sh.playing=true;clearInterval(sh.iv);clearTimeout(sh.fallbackT);
+      // Resync to the picture once audio is flowing (the shadow started ~1-2s late).
+      if(isVod)post({event:'command',func:'seekTo',args:[ytTileTime(f)+0.25,true]});
+    }
+  };
+  window.addEventListener('message',sh.onMsg);
+  s.addEventListener('load',kick,{once:true});
+  sh.iv=setInterval(kick,600);
+  // No audio within 5s → the browser refused unmuted autoplay in the shadow. Use
+  // the visible frame instead, veiled, so the user still gets sound.
+  sh.fallbackT=setTimeout(()=>{
+    if(sh.playing||_ytShadow!==sh||_audioCell!==cell)return;
+    ytShadowStop();
+    cell.__ytAudioFallback=true;
+    ytVeil(cell,f);
+    f.__ytPost({event:'command',func:'unMute',args:[]});f.__ytPost({event:'command',func:'setVolume',args:[100]});
+  },5000);
+  _ytShadow=sh;
+  return true;
+}
+
 function liveNudgePlay(cell){
   if(!cell)return;
   const audible=cell===_audioCell;             // the one stream the user turned sound on for stays audible
   cell.querySelectorAll('iframe').forEach(f=>{
     if(!f.__ytPost)return;
     try{
-      f.__ytPost({event:'command',func:audible?'unMute':'mute',args:[]});
+      ytVeil(cell,f);                            // a command wakes YouTube's chrome — hide the frame first
+      f.__ytPost({event:'command',func:(audible&&cell.__ytAudioFallback)?'unMute':'mute',args:[]});
       f.__ytPost({event:'command',func:'playVideo',args:[]});
       f.__ytPaused=false;
     }catch(e){}
@@ -4659,15 +4743,11 @@ function streamSetAudio(cell,on){
   });
   cell.querySelectorAll('iframe').forEach(f=>{
     if(!f.__ytPost)return;
-    // Sent at once and re-sent twice: a YouTube frame drops a command that lands
-    // while it is mid state-change, which read as "sound sometimes doesn't come on".
-    const send=()=>{
-      if(!f.isConnected||(cell===_audioCell)!==!!on)return;   // the user already moved on
-      f.__ytPost({event:'command',func:on?'unMute':'mute',args:[]});
-      if(on)f.__ytPost({event:'command',func:'setVolume',args:[100]});
-    };
-    send();setTimeout(send,200);setTimeout(send,700);
-    if(f.__ytState!==1)f.__ytPost({event:'command',func:'playVideo',args:[]});   // only if not already playing (no chrome flash)
+    // YouTube: the visible frame is never commanded (that is what paints its chrome).
+    // Sound on = start the invisible shadow player; sound off = drop it.
+    if(on){ytShadowStart(cell,f);return;}
+    if(_ytShadow&&_ytShadow.cell===cell)ytShadowStop();
+    if(cell.__ytAudioFallback){cell.__ytAudioFallback=false;ytVeil(cell,f);f.__ytPost({event:'command',func:'mute',args:[]});}
   });
   cell.classList.toggle('audio-on',!!on);
 }
@@ -4855,24 +4935,10 @@ function attemptSource(cell,source){
         const _if=cell.querySelector('iframe');
         if(_if){
           _if.classList.add('playing-media');
-          if(_if.__ytPost){
-            // YouTube paints its own title bar, pause glyph and logo for the first
-            // ~3s of playback no matter what embed params say (measured headless:
-            // present at 1s, gone by 4s). The frame stays invisible (opacity 0) and
-            // a sparkle HOLD layer sits over the tile until that overlay has timed
-            // out, then the picture fades in clean. The hold is its own class so no
-            // sparkle-fallback cleanup elsewhere can strip it early.
-            const hold=document.createElement('div');hold.className='yt-hold';
-            hold.innerHTML=sparkleMarkup('').replace(/^<div class="sparkle-fallback">/,'').replace(/<\/div>$/,'');
-            cell.appendChild(hold);
-            const noCaptions=()=>{try{_if.__ytPost({event:'command',func:'unloadModule',args:['captions']});_if.__ytPost({event:'command',func:'unloadModule',args:['cc']});}catch(e){}};
-            noCaptions();
-            setTimeout(()=>{
-              noCaptions();
-              if(_if.__reveal)_if.__reveal();
-              hold.style.transition='opacity .45s ease';hold.style.opacity='0';setTimeout(()=>hold.remove(),480);
-            },3200);
-          }else if(_if.__reveal)_if.__reveal();
+          // YouTube: first reveal happens behind the veil (its start-up chrome times out
+          // under the sparkle hold). Everything else reveals at once.
+          if(_if.__ytPost)ytVeil(cell,_if);
+          else if(_if.__reveal)_if.__reveal();
         }
         const _vid=cell.querySelector('video');if(_vid)_vid.classList.add('playing-media');
         const _ov=cell.querySelector('.sparkle-fallback');
@@ -4988,9 +5054,10 @@ function attemptSource(cell,source){
         ifr.__ytPost=ytPost;
         let ytAlive=false;
         const listen=()=>{
+          if(ytAlive)ytVeil(cell,ifr);             // after first reveal, any command must be veiled
           ytPost({event:'listening',id:pid,channel:'void'});
           ytPost({event:'command',func:'playVideo',args:[],id:pid});
-          ytPost({event:'command',func:cell===_audioCell?'unMute':'mute',args:[],id:pid});   // resume never steals the user's sound
+          ytPost({event:'command',func:(cell===_audioCell&&cell.__ytAudioFallback)?'unMute':'mute',args:[],id:pid});   // sound lives in the shadow player
           ytPost({event:'command',func:'getPlayerState',args:[],id:pid});
         };
         // Bootstrap nudge — cleared on first PLAYING. Keep-alive after that is
@@ -5012,6 +5079,11 @@ function attemptSource(cell,source){
           if(data.event==='onReady'){listen();return;}       // still not watchable
           if(data.info&&typeof data.info.playerState==='number')ifr.__ytState=data.info.playerState;
           else if(data.event==='onStateChange'&&typeof data.info==='number')ifr.__ytState=data.info;
+          if(data.info&&typeof data.info.currentTime==='number'){ifr.__ytTime=data.info.currentTime;ifr.__ytAt=Date.now();}   // shadow audio sync
+          if(data.info&&typeof data.info.duration==='number')ifr.__ytDur=data.info.duration;
+          // Mid-watch buffering / self-pause makes YouTube paint its spinner or pause
+          // glyph: veil it (it is genuinely loading, so the sparkle hold is honest).
+          if(ytAlive&&(ifr.__ytState===3||ifr.__ytState===2))ytVeil(cell,ifr);
           const st=(data.info&&typeof data.info.playerState==='number')?data.info.playerState
                   :((data.event==='onStateChange'&&typeof data.info==='number')?data.info:null);
           if(st===3)return;                                   // buffering — hold the overlay
