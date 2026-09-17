@@ -4,8 +4,25 @@
     "strict": true,
     "jsx": "react-jsx",
     "moduleResolution": "bundler",
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    },
+    "allowImportingTsExtensions": true,
+    "noEmit": true
   },
-  "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules", "modules/expo-void-sensing/android", "modules/expo-void-sensing/ios"]
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "expo-env.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "native-modules-disabled",
+    "modules/expo-void-sensing/android",
+    "modules/expo-void-sensing/ios",
+    "src/core/__tests__"
+  ]
 }

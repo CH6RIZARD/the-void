@@ -1,0 +1,580 @@
+// LIVE FEEDS WALL — native port of #globe-live-grid / #gl-grid.
+//
+// web → native:
+//   buildGlobeGrid()   → mount effect (slots = wallSlots(), initial fill = wallFillCount())
+//   loadWallBatch()    → loadBatch(): boxes placed first (sliced 6/frame), then connected
+//                        through WALL_LANES lanes; one batch in flight at a time
+//   #gl-sentinel + IO  → onScroll: bottom of grid within 400px of the viewport
+//   CSS `order`        → connOrder: connected tiles rise to the top (absolute layout, so a
+//                        reorder only moves a tile — it never remounts or rebuffers)
+//   wallHealVisible()  → watchdog: dead tiles within ±40px heal (WALL_HEAL_MAX, cooldown)
+//   watchdog nudge     → tiles within ±200px not PLAYING get nudged every 2.5s
+//   visibilitychange   → AppState 'active': force-nudge at 0/400/1200/2800ms, heal at 900
+//
+// NOT virtualized on purpose: a FlatList recycles/unmounts rows, which is exactly the
+// "tiles remount and rebuffer on scroll" bug. A manual absolute grid keeps every tile
+// mounted; the only exception is the documented far-offscreen memory guard.
+import React, { memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, forwardRef } from 'react';
+import { AppState, Pressable, StyleSheet, Text, View, useWindowDimensions, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import { ScrollView } from 'react-native-gesture-handler';
+import { LiveDot, TileLabel, TileLoader } from './TileChrome';
+import { StreamTile, type StreamTileHandle } from './StreamTile';
+import { useStreamCascade, type CascadeResult } from './useStreamCascade';
+import { rememberStream, wallCascadeFor, wallSlots, streamKey, type StreamSource, type StreamType, type WallSlot } from './core';
+import {
+  EVICT_SCREENS,
+  MAX_MOUNTED_WEBVIEWS,
+  PARK_SCREENS,
+  WALL_BATCH,
+  WALL_HEAL_COOLDOWN,
+  WALL_HEAL_MAX,
+  WALL_LANES,
+  WATCHDOG_MS,
+} from './constants';
+import { em, useLiveTheme } from './liveTheme';
+
+type Phase = 'queued' | 'connecting' | 'playing' | 'offline' | 'evicted';
+
+interface WallEntry {
+  id: number;
+  phase: Phase;
+  kind?: StreamType;
+  needsHeal: boolean;
+  healing: boolean;
+  healAt: number;
+  heal(): Promise<boolean>;
+  nudge(force: boolean): void;
+}
+
+interface TileRec {
+  id: number;
+  name: string;
+  src: StreamSource;
+  batch: number;
+}
+
+// ─── connection lanes ────────────────────────────────────────────────────────
+class Lanes {
+  private busy = 0;
+  private q: Array<() => void> = [];
+  constructor(private max: number) {}
+  acquire(): Promise<() => void> {
+    return new Promise((resolve) => {
+      const grant = () => {
+        this.busy++;
+        let released = false;
+        resolve(() => {
+          if (released) return;
+          released = true;
+          this.busy--;
+          const n = this.q.shift();
+          if (n) n();
+        });
+      };
+      if (this.busy < this.max) grant();
+      else this.q.push(grant);
+    });
+  }
+}
+
+export interface LiveWallProps {
+  /** Globe tab focused AND mode === 'globe' AND nothing covering it. */
+  active: boolean;
+  /** v_grid3 dense layout (3-wide). Mobile build default: 2-wide. */
+  grid3?: boolean;
+  /** Extra bottom space so the floating nav pill never covers the last row. */
+  bottomInset?: number;
+}
+
+export interface LiveWallHandle {
+  rebuild(): void;
+}
+
+const GAP = 6;
+const PAD = 10;
+
+export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveWall({ active, grid3 = false, bottomInset = 0 }, ref) {
+  const t = useLiveTheme();
+  const win = useWindowDimensions();
+  const cols = grid3 ? 3 : 2;
+  const [width, setWidth] = useState(win.width);
+  const [viewportH, setViewportH] = useState(win.height * 0.5);
+  const [gridY, setGridY] = useState(0);
+  const [tiles, setTiles] = useState<TileRec[]>([]);
+  const [order, setOrder] = useState<Record<number, number>>({});
+  const [done, setDone] = useState(false);
+  const [gen, setGen] = useState(0);
+  const [placement, setPlacement] = useState<{ parked: Set<number>; evicted: Set<number> }>({ parked: new Set(), evicted: new Set() });
+
+  const w = useRef({
+    slots: [] as WallSlot[],
+    slotIdx: 0,
+    wallConn: 0,
+    busy: false,
+    nextId: 1,
+    batchSeq: 0,
+    batchPending: new Map<number, number>(),
+    registry: new Map<number, WallEntry>(),
+    healBusy: 0,
+    scrollY: 0,
+    lanes: new Lanes(WALL_LANES),
+    activeRef: active,
+    gen: 0,
+  }).current;
+  w.activeRef = active;
+
+  const tileW = (width - PAD * 2 - GAP * (cols - 1)) / cols;
+  const tileH = (tileW * 9) / 16;
+  const rowH = tileH + GAP;
+
+  // Sorted positions: connected by connection order, then the rest in spawn order.
+  const positions = useMemo(() => {
+    const sorted = [...tiles].sort((a, b) => {
+      const oa = order[a.id] ?? 999999 + a.id;
+      const ob = order[b.id] ?? 999999 + b.id;
+      return oa - ob;
+    });
+    const pos = new Map<number, { left: number; top: number }>();
+    sorted.forEach((r, i) => pos.set(r.id, { left: (i % cols) * (tileW + GAP), top: Math.floor(i / cols) * rowH }));
+    return pos;
+  }, [tiles, order, cols, tileW, rowH]);
+  const gridH = Math.max(0, Math.ceil(tiles.length / cols) * rowH - GAP);
+  const posRef = useRef(positions);
+  posRef.current = positions;
+  const geo = useRef({ gridY, gridH, viewportH, tileH });
+  geo.current = { gridY, gridH, viewportH, tileH };
+
+  const sentinelNear = useCallback(() => {
+    if (!w.activeRef) return false;
+    const g = geo.current;
+    return g.gridY + g.gridH <= w.scrollY + g.viewportH + 400;
+  }, [w]);
+
+  // web wallFillCount(): a screen-and-a-bit, 12..24 on mobile.
+  const fillCount = useCallback(() => {
+    const rows = Math.ceil((win.height * 1.25) / Math.max(60, tileH + GAP));
+    return Math.max(12, Math.min(24, cols * rows));
+  }, [win.height, tileH, cols]);
+
+  const loadBatch = useCallback(
+    async (want: number) => {
+      if (w.busy) return;
+      if (w.slotIdx >= w.slots.length) return;
+      w.busy = true;
+      const batch = ++w.batchSeq;
+      const myGen = w.gen;
+      const SLICE = 6;
+      let placed = 0;
+      // Reserve the whole batch up front so an instant refusal settling during the
+      // sliced placement cannot mark the batch finished early.
+      const planned = Math.min(want, w.slots.length - w.slotIdx);
+      w.batchPending.set(batch, planned);
+      while (placed < want && w.slotIdx < w.slots.length) {
+        const slice: TileRec[] = [];
+        for (let i = 0; i < SLICE && placed < want && w.slotIdx < w.slots.length; i++, placed++) {
+          const { name, src } = w.slots[w.slotIdx++];
+          slice.push({ id: w.nextId++, name, src, batch });
+        }
+        setTiles((prev) => prev.concat(slice));
+        // Yield a frame between slices so scroll / mode transition stay responsive.
+        await new Promise<void>((r) => requestAnimationFrame(() => r()));
+        if (myGen !== w.gen) return;
+      }
+      if (planned <= 0) w.busy = false;
+    },
+    [w],
+  );
+  const loadBatchRef = useRef(loadBatch);
+  loadBatchRef.current = loadBatch;
+
+  const healVisible = useCallback(() => {
+    if (!w.activeRef || AppState.currentState !== 'active') return;
+    const g = geo.current;
+    for (const e of w.registry.values()) {
+      if (w.healBusy >= WALL_HEAL_MAX) break;
+      const p = posRef.current.get(e.id);
+      if (!p) continue;
+      const top = g.gridY + p.top - w.scrollY;
+      if (top + g.tileH < -40 || top > g.viewportH + 40) continue;
+      const dead = e.phase === 'offline' || e.needsHeal;
+      if (!dead || e.healing) continue;
+      const now = Date.now();
+      if (e.healAt && now - e.healAt < WALL_HEAL_COOLDOWN) continue;
+      w.healBusy++;
+      e.heal().finally(() => {
+        w.healBusy = Math.max(0, w.healBusy - 1);
+      });
+    }
+  }, [w]);
+
+  const onFirstSettled = useCallback(
+    (rec: TileRec, res: CascadeResult) => {
+      if (res.ok) {
+        const o = w.wallConn++;
+        setOrder((prev) => ({ ...prev, [rec.id]: o })); // connected tiles rise
+      }
+      const left = (w.batchPending.get(rec.batch) || 1) - 1;
+      if (left > 0) {
+        w.batchPending.set(rec.batch, left);
+        return;
+      }
+      w.batchPending.delete(rec.batch);
+      if (rec.batch !== w.batchSeq) return;
+      w.busy = false;
+      if (w.slotIdx >= w.slots.length) setDone(true);
+      // The sentinel may still be on screen while the wall is short: keep pulling.
+      if (w.slotIdx < w.slots.length && sentinelNear()) setTimeout(() => loadBatchRef.current(WALL_BATCH), 0);
+      setTimeout(healVisible, 1500);
+    },
+    [w, sentinelNear, healVisible],
+  );
+
+  // buildGlobeGrid(): once, deferred a frame so the mode switch paints first.
+  const build = useCallback(() => {
+    w.registry.clear();
+    w.slots = wallSlots();
+    w.slotIdx = 0;
+    w.wallConn = 0;
+    w.busy = false;
+    w.batchPending.clear();
+    w.gen++;
+    setTiles([]);
+    setOrder({});
+    setDone(false);
+    setGen((g) => g + 1);
+  }, [w]);
+  const built = useRef(false);
+  useEffect(() => {
+    if (!active || built.current || width <= 0) return;
+    built.current = true;
+    build();
+  }, [active, width, build]);
+  useEffect(() => {
+    if (gen === 0) return;
+    const id = requestAnimationFrame(() => loadBatchRef.current(fillCount()));
+    return () => cancelAnimationFrame(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gen]);
+
+  useImperativeHandle(ref, () => ({ rebuild: build }), [build]);
+
+  // Watchdog (web setInterval 2500): nudge near tiles that are not PLAYING, then heal.
+  useEffect(() => {
+    if (!active) return;
+    const iv = setInterval(() => {
+      if (AppState.currentState !== 'active') return;
+      const g = geo.current;
+      for (const e of w.registry.values()) {
+        const p = posRef.current.get(e.id);
+        if (!p || e.phase !== 'playing') continue;
+        const top = g.gridY + p.top - w.scrollY;
+        if (top + g.tileH < -200 || top > g.viewportH + 200) continue;
+        if (e.needsHeal) continue;
+        e.nudge(false);
+      }
+      healVisible();
+    }, WATCHDOG_MS);
+    return () => clearInterval(iv);
+  }, [active, w, healVisible]);
+
+  // Return to the wall: wake everything, re-kick the sentinel (web setGlobeMode else-branch).
+  const wakeAll = useCallback(() => {
+    for (const e of w.registry.values()) if (e.phase === 'playing') e.nudge(true);
+  }, [w]);
+  useEffect(() => {
+    if (!active || !built.current) return;
+    wakeAll();
+    if (sentinelNear()) loadBatchRef.current(WALL_BATCH);
+    const h = setTimeout(healVisible, 600);
+    return () => clearTimeout(h);
+  }, [active, wakeAll, sentinelNear, healVisible]);
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s !== 'active' || !w.activeRef) return;
+      const ts = [0, 400, 1200, 2800].map((ms) => setTimeout(wakeAll, ms));
+      ts.push(setTimeout(healVisible, 900));
+    });
+    return () => sub.remove();
+  }, [w, wakeAll, healVisible]);
+
+  // Park / evict (native memory guard, see constants.ts).
+  const recomputePlacement = useCallback(() => {
+    const g = geo.current;
+    const vh = Math.max(1, g.viewportH);
+    const dist = new Map<number, number>();
+    for (const [id, p] of posRef.current) {
+      const top = g.gridY + p.top - w.scrollY;
+      const d = top > vh ? (top - vh) / vh : top + g.tileH < 0 ? -(top + g.tileH) / vh : 0;
+      dist.set(id, d);
+    }
+    const parked = new Set<number>();
+    for (const [id, d] of dist) if (d > PARK_SCREENS || !w.activeRef) parked.add(id);
+    const web = [...w.registry.values()].filter((e) => (e.kind === 'youtube' || e.kind === 'iframe') && (e.phase === 'playing' || e.phase === 'connecting'));
+    const evicted = new Set<number>(placementRef.current.evicted);
+    // restore evicted tiles that came back near
+    for (const id of [...evicted]) if ((dist.get(id) ?? 0) <= PARK_SCREENS) evicted.delete(id);
+    let over = web.length - MAX_MOUNTED_WEBVIEWS;
+    if (over > 0) {
+      const far = web
+        .filter((e) => (dist.get(e.id) ?? 0) > EVICT_SCREENS && !evicted.has(e.id))
+        .sort((a, b) => (dist.get(b.id) ?? 0) - (dist.get(a.id) ?? 0));
+      for (const e of far) {
+        if (over-- <= 0) break;
+        evicted.add(e.id);
+      }
+    }
+    const same = (a: Set<number>, b: Set<number>) => a.size === b.size && [...a].every((x) => b.has(x));
+    if (!same(parked, placementRef.current.parked) || !same(evicted, placementRef.current.evicted)) setPlacement({ parked, evicted });
+  }, [w]);
+  const placementRef = useRef(placement);
+  placementRef.current = placement;
+  useEffect(() => {
+    recomputePlacement();
+  }, [active, tiles, order, recomputePlacement]);
+
+  const lastPlaceAt = useRef(0);
+  const onScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      w.scrollY = e.nativeEvent.contentOffset.y;
+      if (sentinelNear()) loadBatchRef.current(WALL_BATCH);
+      const now = Date.now();
+      if (now - lastPlaceAt.current > 300) {
+        lastPlaceAt.current = now;
+        recomputePlacement();
+      }
+    },
+    [w, sentinelNear, recomputePlacement],
+  );
+
+  const registry = w.registry;
+  const lanes = w.lanes;
+
+  return (
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={{ paddingTop: PAD, paddingHorizontal: PAD, paddingBottom: 8 + bottomInset }}
+      onLayout={(e: LayoutChangeEvent) => {
+        setWidth(e.nativeEvent.layout.width);
+        setViewportH(e.nativeEvent.layout.height);
+      }}
+      onScroll={onScroll}
+      onMomentumScrollEnd={recomputePlacement}
+      scrollEventThrottle={16}
+      overScrollMode="never"
+      bounces={false}
+      showsVerticalScrollIndicator={false}
+      removeClippedSubviews={false}
+    >
+      {/* .gl-grid-label: red dot + mono label + hairline */}
+      <View style={styles.header}>
+        <LiveDot />
+        <Text style={{ fontFamily: t.mono, fontSize: 8, letterSpacing: em(8, 0.25), color: t.muted }}>LIVE FEEDS</Text>
+        <View style={{ flex: 1, height: 1, backgroundColor: t.border }} />
+      </View>
+      <View style={{ height: gridH }} onLayout={(e) => setGridY(e.nativeEvent.layout.y)}>
+        {tiles.map((rec) => {
+          const p = positions.get(rec.id);
+          if (!p) return null;
+          return (
+            <WallTile
+              key={`${gen}:${rec.id}`}
+              rec={rec}
+              left={p.left}
+              top={p.top}
+              width={tileW}
+              height={tileH}
+              borderColor={t.border}
+              parked={placement.parked.has(rec.id)}
+              evicted={placement.evicted.has(rec.id)}
+              registry={registry}
+              lanes={lanes}
+              onFirstSettled={onFirstSettled}
+            />
+          );
+        })}
+      </View>
+      {done ? (
+        <Text style={{ textAlign: 'center', paddingTop: 24, paddingBottom: 8, fontFamily: t.mono, fontSize: 8, letterSpacing: em(8, 0.2), color: t.muted }}>
+          — END OF SIGNAL —
+        </Text>
+      ) : null}
+    </ScrollView>
+  );
+});
+
+// ─── one wall tile (.gl-tile) ────────────────────────────────────────────────
+interface WallTileProps {
+  rec: TileRec;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  borderColor: string;
+  parked: boolean;
+  evicted: boolean;
+  registry: Map<number, WallEntry>;
+  lanes: Lanes;
+  onFirstSettled(rec: TileRec, res: CascadeResult): void;
+}
+
+const WallTile = memo(function WallTile({ rec, left, top, width, height, borderColor, parked, evicted, registry, lanes, onFirstSettled }: WallTileProps) {
+  const tileId = `wall:${rec.id}`;
+  const [phase, setPhase] = useState<Phase>('queued');
+  const [label, setLabel] = useState<string | null>(null);
+  const player = useRef<StreamTileHandle>(null);
+  const s = useRef({
+    first: true,
+    lastSrc: rec.src as StreamSource,
+    laneRelease: null as null | (() => void),
+    healResolve: null as null | ((ok: boolean) => void),
+    alive: true,
+  }).current;
+
+  const entry = useRef<WallEntry>({
+    id: rec.id,
+    phase: 'queued',
+    kind: rec.src.type,
+    needsHeal: false,
+    healing: false,
+    healAt: 0,
+    heal: async () => false,
+    nudge: () => {},
+  }).current;
+  const setPhaseBoth = (p: Phase) => {
+    entry.phase = p;
+    setPhase(p);
+  };
+
+  const onResult = useCallback((res: CascadeResult) => {
+    if (!s.alive) return;
+    if (res.ok && res.src) {
+      s.lastSrc = res.src;
+      entry.kind = res.src.type;
+      entry.needsHeal = false;
+      setPhaseBoth('playing');
+      setLabel(rec.name.toUpperCase() + ' · ' + (res.src.label || ''));
+      rememberStream(res.src); // so the next launch varies
+    } else {
+      // Never remove the box — the wall stays full; the healer retries it in view.
+      setPhaseBoth('offline');
+      setLabel(null);
+    }
+    if (s.laneRelease) {
+      s.laneRelease();
+      s.laneRelease = null;
+    }
+    if (s.first) {
+      s.first = false;
+      onFirstSettled(rec, res);
+    }
+    if (s.healResolve) {
+      const r = s.healResolve;
+      s.healResolve = null;
+      r(res.ok);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const cascade = useStreamCascade(onResult);
+
+  // connectWallCell(): on heal, try a different source first — the previous one just died.
+  const connect = useCallback(
+    (rotate: boolean) => {
+      let chain = wallCascadeFor(rec.name, s.lastSrc) || [];
+      if (rotate && s.lastSrc && chain.length > 1) {
+        const k = streamKey(s.lastSrc);
+        chain = chain.filter((x) => streamKey(x) !== k).concat(chain.filter((x) => streamKey(x) === k));
+      }
+      entry.needsHeal = false;
+      setPhaseBoth('connecting');
+      setLabel(null);
+      cascade.start(chain);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [cascade.start],
+  );
+
+  useEffect(() => {
+    s.alive = true;
+    registry.set(rec.id, entry);
+    let cancelled = false;
+    lanes.acquire().then((release) => {
+      if (cancelled) {
+        release();
+        return;
+      }
+      s.laneRelease = release;
+      connect(false);
+    });
+    entry.nudge = (force) => player.current?.nudge(force);
+    entry.heal = () => {
+      if (entry.healing) return Promise.resolve(false);
+      entry.healing = true;
+      entry.healAt = Date.now();
+      cascade.cancel(); // disposeCell
+      return new Promise<boolean>((resolve) => {
+        s.healResolve = (ok) => {
+          entry.healing = false;
+          resolve(ok);
+        };
+        connect(true);
+      });
+    };
+    return () => {
+      cancelled = true;
+      s.alive = false;
+      registry.delete(rec.id);
+      if (s.laneRelease) s.laneRelease();
+      s.laneRelease = null;
+      if (s.healResolve) s.healResolve(false);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Memory guard: far-away YouTube/iframe tiles unmount, and reconnect (same source
+  // first) once they come back within PARK_SCREENS.
+  useEffect(() => {
+    if (evicted && phase === 'playing') {
+      cascade.cancel();
+      setPhaseBoth('evicted');
+    } else if (!evicted && phase === 'evicted') {
+      connect(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [evicted, phase]);
+
+  const a = cascade.attempt;
+  const loaderLabel = phase === 'offline' ? '● NO SIGNAL' : a ? a.label : '● CONNECTING';
+
+  return (
+    <Pressable
+      onPress={() => {
+        player.current?.tap();
+      }}
+      style={({ pressed }) => [styles.tile, { left, top, width, height, borderColor, opacity: pressed ? 0.72 : 1 }]}
+    >
+      {a ? (
+        <StreamTile
+          key={a.key}
+          ref={player}
+          tileId={tileId}
+          source={a.src}
+          loaderLabel={a.label}
+          parked={parked}
+          showLoader={false}
+          onSettled={(ok) => cascade.settle(a.key, ok)}
+          onNeedsHeal={() => {
+            entry.needsHeal = true;
+          }}
+        />
+      ) : null}
+      <TileLoader label={loaderLabel} visible={phase !== 'playing'} />
+      {phase === 'playing' && label ? <TileLabel text={label} /> : null}
+    </Pressable>
+  );
+});
+
+const styles = StyleSheet.create({
+  scroll: { flex: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  tile: { position: 'absolute', backgroundColor: '#000', borderRadius: 6, overflow: 'hidden', borderWidth: 1 },
+});

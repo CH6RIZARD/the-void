@@ -602,6 +602,25 @@ body.tab-void .bio-hud{display:flex}
 .settings-row-info{flex:1}
 .settings-row-label{font-family:'Syne',sans-serif;font-size:13px;font-weight:600;color:var(--white)}
 .settings-row-sub{font-family:'Syne Mono',monospace;font-size:9px;color:var(--dim);margin-top:2px;letter-spacing:.06em}
+/* Account deletion: row button + confirm sheet (openDeleteAccount). */
+.si-ghost.da-danger{color:var(--red);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--red) 45%,transparent)}
+.si-ghost.da-danger:hover{color:var(--white);background:color-mix(in srgb,var(--red) 18%,transparent)}
+.da-wrap{position:fixed;inset:0;z-index:170;display:none;align-items:flex-end;justify-content:center}
+.da-wrap.on{display:flex}
+.da-scrim{position:absolute;inset:0;background:rgba(0,0,0,.6)}
+.da-sheet{position:relative;width:100%;max-width:520px;max-height:90dvh;overflow-y:auto;overscroll-behavior:contain;border-radius:24px 24px 0 0;background:var(--sheet);box-shadow:0 -12px 48px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.06);padding:10px 24px calc(24px + env(safe-area-inset-bottom));animation:cSlideUp .22s ease}
+.da-handle{width:36px;height:4px;border-radius:2px;background:rgba(255,255,255,.14);margin:0 auto 14px}
+.da-eyebrow{font-family:'Syne Mono',monospace;font-size:8px;letter-spacing:.3em;color:var(--red)}
+.da-title{font-family:'DM Serif Display',serif;font-size:24px;color:var(--white);margin-top:8px;line-height:1.2}
+.da-text{font-family:'Syne',sans-serif;font-size:13px;line-height:1.5;color:var(--dim);margin-top:10px}
+.da-list{margin:12px 0 0;padding:0;list-style:none}
+.da-list li{font-family:'Syne Mono',monospace;font-size:9.5px;letter-spacing:.06em;color:var(--white);padding:7px 0;box-shadow:inset 0 -1px 0 rgba(255,255,255,.06)}
+.da-lbl{display:block;font-family:'Syne Mono',monospace;font-size:7px;letter-spacing:.22em;color:var(--dim);margin-top:18px}
+.da-input{width:100%;box-sizing:border-box;margin-top:8px;background:rgba(255,255,255,.04);border:none;border-radius:12px;padding:13px 15px;color:var(--white);font-family:'Syne Mono',monospace;font-size:14px;letter-spacing:.2em;outline:none}
+.da-input:focus{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--red) 55%,transparent)}
+.da-err{min-height:14px;font-family:'Syne Mono',monospace;font-size:8px;letter-spacing:.12em;line-height:1.5;color:var(--red);margin-top:10px}
+.da-go{width:100%;margin-top:6px;padding:13px;border:none;border-radius:24px;background:var(--red);color:#fff;font-family:'Syne',sans-serif;font-weight:700;font-size:12px;letter-spacing:.24em;cursor:pointer;transition:opacity .15s}
+.da-go:disabled{opacity:.35;cursor:default}
 .toggle{width:40px;height:23px;background:rgba(255,255,255,.1);border-radius:12px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
 .toggle.on{background:#c9a84c}
 .toggle::after{content:'';position:absolute;width:18px;height:18px;background:var(--dim);border-radius:50%;top:2.5px;left:2.5px;transition:left .2s,background .2s}
@@ -1078,9 +1097,9 @@ body.tab-void .bio-hud{display:flex}
 .msg-back .vi{width:18px;height:18px}
 .msg-back:hover{color:var(--white)}
 .msg-head-title{font-family:'DM Serif Display',serif;font-size:24px;letter-spacing:0;color:var(--white);flex:1}
-/* Deliberately NOT green and NOT a padlock: these DMs are a local mock with no
-   encryption behind them (see xorCipher). Restore the lock + --green only when a
-   real E2EE transport is actually wired up. */
+/* Deliberately NOT green and NOT a padlock: DMs are stored in plaintext on the
+   server (members-only RLS, no end-to-end encryption). Restore the lock + --green
+   only when a real E2EE transport is actually wired up. */
 .msg-enc-badge{display:inline-flex;align-items:center;gap:5px;font-family:'Syne Mono',monospace;font-size:7px;color:#6a58a0;letter-spacing:.2em;background:none;padding:0}
 .msg-enc-badge .vi{width:11px;height:11px}
 .conv-foot{text-align:center;font-family:'Syne Mono',monospace;font-size:8px;letter-spacing:.2em;color:#231d42;margin-top:26px;padding-bottom:20px}
@@ -1496,6 +1515,11 @@ body.tab-void .bio-hud{display:flex}
         <div class="settings-row-info"><div class="settings-row-label">Sign out</div><div class="settings-row-sub">Return to the identity screen</div></div>
         <button class="si-ghost" style="width:auto;margin:0;padding:8px 16px" onclick="signOut()">SIGN OUT</button>
       </div>
+      <!-- Apple 5.1.1(v) / Google Play: in-app account + data deletion. -->
+      <div class="settings-row" id="s-delete-row">
+        <div class="settings-row-info"><div class="settings-row-label">Delete account</div><div class="settings-row-sub">Permanently erase your account and everything you posted</div></div>
+        <button class="si-ghost da-danger" style="width:auto;margin:0;padding:8px 16px" onclick="openDeleteAccount()">DELETE</button>
+      </div>
     </div>
     <div class="settings-section">
       <div class="settings-section-label">Language</div>
@@ -1549,7 +1573,16 @@ body.tab-void .bio-hud{display:flex}
         <div class="settings-row-info"><div class="settings-row-label">Notifications</div><div class="settings-row-sub">Thread activity alerts</div></div>
         <div class="toggle on" id="s-notify" onclick="toggleSetting(this)"></div>
       </div>
-      
+      <div class="settings-row">
+        <div class="settings-row-info"><div class="settings-row-label">Hide graphic content</div><div class="settings-row-sub">Blur graphic media until you tap it</div></div>
+        <div class="toggle on" id="s-gfx" onclick="VMod.toggleGraphic(this)"></div>
+      </div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-section-label">Safety</div>
+      <div class="settings-row vmod-nav" id="s-blocked" onclick="VMod.blockedSheet()"><div class="settings-row-info"><div class="settings-row-label">Blocked accounts</div><div class="settings-row-sub" id="s-blocked-n">Accounts and sources you hid</div></div><span data-vmod-chev></span></div>
+      <div class="settings-row vmod-nav" id="s-contact" onclick="VMod.contactSheet()"><div class="settings-row-info"><div class="settings-row-label">Contact &amp; support</div><div class="settings-row-sub">Support email, terms and privacy</div></div><span data-vmod-chev></span></div>
+      <div class="settings-row vmod-nav" onclick="VMod.termsSheet()"><div class="settings-row-info"><div class="settings-row-label">Terms of use</div><div class="settings-row-sub">Zero tolerance for abuse and objectionable content</div></div><span data-vmod-chev></span></div>
     </div>
     <div class="settings-section">
       <div class="settings-section-label">About</div>
@@ -1585,9 +1618,9 @@ body.tab-void .bio-hud{display:flex}
       <div class="chat-av" id="chat-av"></div>
       <div class="chat-user-info">
         <div class="chat-user-name" id="chat-user-name"></div>
-        <div class="chat-user-status">ACTIVE IN THE VOID</div>
+        <div class="chat-user-status">Messages are stored on The Void's servers and are not end-to-end encrypted.</div>
       </div>
-      <span class="chat-enc-icon" title="Messages are stored unencrypted on this device"></span>
+      <span class="chat-enc-icon" title="Not end-to-end encrypted"></span>
     </div>
     <div class="chat-body" id="chat-body"></div>
     <div class="chat-compose">
@@ -1719,6 +1752,42 @@ const VoidAPI={
     if(cursor) q+='&created_at=gt.'+encodeURIComponent(cursor);
     const items=await this._sb(q,'GET');
     return {ok:true,items:items||[],count:(items||[]).length};
+  },
+  // A composer drop. media = [{url,kind,mime,duration_s}] — public Storage URLs
+  // only (see voidUploadMedia); never blob: URLs. create_post (007) writes the
+  // post and its post_media rows in one transaction.
+  async createPost(id,body,media){
+    if(this.base) return this.call('POST','/posts',{id,body,media});
+    if(!this._uuid(id)||!this._sbReady()) throw new Error('NOT SIGNED IN');
+    media=(media||[]).filter(m=>m&&/^https:\/\//.test(m.url));
+    const text=String(body||'').slice(0,4000);
+    try{
+      await this._sb('/rest/v1/rpc/create_post','POST',{p_id:id,p_body:text,
+        p_media:media.map(m=>({url:m.url,kind:m.kind,mime:m.mime||null,duration_s:m.duration_s||null})),p_reply_to:null});
+    }catch(e){
+      if(!/create_post|PGRST202|schema cache/i.test(String(e&&e.message)))throw e;
+      // 007 not applied yet: post, then legacy post_media columns; undo the post
+      // if its media cannot be attached.
+      await this._sb('/rest/v1/posts','POST',[{id,author_id:this._uid(),body:text}],{'Prefer':'return=minimal'});
+      if(media.length){
+        try{await this._sb('/rest/v1/post_media','POST',media.map((m,i)=>({post_id:id,url:m.url,ordinal:i})),{'Prefer':'return=minimal'});}
+        catch(e2){try{await this._sb('/rest/v1/posts?id=eq.'+encodeURIComponent(id),'DELETE');}catch(_){}throw e2;}
+      }
+    }
+    return {ok:true,id};
+  },
+  // Recent top-level Void posts with author + media. Public read (anon key works).
+  async recentPosts(limit){
+    if(typeof SUPABASE_URL==='undefined'||!SUPABASE_URL) return [];
+    const full='id,author_id,body,rank_score,created_at,profiles:author_id(handle,display_name),post_media(url,ordinal,kind,mime,duration_s)';
+    const q=s=>'/rest/v1/posts?reply_to=is.null&select='+s+'&order=created_at.desc&limit='+(limit||40);
+    const get=(s,tok)=>fetch(SUPABASE_URL+q(s),{headers:{'apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+(tok||SUPABASE_ANON_KEY)}});
+    let r=await get(full,this.token);
+    if(r.status===401) r=await get(full,null);
+    if(r.status===400) r=await get(full.replace(',kind,mime,duration_s',''),null);   // pre-007 columns
+    if(!r.ok) return [];
+    const rows=await r.json();
+    return Array.isArray(rows)?rows:[];
   },
   async repost(id,on){
     if(this.base) return this.call(on?'POST':'DELETE',`/posts/${id}/repost`);
@@ -3809,6 +3878,101 @@ function signOut(){
   else VoidAuth.save(null);
   closeSettings(); showSignIn();
 }
+// ─── ACCOUNT DELETION (Apple 5.1.1(v), Google Play) ─────────────────────
+// Server: supabase/functions/delete-account (preferred), falling back to the
+// delete_my_account() RPC from supabase/migrations/005_account_deletion.sql.
+// Local: every per-user key is wiped; device config (theme, backend override,
+// proxy) is kept. Anonymous users are real auth users and go the same path.
+const DA_KEEP_KEYS=new Set(['void_theme','void_theme_match_system','void_supabase_url','void_supabase_key','void_proxy']);
+function wipeLocalAccountData(){
+  try{
+    const ks=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k)ks.push(k);}
+    ks.forEach(k=>{ if(!DA_KEEP_KEYS.has(k)&&/^(void_|v_|vc_|vcb_|vm_|vd_|sb-)/.test(k)) localStorage.removeItem(k); });
+    localStorage.removeItem(SB_SESSION_KEY); localStorage.removeItem(SIGNED_IN_KEY);
+  }catch(e){}
+  try{ sessionStorage.clear(); }catch(e){}
+  try{ if(indexedDB&&indexedDB.databases) indexedDB.databases().then(ds=>(ds||[]).forEach(d=>{ if(d&&d.name&&/void/i.test(d.name)) indexedDB.deleteDatabase(d.name); })).catch(()=>{}); }catch(e){}
+}
+function _daEsc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function openDeleteAccount(){
+  let w=document.getElementById('da-wrap');
+  if(!w){ w=document.createElement('div'); w.id='da-wrap'; w.className='da-wrap'; document.body.appendChild(w); }
+  const s=VoidAuth.session, u=s&&s.user;
+  const who=!s?'This device has no server account, so only the data stored on this device will be erased.'
+    :(u&&u.is_anonymous)?'You are signed in anonymously. Your anonymous account still exists on our server and will be deleted with everything attached to it.'
+    :'You are signed in'+(u&&u.email?' as '+_daEsc(u.email):'')+'. The account and everything attached to it will be deleted from our server.';
+  w.innerHTML='<div class="da-scrim" onclick="closeDeleteAccount()"></div>'+
+    '<div class="da-sheet" role="dialog" aria-modal="true" aria-labelledby="da-title"><div class="da-handle"></div>'+
+    '<div class="da-eyebrow">DELETE ACCOUNT</div><div class="da-title" id="da-title">This cannot be undone.</div>'+
+    '<div class="da-text">'+who+'</div>'+
+    '<ul class="da-list"><li>Your profile, handle and display name</li><li>Your posts and replies, their media, and replies under them</li>'+
+    '<li>Your ranks and slashes, follows and followers</li><li>Your messages, conversations and device keys</li>'+
+    '<li>Notifications, reports and blocks you made, synced taste</li><li>Your login, and the data stored on this device</li></ul>'+
+    '<label class="da-lbl" for="da-input">TYPE DELETE TO CONFIRM</label>'+
+    '<input class="da-input" id="da-input" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="DELETE" oninput="document.getElementById(\'da-go\').disabled=this.value.trim().toUpperCase()!==\'DELETE\'" onkeydown="if(event.key===\'Enter\'&&!document.getElementById(\'da-go\').disabled)runDeleteAccount()">'+
+    '<div class="da-err" id="da-err"></div>'+
+    '<button class="da-go" id="da-go" disabled onclick="runDeleteAccount()">DELETE MY ACCOUNT</button>'+
+    '<button class="si-ghost" id="da-cancel" onclick="closeDeleteAccount()">CANCEL</button></div>';
+  w.classList.add('on');
+  setTimeout(()=>{const i=document.getElementById('da-input');if(i)i.focus();},240);
+}
+function closeDeleteAccount(){ const w=document.getElementById('da-wrap'); if(w&&!w.dataset.busy) w.classList.remove('on'); }
+function _daDone(msg){
+  const w=document.getElementById('da-wrap'); if(!w)return;
+  delete w.dataset.busy;
+  const sh=w.querySelector('.da-sheet');
+  if(sh) sh.innerHTML='<div class="da-handle"></div><div class="da-eyebrow">ACCOUNT DELETED</div>'+
+    '<div class="da-title" id="da-title">You have left the void.</div><div class="da-text" id="da-done">'+_daEsc(msg)+'</div>'+
+    '<button class="da-go" style="margin-top:18px" onclick="location.reload()">RETURN TO SIGN-IN</button>';
+  const sc=w.querySelector('.da-scrim'); if(sc) sc.onclick=()=>location.reload();
+  setTimeout(()=>location.reload(),6000);
+}
+async function runDeleteAccount(){
+  const w=document.getElementById('da-wrap'), go=document.getElementById('da-go'), err=document.getElementById('da-err');
+  const inp=document.getElementById('da-input');
+  if(!inp||inp.value.trim().toUpperCase()!=='DELETE')return;
+  const fail=m=>{ if(w)delete w.dataset.busy; if(go){go.disabled=false;go.textContent='DELETE MY ACCOUNT';} if(err)err.textContent=m; };
+  if(w)w.dataset.busy='1'; if(go){go.disabled=true;go.textContent='DELETING…';} if(err)err.textContent='';
+  // No server identity: nothing to delete remotely.
+  if(!VoidAuth.configured()||!VoidAuth.session||!VoidAuth.session.access_token){
+    VoidAuth.save(null); wipeLocalAccountData();
+    return _daDone('There was no server account on this device. All local data has been erased.');
+  }
+  // A stale access token would 401 the delete; refresh first (refresh() clears the session if it is dead).
+  const exp=VoidAuth.session.expires_at||0;
+  if(exp&&exp*1000<Date.now()+60000) await VoidAuth.refresh();
+  if(!VoidAuth.session) return fail('YOUR SESSION EXPIRED. SIGN IN AGAIN, THEN DELETE. NOTHING WAS DELETED.');
+  const token=VoidAuth.session.access_token;
+  const hdr={'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+token};
+  let result=null, note='';
+  // 1. Edge Function.
+  try{
+    const r=await fetch(SUPABASE_URL+'/functions/v1/delete-account',{method:'POST',headers:hdr,
+      body:JSON.stringify({apple_refresh_token:VoidAuth.session.provider_refresh_token||undefined,apple_access_token:VoidAuth.session.provider_token||undefined})});
+    const d=await r.json().catch(()=>({}));
+    if(r.ok&&d&&d.ok) result=d;
+    else if(r.status===500&&d&&d.data_deleted){ result=d; note=' Your login record is queued for removal on the server.'; }
+    else if(r.status===401) return fail('THE SERVER REJECTED YOUR SESSION. SIGN IN AGAIN, THEN DELETE. NOTHING WAS DELETED.');
+    else if(r.status!==404) console.warn('[delete-account] edge',r.status,d);
+  }catch(e){ console.warn('[delete-account] edge unreachable',e&&e.message); }
+  // 2. RPC fallback (function not deployed, or it failed before deleting anything).
+  if(!result){
+    try{
+      const r=await fetch(SUPABASE_URL+'/rest/v1/rpc/delete_my_account',{method:'POST',headers:hdr,body:'{}'});
+      const d=await r.json().catch(()=>({}));
+      if(r.ok&&d){ result=d; if(!d.auth_user_deleted) note=' Your data is gone; your login record is queued for removal on the server.'; }
+      else if(r.status===404||(d&&d.code==='PGRST202'))
+        return fail('ACCOUNT DELETION IS NOT AVAILABLE ON THE SERVER YET. NOTHING WAS DELETED. TRY AGAIN LATER.');
+      else return fail(('DELETION FAILED: '+((d&&(d.message||d.error))||('HTTP '+r.status))+'. NOTHING WAS DELETED ON THIS DEVICE.').toUpperCase().slice(0,180));
+    }catch(e){
+      return fail('COULD NOT REACH THE SERVER. CHECK YOUR CONNECTION. NOTHING WAS DELETED.');
+    }
+  }
+  // Revoke any refresh token still alive (only matters when the login was queued, not removed).
+  if(note){ try{ await VoidAuth.signOut(); }catch(e){} }
+  VoidAuth.save(null); wipeLocalAccountData();
+  _daDone('Your account and its data have been deleted.'+note);
+}
 let SETTINGS={lang:localStorage.getItem('v_lang')||'en',autoplay:localStorage.getItem('v_autoplay')!=='false',notify:localStorage.getItem('v_notify')!=='false',grid3:undefined};
 // Single source of truth for the dense-grid mode; the pre-paint script in <head> reads the same key.
 // Grid is fixed by the build (see the pre-paint block). This remains only so
@@ -4113,6 +4277,7 @@ async function refreshVoidFeed(){
     // post as before, and anything new landed below the fold. Ranking is
     // deterministic, so re-ranking an unchanged set cannot change the top slot.
     const had=new Set(allPosts.map(p=>p.id));
+    try{await pullSupabasePosts(true);}catch(e){}   // Void users' own drops (with media)
     await pullVoidFeed();
     // Whatever arrived in THIS pull leads the feed. That is what "refresh" means
     // to a reader: show me what I have not seen. Rank still orders within the new
@@ -4142,7 +4307,12 @@ function renderPost(p,i){
   const av=(p._author||p.iso||'?')[0].toUpperCase();
   const col=p._isoColor||AVC[i%AVC.length]||'#2a1060';
   let mediaHtml='';
-  if(p.style==='image'||p.style==='video'){
+  if(p._pending&&p._pendingKind&&p._pendingKind!=='text'){
+    // A drop whose media is still uploading: loader only, never the local blob.
+    mediaHtml=p._pendingKind==='image'
+      ?`<div class="post-media post-pending">${IMG_LOADER.replace('LOADING IMAGE','UPLOADING')}</div>`
+      :`<div class="post-media post-pending"${p._pendingKind==='audio'?' style="aspect-ratio:auto;height:72px"':''}>${sparkleMarkup('UPLOADING')}</div>`;
+  }else if(p.style==='image'||p.style==='video'){
     // No "PHOTO"/"VIDEO" caption and no grey/striped stand-in. An image loads
     // behind the orbit spiral; a video loads behind the sparkle float. Whichever
     // one is showing is removed the moment the media paints.
@@ -6093,7 +6263,7 @@ async function nationFeedSupabase(c){
   const rv=await nationRegionView(c);
   let rows=(rv&&rv.posts)||[];
   if(!rows.length&&VoidAPI.base){try{rows=((await VoidAPI.nationFeed(nationCode(c)))||{}).items||[];}catch(e){rows=[];}}
-  return rows.filter(r=>r&&r.id&&r.body&&!r.reply_to).map(r=>({id:r.id,style:'take',country:c.n,iso:c.iso,_region:r.region_code||nationCode(c),
+  return rows.filter(r=>r&&r.id&&r.body&&!r.reply_to).map(r=>({id:r.id,style:'take',country:c.n,iso:c.iso,_region:r.region_code||nationCode(c),_authorId:r.author_id||null,
     tags:inferTags(r.body,[]),body:r.body,score:r.rank_score||0,replies:0,time:r.created_at?Date.parse(r.created_at):Date.now(),
     source:'void',_author:'void',_handle:'@void',_img:'',_video:''}));
 }
@@ -6622,6 +6792,8 @@ function openThread(postId){const p=allPosts.find(x=>x.id===postId);if(!p)return
     ?`<div class="post-media" style="margin-top:12px"><video class="post-media-vid" src="${esc(p._video)}"${p._img?` poster="${esc(p._img)}"`:''} controls playsinline preload="metadata" onerror="this.closest('.post-media').innerHTML='<div class=post-media-lbl>VIDEO UNAVAILABLE</div>'"></video></div>`
     :p._img
     ?`<div class="post-media" style="margin-top:12px" onclick="openPhoto('${p.id}')">${IMG_LOADER}<img class="post-media-img" src="${esc(p._img)}" referrerpolicy="no-referrer" onload="imgLoaded(this)" onerror="this.parentNode.innerHTML='<div class=post-media-lbl>MEDIA FAILED</div>'"></div>`
+    :p._audio
+    ?`<div class="au-pill" style="margin-top:12px" data-t="0" data-dur="${p._audioDur||0}" data-src="${esc(p._audio)}" onclick="event.stopPropagation()"><button class="au-play" onclick="auToggle(this.parentNode)">${VICON.play}</button><div class="au-wave" onclick="auScrub(this.parentNode,event)">${Array.from({length:26},(_,j)=>`<span class="au-bar" style="height:${6+Math.round((Math.sin(j*.9)*.5+.5)*20)}px"></span>`).join('')}</div><span class="au-time">0:00<em> / ${auFmt(p._audioDur||0)}</em></span></div>`
     :'';
   // Identity here used to be hardcoded "void.world · WORLD" with a globe EMOJI in
   // the avatar, so every thread claimed the same author and looked nothing like
@@ -6910,6 +7082,7 @@ async function loadVoidReplies(postId){
         time:row.created_at?Date.parse(row.created_at):Date.now(),
         bolts:row.rank_score||0,
         parentId:parentId||null,
+        authorId:row.author_id||null,          // block/report key (VMod)
         remote:true
       };
     };
@@ -6925,7 +7098,7 @@ async function loadVoidReplies(postId){
       try{
         let frontier=_remoteReplies[postId].map(c=>c.id).filter(id=>VoidAPI._uuid(id));
         for(let depth=0;depth<3&&frontier.length;depth++){
-          const rows=await VoidAPI._sb('/rest/v1/posts?reply_to=in.('+frontier.slice(0,100).join(',')+')&select=id,reply_to,body,rank_score,created_at,profiles:author_id(handle,display_name)&order=created_at.asc&limit=200','GET');
+          const rows=await VoidAPI._sb('/rest/v1/posts?reply_to=in.('+frontier.slice(0,100).join(',')+')&select=id,reply_to,author_id,body,rank_score,created_at,profiles:author_id(handle,display_name)&order=created_at.asc&limit=200','GET');
           const add=(rows||[]).map(row=>toC(row,row.reply_to));
           if(!add.length)break;
           _remoteReplies[postId]=_remoteReplies[postId].concat(add);
@@ -7534,7 +7707,7 @@ function paintNavIcons(){
 function refreshDmBadge(){
   const b=document.getElementById('nav-dm-badge');if(!b)return;
   let unread=0;
-  try{(VOID_USERS||[]).forEach(u=>{unread+=getMsgs(u.id).filter(m=>m.from===u.id&&!m.read).length;});}catch(e){}
+  try{(DM_CONVS||[]).forEach(c=>{unread+=c.unread||0;});}catch(e){}
   b.classList.toggle('on',unread>0);
 }
 // Switching to GLOBE used to call buildGlobeGrid() unconditionally: teardown of
@@ -8388,53 +8561,244 @@ function renderComposerTake(){
       <span class="au-time">0:00<em> / ${auFmt(dur)}</em></span></div>
     <button class="crec-redo" onclick="startComposerRecording()">RE-RECORD</button>`;
 }
-function submitComposerPost(){
+// ─── REAL MEDIA UPLOADS + PERSISTED POSTS ───────────────────
+// Supabase Storage bucket `post-media` (supabase/migrations/007). Every photo,
+// video and voice take is uploaded to `<auth uid>/<uuid>.<ext>` BEFORE the post
+// is written, and the post stores only the public URLs. A blob: URL never reaches
+// the database: if any upload or the insert fails, the uploaded objects are
+// removed again, the pending card is withdrawn and the draft stays in the composer.
+const POST_MEDIA_BUCKET='post-media';
+const MEDIA_CAPS={image:10*1048576,video:100*1048576,audio:20*1048576};
+// Audio webm is named .weba so the server applies the 20 MB audio cap to it.
+const MEDIA_EXT={'image/jpeg':'jpg','image/png':'png','image/webp':'webp','image/gif':'gif',
+  'video/mp4':'mp4','video/webm':'webm','video/quicktime':'mov',
+  'audio/webm':'weba','audio/ogg':'ogg','audio/mp4':'m4a','audio/mpeg':'mp3'};
+function mediaMime(t){return String(t||'').split(';')[0].trim().toLowerCase();}
+function voidUuid(){
+  try{if(crypto.randomUUID)return crypto.randomUUID();}catch(e){}
+  const b=crypto.getRandomValues(new Uint8Array(16));b[6]=b[6]&15|64;b[8]=b[8]&63|128;
+  const h=[...b].map(x=>x.toString(16).padStart(2,'0')).join('');
+  return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;
+}
+function mediaKindFromUrl(u){
+  const e=(String(u||'').match(/\.([a-z0-9]+)(?:$|\?)/i)||[])[1]||'';
+  return /^(mp4|webm|mov)$/i.test(e)?'video':/^(weba|ogg|oga|m4a|mp3)$/i.test(e)?'audio':'image';
+}
+// profiles.handle must match ^[a-z0-9_]{3,20}$; the local handle is '@xxxxx'.
+function voidSafeHandle(h){
+  let s=String(h||'').replace(/^@/,'').toLowerCase().replace(/[^a-z0-9_]/g,'_').slice(0,20);
+  while(s.length<3)s+='_';
+  return s;
+}
+// A post needs an auth user AND a profiles row (posts.author_id -> profiles).
+async function voidEnsureSession(){
+  if(typeof VoidAuth==='undefined'||!VoidAuth.configured())throw new Error('BACKEND UNAVAILABLE');
+  if(!VoidAPI._sbReady()){
+    if(!VoidAuth.session)await VoidAuth.signInAnonymously();
+    else await VoidAuth.refresh();
+  }
+  if(!VoidAPI._sbReady())throw new Error('NOT SIGNED IN');
+  const uid=VoidAPI._uid();
+  if(voidEnsureSession._profiled!==uid){
+    let rows=null;
+    try{rows=await VoidAPI._sb('/rest/v1/profiles?id=eq.'+encodeURIComponent(uid)+'&select=*','GET');}catch(e){}
+    let prof=rows&&rows[0];
+    if(!prof){
+      const base=voidSafeHandle((USER&&USER.handle)||'void');
+      let made=await VoidAuth.upsertProfile({handle:base,display_name:(USER&&USER.name)||'Anonymous'});
+      if(!made)made=await VoidAuth.upsertProfile({handle:(base.slice(0,14)+'_'+Math.random().toString(36).slice(2,7)).slice(0,20),display_name:(USER&&USER.name)||'Anonymous'});
+      if(!made)throw new Error('PROFILE NOT CREATED');
+      prof=Array.isArray(made)?made[0]:made;
+    }
+    // 006: posts_insert requires profiles.terms_accepted_at. Terms accepted on this
+    // device before the profile row existed never reached the server (the VMod
+    // PATCH matched 0 rows), so stamp it here. The server trigger sets the time.
+    let localTerms=null;try{localTerms=JSON.parse(localStorage.getItem('void_terms_accepted')||'null');}catch(e){}
+    if(localTerms&&prof&&'terms_accepted_at' in prof&&!prof.terms_accepted_at){
+      try{await VoidAPI._sb('/rest/v1/profiles?id=eq.'+encodeURIComponent(uid),'PATCH',{terms_accepted_at:new Date().toISOString()},{'Prefer':'return=minimal'});}catch(e){}
+    }
+    // Re-check next time while terms are still pending on both sides.
+    if(!(prof&&'terms_accepted_at' in prof&&!prof.terms_accepted_at&&!localTerms))voidEnsureSession._profiled=uid;
+  }
+  return uid;
+}
+// Canvas re-encode: longest edge <= 2048px, WebP (JPEG where WebP encode is
+// unsupported). GIFs pass through untouched so animation survives.
+async function voidCompressImage(file){
+  const mime=mediaMime(file.type);
+  if(mime==='image/gif')return {blob:file,mime};
+  try{
+    let src,w,h,done=()=>{};
+    if(window.createImageBitmap){src=await createImageBitmap(file);w=src.width;h=src.height;done=()=>{try{src.close();}catch(e){}};}
+    else{
+      const u=URL.createObjectURL(file);
+      src=await new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=rej;im.src=u;});
+      w=src.naturalWidth;h=src.naturalHeight;done=()=>URL.revokeObjectURL(u);
+    }
+    const s=Math.min(1,2048/Math.max(w,h,1));
+    const cw=Math.max(1,Math.round(w*s)),ch=Math.max(1,Math.round(h*s));
+    const c=document.createElement('canvas');c.width=cw;c.height=ch;
+    c.getContext('2d').drawImage(src,0,0,cw,ch);done();
+    let blob=await new Promise(r=>c.toBlob(r,'image/webp',.86));
+    if(!blob||mediaMime(blob.type)!=='image/webp')blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.88));
+    if(blob&&blob.size)return {blob,mime:mediaMime(blob.type)};
+  }catch(e){}
+  if(MEDIA_EXT[mime])return {blob:file,mime};
+  throw new Error('UNSUPPORTED IMAGE');
+}
+// Storage REST upload with the session bearer. Returns the public URL.
+async function voidUploadMedia(blob,mime,kind){
+  const ext=MEDIA_EXT[mime];
+  if(!ext||!mime.startsWith(kind))throw new Error('UNSUPPORTED '+kind.toUpperCase()+' FORMAT');
+  if(blob.size>MEDIA_CAPS[kind])throw new Error(kind.toUpperCase()+' TOO LARGE · '+Math.round(MEDIA_CAPS[kind]/1048576)+'MB MAX');
+  const uid=await voidEnsureSession();
+  const path=uid+'/'+voidUuid()+'.'+ext;
+  const put=()=>fetch(`${SUPABASE_URL}/storage/v1/object/${POST_MEDIA_BUCKET}/${path}`,{method:'POST',
+    headers:{'Authorization':'Bearer '+VoidAPI.token,'apikey':SUPABASE_ANON_KEY,'Content-Type':mime,'x-upsert':'false','cache-control':'31536000'},body:blob});
+  let r=await put();
+  if(!r.ok&&(r.status===400||r.status===401||r.status===403)){
+    const t=VoidAPI.token;await VoidAuth.refresh();
+    if(VoidAPI.token&&VoidAPI.token!==t)r=await put();
+  }
+  if(!r.ok){
+    let m='';try{const d=await r.json();m=d.message||d.error||'';}catch(e){}
+    throw new Error(r.status===413||/size|large/i.test(m)?kind.toUpperCase()+' TOO LARGE':/bucket not found/i.test(m)?'MEDIA STORAGE NOT READY':'UPLOAD FAILED ('+r.status+')');
+  }
+  return {url:`${SUPABASE_URL}/storage/v1/object/public/${POST_MEDIA_BUCKET}/${path}`,path,mime,kind};
+}
+// Best effort: objects from a drop that did not make it into a post.
+function voidDeleteMedia(paths){
+  if(!paths||!paths.length||!VoidAPI.token)return;
+  fetch(`${SUPABASE_URL}/storage/v1/object/${POST_MEDIA_BUCKET}`,{method:'DELETE',
+    headers:{'Authorization':'Bearer '+VoidAPI.token,'apikey':SUPABASE_ANON_KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({prefixes:paths})}).catch(()=>{});
+}
+// Server row (posts + profiles + post_media) -> the app's post shape, so
+// renderPost / openThread / openPhoto / the ME drops list read persisted media.
+function sbPostToApp(row){
+  if(!row||!row.id)return null;
+  const media=(row.post_media||[]).slice().sort((a,b)=>(a.ordinal||0)-(b.ordinal||0))
+    .map(m=>({url:m.url,kind:m.kind||mediaKindFromUrl(m.url),dur:m.duration_s}));
+  const imgs=media.filter(m=>m.kind==='image').map(m=>m.url);
+  const vids=media.filter(m=>m.kind==='video').map(m=>m.url);
+  const auds=media.filter(m=>m.kind==='audio');
+  const prof=row.profiles||{};
+  const handle=String(prof.handle||'void');
+  const me=VoidAPI._uid();
+  const p={id:row.id,source:'void',style:'drop',_isoColor:'#5b21d4',_author:prof.display_name||handle,_handle:'@'+handle,_authorId:row.author_id,
+    body:row.body||'',tags:['void'],time:Date.parse(row.created_at)||Date.now(),score:row.rank_score||0,replies:0,reposts:0,country:'',_sb:true};
+  if(me&&row.author_id===me)p._user=true;
+  if(imgs.length){p._img=imgs[0];p._imgs=imgs;}
+  if(vids.length)p._video=vids[0];
+  if(auds.length){p._audio=auds[0].url;if(auds[0].dur)p._audioDur=auds[0].dur;}
+  const n=imgs.length+vids.length;
+  p.style=auds.length?'audio':n>1?(imgs.length?'carousel':'video'):vids.length?'video':imgs.length?'image':'drop';
+  return p;
+}
+// Posts written by Void users (this device's and everyone else's). Merged into
+// allPosts by id, so a reload shows the same drops with the same media.
+let _sbPostsAt=0;
+async function pullSupabasePosts(force){
+  if(typeof VoidAuth==='undefined'||!VoidAuth.configured())return 0;
+  if(!force&&Date.now()-_sbPostsAt<20000)return 0;
+  _sbPostsAt=Date.now();
+  let rows=[];
+  try{rows=await VoidAPI.recentPosts(40);}catch(e){return 0;}
+  const have=new Set(allPosts.map(p=>p.id));
+  let added=0,mine=0;
+  for(const row of rows||[]){
+    if(have.has(row.id))continue;
+    const p=sbPostToApp(row);if(!p)continue;
+    allPosts.push(p);added++;if(p._user)mine++;
+  }
+  if(added){try{renderFeed();}catch(e){}}
+  if(mine&&activeTab==='profile'){try{renderProfile();}catch(e){}}
+  return added;
+}
+let _dropping=false;
+async function submitComposerPost(){
+  if(_dropping){voidToast('DROP IN PROGRESS');return;}
   const ta=document.getElementById('composer-text');
   const text=ta.value.trim();
-  // A media-only or audio-only drop is a first-class post — composerMediaStyle()
-  // resolves image/video/carousel/audio, and the MEDIA and AUDIO tabs open the real
-  // gallery and the real mic. But this guard demanded text, so recording a voice
-  // take and tapping DROP did NOTHING: no post, no toast, no error. Same at 281
-  // characters. Silence is the worst possible answer to a deliberate tap.
+  // A media-only or audio-only drop is a first-class post. Silence is the worst
+  // possible answer to a deliberate tap, so every refusal says why.
   if(text.length>280){voidToast('TOO LONG · 280 MAX');return;}
   if(!text&&!composerMedia.length&&!composerAudio){voidToast('NOTHING TO DROP');return;}
-  const u=USER||{name:'You',handle:'me'};
-  const np={id:'u_'+Date.now(),style:composerMediaStyle(),_isoColor:'#5b21d4',_author:u.name||'You',_handle:'@'+(u.handle||'me'),body:text,tags:['void'],time:Date.now(),score:0,replies:0,reposts:0,country:'',imgHue:Math.floor(Math.random()*360),_user:true};
-  // Local-only for now: object URLs render immediately and the raw File/Blob
-  // rides along on the post so VoidAPI can upload it once a backend exists.
-  if(composerMedia.length){
-    // Map to the renderPost fields: a video file must ride on _video (as _img it
-    // rendered a broken <img>); the carousel strip renders images, so it gets the
-    // image URLs, and the first picked video rides along on _video.
-    const imgs=composerMedia.filter(m=>m.kind==='image').map(m=>m.url);
-    const vids=composerMedia.filter(m=>m.kind==='video').map(m=>m.url);
-    if(imgs.length){np._img=imgs[0];np._imgs=imgs;}
-    if(vids.length)np._video=vids[0];
-    // Several videos and no images: the image carousel would show nothing, so
-    // post it as a video drop instead of an empty card.
-    if(np.style==='carousel'&&!imgs.length)np.style='video';
-    np._files=composerMedia.map(m=>m.file);
+  // Refuse a doomed draft before uploading anything.
+  for(const m of composerMedia){
+    if(m.kind==='video'&&!MEDIA_EXT[mediaMime(m.file.type)]){voidToast('UNSUPPORTED VIDEO FORMAT');return;}
+    if(m.kind==='video'&&m.file.size>MEDIA_CAPS.video){voidToast('VIDEO TOO LARGE · 100MB MAX');return;}
   }
-  if(composerAudio){np._audio=composerAudio.url;np._audioBlob=composerAudio.blob;np._audioDur=composerAudio.dur;}
+  if(composerAudio&&composerAudio.blob.size>MEDIA_CAPS.audio){voidToast('VOICE NOTE TOO LARGE · 20MB MAX');return;}
+  _dropping=true;
+  const draftMedia=composerMedia.slice(),draftAudio=composerAudio;
+  const u=USER||{name:'You',handle:'me'};
+  const id=voidUuid();
+  const hasImg=draftMedia.some(m=>m.kind==='image'),hasVid=draftMedia.some(m=>m.kind==='video');
+  let style=composerMediaStyle();
+  if(style==='carousel'&&!hasImg)style='video';
+  const np={id,source:'void',style,_isoColor:'#5b21d4',_author:u.name||'You',_handle:'@'+voidSafeHandle(u.handle||'me'),body:text,tags:['void'],time:Date.now(),score:0,replies:0,reposts:0,country:'',imgHue:Math.floor(Math.random()*360),_user:true,_sb:true,
+    _pending:true,_pendingKind:draftAudio?'audio':hasImg?'image':hasVid?'video':'text'};
+  // Pending card at the top of the feed: the orbit loader (image) or sparkle
+  // (video / voice) shows until the server has the post.
   allPosts.unshift(np);
-  USER.posts=(USER.posts||0)+1;saveUser();
-  ta.value='';composerCount();
-  // Media/audio belong to the drop that just went out — reset for the next one.
-  composerMedia=[];clearComposerAudio();renderComposerMedia();
-  const rh=document.getElementById('composer-rec');if(rh)rh.innerHTML='';
-  composerType='text';document.querySelectorAll('.ctype').forEach(b=>b.classList.toggle('on',b.dataset.type==='text'));
+  const feedEl=document.getElementById('void-feed');
+  // Only prepend into a built feed; before the first page renderFeed() rebuilds
+  // the list with innerHTML and would drop a card inserted here.
+  if(feedEl&&typeof _rendered!=='undefined'&&_rendered.size&&document.getElementById('feed-sentinel')){
+    feedEl.insertAdjacentHTML('afterbegin',renderPost(np,0));_rendered.add(id);
+    const sc=document.getElementById('screen-void');if(sc&&activeTab==='void')sc.scrollTop=0;
+  }
   const sheet=document.getElementById('composer-sheet');
   sheet.style.animation='cSlideDown .25s ease forwards';
-  // Only renderFeed ran here, so dropping from the ME tab looked like it failed —
-  // the DROPS count and the drops list are written by renderProfile, and switchTab
-  // now correctly no-ops on re-entry, so nothing repaired it until you visited
-  // another tab and came back. Refresh whichever surface the user is actually
-  // looking at.
-  setTimeout(()=>{
-    sheet.style.animation='';closeComposer();
-    if(activeTab==='profile')renderProfile(); else renderFeed();
-    showPtrFlash(400);
-  },240);
+  setTimeout(()=>{sheet.style.animation='';closeComposer();},240);
+  const uploaded=[];
+  try{
+    try{
+      for(const m of draftMedia){
+        if(m.kind==='image'){
+          const c=await voidCompressImage(m.file);
+          uploaded.push(await voidUploadMedia(c.blob,c.mime,'image'));
+        }else uploaded.push(await voidUploadMedia(m.file,mediaMime(m.file.type),'video'));
+      }
+      if(draftAudio){
+        const au=await voidUploadMedia(draftAudio.blob,mediaMime(draftAudio.blob.type)||'audio/webm','audio');
+        au.duration_s=draftAudio.dur;uploaded.push(au);
+      }
+      await voidEnsureSession();
+      await VoidAPI.createPost(id,text,uploaded);
+    }catch(e){voidDeleteMedia(uploaded.map(x=>x.path));throw e;}
+    // Saved. The card now carries ONLY the public URLs the server stored.
+    const imgs=uploaded.filter(x=>x.kind==='image').map(x=>x.url);
+    const vids=uploaded.filter(x=>x.kind==='video').map(x=>x.url);
+    const au=uploaded.find(x=>x.kind==='audio');
+    if(imgs.length){np._img=imgs[0];np._imgs=imgs;}
+    if(vids.length)np._video=vids[0];
+    if(au){np._audio=au.url;np._audioDur=au.duration_s;}
+    delete np._pending;delete np._pendingKind;
+    const el=document.getElementById('post-'+id);if(el)el.outerHTML=renderPost(np,0);
+    USER.posts=(USER.posts||0)+1;saveUser();
+    // The draft is spent only now. Media/audio belong to the drop that just went out.
+    if(ta.value.trim()===text)ta.value='';
+    composerCount();
+    draftMedia.forEach(m=>{try{URL.revokeObjectURL(m.url);}catch(e){}});
+    composerMedia=composerMedia.filter(m=>!draftMedia.includes(m));
+    if(composerAudio===draftAudio)clearComposerAudio();
+    renderComposerMedia();
+    const rh=document.getElementById('composer-rec');if(rh&&!composerAudio)rh.innerHTML='';
+    composerType='text';document.querySelectorAll('.ctype').forEach(b=>b.classList.toggle('on',b.dataset.type==='text'));
+    if(activeTab==='profile')renderProfile();
+  }catch(e){
+    console.error('[drop] failed',e);
+    const i=allPosts.indexOf(np);if(i>=0)allPosts.splice(i,1);
+    try{_rendered.delete(id);}catch(_){}
+    const el=document.getElementById('post-'+id);if(el)el.remove();
+    const why=String(e&&e.message||'NETWORK').toUpperCase().replace(/[^A-Z0-9 ·()/.]/g,' ').slice(0,36).trim();
+    voidToast('DROP FAILED · '+why+' · DRAFT KEPT');
+    _dropping=false;
+    // Hand the untouched draft back.
+    setTimeout(()=>{openComposer();renderComposerMedia();if(composerAudio)renderComposerTake();},260);
+  }finally{_dropping=false;}
 }
 
 // ─── PULL-TO-REFRESH ────────────────────────────────────────
@@ -8480,24 +8844,70 @@ function showPtrFlash(duration=800){
 })();
 
 // ─── MESSAGING MODULE ───────────────────────────────────────
-// No backend yet, so there are no users and no conversations. CONTRACTS.md bars
-// generator/seed/sample content from the feed path, and inventing correspondents
-// is the same lie in a more personal place — a fake DM from "Cipher" reads as a
-// real person messaging you. Both stay empty until the Supabase profiles and
-// messaging tables in AGENT_BRIEF.md are live and these read from them.
-const VOID_USERS=[];
-const MSG_SEED={};
-// NOT ENCRYPTION. A fixed-key XOR + base64 is obfuscation only — the key is right
-// here in the bundle, so anything written with it is trivially readable by anyone
-// with the device or the file. It exists so the mock DM UI has something to
-// round-trip through localStorage; it must never be described to users as secure.
-// Real E2EE is planned as a native Expo module wrapping the Matrix Rust SDK, with
-// keys in Keychain/Keystore — nothing in the WebView. Until that lands, every
-// surface in the messages UI must say NOT ENCRYPTED.
-function xorCipher(str,key='void'){let r='';for(let i=0;i<str.length;i++)r+=String.fromCharCode(str.charCodeAt(i)^key.charCodeAt(i%key.length));return r;}
-function getMsgs(uid){const raw=localStorage.getItem('vm_'+uid);if(raw){try{return JSON.parse(xorCipher(atob(raw)));}catch{}}return MSG_SEED[uid]?[...MSG_SEED[uid]]:[];}
-function saveMsgs(uid,msgs){localStorage.setItem('vm_'+uid,btoa(xorCipher(JSON.stringify(msgs))));}
-let activeChatUser=null;
+// Real direct messages over Supabase (001 conversations / conversation_members /
+// messages, 007 messages.body). Members-only RLS on every table; start_dm() is
+// the only way a conversation is created. There are no seeded users and no
+// seeded conversations: every row here is a real account.
+//
+// NOT END-TO-END ENCRYPTED. Message bodies are stored on The Void's servers
+// (TLS in transit, members-only row security at rest) and the UI says exactly
+// that. Nothing here may be described to users as encrypted until a real E2EE
+// client (001's device / prekey / envelope tables) is implemented.
+//
+// Delivery is a 5s poll while a chat is open and a slower poll of the list; no
+// Realtime socket.
+let DM_CONVS=[];             // [{id,other:{id,handle,name},last,unread,lastReadAt}]
+let DM_MSGS={};              // convId -> [{id,sender_id,body,created_at,_pending?}]
+let DM_STATE='idle';         // idle | loading | ready | offline | unavailable
+let activeChatConv=null;
+let activeChatUser=null;     // the other member's user id (kept for older call sites)
+let _dmChatPoll=null,_dmListPoll=null,_dmBlocked=new Set(),_dmBlocksMissing=false,_dmSearchTok=0;
+const DM_NOTE="Messages are stored on The Void's servers and are not end-to-end encrypted.";
+function dmMe(){return VoidAPI._uid();}
+// Server-side blocks (006) plus the on-device block list (VMod), either direction.
+function dmIsBlocked(uid,handle){if(_dmBlocked.has(uid))return true;try{return !!(window.VMod&&VMod.isBlockedUser&&VMod.isBlockedUser({id:uid,handle:handle||''}));}catch(e){return false;}}
+function dmColor(id){let h=0;for(const c of String(id||''))h=(h*31+c.charCodeAt(0))>>>0;return AVC[h%AVC.length];}
+// 006 adds `blocks`; until it exists (404) there is nothing to exclude.
+async function dmLoadBlocks(){
+  if(_dmBlocksMissing)return _dmBlocked;
+  const me=dmMe();
+  try{
+    const rows=await VoidAPI._sb('/rest/v1/blocks?select=blocker_id,blocked_id&or=(blocker_id.eq.'+me+',blocked_id.eq.'+me+')','GET');
+    _dmBlocked=new Set((rows||[]).map(r=>r.blocker_id===me?r.blocked_id:r.blocker_id));
+  }catch(e){
+    if(/blocks|PGRST205|42P01|schema cache|does not exist|404/i.test(String(e&&e.message)))_dmBlocksMissing=true;
+  }
+  return _dmBlocked;
+}
+async function dmLoadConversations(){
+  if(DM_STATE==='idle')DM_STATE='loading';
+  try{await voidEnsureSession();}catch(e){DM_STATE='offline';return;}
+  const me=dmMe();
+  try{
+    await dmLoadBlocks();
+    const mine=await VoidAPI._sb('/rest/v1/conversation_members?user_id=eq.'+me+'&select=conversation_id,last_read_at','GET')||[];
+    if(!mine.length){DM_CONVS=[];DM_STATE='ready';return;}
+    const ids=mine.map(m=>m.conversation_id);
+    const inList='in.('+ids.join(',')+')';
+    const [others,msgs]=await Promise.all([
+      VoidAPI._sb('/rest/v1/conversation_members?conversation_id='+inList+'&user_id=neq.'+me+'&select=conversation_id,user_id,profiles:user_id(handle,display_name)','GET'),
+      VoidAPI._sb('/rest/v1/messages?conversation_id='+inList+'&body=not.is.null&select=id,conversation_id,sender_id,body,created_at&order=created_at.desc&limit=500','GET')
+    ]);
+    const readAt=Object.fromEntries(mine.map(m=>[m.conversation_id,m.last_read_at]));
+    DM_CONVS=(others||[]).filter(o=>!dmIsBlocked(o.user_id,o.profiles&&o.profiles.handle)).map(o=>{
+      const cm=(msgs||[]).filter(m=>m.conversation_id===o.conversation_id);
+      const lr=readAt[o.conversation_id]?Date.parse(readAt[o.conversation_id]):0;
+      const prof=o.profiles||{};
+      return {id:o.conversation_id,other:{id:o.user_id,handle:prof.handle||'void',name:prof.display_name||prof.handle||'void'},
+        last:cm[0]||null,unread:cm.filter(m=>m.sender_id!==me&&Date.parse(m.created_at)>lr).length,lastReadAt:readAt[o.conversation_id]};
+    }).sort((a,b)=>(b.last?Date.parse(b.last.created_at):0)-(a.last?Date.parse(a.last.created_at):0));
+    DM_STATE='ready';
+  }catch(e){
+    console.warn('[dm] load failed',e);
+    // messages.body missing = migration 007 not applied on this project.
+    DM_STATE=/body|column/i.test(String(e&&e.message))?'unavailable':'offline';
+  }
+}
 function openMessages(){
   if(activeTab!=='messages')return switchTab('messages'); // messages is a tab now
   document.querySelectorAll('#screen-messages .msg-back').forEach(b=>{if(!b.innerHTML)b.innerHTML=VICON.back;});
@@ -8505,121 +8915,203 @@ function openMessages(){
   const ci=document.querySelector('#screen-messages .chat-enc-icon');if(ci&&!ci.querySelector('.vi'))ci.innerHTML=VICON.unlock;
   const sb=document.querySelector('.chat-send-btn');if(sb&&!sb.innerHTML)sb.innerHTML=VICON.send;
   renderConvList();
+  dmRefreshList();
+  if(!_dmListPoll)_dmListPoll=setInterval(()=>{
+    if(activeTab!=='messages'){clearInterval(_dmListPoll);_dmListPoll=null;return;}
+    if(!activeChatConv&&document.visibilityState!=='hidden')dmRefreshList();
+  },15000);
 }
+async function dmRefreshList(){await dmLoadConversations();renderConvList();}
 function closeMessages(){closeChat();}
-function convRow(u,extra){
-  const msgs=getMsgs(u.id),last=msgs[msgs.length-1];
-  const preview=last?(last.from==='me'?'You: ':'')+last.text.slice(0,38)+(last.text.length>38?'…':''):'no messages yet';
-  const unread=msgs.filter(m=>m.from===u.id&&!m.read).length;
-  return `<div class="conv-item${unread?' unread':''}" onclick="openChat('${u.id}')">
-    <div class="conv-av" style="background:${u.color}">${u.name[0]}</div>
+function convRow(c,extra,act){
+  const last=c.last,me=dmMe();
+  const preview=last?(last.sender_id===me?'You: ':'')+last.body.slice(0,38)+(last.body.length>38?'…':''):'no messages yet';
+  return `<div class="conv-item${c.unread?' unread':''}" onclick="${act||`openChat('${c.id}')`}">
+    <div class="conv-av" style="background:${dmColor(c.other.id)}">${esc((c.other.name||'?')[0].toUpperCase())}</div>
     <div class="conv-info">
-      <div class="conv-name">${esc(u.name)}${u.online?'<span class="conv-online"></span>':''}</div>
+      <div class="conv-name">${esc(c.other.name)} <span class="post-handle">@${esc(c.other.handle)}</span></div>
       ${extra||`<div class="conv-preview">${esc(preview)}</div>`}
     </div>
     <div class="conv-right">
-      <div class="conv-time">${last?ago(last.t):''}</div>
-      ${unread?`<div class="conv-unread">${unread}</div>`:''}
+      <div class="conv-time">${last?ago(Date.parse(last.created_at)):''}</div>
+      ${c.unread?`<div class="conv-unread">${c.unread}</div>`:''}
     </div>
   </div>`;
 }
-// One field searches both directions: people by name/handle, and message bodies
-// across every conversation (with the matched term highlighted in the hit).
+function dmPersonRow(p){
+  return `<div class="conv-item" onclick="startDm('${p.id}')">
+    <div class="conv-av" style="background:${dmColor(p.id)}">${esc(String(p.display_name||p.handle||'?')[0].toUpperCase())}</div>
+    <div class="conv-info"><div class="conv-name">${esc(p.display_name||p.handle)} <span class="post-handle">@${esc(p.handle)}</span></div>
+      <div class="conv-preview">tap to message</div></div></div>`;
+}
+const DM_FOOT=`<div class="conv-foot">NOT ENCRYPTED &middot; STORED ON THE VOID'S SERVERS</div>`;
+// One field searches both directions: people on The Void by handle/name (starts
+// a DM), and message bodies already loaded, with the matched term highlighted.
 function renderConvList(){
-  const list=document.getElementById('conv-list');
+  const list=document.getElementById('conv-list');if(!list)return;
   const qEl=document.getElementById('msg-search');
   const q=(qEl?qEl.value:'').trim().toLowerCase();
+  const me=dmMe();
   let html;
   if(q){
-    const people=VOID_USERS.filter(u=>(u.name||'').toLowerCase().includes(q)||(u.handle||'').toLowerCase().includes(q));
+    const people=DM_CONVS.filter(c=>(c.other.name||'').toLowerCase().includes(q)||(c.other.handle||'').toLowerCase().includes(q));
     const hits=[];
-    VOID_USERS.forEach(u=>getMsgs(u.id).forEach(m=>{
-      if((m.text||'').toLowerCase().includes(q))hits.push({u,m});
-    }));
+    DM_CONVS.forEach(c=>(DM_MSGS[c.id]||(c.last?[c.last]:[])).forEach(m=>{if((m.body||'').toLowerCase().includes(q))hits.push({c,m});}));
     html='';
-    if(people.length)html+=`<div class="conv-sect">PEOPLE</div>`+people.map(u=>convRow(u)).join('');
-    if(hits.length)html+=`<div class="conv-sect">MESSAGES</div>`+hits.slice(0,40).map(({u,m})=>{
-      const t=m.text||'',k=t.toLowerCase().indexOf(q);
+    if(people.length)html+=`<div class="conv-sect">CONVERSATIONS</div>`+people.map(c=>convRow(c)).join('');
+    if(hits.length)html+=`<div class="conv-sect">MESSAGES</div>`+hits.slice(0,40).map(({c,m})=>{
+      const t=m.body||'',k=t.toLowerCase().indexOf(q);
       const snip=esc(t.slice(Math.max(0,k-24),k))+'<em>'+esc(t.substr(k,q.length))+'</em>'+esc(t.slice(k+q.length,k+q.length+40));
-      return convRow(u,`<div class="conv-hit">${m.from==='me'?'You: ':''}${snip}</div>`);
+      return convRow(c,`<div class="conv-hit">${m.sender_id===me?'You: ':''}${snip}</div>`);
     }).join('');
-    if(!html)html=`<div class="conv-empty">NO MATCH FOR &ldquo;${esc(q)}&rdquo;</div>`;
-  }else if(!VOID_USERS.length){
-    // Honest empty state rather than invented correspondents.
-    html='<div class="conv-empty">NO CONVERSATIONS<br><br>MESSAGING GOES LIVE WITH THE BACKEND</div>';
+    html+=`<div id="dm-people"></div>`;
+    if(!people.length&&!hits.length)html+=`<div class="conv-empty" id="dm-nomatch">SEARCHING THE VOID FOR &ldquo;${esc(q)}&rdquo;</div>`;
+    dmSearchPeople(q);
+  }else if(DM_STATE==='loading'||DM_STATE==='idle'){
+    html='<div class="conv-empty">OPENING CHANNELS&hellip;</div>';
+  }else if(DM_STATE==='offline'){
+    html='<div class="conv-empty" style="cursor:pointer" onclick="dmRefreshList()">MESSAGES OFFLINE<br><br>TAP TO RETRY</div>';
+  }else if(DM_STATE==='unavailable'){
+    html='<div class="conv-empty">MESSAGING IS NOT AVAILABLE YET</div>';
+  }else if(!DM_CONVS.length){
+    html='<div class="conv-empty">NO CONVERSATIONS<br><br>SEARCH A HANDLE ABOVE TO START ONE</div>';
   }else{
-    html=VOID_USERS.map(u=>convRow(u)).join('');
+    html=DM_CONVS.map(c=>convRow(c)).join('');
   }
-  list.innerHTML=html+`<div class="conv-foot">DEMO MESSAGES &middot; STORED ON THIS DEVICE &middot; NOT ENCRYPTED</div>`;
+  list.innerHTML=html+DM_FOOT;
   refreshDmBadge();
   // Also render in ME section mini list
   const mini=document.getElementById('me-conv-list');
-  // The main #conv-list has an honest empty state; this one never got one, so the
-  // profile's MESSAGES tab rendered a blank void that reads as a failed load.
-  if(mini&&!VOID_USERS.length){
+  if(mini&&!DM_CONVS.length){
     mini.innerHTML='<div style="text-align:center;padding:26px;font-family:\'Syne Mono\',monospace;font-size:9px;color:var(--muted);letter-spacing:.12em">NO CONVERSATIONS</div>';
-  }
-  else if(mini)mini.innerHTML=VOID_USERS.map(u=>{
-    const msgs=getMsgs(u.id);const last=msgs[msgs.length-1];
-    const preview=last?(last.from==='me'?'You: ':'')+last.text.slice(0,34)+(last.text.length>34?'…':''):'tap to message';
-    const unread=msgs.filter(m=>m.from===u.id&&!m.read).length;
-    return `<div class="conv-item${unread?' unread':''}" onclick="openMessages();openChat('${u.id}')">
-      <div class="conv-av" style="background:${u.color}">${u.name[0]}</div>
-      <div class="conv-info"><div class="conv-name">${esc(u.name)}${u.online?'<span class="conv-online"></span>':''}</div><div class="conv-preview">${esc(preview)}</div></div>
-      <div class="conv-right"><div class="conv-time">${last?ago(last.t):''}</div>${unread?`<div class="conv-unread">${unread}</div>`:''}</div>
-    </div>`;
-  }).join('');
+  }else if(mini)mini.innerHTML=DM_CONVS.map(c=>convRow(c,null,`openMessages();openChat('${c.id}')`)).join('');
 }
-function openChat(uid){
-  activeChatUser=uid;
-  const u=VOID_USERS.find(x=>x.id===uid);
-  document.getElementById('chat-av').textContent=u.name[0];
-  document.getElementById('chat-av').style.background=u.color;
-  document.getElementById('chat-user-name').textContent=u.name+' '+u.handle;
-  // mark read
-  const msgs=getMsgs(uid);msgs.forEach(m=>{if(m.from===uid)m.read=true;});saveMsgs(uid,msgs);
-  renderChat(uid);
+async function dmSearchPeople(q){
+  const tok=++_dmSearchTok;
+  const clean=q.replace(/[^a-z0-9_ ]/gi,'').trim();
+  let rows=[];
+  if(clean.length>=2){
+    try{
+      await voidEnsureSession();
+      rows=await VoidAPI._sb('/rest/v1/profiles?or=(handle.ilike.*'+encodeURIComponent(clean)+'*,display_name.ilike.*'+encodeURIComponent(clean)+'*)&select=id,handle,display_name&limit=12','GET')||[];
+    }catch(e){rows=[];}
+  }
+  if(tok!==_dmSearchTok)return;
+  const me=dmMe(),inConv=new Set(DM_CONVS.map(c=>c.other.id));
+  rows=rows.filter(p=>p.id!==me&&!dmIsBlocked(p.id,p.handle)&&!inConv.has(p.id));
+  const mount=document.getElementById('dm-people');
+  const nm=document.getElementById('dm-nomatch');
+  if(mount&&rows.length)mount.innerHTML=`<div class="conv-sect">PEOPLE</div>`+rows.map(dmPersonRow).join('');
+  if(nm)nm.innerHTML=rows.length?'':`NO MATCH FOR &ldquo;${esc(q)}&rdquo;`;
+}
+// Start (or reopen) the DM with a user id. Exposed for profile / post surfaces.
+async function startDm(userId){
+  try{
+    await voidEnsureSession();
+    if(userId===dmMe()){voidToast("THAT'S YOU");return;}
+    if(dmIsBlocked(userId)){voidToast('YOU BLOCKED THIS ACCOUNT');return;}
+    const conv=await VoidAPI._sb('/rest/v1/rpc/start_dm','POST',{other_user:userId});
+    const qEl=document.getElementById('msg-search');if(qEl)qEl.value='';
+    if(activeTab!=='messages')openMessages();
+    await dmLoadConversations();renderConvList();
+    openChat(conv);
+  }catch(e){
+    console.warn('[dm] start failed',e);
+    voidToast(/dm_blocked|blocked|42501/i.test(String(e&&e.message))?'CAN\x27T MESSAGE THIS ACCOUNT · BLOCKED':'COULD NOT OPEN CHAT');
+  }
+}
+function openDmWith(userId){return startDm(userId);}
+function openChat(convId){
+  const c=DM_CONVS.find(x=>x.id===convId);
+  if(!c){voidToast('CONVERSATION NOT FOUND');return;}
+  if(dmIsBlocked(c.other.id,c.other.handle)){voidToast('YOU BLOCKED THIS ACCOUNT');return;}
+  activeChatConv=convId;activeChatUser=c.other.id;
+  document.getElementById('chat-av').textContent=(c.other.name||'?')[0].toUpperCase();
+  document.getElementById('chat-av').style.background=dmColor(c.other.id);
+  document.getElementById('chat-user-name').textContent=c.other.name+' @'+c.other.handle;
+  const st=document.querySelector('#chat-window .chat-user-status');if(st)st.textContent=DM_NOTE;
+  renderChat(convId);
   document.getElementById('chat-window').classList.add('open');
   document.getElementById('chat-input').focus();
+  dmPollChat(true);
+  clearInterval(_dmChatPoll);
+  _dmChatPoll=setInterval(()=>{if(document.visibilityState!=='hidden')dmPollChat(false);},5000);
 }
-function closeChat(){document.getElementById('chat-window')?.classList.remove('open');activeChatUser=null;}
-function renderChat(uid){
-  const msgs=getMsgs(uid);
-  const body=document.getElementById('chat-body');
-  let html='';
-  let lastDay='';
+function closeChat(){
+  document.getElementById('chat-window')?.classList.remove('open');
+  clearInterval(_dmChatPoll);_dmChatPoll=null;
+  activeChatConv=null;activeChatUser=null;
+}
+async function dmPollChat(full){
+  const convId=activeChatConv;if(!convId)return;
+  const have=(DM_MSGS[convId]||[]).filter(m=>!m._pending);
+  const since=!full&&have.length?have[have.length-1].created_at:null;
+  let rows;
+  try{
+    rows=await VoidAPI._sb('/rest/v1/messages?conversation_id=eq.'+convId+'&body=not.is.null'+(since?'&created_at=gt.'+encodeURIComponent(since):'')+
+      '&select=id,conversation_id,sender_id,body,created_at&order=created_at.desc&limit=200','GET')||[];
+  }catch(e){if(full){const b=document.getElementById('chat-body');if(b&&!have.length)b.innerHTML='<div class="conv-empty">MESSAGES OFFLINE</div>';}return;}
+  if(activeChatConv!==convId)return;
+  rows.reverse();
+  const cur=DM_MSGS[convId]||[];
+  const ids=new Set(cur.map(m=>m.id));
+  const fresh=rows.filter(m=>!ids.has(m.id));
+  if(full||fresh.length){
+    DM_MSGS[convId]=full?rows.concat(cur.filter(m=>m._pending&&!rows.some(r=>r.id===m.id))):cur.concat(fresh);
+    renderChat(convId);
+  }
+  const c=DM_CONVS.find(x=>x.id===convId);
+  const all=DM_MSGS[convId];
+  if(c&&all.length){c.last=all.filter(m=>!m._pending).slice(-1)[0]||c.last;}
+  if(c&&(c.unread||fresh.length||full)){
+    c.unread=0;refreshDmBadge();
+    VoidAPI._sb('/rest/v1/conversation_members?conversation_id=eq.'+convId+'&user_id=eq.'+dmMe(),'PATCH',
+      {last_read_at:new Date().toISOString()},{'Prefer':'return=minimal'}).catch(()=>{});
+  }
+}
+function renderChat(convId){
+  const msgs=DM_MSGS[convId]||[];
+  const body=document.getElementById('chat-body');if(!body)return;
+  const me=dmMe();
+  let html='',lastDay='';
   msgs.forEach(m=>{
-    const d=new Date(m.t);
+    const d=new Date(m.created_at);
     const day=d.toLocaleDateString('en',{weekday:'short',month:'short',day:'numeric'});
     if(day!==lastDay){html+=`<div class="chat-day-divider">${day}</div>`;lastDay=day;}
-    const mine=m.from==='me';
+    const mine=m.sender_id===me;
     const time=d.toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:false});
-    html+=`<div class="chat-bubble-wrap ${mine?'mine':'theirs'}"><div class="chat-bubble ${mine?'mine':'theirs'}">${esc(m.text)}</div><div class="chat-meta">${time}${mine?' &#x2713;&#x2713;':''}</div></div>`;
+    html+=`<div class="chat-bubble-wrap ${mine?'mine':'theirs'}"${m._pending?' style="opacity:.55"':''}><div class="chat-bubble ${mine?'mine':'theirs'}">${esc(m.body)}</div><div class="chat-meta">${m._pending?'SENDING':time}</div></div>`;
   });
-  body.innerHTML=html||'<div style="text-align:center;padding:40px;font-family:\'Syne Mono\',monospace;font-size:9px;color:var(--muted);letter-spacing:.15em">CHANNEL OPEN<br><br>MOCK &middot; NOT ENCRYPTED</div>';
+  body.innerHTML=html||`<div style="text-align:center;padding:40px;font-family:'Syne Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.15em">CHANNEL OPEN<br><br>NOT ENCRYPTED</div>`;
   setTimeout(()=>body.scrollTop=body.scrollHeight,50);
 }
-function sendChatMessage(){
+async function sendChatMessage(){
   const input=document.getElementById('chat-input');
   const text=input.value.trim();
-  if(!text||!activeChatUser)return;
-  const msgs=getMsgs(activeChatUser);
-  msgs.push({from:'me',text,t:Date.now(),read:true});
-  saveMsgs(activeChatUser,msgs);
+  const convId=activeChatConv;
+  if(!text||!convId)return;
+  if(text.length>2000){voidToast('TOO LONG · 2000 MAX');return;}
+  const _c=DM_CONVS.find(x=>x.id===convId);
+  if(_c&&dmIsBlocked(_c.other.id,_c.other.handle)){voidToast('YOU BLOCKED THIS ACCOUNT');return;}
+  const me=dmMe();
+  const msg={id:voidUuid(),conversation_id:convId,sender_id:me,body:text,created_at:new Date().toISOString(),_pending:true};
+  (DM_MSGS[convId]=DM_MSGS[convId]||[]).push(msg);
   input.value='';
-  renderChat(activeChatUser);
-  renderConvList();
-  // simulate reply after 1-3s
-  const u=VOID_USERS.find(x=>x.id===activeChatUser);
-  if(u&&u.online){
-    const replies=["Signal received.","Copy that.","Interesting.","Tell me more.","I've seen that pattern before.","Stay sharp.","The void listens.","…noted."];
-    setTimeout(()=>{
-      if(activeChatUser!==u.id)return;
-      const msgs2=getMsgs(u.id);
-      msgs2.push({from:u.id,text:replies[Math.floor(Math.random()*replies.length)],t:Date.now()});
-      saveMsgs(u.id,msgs2);renderChat(u.id);renderConvList();
-    },1000+Math.random()*2000);
+  renderChat(convId);
+  try{
+    const rows=await VoidAPI._sb('/rest/v1/messages','POST',[{id:msg.id,conversation_id:convId,sender_id:me,body:text}],{'Prefer':'return=representation'});
+    const saved=rows&&rows[0];
+    delete msg._pending;
+    if(saved)Object.assign(msg,{created_at:saved.created_at});
+    const c=DM_CONVS.find(x=>x.id===convId);if(c)c.last=msg;
+  }catch(e){
+    console.warn('[dm] send failed',e);
+    const arr=DM_MSGS[convId]||[];const i=arr.indexOf(msg);if(i>=0)arr.splice(i,1);
+    if(!input.value)input.value=text;
+    voidToast(/dm_blocked|row-level|policy|42501/i.test(String(e&&e.message))?'NOT SENT · CAN\x27T MESSAGE THIS ACCOUNT':/body|column/i.test(String(e&&e.message))?'NOT SENT · MESSAGING NOT AVAILABLE YET':'NOT SENT · RETRY');
   }
+  if(activeChatConv===convId)renderChat(convId);
+  renderConvList();
 }
 function chatKeydown(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChatMessage();}}
 function switchMeTab(el){
@@ -8659,6 +9151,7 @@ async function init(){
     progress(15,'BUILDING FEED…'); await paint();
     bootStep('feed',renderFeed);
     bootStep('pull',()=>{const r=pullLivePosts();if(r&&r.catch)r.catch(()=>{});});
+    bootStep('voidposts',()=>{pullSupabasePosts(true).catch(()=>{});});
     progress(45,'BUILDING LIVE GRID…'); await paint();
     progress(70,'PROFILE…'); await paint();
     bootStep('profile',renderProfile);
@@ -8675,5 +9168,492 @@ async function init(){
 }
 init();
 </script>
+<!-- ─── MODERATION / UGC SAFETY (Apple 1.2, Google Play UGC) ───────────────────
+     Self-contained: report, block, hide source, mute, graphic filter, terms gate,
+     contact. It hooks the app by WRAPPING existing globals (renderPost, vwItemHtml,
+     _tcCard, threadComments, surfaceFree, openThread, renderSearch, renderConvList,
+     openChat, the four submit paths, openSettings) instead of editing them, so the
+     main script stays untouched. Server side: supabase/migrations/006_moderation.sql. -->
+<style>
+.vmod-more{background:none;border:0;padding:0;margin:-4px -6px 0 0;width:28px;height:26px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--nav-dim);cursor:pointer;transition:color .2s}
+.vmod-more .vi{width:17px;height:17px}
+.vmod-more:hover{color:var(--white)}
+.post-head .vmod-more{margin:0}
+.tc-acts .vmod-cmore{margin-left:auto}
+.tc-acts .vmod-cmore .vi{width:14px;height:14px}
+.vmod-vmore{background:none;border:0;padding:0;margin-left:auto;width:28px;height:24px;display:flex;align-items:center;justify-content:center;color:rgba(244,240,255,.8);cursor:pointer}
+.vmod-vmore .vi{width:17px;height:17px}
+.vw-av,.vw-name,#thread-original .post-av,#thread-original .post-name{cursor:pointer}
+/* graphic filter: media blurred until tapped (body.vmod-gfx = setting on) */
+body.vmod-gfx .vmod-gm:not(.vmod-rev) img,body.vmod-gfx .vmod-gm:not(.vmod-rev) video{filter:blur(32px) brightness(.5)}
+body.vmod-gfx .vmod-gm:not(.vmod-rev){cursor:pointer}
+body.vmod-gfx .vmod-gm:not(.vmod-rev)>.vmod-veil{display:flex}
+.vmod-veil{display:none;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:4;flex-direction:column;align-items:center;gap:6px;padding:10px 16px;border-radius:18px;background:rgba(4,2,12,.72);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);font-family:'Syne Mono',monospace;font-size:8px;letter-spacing:.2em;color:#f4f0ff;pointer-events:none;white-space:nowrap;text-align:center}
+.vmod-veil .vi{width:18px;height:18px}
+.vmod-veil em{font-style:normal;color:rgba(244,240,255,.6);font-size:7px}
+.vw-item>.vmod-veil{top:40%}
+/* sheet */
+.vmod-ov{position:fixed;inset:0;z-index:260;background:rgba(0,0,0,.55);display:none;align-items:flex-end;justify-content:center}
+.vmod-ov.open{display:flex}
+.vmod-sheet{width:100%;max-width:560px;max-height:88dvh;overflow-y:auto;overscroll-behavior:contain;border-radius:24px 24px 0 0;background:var(--sheet);box-shadow:0 -12px 48px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.06);padding:0 22px calc(22px + env(safe-area-inset-bottom,0px));animation:cSlideUp .22s ease;box-sizing:border-box}
+.vmod-handle{width:32px;height:3px;background:rgba(255,255,255,.15);border-radius:2px;margin:12px auto 0}
+.vmod-hdr{display:flex;align-items:center;gap:10px;padding:18px 2px 8px}
+.vmod-eyebrow{font-family:'Syne Mono',monospace;font-size:8px;letter-spacing:.28em;color:var(--nav-dim);text-transform:uppercase;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vmod-x{margin-left:auto;background:transparent;border:none;color:var(--dim);cursor:pointer;width:26px;height:26px;display:flex;align-items:center;justify-content:center;padding:0;flex-shrink:0}
+.vmod-x .vi{width:15px;height:15px}
+.vmod-title{font-family:'DM Serif Display',serif;font-size:22px;color:var(--white);margin:2px 2px 6px;line-height:1.2}
+.vmod-p{font-family:'Syne',sans-serif;font-size:12.5px;line-height:1.55;color:var(--dim);margin:0 2px 10px}
+.vmod-row{display:flex;align-items:center;gap:14px;width:100%;padding:14px 2px;background:none;border:0;box-shadow:inset 0 -1px 0 var(--hairline,rgba(255,255,255,.07));color:var(--white);cursor:pointer;text-align:left;font:inherit}
+.vmod-row:last-child{box-shadow:none}
+.vmod-row .vi{width:18px;height:18px;color:var(--dim);flex-shrink:0}
+.vmod-row-t{flex:1;min-width:0}
+.vmod-row-l{display:block;font-family:'Syne',sans-serif;font-size:13px;font-weight:600;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vmod-row-s{display:block;font-family:'Syne Mono',monospace;font-size:8.5px;letter-spacing:.06em;color:var(--dim);margin-top:3px}
+.vmod-row.danger .vmod-row-l,.vmod-row.danger .vi{color:var(--red)}
+.vmod-row.on .vi{color:var(--gold)}
+.vmod-radio{width:16px;height:16px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--dim);flex-shrink:0}
+.vmod-row.on .vmod-radio{box-shadow:inset 0 0 0 1.5px var(--gold),inset 0 0 0 4.5px var(--sheet),inset 0 0 0 9px var(--gold)}
+.vmod-ta,.vmod-in{width:100%;box-sizing:border-box;background:rgba(255,255,255,.04);border:none;border-radius:14px;color:var(--white);font-family:'Syne',sans-serif;font-size:13px;padding:11px 14px;outline:none;margin:10px 0 4px;resize:none}
+.vmod-ta{min-height:70px}
+.vmod-ta:focus,.vmod-in:focus{box-shadow:inset 0 0 0 1px rgba(124,58,237,.5)}
+.vmod-btn{display:block;width:100%;margin-top:14px;padding:13px;background:transparent;border:1px solid rgba(201,168,76,.5);color:var(--gold);font-family:'Syne Mono',monospace;font-size:9px;letter-spacing:.2em;cursor:pointer;border-radius:24px}
+.vmod-btn[disabled]{opacity:.4;cursor:default}
+.vmod-btn.ghost{border-color:transparent;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);color:var(--dim);margin-top:10px}
+.vmod-btn.red{border-color:rgba(239,68,68,.55);color:var(--red)}
+.vmod-list{margin:4px 0 0}
+.vmod-item{display:flex;align-items:center;gap:12px;padding:12px 2px;box-shadow:inset 0 -1px 0 var(--hairline,rgba(255,255,255,.07))}
+.vmod-av{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--card2);color:var(--white);font-family:'Syne',sans-serif;font-weight:700;font-size:13px;flex-shrink:0}
+.vmod-av.big{width:56px;height:56px;font-size:22px;margin:4px auto 10px}
+.vmod-pill{background:none;border:0;box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);border-radius:16px;padding:7px 13px;color:var(--white);font-family:'Syne Mono',monospace;font-size:8px;letter-spacing:.16em;cursor:pointer;flex-shrink:0}
+.vmod-empty{font-family:'Syne Mono',monospace;font-size:9px;letter-spacing:.14em;color:var(--dim);padding:18px 2px;text-align:center}
+.vmod-sec{font-family:'Syne Mono',monospace;font-size:8px;letter-spacing:.28em;color:var(--nav-dim);margin:18px 2px 2px}
+.vmod-terms{margin:4px 2px 0;padding:0;list-style:none}
+.vmod-terms li{font-family:'Syne',sans-serif;font-size:12.5px;line-height:1.5;color:var(--white);padding:9px 0 9px 18px;position:relative;box-shadow:inset 0 -1px 0 var(--hairline,rgba(255,255,255,.07))}
+.vmod-terms li::before{content:'';position:absolute;left:2px;top:16px;width:6px;height:1.5px;background:var(--gold)}
+.vmod-terms li b{color:var(--gold);font-weight:700}
+.vmod-link{display:inline-flex;align-items:center;gap:6px;font-family:'Syne Mono',monospace;font-size:8.5px;letter-spacing:.16em;color:var(--gold);text-decoration:none;margin:12px 8px 0 2px}
+.vmod-link .vi{width:12px;height:12px}
+.vmod-mail{font-family:'Syne Mono',monospace;font-size:12px;letter-spacing:.04em;color:var(--gold);text-decoration:none;word-break:break-all}
+.settings-row.vmod-nav{cursor:pointer}
+.settings-row.vmod-nav .vi{width:15px;height:15px;color:var(--dim)}
+</style>
+<script>
+'use strict';
+(function(){
+// TODO(owner): replace with the real, monitored support inbox before store submission.
+const SUPPORT_EMAIL='support@thevoid.app';
+const TERMS_URL='https://void-app-d35c.pages.dev/terms';
+const PRIVACY_URL='https://void-app-d35c.pages.dev/privacy';
+const LS={blocks:'void_blocks',hidden:'void_hidden_posts',reports:'void_reports_pending',terms:'void_terms_accepted',termsSync:'void_terms_sync_pending',gfx:'void_hide_graphic'};
+const rd=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v;}catch(e){return d;}};
+const wr=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
+const att=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const REASONS=[['spam','Spam','Scams, bots, repetitive junk'],['harassment','Harassment','Targets or bullies a person'],['hate','Hate','Attacks people for who they are'],['violence','Violence','Threats, gore, glorifying harm'],['sexual','Sexual content','Nudity or sexual exploitation'],['misinformation','Misinformation','Deliberately false or misleading'],['other','Something else','Tell us in the note']];
+// Placeholder handles that name a PLATFORM, not a person: never blockable as an author.
+const GENERIC=new Set(['','void','bsky','bluesky','mastodon','lemmy','peertube','reddit','radio','commons','news','world','anon','source','telegram','twitter','youtube','forum','void.signal']);
+const IC={
+  more:VI('<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>'),
+  flag:VI('<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>'),
+  block:VI('<circle cx="12" cy="12" r="8.5"/><path d="M6 6l12 12"/>'),
+  mute:VI('<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9.5l4 5M21 9.5l-4 5"/>'),
+  eyeOff:VI('<path d="M3 3l18 18"/><path d="M10.6 5.6A10 10 0 0 1 12 5.5c6.4 0 10 6.5 10 6.5a17 17 0 0 1-3.1 3.8M6.3 7.3A17 17 0 0 0 2 12s3.6 6.5 10 6.5a9.6 9.6 0 0 0 4.2-.9"/><path d="M9.9 9.9a2.8 2.8 0 0 0 4 4"/>'),
+  mail:VI('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 6 8.5 7 8.5-7"/>'),
+  doc:VI('<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/>'),
+  chev:VI('<path d="M9 5l7 7-7 7"/>'),
+  ext:VI('<path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/>'),
+  shield:VI('<path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.9-7.5-9.5V6z"/>'),
+  x:VI('<path d="M5 5l14 14M19 5 5 19"/>')
+};
+
+// ─── state ───────────────────────────────────────────────────────────────
+let blocks=rd(LS.blocks,[]); if(!Array.isArray(blocks))blocks=[];
+const hiddenPosts=new Set(rd(LS.hidden,[]));
+let hideGraphic=rd(LS.gfx,true)!==false;        // default ON for new users
+let idx=null;
+function reindex(){idx={keys:new Set(),uids:new Set(),voidHandles:new Set()};
+  blocks.forEach(b=>{idx.keys.add(b.key);if(b.uid)idx.uids.add(b.uid);if(b.source==='void'&&b.handle)idx.voidHandles.add(b.handle);});}
+reindex();
+const saveBlocks=()=>{wr(LS.blocks,blocks);reindex();};
+const saveHidden=()=>{const a=[...hiddenPosts];wr(LS.hidden,a.slice(-3000));};
+
+// ─── identity of an author ───────────────────────────────────────────────
+const nh=h=>String(h||'').trim().replace(/^@/,'').toLowerCase();
+const baseId=id=>String(id||'').split('~')[0];
+function hostOf(p){
+  const pv=p&&p.provenance&&p.provenance.sourceHost;
+  if(pv)return String(pv).replace(/^www\./,'').toLowerCase();
+  try{return new URL(p._url||p.sourceUrl||p._link).host.replace(/^www\./,'').toLowerCase();}catch(e){return '';}
+}
+function authorOf(p){
+  if(!p||p._user)return null;                                   // the viewer's own drop
+  const src=String(p.source||'void').toLowerCase();
+  const uid=p.author_id||p._authorId||null;
+  if(uid&&uid===me())return null;                              // own post via Supabase
+  if(uid)return {key:'uid:'+uid,uid,handle:nh(p._handle)==='void'?'':nh(p._handle),label:(p._author&&p._author!=='void')?p._author:(nh(p._handle)||'Void user'),source:'void',external:false};
+  if(src==='news'){const h=hostOf(p)||nh(p._handle);return h?{key:'host:'+h,handle:h,label:h,source:'news',external:true,hostOnly:true}:null;}
+  const h=nh(p._handle);
+  if(h&&!GENERIC.has(h)&&h!==src)return {key:src+':'+h,handle:h,label:p._author||h,source:src,external:src!=='void'};
+  const host=hostOf(p);
+  if(host&&src!=='void')return {key:'host:'+host,handle:host,label:host,source:src,external:true,hostOnly:true};
+  return null;
+}
+function authorOfComment(c,post){
+  if(!c)return null;
+  if(c.authorId)return {key:'uid:'+c.authorId,uid:c.authorId,handle:nh(c.handle),label:c.author||nh(c.handle),source:'void',external:false};
+  if(!c.remote)return null;                                     // local comment = the viewer's own
+  const src=String((post&&post.source)||'void').toLowerCase(),h=nh(c.handle);
+  if(!h||GENERIC.has(h))return null;
+  return {key:src+':'+h,handle:h,label:c.author||h,source:src,external:src!=='void'};
+}
+function isBlocked(a){
+  if(!a)return false;
+  return idx.keys.has(a.key)||(!!a.uid&&idx.uids.has(a.uid))||(a.source==='void'&&!!a.handle&&idx.voidHandles.has(a.handle));
+}
+function hidden(p){
+  if(!p)return false;
+  if(hiddenPosts.has(baseId(p.id)))return true;
+  return isBlocked(authorOf(p));
+}
+const isGraphic=p=>!!(p&&(p._graphic||(p.tags||[]).includes('graphic')));
+const findP=id=>{id=baseId(id);try{return findPost(id)||(typeof searchPostById==='function'&&searchPostById(id))||null;}catch(e){return null;}};
+
+// ─── Supabase ────────────────────────────────────────────────────────────
+const ready=()=>{try{return typeof VoidAPI!=='undefined'&&VoidAPI._sbReady();}catch(e){return false;}};
+const me=()=>{try{return VoidAPI._uid();}catch(e){return null;}};
+async function sb(path,method,body,h){return VoidAPI._sb(path,method,body,h);}
+async function resolveUid(a){
+  if(a.uid)return a.uid;
+  if(a.source!=='void'||!a.handle||!ready())return null;
+  try{const r=await sb('/rest/v1/profiles?handle=eq.'+encodeURIComponent(a.handle)+'&select=id','GET');return (r&&r[0]&&r[0].id)||null;}catch(e){return null;}
+}
+async function pushBlock(b){
+  if(b.external||!ready())return;
+  const uid=await resolveUid(b);if(!uid||uid===me())return;
+  b.uid=uid;
+  await sb('/rest/v1/blocks','POST',[{blocker_id:me(),blocked_id:uid}],{'Prefer':'resolution=ignore-duplicates,return=minimal'});
+  b.synced=true;saveBlocks();
+}
+async function sendReport(r){
+  if(!ready()){const q=rd(LS.reports,[]);q.push(r);wr(LS.reports,q.slice(-200));return 'queued';}
+  const row={reporter_id:me(),reason:r.reason,note:r.note?String(r.note).slice(0,1000):null};
+  if(r.postId&&VoidAPI._uuid(r.postId))row.target_post_id=r.postId;
+  if(r.userId)row.target_user_id=r.userId;
+  if(r.external)row.target_external=String(r.external).slice(0,500);
+  if(!row.target_post_id&&!row.target_user_id&&!row.target_external)return 'noop';
+  try{await sb('/rest/v1/reports','POST',[row],{'Prefer':'return=minimal'});}
+  catch(e){if(!/duplicate|23505|409/i.test(String(e&&e.message)))throw e;}
+  return 'sent';
+}
+let _syncedFor=null,_syncing=false;
+async function sync(){
+  if(_syncing||!ready())return;const uid=me();_syncing=true;
+  try{
+    // pending terms acceptance
+    if(rd(LS.termsSync,false)){try{await sb('/rest/v1/profiles?id=eq.'+encodeURIComponent(uid),'PATCH',{terms_accepted_at:new Date().toISOString()},{'Prefer':'return=minimal'});wr(LS.termsSync,false);}catch(e){}}
+    // queued reports
+    const q=rd(LS.reports,[]);
+    if(q.length){const left=[];for(const r of q){try{await sendReport(r);}catch(e){left.push(r);}}wr(LS.reports,left);}
+    // local Void-user blocks -> server
+    for(const b of blocks.filter(b=>!b.external&&!b.synced)){try{await pushBlock(b);}catch(e){}}
+    // server blocks -> local (another device)
+    if(_syncedFor!==uid){
+      const rows=await sb('/rest/v1/blocks?select=blocked_id,created_at,blocked:blocked_id(handle,display_name)&blocker_id=eq.'+encodeURIComponent(uid),'GET').catch(()=>null);
+      if(Array.isArray(rows)){
+        let added=0;
+        rows.forEach(r=>{if(idx.uids.has(r.blocked_id))return;const pr=r.blocked||{};
+          blocks.push({key:'uid:'+r.blocked_id,uid:r.blocked_id,handle:nh(pr.handle),label:pr.display_name||pr.handle||'Void user',source:'void',external:false,synced:true,at:Date.parse(r.created_at)||Date.now()});added++;});
+        if(added){saveBlocks();sweep();}
+        _syncedFor=uid;
+      }
+    }
+  }finally{_syncing=false;}
+}
+setTimeout(()=>sync().catch(()=>{}),4000);
+setInterval(()=>{if(document.visibilityState!=='hidden')sync().catch(()=>{});},30000);
+
+// ─── sweep: remove now-hidden content from every surface ─────────────────
+function sweep(){
+  const gone=p=>p&&(hidden(p)||(typeof isMuted==='function'&&isMuted(p)&&!p._user));
+  document.querySelectorAll('.post[id^="post-"]').forEach(el=>{if(gone(findP(el.id.slice(5))))el.remove();});
+  document.querySelectorAll('.vw-item[data-pid]').forEach(el=>{if(gone(findP(el.dataset.pid))){try{typeof vwRelease==='function'&&vwRelease(el);}catch(e){}el.remove();}});
+  document.querySelectorAll('.search-post-card').forEach(el=>{const m=(el.getAttribute('onclick')||'').match(/openSearchPost\('([^']*)'\)/);if(m&&gone(findP(m[1])))el.remove();});
+  try{
+    if(typeof currentThreadPost!=='undefined'&&currentThreadPost){
+      const p=findP(currentThreadPost);
+      if(p&&hidden(p)&&document.getElementById('thread-overlay').classList.contains('open'))closeThread();
+      else{renderThreadComments(currentThreadPost);if(_roStack.length)renderReplies();syncReplyCount(currentThreadPost);}
+    }
+  }catch(e){}
+  try{if(document.getElementById('conv-list'))renderConvList();}catch(e){}
+}
+
+// ─── sheet ───────────────────────────────────────────────────────────────
+function ov(){
+  let o=document.getElementById('vmod-ov');
+  if(!o){o=document.createElement('div');o.id='vmod-ov';o.className='vmod-ov';
+    o.innerHTML='<div class="vmod-sheet" role="dialog" aria-modal="true"><div class="vmod-handle"></div><div id="vmod-body"></div></div>';
+    o.addEventListener('click',e=>{if(e.target===o)close();});document.body.appendChild(o);}
+  return o;
+}
+let _onClose=null;
+function open(html,onClose){const o=ov();document.getElementById('vmod-body').innerHTML=html;_onClose=onClose||null;o.classList.add('open');const s=o.querySelector('.vmod-sheet');s.style.animation='none';void s.offsetWidth;s.style.animation='';s.scrollTop=0;}
+function close(){const o=document.getElementById('vmod-ov');if(o)o.classList.remove('open');const f=_onClose;_onClose=null;if(f)try{f();}catch(e){}}
+const hdr=t=>`<div class="vmod-hdr"><div class="vmod-eyebrow">${att(t)}</div><button class="vmod-x" aria-label="Close" onclick="VMod.close()">${IC.x}</button></div>`;
+const row=(ic,l,s,on,cls)=>`<button class="vmod-row${cls?' '+cls:''}" onclick="${on}">${ic}<span class="vmod-row-t"><span class="vmod-row-l">${l}</span>${s?`<span class="vmod-row-s">${s}</span>`:''}</span></button>`;
+
+// target = {kind:'post'|'comment', id, a (author), p (post), c (comment)}
+let T=null;
+function blockLabel(a){return a.hostOnly?'Hide this source':a.external?'Hide @'+att(a.handle):'Block @'+att(a.handle||a.label);}
+function menuHtml(){
+  const a=T.a,what=T.kind==='comment'?'reply':'post';
+  const who=a?(a.hostOnly?a.handle:'@'+(a.handle||a.label)):'';
+  let h=hdr(who?what.toUpperCase()+' BY '+who:what.toUpperCase());
+  h+=row(IC.flag,'Report '+what,'Tell us what is wrong. It is hidden for you right away','VMod.reportSheet()');
+  if(a){
+    const b=isBlocked(a);
+    h+=b?row(IC.block,a.external?'Show '+att(who)+' again':'Unblock '+att(who),'','VMod.toggleBlock()','on')
+        :row(a.external?IC.eyeOff:IC.block,blockLabel(a),a.external?'Their posts stop appearing on this device':'They can no longer reach you; their posts disappear everywhere','VMod.toggleBlock()','danger');
+  }
+  h+=row(IC.mute,'Mute a keyword','Posts containing it stop appearing','VMod.muteSheet()');
+  return h;
+}
+function menu(id){
+  const p=findP(id);if(!p)return;
+  T={kind:'post',id:baseId(p.id),p,a:authorOf(p)};open(menuHtml());
+}
+function cmenu(cid){
+  if(typeof currentThreadPost==='undefined'||!currentThreadPost)return;
+  const post=findP(currentThreadPost);
+  const c=(_origThreadComments?_origThreadComments(currentThreadPost):[]).find(x=>x.id===cid);if(!c)return;
+  T={kind:'comment',id:cid,c,p:post,a:authorOfComment(c,post)};open(menuHtml());
+}
+function author(id){
+  const p=findP(id);if(!p)return;const a=authorOf(p);
+  if(!a){if(p._user)return;return voidToast('NO ACCOUNT TO SHOW');}
+  T={kind:'post',id:baseId(p.id),p,a};
+  const b=isBlocked(a),who=a.hostOnly?a.handle:'@'+(a.handle||a.label);
+  open(hdr(a.external?String(a.source).toUpperCase()+' ACCOUNT':'VOID ACCOUNT')+
+    `<div class="vmod-av big" style="background:${typeof _tcCol==='function'?_tcCol(a.label):'var(--card2)'}">${att(String(a.label||'?')[0].toUpperCase())}</div>
+     <div class="vmod-title" style="text-align:center">${att(a.label)}</div>
+     <div class="vmod-p" style="text-align:center;font-family:'Syne Mono',monospace;font-size:9px;letter-spacing:.1em">${att(who)}${b?' &middot; '+(a.external?'HIDDEN':'BLOCKED'):''}</div>`+
+    (b?`<button class="vmod-btn" onclick="VMod.toggleBlock()">${a.external?'SHOW AGAIN':'UNBLOCK'}</button>`
+      :`<button class="vmod-btn red" onclick="VMod.toggleBlock()">${a.external?(a.hostOnly?'HIDE THIS SOURCE':'HIDE THIS AUTHOR'):'BLOCK'}</button>`)+
+    `<button class="vmod-btn ghost" onclick="VMod.reportSheet('account')">REPORT ACCOUNT</button>`);
+}
+let _reason=null;
+function reportSheet(scope){
+  if(!T)return;_reason=null;T.scope=scope==='account'?'account':T.kind;
+  const what=T.scope==='account'?'account':T.kind==='comment'?'reply':'post';
+  open(hdr('REPORT '+what)+`<div class="vmod-title">Why are you reporting this ${what}?</div>
+    <div class="vmod-p">Reports are private. We review every report within 24 hours and remove content and accounts that break the terms.</div>
+    <div class="vmod-list" id="vmod-reasons">${REASONS.map(([k,l,s])=>`<button class="vmod-row" data-r="${k}" onclick="VMod.pick(this)"><span class="vmod-radio"></span><span class="vmod-row-t"><span class="vmod-row-l">${l}</span><span class="vmod-row-s">${s}</span></span></button>`).join('')}</div>
+    <textarea class="vmod-ta" id="vmod-note" maxlength="1000" placeholder="Add a note (optional)"></textarea>
+    <button class="vmod-btn" id="vmod-send" disabled onclick="VMod.submitReport()">SEND REPORT</button>`);
+}
+function pick(el){_reason=el.dataset.r;document.querySelectorAll('#vmod-reasons .vmod-row').forEach(b=>b.classList.toggle('on',b===el));const s=document.getElementById('vmod-send');if(s)s.disabled=false;}
+async function submitReport(){
+  if(!T||!_reason)return;
+  const t=T,note=(document.getElementById('vmod-note')||{}).value||'';
+  const a=t.a,p=t.p;
+  const r={reason:_reason,note:note.trim(),at:Date.now()};
+  if(t.scope==='account'){r.userId=a&&a.uid||null;r.external=a?a.key:null;}
+  else{
+    r.postId=t.id;r.userId=null;
+    const url=t.kind==='post'&&p?(p._url||p.sourceUrl||''):'';
+    r.external=[a?a.key:'',t.kind==='comment'?'comment:'+t.id:'post:'+t.id,url].filter(Boolean).join(' ');
+    hiddenPosts.add(t.id);saveHidden();                // hidden for the reporter at once
+  }
+  close();sweep();
+  try{const st=await sendReport(r);
+    voidToast(st==='queued'?'REPORT SAVED · SENDS WHEN SIGNED IN':t.scope==='account'?'ACCOUNT REPORTED · THANK YOU':'REPORTED · HIDDEN FOR YOU');
+  }catch(e){const q=rd(LS.reports,[]);q.push(r);wr(LS.reports,q);voidToast('REPORT SAVED · WILL RETRY');}
+}
+async function toggleBlock(){
+  if(!T||!T.a)return;const a=T.a;
+  if(isBlocked(a)){return unblock(a.key,a);}
+  const b={key:a.key,uid:a.uid||null,handle:a.handle||'',label:a.label||a.handle,source:a.source,external:!!a.external,hostOnly:!!a.hostOnly,at:Date.now()};
+  blocks.push(b);saveBlocks();close();sweep();
+  voidToast(a.external?(a.hostOnly?'SOURCE HIDDEN':'AUTHOR HIDDEN'):'BLOCKED @'+String(a.handle||a.label).toUpperCase());
+  if(!a.external){try{await pushBlock(b);}catch(e){voidToast('BLOCKED ON THIS DEVICE · SYNC PENDING');}}
+}
+async function unblock(key,a){
+  const b=blocks.find(x=>x.key===key||(a&&a.uid&&x.uid===a.uid));if(!b)return;
+  blocks=blocks.filter(x=>x!==b);saveBlocks();
+  if(document.getElementById('vmod-blocked'))blockedSheet();else close();
+  voidToast((b.external?'SHOWING ':'UNBLOCKED ')+String(b.handle||b.label).toUpperCase()+' · REFRESH TO SEE POSTS');
+  if(!b.external&&b.uid&&ready()){try{await sb('/rest/v1/blocks?blocker_id=eq.'+encodeURIComponent(me())+'&blocked_id=eq.'+encodeURIComponent(b.uid),'DELETE');}catch(e){}}
+}
+function muteSheet(){
+  const list=typeof MUTED!=='undefined'?[...MUTED]:[];
+  open(hdr('MUTE A KEYWORD')+`<div class="vmod-p">Posts containing this word or phrase are removed from every surface on this device.</div>
+    <input class="vmod-in" id="vmod-mute" maxlength="60" placeholder="word or phrase" onkeydown="if(event.key==='Enter')VMod.doMute()">
+    <button class="vmod-btn" onclick="VMod.doMute()">MUTE</button>
+    ${list.length?`<div class="vmod-sec">MUTED</div><div class="vmod-list">${list.map(m=>`<div class="vmod-item"><span class="vmod-row-t"><span class="vmod-row-l">${att(m)}</span></span><button class="vmod-pill" onclick="VMod.unmute('${att(m)}',1)">UNMUTE</button></div>`).join('')}</div>`:''}`);
+  setTimeout(()=>{const i=document.getElementById('vmod-mute');if(i)try{i.focus();}catch(e){}},250);
+}
+function doMute(){const i=document.getElementById('vmod-mute');const v=(i&&i.value||'').trim();if(!v)return;voidMute(v);close();sweep();voidToast('MUTED · '+v.toUpperCase());}
+function unmute(m,fromMute){voidUnmute(m);voidToast('UNMUTED · '+String(m).toUpperCase());if(fromMute)muteSheet();else blockedSheet();}
+
+// ─── settings pages ──────────────────────────────────────────────────────
+function blockedSheet(){
+  const v=blocks.filter(b=>!b.external),x=blocks.filter(b=>b.external);
+  const item=b=>`<div class="vmod-item"><div class="vmod-av" style="background:${typeof _tcCol==='function'?_tcCol(b.label):'var(--card2)'}">${att(String(b.label||b.handle||'?')[0].toUpperCase())}</div><span class="vmod-row-t"><span class="vmod-row-l">${att(b.label||b.handle)}</span><span class="vmod-row-s">${b.hostOnly?'SOURCE':'@'+att(b.handle||'')}${b.external?' · '+att(String(b.source).toUpperCase()):''}</span></span><button class="vmod-pill" onclick="VMod.unblock('${att(b.key)}')">${b.external?'SHOW':'UNBLOCK'}</button></div>`;
+  const muted=typeof MUTED!=='undefined'?[...MUTED]:[];
+  open(hdr('SAFETY')+`<div id="vmod-blocked"><div class="vmod-title">Blocked accounts</div>
+    <div class="vmod-p">Blocked Void accounts cannot message you and their posts and replies are hidden everywhere. ${ready()?'Synced to your account.':'Stored on this device until you sign in.'}</div>
+    <div class="vmod-list">${v.length?v.map(item).join(''):'<div class="vmod-empty">NO BLOCKED ACCOUNTS</div>'}</div>
+    <div class="vmod-sec">HIDDEN AUTHORS &amp; SOURCES</div>
+    <div class="vmod-list">${x.length?x.map(item).join(''):'<div class="vmod-empty">NONE</div>'}</div>
+    <div class="vmod-sec">MUTED KEYWORDS</div>
+    <div class="vmod-list">${muted.length?muted.map(m=>`<div class="vmod-item"><span class="vmod-row-t"><span class="vmod-row-l">${att(m)}</span></span><button class="vmod-pill" onclick="VMod.unmute('${att(m)}')">UNMUTE</button></div>`).join(''):'<div class="vmod-empty">NONE</div>'}</div>
+    ${hiddenPosts.size?`<div class="vmod-sec">REPORTED POSTS</div><div class="vmod-item"><span class="vmod-row-t"><span class="vmod-row-l">${hiddenPosts.size} hidden for you</span><span class="vmod-row-s">Reports stay filed either way</span></span><button class="vmod-pill" onclick="VMod.restoreHidden()">RESTORE</button></div>`:''}
+    </div>`);
+}
+function restoreHidden(){hiddenPosts.clear();saveHidden();blockedSheet();voidToast('RESTORED · REFRESH TO SEE POSTS');}
+function contactSheet(){
+  open(hdr('CONTACT & SUPPORT')+`<div class="vmod-title">Talk to a person</div>
+    <div class="vmod-p">Questions, appeals, safety concerns or content that should come down. We answer within 24 hours, and act on reports of objectionable content within 24 hours.</div>
+    <div class="vmod-item">${IC.mail}<span class="vmod-row-t"><a class="vmod-mail" href="mailto:${att(SUPPORT_EMAIL)}?subject=${encodeURIComponent('The Void support')}">${att(SUPPORT_EMAIL)}</a><span class="vmod-row-s">SUPPORT &amp; SAFETY</span></span></div>
+    <div class="vmod-item">${IC.flag}<span class="vmod-row-t"><span class="vmod-row-l">Report from the app</span><span class="vmod-row-s">TAP ${'&middot;&middot;&middot;'} ON ANY POST, REPLY OR ACCOUNT</span></span></div>
+    <a class="vmod-link" href="${TERMS_URL}" target="_blank" rel="noopener">TERMS OF USE ${IC.ext}</a>
+    <a class="vmod-link" href="${PRIVACY_URL}" target="_blank" rel="noopener">PRIVACY POLICY ${IC.ext}</a>`);
+}
+
+// ─── terms gate ──────────────────────────────────────────────────────────
+const termsOk=()=>!!rd(LS.terms,null);
+let _pendingPost=null;
+function termsSheet(){
+  open(hdr('BEFORE YOU POST')+`<div class="vmod-title">Terms of use</div>
+    <ul class="vmod-terms">
+      <li><b>Zero tolerance.</b> The Void does not tolerate objectionable content or abusive users.</li>
+      <li>No harassment, hate, threats or glorified violence, sexual content involving minors or anyone without consent, spam, scams or deliberate misinformation.</li>
+      <li>Anyone can report a post, reply or account. We review reports within 24 hours, remove content that breaks these terms and ban the accounts that post it.</li>
+      <li>You can block an account, hide a source or mute a keyword from ${'&middot;&middot;&middot;'} on any post.</li>
+    </ul>
+    <a class="vmod-link" href="${TERMS_URL}" target="_blank" rel="noopener">READ THE FULL TERMS (EULA) ${IC.ext}</a>
+    <a class="vmod-link" href="${PRIVACY_URL}" target="_blank" rel="noopener">PRIVACY ${IC.ext}</a>
+    <div class="vmod-p" style="margin-top:14px;font-size:11px">By tapping I AGREE you accept the Terms of Use and confirm you will not post objectionable content or abuse other users.</div>
+    <button class="vmod-btn" id="vmod-agree" onclick="VMod.acceptTerms()">I AGREE</button>
+    <button class="vmod-btn ghost" onclick="VMod.close()">NOT NOW</button>`,()=>{_pendingPost=null;});
+}
+async function acceptTerms(){
+  wr(LS.terms,new Date().toISOString());
+  const run=_pendingPost;_pendingPost=null;_onClose=null;close();
+  if(ready()){
+    try{await sb('/rest/v1/profiles?id=eq.'+encodeURIComponent(me()),'PATCH',{terms_accepted_at:new Date().toISOString()},{'Prefer':'return=minimal'});}
+    catch(e){wr(LS.termsSync,true);}
+  }else wr(LS.termsSync,true);
+  voidToast('TERMS ACCEPTED');
+  if(run)try{run();}catch(e){console.error('[vmod] post after terms',e);}
+}
+async function gate(fn){
+  if(termsOk())return fn();
+  // Accepted on another device? Signed-in users are checked before the sheet shows.
+  if(ready()){
+    try{const r=await sb('/rest/v1/profiles?id=eq.'+encodeURIComponent(me())+'&select=terms_accepted_at','GET');
+      if(r&&r[0]&&r[0].terms_accepted_at){wr(LS.terms,r[0].terms_accepted_at);return fn();}}catch(e){}
+  }
+  _pendingPost=fn;termsSheet();
+}
+
+// ─── graphic filter ──────────────────────────────────────────────────────
+const VEIL=`<div class="vmod-veil">${IC.eyeOff}<span>GRAPHIC CONTENT</span><em>TAP TO VIEW</em></div>`;
+function applyGfx(){document.body.classList.toggle('vmod-gfx',hideGraphic);}
+if(document.body)applyGfx();else addEventListener('DOMContentLoaded',applyGfx);
+function toggleGraphic(el){hideGraphic=!hideGraphic;wr(LS.gfx,hideGraphic);if(el)el.classList.toggle('on',hideGraphic);applyGfx();}
+document.addEventListener('click',e=>{
+  if(!hideGraphic)return;
+  const m=e.target&&e.target.closest&&e.target.closest('.vmod-gm:not(.vmod-rev)');if(!m)return;
+  if(m.classList.contains('vw-item')&&e.target.closest('.vw-rail,.vw-info,.vw-audio-wrap'))return;
+  e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();
+  m.classList.add('vmod-rev');
+},true);
+// profile-level entry: tap the author in a thread or on a reel
+document.addEventListener('click',e=>{
+  const t=e.target&&e.target.closest;if(!t)return;
+  const r=e.target.closest('.vw-av,.vw-name');
+  if(r){const it=r.closest('.vw-item');if(it){e.stopPropagation();author(it.dataset.pid);}return;}
+  const th=e.target.closest('#thread-original .post-av,#thread-original .post-name');
+  if(th&&typeof currentThreadPost!=='undefined'&&currentThreadPost){e.stopPropagation();author(currentThreadPost);}
+});
+
+// ─── hooks (wrap existing globals) ───────────────────────────────────────
+const W=(name,fn)=>{const o=window[name];if(typeof o!=='function'){console.warn('[vmod] hook missing:',name);return null;}window[name]=fn(o);return o;};
+const moreBtn=(fn,id,cls)=>`<button class="${cls||'vmod-more'}" aria-label="More" onclick="event.stopPropagation();VMod.${fn}('${att(id).replace(/\\/g,'')}')">${IC.more}</button>`;
+W('renderPost',o=>function(p){
+  if(hidden(p))return '';
+  let h=o.apply(this,arguments);
+  if(typeof h!=='string'||!p||p._user)return h;
+  const b=moreBtn('menu',p.id);
+  if(/<div class="post-type-ico">[^<]*<\/div>/.test(h))h=h.replace(/(<div class="post-type-ico">[^<]*<\/div>)/,'$1'+b);
+  else h=h.replace('<div class="post-acts">','<div class="post-acts">'+b);
+  if(isGraphic(p))h=h.replace(/class="post-media"([^>]*)>/,'class="post-media vmod-gm"$1>'+VEIL).replace(/class="post-car"([^>]*)>/,'class="post-car vmod-gm"$1>'+VEIL);
+  return h;
+});
+W('vwItemHtml',o=>function(p){
+  if(hidden(p))return '';
+  let h=o.apply(this,arguments);
+  if(typeof h!=='string'||!p)return h;
+  if(!p._user)h=h.replace(/(<span class="vw-follow"[^>]*>[^<]*<\/span>)/,'$1'+moreBtn('menu',p.id,'vmod-vmore'));
+  if(isGraphic(p))h=h.replace(/class="vw-item"([^>]*)>/,'class="vw-item vmod-gm"$1>'+VEIL);
+  return h;
+});
+const _origThreadComments=W('threadComments',o=>function(postId){
+  const list=o.apply(this,arguments);
+  if(!Array.isArray(list))return list;
+  const post=findP(postId);
+  return list.filter(c=>!hiddenPosts.has(c.id)&&!isBlocked(authorOfComment(c,post)));
+});
+W('_tcCard',o=>function(c){
+  const h=o.apply(this,arguments);
+  if(typeof h!=='string'||!c||(!c.remote&&!c.authorId))return h;
+  return h.replace('>REPLY</button>','>REPLY</button>'+`<button class="vmod-cmore" aria-label="More" onclick="event.stopPropagation();VMod.cmenu(this.closest('.tc-wrap').dataset.cid)">${IC.more}</button>`);
+});
+W('surfaceFree',o=>function(p){if(hidden(p))return false;return o.apply(this,arguments);});
+W('openThread',o=>function(postId){
+  const p=findP(postId);
+  if(p&&hidden(p)){voidToast('HIDDEN · BLOCKED OR REPORTED');return;}
+  const r=o.apply(this,arguments);
+  try{
+    const head=document.querySelector('#thread-original .post-head');
+    if(head&&p&&!p._user&&!head.querySelector('.vmod-more')){
+      const tr=head.querySelector('.btn-translate');
+      const b=moreBtn('menu',p.id);
+      tr?tr.insertAdjacentHTML('afterend',b):head.insertAdjacentHTML('beforeend',b);
+    }
+    if(p&&isGraphic(p)){const m=document.querySelector('#thread-op-media .post-media,#thread-op-media .post-car');
+      if(m&&!m.classList.contains('vmod-gm')){m.classList.add('vmod-gm');m.insertAdjacentHTML('afterbegin',VEIL);}}
+  }catch(e){}
+  return r;
+});
+W('renderSearch',o=>function(){const r=o.apply(this,arguments);try{document.querySelectorAll('#search-grid .search-post-card').forEach(el=>{const m=(el.getAttribute('onclick')||'').match(/openSearchPost\('([^']*)'\)/);if(m&&hidden(findP(m[1])))el.remove();});}catch(e){}return r;});
+// The render wrapper above shares renderSearch._sig with the original (it reads the global).
+const dmUser=uid=>{try{return (VOID_USERS||[]).find(u=>u.id===uid)||null;}catch(e){return null;}};
+function isBlockedUser(u){
+  if(!u)return false;if(typeof u==='string')u={id:u};
+  const uuid=typeof VoidAPI!=='undefined'&&VoidAPI._uuid(u.id);
+  return isBlocked({key:uuid?'uid:'+u.id:'void:'+nh(u.handle),uid:uuid?u.id:null,handle:nh(u.handle),source:'void'});
+}
+W('renderConvList',o=>function(){const r=o.apply(this,arguments);try{document.querySelectorAll('#conv-list .conv-item,#me-conv-list .conv-item').forEach(el=>{const m=(el.getAttribute('onclick')||'').match(/openChat\('([^']*)'\)/);if(m&&isBlockedUser(dmUser(m[1])||m[1]))el.remove();});}catch(e){}return r;});
+W('openChat',o=>function(uid){if(isBlockedUser(dmUser(uid)||uid)){voidToast('YOU BLOCKED THIS ACCOUNT');return;}return o.apply(this,arguments);});
+// Terms gate on every write path. Empty submits fall through to the app's own checks.
+const val=id=>{const e=document.getElementById(id);return e?String(e.value||'').trim():'';};
+W('submitComposerPost',o=>function(){const a=arguments,t=this;
+  let has=!!val('composer-text');try{has=has||composerMedia.length>0||!!composerAudio;}catch(e){}
+  if(!has)return o.apply(t,a);return gate(()=>o.apply(t,a));});
+W('submitReply',o=>function(){const a=arguments,t=this;if(!val('reply-input'))return o.apply(t,a);return gate(()=>o.apply(t,a));});
+W('submitComment',o=>function(){const a=arguments,t=this;let has=!!val('thread-input');try{has=has||!!pendingAttach;}catch(e){}if(!has)return o.apply(t,a);return gate(()=>o.apply(t,a));});
+W('sendChatMessage',o=>function(){const a=arguments,t=this;
+  try{if(activeChatUser&&isBlockedUser(dmUser(activeChatUser)||activeChatUser)){voidToast('YOU BLOCKED THIS ACCOUNT');return;}}catch(e){}
+  if(!val('chat-input'))return o.apply(t,a);return gate(()=>o.apply(t,a));});
+W('openSettings',o=>function(){const r=o.apply(this,arguments);const g=document.getElementById('s-gfx');if(g)g.className='toggle'+(hideGraphic?' on':'');const bc=document.getElementById('s-blocked-n');if(bc)bc.textContent=blocks.length?blocks.length+' HIDDEN OR BLOCKED':'Accounts and sources you hid';
+  document.querySelectorAll('.settings-row.vmod-nav [data-vmod-chev]').forEach(s=>{if(!s.innerHTML)s.innerHTML=IC.chev;});return r;});
+
+window.VMod={SUPPORT_EMAIL,TERMS_URL,PRIVACY_URL,menu,cmenu,author,reportSheet,pick,submitReport,toggleBlock,unblock:k=>unblock(k),
+  muteSheet,doMute,unmute,blockedSheet,contactSheet,restoreHidden,termsSheet,acceptTerms,gate,termsOk,toggleGraphic,close,sweep,sync,
+  hidden,isBlocked,isBlockedUser,authorOf,get blocks(){return blocks.slice();}};
+})();
+</script>
+
 </body>
 </html>

@@ -14,26 +14,31 @@ For EAS builds, define `VOID_PROXY_BASE` in the build environment. `localhost`
 does not work on a physical phone because it points at the phone, not the
 computer running the proxy.
 
-A native shell that ships the existing Void web UI **unchanged** (loaded in a WebView)
-plus an on-device biometric affect pipeline exposed through the `expo-void-sensing`
-native module. Built for **EAS cloud builds** — no local Mac required.
+Native React Native app (Expo SDK 57, RN 0.86, expo-router). It is a port of the
+single-file web app `../void2-final.html`, which stays the design and behaviour source of
+truth. There is no WebView shell any more. `react-native-webview` is used ONLY for YouTube
+player tiles. On-device body signals come from the `expo-void-sensing` local module.
+Built with **EAS cloud builds**. No local Mac or node_modules is required.
 
 ## Architecture
 
 ```
-App.tsx ── WebView(assets/void.html)         ← existing UI, zero rework
-   │  bridge (postMessage / injectJavaScript)
-   ▼
-expo-void-sensing (native module)            ← the ONLY JS↔native boundary
-   ├─ ios/     vendors void-rank/ios/VoidSensing (Swift: CoreMotion/ARKit/HealthKit/CoreML)
-   └─ android/ Kotlin: SensorManager / CameraX PPG / Health Connect / TFLite
-   emits ONLY quantized AffectState (int8 z-scores) — raw sensor data never crosses.
+app/                         expo-router routes
+  _layout.tsx                fonts + theme gate, providers, modal stack
+  (tabs)/_layout.tsx         5 tabs + custom floating pill tab bar (src/nav/BottomNav)
+  (tabs)/void|globe|search|messages|profile.tsx
+  nation/[iso].tsx  thread/[id].tsx  reels.tsx  composer.tsx  settings.tsx  sign-in.tsx
+  auth-callback.tsx          thevoid://auth-callback (OAuth PKCE return)
+src/theme/                   tokens.ts: VOID / DARK / LIGHT CSS variables, ThemeProvider (void_theme)
+src/ui/                      VText, Card, Backdrop, Pill, Sheet, Toast, Icon (VICON set),
+                             SparkleLoader + ImageOrbitLoader (hard-locked), VoidImage
+src/nav/                     BottomNav, route constants, nav geometry, DM badge store
+src/lib/                     supabase client, auth (anonymous-first), storage, sensing provider
+src/core/                    pure logic ported from the web (Agent B)
+src/features/                globe, live wall, and further screens
+modules/expo-void-sensing    CameraX + ML Kit face / rPPG / fingertip PPG / BLE HR; emits only quantized AffectState
 ```
-Contract: `modules/expo-void-sensing/index.ts`. Invariants: repo `void-rank/CLAUDE.md`.
-
-> Canonical sensing package = **`void-rank/ios/VoidSensing`** (the V3-plan Epic-1
-> package the iOS adapter compiles against, per the podspec). The older
-> `The Void/VoidSignalRanker` package is superseded — do not wire the app to it.
+Build history and fixes: `BUILD_LOG_NATIVE.md`. Sensing module: `BUILD_LOG_SENSING.md`.
 
 ## Prerequisites you must provide (cannot be automated)
 
@@ -55,6 +60,7 @@ npm run typecheck                      # verifies the TS spine
 eas init                               # once — creates the EAS project id
 eas build -p ios --profile production      # → .ipa (cloud, no Mac)
 eas build -p android --profile production  # → .aab (Play + Samsung)
+eas build -p android --profile preview     # → installable .apk
 
 eas submit -p ios --latest             # App Store Connect (needs eas.json ios block)
 eas submit -p android --latest         # Play internal track
@@ -64,10 +70,4 @@ eas submit -p android --latest         # Play internal track
 Dev loop: `eas build -p ios|android --profile development` (dev client), then `npm start`.
 
 ## Status
-- Spine (this scaffold): app/EAS/module config, JS↔native contract, WebView bridge,
-  consent flow — authored & TS-checkable here.
-- `modules/expo-void-sensing/ios` + `/android`: native bodies (wrap the Swift / Kotlin
-  stack). Authored without a device toolchain → **compile in Xcode / Android Studio /
-  EAS**; expect minor first-build fixes.
-- Apple 4.2 note: the live-video + affect features (not a bare webview) are what carry
-  it past minimum-functionality review.
+See `BUILD_LOG_NATIVE.md`.

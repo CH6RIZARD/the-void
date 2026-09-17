@@ -184,7 +184,151 @@ async function main() {
         const out={open:document.getElementById('thread-overlay').classList.contains('open'),title:document.getElementById('thread-body-text')?.textContent,href:a&&a.getAttribute('href'),host:a&&a.querySelector('.t-art-host')?.textContent,source:document.querySelector('#thread-original .thread-source-link')?.textContent,count:document.getElementById('thread-count').textContent};
         closeThread();return out;}catch(e){return 'ERR '+(e&&e.stack||e)}})()`, true);
     }
+    if (ONLY === 'settings') {   // account deletion row + confirm sheet; --delete-local also runs the no-session delete
+      summary.settings = await ev(`(async()=>{try{
+        const w=ms=>new Promise(r=>setTimeout(r,ms));
+        openSettings();await w(300);
+        const row=document.getElementById('s-delete-row');
+        const out={settingsOpen:document.getElementById('settings-modal').classList.contains('open'),row:!!row,
+          rowLabel:row&&row.querySelector('.settings-row-label')?.textContent,rowButton:row&&row.querySelector('button')?.textContent,
+          inIdentitySection:!!(row&&row.closest('.settings-section')?.querySelector('.settings-section-label')?.textContent)};
+        row.scrollIntoView();await w(200);
+        row.querySelector('button').click();await w(400);
+        const wrap=document.getElementById('da-wrap'),go=document.getElementById('da-go'),inp=document.getElementById('da-input');
+        const r=wrap&&wrap.querySelector('.da-sheet').getBoundingClientRect();
+        out.sheet={open:!!(wrap&&wrap.classList.contains('on')),visible:!!(r&&r.height>100&&r.top<innerHeight),
+          title:document.getElementById('da-title')?.textContent,items:wrap?wrap.querySelectorAll('.da-list li').length:0,
+          goDisabledInitially:go.disabled,hasSession:!!(VoidAuth.session&&VoidAuth.session.access_token)};
+        inp.value='delet';inp.dispatchEvent(new Event('input'));out.sheet.disabledOnPartial=go.disabled;
+        inp.value='delete';inp.dispatchEvent(new Event('input'));out.sheet.enabledOnDelete=!go.disabled;
+        return out;}catch(e){return 'ERR '+(e&&e.stack||e)}})()`, true);
+      await shot('settings-delete-confirm');
+      // Local path only: the session is dropped first, so this never deletes a server account.
+      if (args['delete-local'] && summary.settings && summary.settings.sheet) {
+        await ev(`VoidAuth.save(null);localStorage.setItem('void_aff','{"x":1}');localStorage.setItem('void_theme','void');runDeleteAccount()`);
+        await sleep(600);
+        summary.settings.done = await ev(`({eyebrow:document.querySelector('#da-wrap .da-eyebrow')?.textContent,text:document.getElementById('da-done')?.textContent,
+          user:localStorage.getItem('void_user'),aff:localStorage.getItem('void_aff'),signedIn:localStorage.getItem('void_signed_in'),theme:localStorage.getItem('void_theme')})`);
+        await shot('settings-delete-done');
+        await ev(`location.reload()`); await sleep(5000);
+        summary.settings.afterReload = await ev(`({gateOn:document.getElementById('signin').classList.contains('on'),user:localStorage.getItem('void_user')})`);
+        await shot('settings-delete-gate');
+      }
+    }
+    if (ONLY === 'moderation') {   // UGC safety (VMod): report, block, terms gate, graphic filter, settings pages
+      summary.moderation = await ev(`(async()=>{try{
+        const w=ms=>new Promise(r=>setTimeout(r,ms)),out={};
+        VoidAPI._sbReady=()=>false;                       // local fallback only: never write to the live project
+        switchTab('void');closeThread&&document.getElementById('thread-overlay').classList.contains('open')&&closeThread();
+        const mk=(id,handle,author,body,extra)=>Object.assign({id,style:'take',source:'bluesky',_social:true,_author:author,_handle:handle,body,tags:['geopolitics'],time:Date.now(),score:5,replies:0,reposts:0,country:'',provenance:{sourceHost:'bsky.app'}},extra||{});
+        const P=[mk('vt_rep','@reporter.bsky.social','Rep','Post that will be reported for spam'),
+          mk('vt_a1','@troll.bsky.social','Troll','First post by the abusive author'),
+          mk('vt_a2','@troll.bsky.social','Troll','Second post by the abusive author'),
+          mk('vt_ok','@fine.bsky.social','Fine','A post that must stay'),
+          mk('vt_gfx','@war.bsky.social','War','Graphic image post',{style:'image',_img:'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',_graphic:true,tags:['graphic']})];
+        allPosts.unshift(...P);
+        document.getElementById('void-feed').innerHTML='';_rendered.clear();_evicted.clear();renderFeed();await w(300);
+        const inFeed=id=>!!document.querySelector('#void-feed #post-'+id);
+        out.rendered=P.map(p=>p.id).filter(inFeed);
+        out.moreButtons=document.querySelectorAll('#void-feed .vmod-more').length;
+        // 1. menu + report
+        document.querySelector('#post-vt_rep .vmod-more').click();await w(300);
+        out.menuOpen=document.getElementById('vmod-ov').classList.contains('open');
+        out.menuRows=[...document.querySelectorAll('#vmod-body .vmod-row-l')].map(x=>x.textContent);
+        window.__shot='menu';await w(50);
+        return out;
+      }catch(e){return 'ERR '+(e&&e.stack||e)}})()`, true);
+      await shot('mod-1-menu');
+      const step2 = await ev(`(async()=>{try{
+        const w=ms=>new Promise(r=>setTimeout(r,ms)),out={};
+        [...document.querySelectorAll('#vmod-body .vmod-row')][0].click();await w(250);
+        out.reasons=document.querySelectorAll('#vmod-reasons .vmod-row').length;
+        out.sendDisabledBeforePick=document.getElementById('vmod-send').disabled;
+        document.querySelector('#vmod-reasons .vmod-row[data-r="spam"]').click();
+        document.getElementById('vmod-note').value='headless test';
+        return out;
+      }catch(e){return 'ERR '+(e&&e.stack||e)}})()`, true);
+      await shot('mod-2-report');
+      const step3 = await ev(`(async()=>{try{
+        const w=ms=>new Promise(r=>setTimeout(r,ms)),out={};
+        const inFeed=id=>!!document.querySelector('#void-feed #post-'+id);
+        document.getElementById('vmod-send').click();await w(400);
+        out.reportToast=document.getElementById('void-toast')?.textContent;
+        out.reportedGone=!inFeed('vt_rep');
+        out.reportQueued=JSON.parse(localStorage.getItem('void_reports_pending')||'[]').length;
+        // 2. block the author of vt_a1: both of their posts leave the feed, others stay
+        document.querySelector('#post-vt_a1 .vmod-more').click();await w(250);
+        const blk=[...document.querySelectorAll('#vmod-body .vmod-row')].find(b=>/Hide @|Block @/.test(b.textContent));
+        out.blockRowLabel=blk&&blk.querySelector('.vmod-row-l').textContent;
+        blk.click();await w(400);
+        out.blockToast=document.getElementById('void-toast')?.textContent;
+        out.a1Gone=!inFeed('vt_a1');out.a2Gone=!inFeed('vt_a2');out.okStays=inFeed('vt_ok');
+        // re-render from scratch: blocked author must not come back
+        document.getElementById('void-feed').innerHTML='';_rendered.clear();_evicted.clear();renderFeed();await w(300);
+        out.afterRerender={a1:inFeed('vt_a1'),a2:inFeed('vt_a2'),rep:inFeed('vt_rep'),ok:inFeed('vt_ok')};
+        out.threadBlocked=(()=>{openThread('vt_a2');return document.getElementById('thread-overlay').classList.contains('open');})();
+        // Void-user block by uid (local fallback) + DM guard
+        const vu={id:'00000000-0000-4000-8000-00000000abcd',style:'take',source:'void',_author:'Abuser',_handle:'@abuser',_authorId:'00000000-0000-4000-8000-00000000abcd',body:'void user post',tags:['void'],time:Date.now(),score:0,replies:0};
+        out.voidAuthorKey=VMod.authorOf(vu).key;allPosts.push(vu);VMod.menu(vu.id);await w(200);out.voidMenuRows=[...document.querySelectorAll('#vmod-body .vmod-row-l')].map(x=>x.textContent);VMod.close();
+        // 3. graphic filter
+        out.gfxBodyClass=document.body.classList.contains('vmod-gfx');
+        const g=document.querySelector('#post-vt_gfx .post-media');
+        out.gfxBlurred=!!(g&&g.classList.contains('vmod-gm'))&&getComputedStyle(g.querySelector('img')).filter.includes('blur');
+        g&&g.click();await w(100);
+        out.gfxRevealedOnTap=!!(g&&g.classList.contains('vmod-rev'));
+        out.photoNotOpenedByRevealTap=!document.getElementById('photo-overlay')?.classList.contains('open');
+        // 4. thread OP + ⋯
+        openThread('vt_ok');await w(500);
+        out.threadMore=!!document.querySelector('#thread-original .vmod-more');
+        closeThread();await w(400);
+        return out;
+      }catch(e){return 'ERR '+(e&&e.stack||e)}})()`, true);
+      const step4 = await ev(`(async()=>{try{
+        const w=ms=>new Promise(r=>setTimeout(r,ms)),out={};
+        // 5. terms gate: posting blocked until accepted
+        localStorage.removeItem('void_terms_accepted');
+        openComposer();await w(300);
+        const body='terms gate test '+Date.now();
+        document.getElementById('composer-text').value=body;
+        const before=allPosts.length;
+        submitComposerPost();await w(400);
+        out.termsSheetShown=document.getElementById('vmod-ov').classList.contains('open')&&!!document.getElementById('vmod-agree');
+        out.postBlockedBeforeAccept=allPosts.length===before&&!allPosts.some(p=>p.body===body);
+        return out;
+      }catch(e){return 'ERR '+(e&&e.stack||e)}})()`, true);
+      await shot('mod-3-terms');
+      const step5 = await ev(`(async()=>{try{
+        const w=ms=>new Promise(r=>setTimeout(r,ms)),out={};
+        const body=document.getElementById('composer-text').value;
+        document.getElementById('vmod-agree').click();await w(700);
+        out.termsStored=!!localStorage.getItem('void_terms_accepted');
+        out.postedAfterAccept=allPosts.some(p=>p.body===body&&p._user);
+        // reply path is gated too once cleared
+        localStorage.removeItem('void_terms_accepted');
+        openThread('vt_ok');await w(400);
+        document.getElementById('thread-input').value='gated reply';
+        submitComment();await w(300);
+        out.replyGateShown=!!document.getElementById('vmod-agree');
+        VMod.close();closeThread();await w(400);
+        localStorage.setItem('void_terms_accepted',JSON.stringify(new Date().toISOString()));
+        // 6. settings
+        openSettings();await w(300);
+        out.settings={gfxToggleOn:document.getElementById('s-gfx')?.classList.contains('on'),blockedRow:!!document.getElementById('s-blocked'),contactRow:!!document.getElementById('s-contact')};
+        VMod.contactSheet();await w(200);
+        out.contactEmail=document.querySelector('#vmod-body .vmod-mail')?.textContent;
+        VMod.blockedSheet();await w(250);
+        out.blockedList=[...document.querySelectorAll('#vmod-blocked .vmod-item .vmod-row-l')].map(x=>x.textContent);
+        return out;
+      }catch(e){return 'ERR '+(e&&e.stack||e)}})()`, true);
+      await shot('mod-4-blocked');
+      await ev(`VMod.close();closeSettings();`);
+      Object.assign(summary.moderation, { step2, step3, step4, step5 });
+    }
     if (ONLY === 'all' || ONLY === 'wall') summary.wall = await wallCheck(ev);
+    if (ONLY === 'dms') {    // media uploads + direct messages: --only=dms (scripts/verify-dms.mjs)
+      const { dmsAudit } = await import('./verify-dms.mjs');
+      summary.dms = await dmsAudit({ ev, sleep, summary, shot });
+    }
     if (ONLY === 'hero') {   // nation hero stream audit: --only=hero --all [--pages=4] (scripts/verify-hero.mjs)
       const { heroAudit } = await import('./verify-hero.mjs');
       await heroAudit({ ev, url, dbgPort, CDP, sleep, args, WAIT_S, COUNTRY, OUT, WIDTH });

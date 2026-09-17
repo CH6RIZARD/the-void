@@ -1,0 +1,1099 @@
+[
+ {
+  "id": "117283393799692619",
+  "created_at": "2026-09-16T23:49:26.526Z",
+  "in_reply_to_id": null,
+  "in_reply_to_account_id": null,
+  "sensitive": false,
+  "spoiler_text": "",
+  "visibility": "public",
+  "language": "nl",
+  "uri": "https://mastodon.social/ap/users/116878315561020924/statuses/117283393799692619",
+  "url": "https://mastodon.social/@desnips/117283393799692619",
+  "replies_count": 0,
+  "reblogs_count": 0,
+  "favourites_count": 0,
+  "quotes_count": 0,
+  "edited_at": null,
+  "content": "<p>Hoop op 6.150 vermisten gletsjerramp Nepal vervlogen, waaronder twee Nederlanders</p><p><a href=\"https://desnips.nl/34059e7-Nepal-overstroming/\" target=\"_blank\" rel=\"nofollow noopener\" translate=\"no\"><span class=\"invisible\">https://</span><span class=\"ellipsis\">desnips.nl/34059e7-Nepal-overs</span><span class=\"invisible\">troming/</span></a></p><p><a href=\"https://mastodon.social/tags/Nepal\" class=\"mention hashtag\" rel=\"tag\">#<span>Nepal</span></a> <a href=\"https://mastodon.social/tags/Gletsjerramp\" class=\"mention hashtag\" rel=\"tag\">#<span>Gletsjerramp</span></a> <a href=\"https://mastodon.social/tags/Klimaatcrisis\" class=\"mention hashtag\" rel=\"tag\">#<span>Klimaatcrisis</span></a></p>",
+  "reblog": null,
+  "application": {
+   "name": "desnips",
+   "website": null
+  },
+  "account": {
+   "id": "116878315561020924",
+   "username": "desnips",
+   "acct": "desnips",
+   "display_name": "",
+   "locked": false,
+   "bot": false,
+   "discoverable": null,
+   "indexable": false,
+   "group": false,
+   "created_at": "2026-07-07T00:00:00.000Z",
+   "note": "",
+   "url": "https://mastodon.social/@desnips",
+   "uri": "https://mastodon.social/ap/users/116878315561020924",
+   "avatar": "https://files.mastodon.social/accounts/avatars/116/878/315/561/020/924/original/853dcc663232c1d9.png",
+   "avatar_static": "https://files.mastodon.social/accounts/avatars/116/878/315/561/020/924/original/853dcc663232c1d9.png",
+   "avatar_description": "",
+   "header": "https://files.mastodon.social/accounts/headers/116/878/315/561/020/924/original/6ab4206e8c48a196.png",
+   "header_static": "https://files.mastodon.social/accounts/headers/116/878/315/561/020/924/original/6ab4206e8c48a196.png",
+   "header_description": "",
+   "followers_count": 4,
+   "following_count": 0,
+   "statuses_count": 3593,
+   "last_status_at": "2026-09-17",
+   "hide_collections": null,
+   "show_media": true,
+   "show_media_replies": true,
+   "show_featured": true,
+   "noindex": false,
+   "feature_approval": {
+    "automatic": [],
+    "manual": [],
+    "current_user": "denied"
+   },
+   "emojis": [],
+   "roles": [],
+   "fields": []
+  },
+  "media_attachments": [
+   {
+    "id": "117283393755407141",
+    "type": "image",
+    "url": "https://files.mastodon.social/media_attachments/files/117/283/393/755/407/141/original/874e755ab62a49cd.jpg",
+    "preview_url": "https://files.mastodon.social/media_attachments/files/117/283/393/755/407/141/small/874e755ab62a49cd.jpg",
+    "remote_url": null,
+    "preview_remote_url": null,
+    "text_url": null,
+    "meta": {
+     "original": {
+      "width": 2400,
+      "height": 1260,
+      "size": "2400x1260",
+      "aspect": 1.9047619047619047
+     },
+     "small": {
+      "width": 662,
+      "height": 348,
+      "size": "662x348",
+      "aspect": 1.9022988505747127
+     }
+    },
+    "description": "De gletsjerstorting van 23 augustus verwoestte dorpen en vitale stroomvoorziening. Premier Shah eist nu klimaatrechtvaardigheid bij de VN vanwege de astronomische wederopbouwkosten.",
+    "blurhash": "U44VRF#YxtpbtRofofWB8xJ#M{VZIVM{RPkC"
+   }
+  ],
+  "mentions": [],
+  "tags": [
+   {
+    "name": "nepal",
+    "url": "https://mastodon.social/tags/nepal"
+   },
+   {
+    "name": "gletsjerramp",
+    "url": "https://mastodon.social/tags/gletsjerramp"
+   },
+   {
+    "name": "klimaatcrisis",
+    "url": "https://mastodon.social/tags/klimaatcrisis"
+   }
+  ],
+  "emojis": [],
+  "tagged_collections": [],
+  "quote": null,
+  "card": null,
+  "poll": null,
+  "quote_approval": {
+   "automatic": [
+    "public"
+   ],
+   "manual": [],
+   "current_user": "denied"
+  }
+ },
+ {
+  "id": "117283437305489113",
+  "created_at": "2026-09-17T00:00:15.000Z",
+  "in_reply_to_id": null,
+  "in_reply_to_account_id": null,
+  "sensitive": false,
+  "spoiler_text": "",
+  "visibility": "public",
+  "language": "en",
+  "uri": "https://mastodon.ozioso.online/users/ItalianNews/statuses/117283436338914059",
+  "url": "https://mastodon.ozioso.online/@ItalianNews/117283436338914059",
+  "replies_count": 0,
+  "reblogs_count": 2,
+  "favourites_count": 0,
+  "quotes_count": 0,
+  "edited_at": null,
+  "content": "<p>il manifesto: Himalaya: «La catastrofe che non abbiamo visto arrivare»</p><p>Il 26 agosto scorso un’inondazione ha colpito la frontiera tra il Nepal e il Tibet. A provocarla è stato il collasso di un ghiacciaio. L’evento rivela una lacuna clamorosa: in […]<br>The post Himalaya: «La catastrofe che non abbiamo visto arrivare» first appeared on il manifesto.</p><p>Himalaya: “The disaster we didn’t see coming”</p><p>On August 26th, a flood struck the border between Nepal and Tibet. It was caused by the collapse of a glacier. The event reveals a glaring gap: in…</p><p><a href=\"https://mastodon.ozioso.online/tags/Himalaya\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>Himalaya</span></a> <a href=\"https://mastodon.ozioso.online/tags/Nepal\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>Nepal</span></a> <a href=\"https://mastodon.ozioso.online/tags/Tibet\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>Tibet</span></a> </p><p><a href=\"https://ilmanifesto.it/himalaya-la-catastrofe-che-non-abbiamo-visto-arrivare\" rel=\"nofollow noopener\" translate=\"no\" target=\"_blank\"><span class=\"invisible\">https://</span><span class=\"ellipsis\">ilmanifesto.it/himalaya-la-cat</span><span class=\"invisible\">astrofe-che-non-abbiamo-visto-arrivare</span></a></p>",
+  "reblog": null,
+  "account": {
+   "id": "110280823483512506",
+   "username": "ItalianNews",
+   "acct": "ItalianNews@mastodon.ozioso.online",
+   "display_name": "Italian News by RSS",
+   "locked": false,
+   "bot": false,
+   "discoverable": false,
+   "indexable": false,
+   "group": false,
+   "created_at": "2023-04-29T00:00:00.000Z",
+   "note": "<p>This <a href=\"https://mastodon.ozioso.online/tags/bot\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>bot</span></a> provides Italian News based on RSS Feeds,  <a href=\"https://mastodon.ozioso.online/tags/IlPescare\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>IlPescare</span></a> <a href=\"https://mastodon.ozioso.online/tags/Domani\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>Domani</span></a> <a href=\"https://mastodon.ozioso.online/tags/AbruzzoLive\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>AbruzzoLive</span></a><br>Will implement a Deepl translation into <a href=\"https://mastodon.ozioso.online/tags/English\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>English</span></a> shortly.<br>Feel free to suggest any decent Italian newspapers with an RSS feed</p><p>Questo <a href=\"https://mastodon.ozioso.online/tags/bot\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>bot</span></a> fornisce notizie italiane basate su feed RSS,  <a href=\"https://mastodon.ozioso.online/tags/IlPescare\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>IlPescare</span></a> <a href=\"https://mastodon.ozioso.online/tags/Domani\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>Domani</span></a> <a href=\"https://mastodon.ozioso.online/tags/AbruzzoLive\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>AbruzzoLive</span></a><br>A breve implementerà una traduzione Deepl in <a href=\"https://mastodon.ozioso.online/tags/inglese\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>inglese</span></a>.</p>",
+   "url": "https://mastodon.ozioso.online/@ItalianNews",
+   "uri": "https://mastodon.ozioso.online/users/ItalianNews",
+   "avatar": "https://files.mastodon.social/cache/accounts/avatars/110/280/823/483/512/506/original/8938ed196e4c4027.png",
+   "avatar_static": "https://files.mastodon.social/cache/accounts/avatars/110/280/823/483/512/506/original/8938ed196e4c4027.png",
+   "avatar_description": "",
+   "header": "https://files.mastodon.social/cache/accounts/headers/110/280/823/483/512/506/original/c397396b84fefb36.png",
+   "header_static": "https://files.mastodon.social/cache/accounts/headers/110/280/823/483/512/506/original/c397396b84fefb36.png",
+   "header_description": "",
+   "followers_count": 223,
+   "following_count": 0,
+   "statuses_count": 106929,
+   "last_status_at": "2026-09-17",
+   "hide_collections": false,
+   "show_media": true,
+   "show_media_replies": true,
+   "show_featured": true,
+   "feature_approval": {
+    "automatic": [],
+    "manual": [],
+    "current_user": "denied"
+   },
+   "emojis": [],
+   "fields": []
+  },
+  "media_attachments": [],
+  "mentions": [],
+  "tags": [
+   {
+    "name": "himalaya",
+    "url": "https://mastodon.social/tags/himalaya"
+   },
+   {
+    "name": "nepal",
+    "url": "https://mastodon.social/tags/nepal"
+   },
+   {
+    "name": "tibet",
+    "url": "https://mastodon.social/tags/tibet"
+   }
+  ],
+  "emojis": [],
+  "tagged_collections": [],
+  "quote": null,
+  "card": {
+   "url": "https://ilmanifesto.it/himalaya-la-catastrofe-che-non-abbiamo-visto-arrivare",
+   "title": "Himalaya: «La catastrofe che non abbiamo visto arrivare» | il manifesto",
+   "description": "Dallo scioglimento dei ghiacci all’innalzamento dei mari, gli effetti sconvolgenti della crisi climatica. Ma la politica chiude gli occhi. Come custodire l’acqua sotto terra per la riforestazione",
+   "language": "it",
+   "type": "link",
+   "author_name": "",
+   "author_url": "",
+   "provider_name": "il manifesto",
+   "provider_url": "",
+   "html": "",
+   "width": 588,
+   "height": 392,
+   "image": "https://files.mastodon.social/cache/preview_cards/images/207/499/425/original/a8285d29c3fdab93.jpg",
+   "image_description": "",
+   "embed_url": "",
+   "blurhash": "U9DJ3Kn-EOxY00M|s:%1%hNFt7WBD$owNckD",
+   "published_at": "2026-09-16T22:06:53.000Z",
+   "authors": []
+  },
+  "poll": null,
+  "quote_approval": {
+   "automatic": [
+    "public"
+   ],
+   "manual": [],
+   "current_user": "denied"
+  }
+ },
+ {
+  "id": "117282018692478148",
+  "created_at": "2026-09-16T17:59:44.064Z",
+  "in_reply_to_id": null,
+  "in_reply_to_account_id": null,
+  "sensitive": false,
+  "spoiler_text": "",
+  "visibility": "public",
+  "language": "en",
+  "uri": "https://mastodon.social/users/sundogplanets/statuses/117282018692478148",
+  "url": "https://mastodon.social/@sundogplanets/117282018692478148",
+  "replies_count": 26,
+  "reblogs_count": 228,
+  "favourites_count": 469,
+  "quotes_count": 3,
+  "edited_at": null,
+  "content": "<p>I needed a goat-apple-opera break from grant-writing and I bet you do too.</p>",
+  "reblog": null,
+  "application": {
+   "name": "Web",
+   "website": null
+  },
+  "account": {
+   "id": "108194428751240116",
+   "username": "sundogplanets",
+   "acct": "sundogplanets",
+   "display_name": "Prof. Sam Lawler",
+   "locked": true,
+   "bot": false,
+   "discoverable": true,
+   "indexable": false,
+   "group": false,
+   "created_at": "2022-04-25T00:00:00.000Z",
+   "note": "<p>Professor of astronomy, farmer of goats.  Asteroid (42910).  She/her.  </p><p>Living and learning on the land and under the skies of Treaty 4 (Saskatchewan, Canada).</p><p>Thanks to Saskatchewan&#39;s beautiful night sky, my research background in small body orbital dynamics, and a couple of really unfortunately placed SpaceX reentries, I spend a lot of time yelling about satellite pollution in international news media.</p>",
+   "url": "https://mastodon.social/@sundogplanets",
+   "uri": "https://mastodon.social/users/sundogplanets",
+   "avatar": "https://files.mastodon.social/accounts/avatars/108/194/428/751/240/116/original/f1eb397ab1659575.jpeg",
+   "avatar_static": "https://files.mastodon.social/accounts/avatars/108/194/428/751/240/116/original/f1eb397ab1659575.jpeg",
+   "avatar_description": "",
+   "header": "https://files.mastodon.social/accounts/headers/108/194/428/751/240/116/original/5c63fa1e50d23c84.jpg",
+   "header_static": "https://files.mastodon.social/accounts/headers/108/194/428/751/240/116/original/5c63fa1e50d23c84.jpg",
+   "header_description": "",
+   "followers_count": 18459,
+   "following_count": 1499,
+   "statuses_count": 16349,
+   "last_status_at": "2026-09-16",
+   "hide_collections": false,
+   "show_media": true,
+   "show_media_replies": true,
+   "show_featured": true,
+   "noindex": false,
+   "feature_approval": {
+    "automatic": [
+     "followers"
+    ],
+    "manual": [],
+    "current_user": "denied"
+   },
+   "emojis": [],
+   "roles": [],
+   "fields": [
+    {
+     "name": "website",
+     "value": "<a href=\"https://uregina.ca/~slb861/about.html\" target=\"_blank\" rel=\"nofollow noopener me\" translate=\"no\"><span class=\"invisible\">https://</span><span class=\"\">uregina.ca/~slb861/about.html</span><span class=\"invisible\"></span></a>",
+     "verified_at": "2023-05-18T17:51:17.450+00:00"
+    }
+   ]
+  },
+  "media_attachments": [
+   {
+    "id": "117282008490235984",
+    "type": "image",
+    "url": "https://files.mastodon.social/media_attachments/files/117/282/008/490/235/984/original/737d43ee418f2477.png",
+    "preview_url": "https://files.mastodon.social/media_attachments/files/117/282/008/490/235/984/small/737d43ee418f2477.png",
+    "remote_url": null,
+    "preview_remote_url": null,
+    "text_url": null,
+    "meta": {
+     "original": {
+      "width": 2048,
+      "height": 1536,
+      "size": "2048x1536",
+      "aspect": 1.3333333333333333
+     },
+     "small": {
+      "width": 554,
+      "height": 416,
+      "size": "554x416",
+      "aspect": 1.3317307692307692
+     },
+     "focus": {
+      "x": 0,
+      "y": 0
+     }
+    },
+    "description": "A white goat wish her head thrown back, chewing an apple, but sort of looks like she's singing.  There are several other goats in the background, one other one obviously eating an apple.  ",
+    "blurhash": "UTGb@v%LoeWB0LIUIUWBx^j=xuRi?cflV@%M"
+   },
+   {
+    "id": "117282008969619355",
+    "type": "image",
+    "url": "https://files.mastodon.social/media_attachments/files/117/282/008/969/619/355/original/83c049aea26627e7.png",
+    "preview_url": "https://files.mastodon.social/media_attachments/files/117/282/008/969/619/355/small/83c049aea26627e7.png",
+    "remote_url": null,
+    "preview_remote_url": null,
+    "text_url": null,
+    "meta": {
+     "original": {
+      "width": 2048,
+      "height": 1536,
+      "size": "2048x1536",
+      "aspect": 1.3333333333333333
+     },
+     "small": {
+      "width": 554,
+      "height": 416,
+      "size": "554x416",
+      "aspect": 1.3317307692307692
+     },
+     "focus": {
+      "x": 0,
+      "y": 0
+     }
+    },
+    "description": "Four goats, two white and two black, all eating apples with their heads back and their mouths open like they are singing opera.  ",
+    "blurhash": "UFED3T~qRiD+Tz9ZoH%NTLM|n#of^,-;ogM|"
+   },
+   {
+    "id": "117282009669474202",
+    "type": "image",
+    "url": "https://files.mastodon.social/media_attachments/files/117/282/009/669/474/202/original/77c02f2496a8af8a.png",
+    "preview_url": "https://files.mastodon.social/media_attachments/files/117/282/009/669/474/202/small/77c02f2496a8af8a.png",
+    "remote_url": null,
+    "preview_remote_url": null,
+    "text_url": null,
+    "meta": {
+     "original": {
+      "width": 2048,
+      "height": 1536,
+      "size": "2048x1536",
+      "aspect": 1.3333333333333333
+     },
+     "small": {
+      "width": 554,
+      "height": 416,
+      "size": "554x416",
+      "aspect": 1.3317307692307692
+     },
+     "focus": {
+      "x": 0,
+      "y": 0
+     }
+    },
+    "description": "Two goats, one white and one black, look like they are singing with their heads back as they eat red apples.  There's a tall wooden fence in the background and green grass under their feet, as well as several other goats in the background.",
+    "blurhash": "UECQ6]-:9sM_o$jG_4od-=x]xuxa^,%NWBWB"
+   }
+  ],
+  "mentions": [],
+  "tags": [],
+  "emojis": [],
+  "tagged_collections": [],
+  "quote": null,
+  "card": null,
+  "poll": null,
+  "quote_approval": {
+   "automatic": [
+    "public"
+   ],
+   "manual": [],
+   "current_user": "denied"
+  }
+ },
+ {
+  "id": "117283278308649681",
+  "created_at": "2026-09-16T23:20:02.000Z",
+  "in_reply_to_id": null,
+  "in_reply_to_account_id": null,
+  "sensitive": false,
+  "spoiler_text": "",
+  "visibility": "public",
+  "language": "en",
+  "uri": "https://rssfeed.media/users/guardianfeeds/statuses/117283278197254242",
+  "url": "https://rssfeed.media/@guardianfeeds/117283278197254242",
+  "replies_count": 0,
+  "reblogs_count": 0,
+  "favourites_count": 0,
+  "quotes_count": 0,
+  "edited_at": null,
+  "content": "<p>Climate crisis likely behind devastating Nepal-Tibet floods that killed more than 1,300, first study finds<br>By Damien Gayle</p><p>Scientists say global heating was a destabilising factor in collapse of 200,000 sq metre glacier in August</p><p><a href=\"https://www.theguardian.com/science/2026/sep/17/climate-crisis-likely-behind-deadly-nepal-tibet-floods\" rel=\"nofollow noopener\" translate=\"no\" target=\"_blank\"><span class=\"invisible\">https://www.</span><span class=\"ellipsis\">theguardian.com/science/2026/s</span><span class=\"invisible\">ep/17/climate-crisis-likely-behind-deadly-nepal-tibet-floods</span></a></p><p><a href=\"https://rssfeed.media/tags/Climatescience\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>Climatescience</span></a> <a href=\"https://rssfeed.media/tags/NepalTibetflooddisaster\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>NepalTibetflooddisaster</span></a> <a href=\"https://rssfeed.media/tags/Climatecrisis\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>Climatecrisis</span></a> <a href=\"https://rssfeed.media/tags/Flooding\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>Flooding</span></a> <a href=\"https://rssfeed.media/tags/Nepal\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>Nepal</span></a> <a href=\"https://rssfeed.media/tags/Tibet\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>Tibet</span></a> <a href=\"https://rssfeed.media/tags/Environment\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>Environment</span></a> <a href=\"https://rssfeed.media/tags/Extremeweather\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>Extremeweather</span></a> <a href=\"https://rssfeed.media/tags/Science\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>Science</span></a> <a href=\"https://rssfeed.media/tags/ImperialCollegeLondon\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>ImperialCollegeLondon</span></a> <a href=\"https://rssfeed.media/tags/Worldnews\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>Worldnews</span></a> <a href=\"https://rssfeed.media/tags/SouthandcentralAsia\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>SouthandcentralAsia</span></a> <a href=\"https://rssfeed.media/tags/TheGuardian\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>TheGuardian</span></a> <a href=\"https://rssfeed.media/tags/DamienGayle\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>DamienGayle</span></a></p>",
+  "reblog": null,
+  "account": {
+   "id": "116168882857867601",
+   "username": "guardianfeeds",
+   "acct": "guardianfeeds@rssfeed.media",
+   "display_name": "The Guardian Feeds",
+   "locked": false,
+   "bot": true,
+   "discoverable": true,
+   "indexable": true,
+   "group": false,
+   "created_at": "2024-04-17T00:00:00.000Z",
+   "note": "<p>This is a RSS Feed Bot.  I takes its Toots directly from the The Guardian.</p><p>Only time a Toot may be modified/removed is if the content is demonstrably erroneous or slanderous.</p>",
+   "url": "https://rssfeed.media/@guardianfeeds",
+   "uri": "https://rssfeed.media/users/guardianfeeds",
+   "avatar": "https://files.mastodon.social/cache/accounts/avatars/116/168/882/857/867/601/original/a671aec0070e842f.png",
+   "avatar_static": "https://files.mastodon.social/cache/accounts/avatars/116/168/882/857/867/601/original/a671aec0070e842f.png",
+   "avatar_description": "",
+   "header": "https://files.mastodon.social/cache/accounts/headers/116/168/882/857/867/601/original/f62d40f327a8015c.jpeg",
+   "header_static": "https://files.mastodon.social/cache/accounts/headers/116/168/882/857/867/601/original/f62d40f327a8015c.jpeg",
+   "header_description": "",
+   "followers_count": 147,
+   "following_count": 0,
+   "statuses_count": 13376,
+   "last_status_at": "2026-09-16",
+   "hide_collections": false,
+   "show_media": true,
+   "show_media_replies": true,
+   "show_featured": true,
+   "feature_approval": {
+    "automatic": [
+     "public"
+    ],
+    "manual": [],
+    "current_user": "denied"
+   },
+   "emojis": [],
+   "fields": [
+    {
+     "name": "Feed",
+     "value": "The Guardian",
+     "verified_at": null
+    },
+    {
+     "name": "Media",
+     "value": "",
+     "verified_at": null
+    }
+   ]
+  },
+  "media_attachments": [],
+  "mentions": [],
+  "tags": [
+   {
+    "name": "climatescience",
+    "url": "https://mastodon.social/tags/climatescience"
+   },
+   {
+    "name": "nepaltibetflooddisaster",
+    "url": "https://mastodon.social/tags/nepaltibetflooddisaster"
+   },
+   {
+    "name": "climatecrisis",
+    "url": "https://mastodon.social/tags/climatecrisis"
+   },
+   {
+    "name": "flooding",
+    "url": "https://mastodon.social/tags/flooding"
+   },
+   {
+    "name": "nepal",
+    "url": "https://mastodon.social/tags/nepal"
+   },
+   {
+    "name": "tibet",
+    "url": "https://mastodon.social/tags/tibet"
+   },
+   {
+    "name": "environment",
+    "url": "https://mastodon.social/tags/environment"
+   },
+   {
+    "name": "extremeweather",
+    "url": "https://mastodon.social/tags/extremeweather"
+   },
+   {
+    "name": "science",
+    "url": "https://mastodon.social/tags/science"
+   },
+   {
+    "name": "imperialcollegelondon",
+    "url": "https://mastodon.social/tags/imperialcollegelondon"
+   },
+   {
+    "name": "worldnews",
+    "url": "https://mastodon.social/tags/worldnews"
+   },
+   {
+    "name": "southandcentralasia",
+    "url": "https://mastodon.social/tags/southandcentralasia"
+   },
+   {
+    "name": "theguardian",
+    "url": "https://mastodon.social/tags/theguardian"
+   },
+   {
+    "name": "damiengayle",
+    "url": "https://mastodon.social/tags/damiengayle"
+   }
+  ],
+  "emojis": [],
+  "tagged_collections": [],
+  "quote": null,
+  "card": {
+   "url": "https://www.theguardian.com/science/2026/sep/17/climate-crisis-likely-behind-deadly-nepal-tibet-floods",
+   "title": "Climate crisis likely behind devastating Nepal-Tibet floods that killed more than 1,300, first study finds",
+   "description": "Scientists say global heating was a destabilising factor in collapse of 200,000 sq metre glacier in August",
+   "language": "en",
+   "type": "link",
+   "author_name": "Damien Gayle",
+   "author_url": "",
+   "provider_name": "The Guardian",
+   "provider_url": "",
+   "html": "",
+   "width": 662,
+   "height": 348,
+   "image": "https://files.mastodon.social/cache/preview_cards/images/207/498/740/original/fd185369dccc8b96.jpg",
+   "image_description": "",
+   "embed_url": "",
+   "blurhash": "UGBDcx-mRkj?0JNLt6j?bwadWEof-:t7WBaf",
+   "published_at": "2026-09-16T23:01:32.000Z",
+   "authors": [
+    {
+     "name": "Damien Gayle",
+     "url": "",
+     "account": null
+    }
+   ]
+  },
+  "poll": null,
+  "quote_approval": {
+   "automatic": [
+    "public"
+   ],
+   "manual": [],
+   "current_user": "denied"
+  }
+ },
+ {
+  "id": "117283275610475271",
+  "created_at": "2026-09-16T23:19:23.109Z",
+  "in_reply_to_id": null,
+  "in_reply_to_account_id": null,
+  "sensitive": false,
+  "spoiler_text": "",
+  "visibility": "public",
+  "language": "nl",
+  "uri": "https://mastodon.social/users/NieuwsJunkies/statuses/117283275610475271",
+  "url": "https://mastodon.social/@NieuwsJunkies/117283275610475271",
+  "replies_count": 0,
+  "reblogs_count": 0,
+  "favourites_count": 0,
+  "quotes_count": 0,
+  "edited_at": null,
+  "content": "<p>📰 Cocktail van oorzaken werkte verwoestende vloedgolf in Nepal in de hand</p><p><a href=\"https://nieuwsjunkies.nl/artikel/1Rj1\" target=\"_blank\" rel=\"nofollow noopener\" translate=\"no\"><span class=\"invisible\">https://</span><span class=\"\">nieuwsjunkies.nl/artikel/1Rj1</span><span class=\"invisible\"></span></a></p><p>🕐 01:14 | NOS Nieuws<br />🔸 <a href=\"https://mastodon.social/tags/Vloedgolf\" class=\"mention hashtag\" rel=\"tag\">#<span>Vloedgolf</span></a> <a href=\"https://mastodon.social/tags/Gletsjer\" class=\"mention hashtag\" rel=\"tag\">#<span>Gletsjer</span></a> <a href=\"https://mastodon.social/tags/Ramp\" class=\"mention hashtag\" rel=\"tag\">#<span>Ramp</span></a> <a href=\"https://mastodon.social/tags/Verwoest\" class=\"mention hashtag\" rel=\"tag\">#<span>Verwoest</span></a> <a href=\"https://mastodon.social/tags/Nepal\" class=\"mention hashtag\" rel=\"tag\">#<span>Nepal</span></a></p>",
+  "reblog": null,
+  "application": {
+   "name": "NieuwsJunkies.nl",
+   "website": "https://nieuwsjunkies.nl"
+  },
+  "account": {
+   "id": "114099313766789541",
+   "username": "NieuwsJunkies",
+   "acct": "NieuwsJunkies",
+   "display_name": "NieuwsJunkies.nl",
+   "locked": false,
+   "bot": true,
+   "discoverable": true,
+   "indexable": true,
+   "group": false,
+   "created_at": "2025-03-03T00:00:00.000Z",
+   "note": "<p>📰 Nieuwsbot voor</p><p>🔶 NOS, RTL<br />🔶 Radio 1, EenVandaag, Zembla</p><p>▫️ Bonus (±3 berichten p/d)<br />🔸 Greenpeace, Amnesty, The Rights Forum<br />🔸 Chris Klomp<br /> <br />De NieuwsJunkies-mastodonbot post automatisch &amp; 24/7 nieuws hier op Mastodon en als je dit account volgt krijg je ze direct in jouw TL.</p><p>Op de website <a href=\"https://NieuwsJunkies.nl\" target=\"_blank\" rel=\"nofollow noopener\" translate=\"no\"><span class=\"invisible\">https://</span><span class=\"\">NieuwsJunkies.nl</span><span class=\"invisible\"></span></a> vind je overigens nog veel meer nieuws van meerdere nieuwsbronnen.</p><p>📩 <span class=\"h-card\" translate=\"no\"><a href=\"https://mastodon.social/@J_aa_p\" class=\"u-url mention\">@<span>J_aa_p</span></a></span></p>",
+   "url": "https://mastodon.social/@NieuwsJunkies",
+   "uri": "https://mastodon.social/users/NieuwsJunkies",
+   "avatar": "https://files.mastodon.social/accounts/avatars/114/099/313/766/789/541/original/5c48468b346a2de4.png",
+   "avatar_static": "https://files.mastodon.social/accounts/avatars/114/099/313/766/789/541/original/5c48468b346a2de4.png",
+   "avatar_description": "",
+   "header": "https://files.mastodon.social/accounts/headers/114/099/313/766/789/541/original/55cfff2ec632cd9f.png",
+   "header_static": "https://files.mastodon.social/accounts/headers/114/099/313/766/789/541/original/55cfff2ec632cd9f.png",
+   "header_description": "",
+   "followers_count": 447,
+   "following_count": 0,
+   "statuses_count": 4823,
+   "last_status_at": "2026-09-17",
+   "hide_collections": false,
+   "show_media": true,
+   "show_media_replies": true,
+   "show_featured": true,
+   "noindex": false,
+   "feature_approval": {
+    "automatic": [
+     "public"
+    ],
+    "manual": [],
+    "current_user": "denied"
+   },
+   "emojis": [],
+   "roles": [],
+   "fields": [
+    {
+     "name": "Website",
+     "value": "<a href=\"https://nieuwsjunkies.nl/\" target=\"_blank\" rel=\"nofollow noopener me\" translate=\"no\"><span class=\"invisible\">https://</span><span class=\"\">nieuwsjunkies.nl/</span><span class=\"invisible\"></span></a>",
+     "verified_at": "2025-03-03T19:15:39.835+00:00"
+    },
+    {
+     "name": "Contact",
+     "value": "<span class=\"h-card\" translate=\"no\"><a href=\"https://mastodon.social/@J_aa_p\" class=\"u-url mention\">@<span>J_aa_p</span></a></span>",
+     "verified_at": null
+    }
+   ]
+  },
+  "media_attachments": [],
+  "mentions": [],
+  "tags": [
+   {
+    "name": "vloedgolf",
+    "url": "https://mastodon.social/tags/vloedgolf"
+   },
+   {
+    "name": "gletsjer",
+    "url": "https://mastodon.social/tags/gletsjer"
+   },
+   {
+    "name": "ramp",
+    "url": "https://mastodon.social/tags/ramp"
+   },
+   {
+    "name": "verwoest",
+    "url": "https://mastodon.social/tags/verwoest"
+   },
+   {
+    "name": "nepal",
+    "url": "https://mastodon.social/tags/nepal"
+   }
+  ],
+  "emojis": [],
+  "tagged_collections": [],
+  "quote": null,
+  "card": {
+   "url": "https://nieuwsjunkies.nl/artikel/1Rj1",
+   "title": "Cocktail van oorzaken werkte verwoestende vloedgolf in Nepal in de hand",
+   "description": "De ramp in Nepal had diverse oorzaken. Zo was de bergwand mogelijk instabiel geworden, smelten gletsjers in de bergen en was het vrij warm.",
+   "language": "nl",
+   "type": "link",
+   "author_name": "",
+   "author_url": "",
+   "provider_name": "",
+   "provider_url": "",
+   "html": "",
+   "width": 640,
+   "height": 360,
+   "image": "https://files.mastodon.social/cache/preview_cards/images/207/499/163/original/3d6b2ee7e75d6219.webp",
+   "image_description": "",
+   "embed_url": "",
+   "blurhash": "UNGuzyM_-=aeDzawM{RiRjs:V=WC%Mofj^j[",
+   "published_at": null,
+   "authors": []
+  },
+  "poll": null,
+  "quote_approval": {
+   "automatic": [
+    "public"
+   ],
+   "manual": [],
+   "current_user": "denied"
+  }
+ },
+ {
+  "id": "117283237303172998",
+  "created_at": "2026-09-16T23:09:32.000Z",
+  "in_reply_to_id": null,
+  "in_reply_to_account_id": null,
+  "sensitive": false,
+  "spoiler_text": "",
+  "visibility": "public",
+  "language": "en",
+  "uri": "https://halo.nu/users/theguardian_world_news/statuses/117283236918410531",
+  "url": "https://halo.nu/@theguardian_world_news/117283236918410531",
+  "replies_count": 1,
+  "reblogs_count": 5,
+  "favourites_count": 0,
+  "quotes_count": 0,
+  "edited_at": null,
+  "content": "<p>Climate crisis likely behind devastating Nepal-Tibet floods that killed more than 1,300, first study finds <a href=\"https://www.theguardian.com/science/2026/sep/17/climate-crisis-likely-behind-deadly-nepal-tibet-floods\" rel=\"nofollow noopener\" translate=\"no\" target=\"_blank\"><span class=\"invisible\">https://www.</span><span class=\"ellipsis\">theguardian.com/science/2026/s</span><span class=\"invisible\">ep/17/climate-crisis-likely-behind-deadly-nepal-tibet-floods</span></a> <a href=\"https://halo.nu/tags/ClimateScience\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>ClimateScience</span></a> <a href=\"https://halo.nu/tags/NepaltibetFloodDisaster\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>NepaltibetFloodDisaster</span></a> <a href=\"https://halo.nu/tags/ClimateCrisis\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>ClimateCrisis</span></a> <a href=\"https://halo.nu/tags/Flooding\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>Flooding</span></a> <a href=\"https://halo.nu/tags/Nepal\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>Nepal</span></a> <a href=\"https://halo.nu/tags/Tibet\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>Tibet</span></a> <a href=\"https://halo.nu/tags/Environment\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>Environment</span></a> <a href=\"https://halo.nu/tags/ExtremeWeather\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>ExtremeWeather</span></a> <a href=\"https://halo.nu/tags/Science\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>Science</span></a> <a href=\"https://halo.nu/tags/ImperialCollegeLondon\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>ImperialCollegeLondon</span></a> <a href=\"https://halo.nu/tags/WorldNews\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>WorldNews</span></a> <a href=\"https://halo.nu/tags/SouthAndCentralAsia\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>SouthAndCentralAsia</span></a></p>",
+  "reblog": null,
+  "account": {
+   "id": "111851866013469467",
+   "username": "theguardian_world_news",
+   "acct": "theguardian_world_news@halo.nu",
+   "display_name": "World news | The Guardian",
+   "locked": false,
+   "bot": true,
+   "discoverable": true,
+   "indexable": true,
+   "group": false,
+   "created_at": "2024-01-31T00:00:00.000Z",
+   "note": "<p>Latest World news news, comment and analysis from the Guardian, the world's leading liberal voice</p><p><a href=\"https://www.theguardian.com/world\" rel=\"nofollow noopener\" translate=\"no\" target=\"_blank\"><span class=\"invisible\">https://www.</span><span class=\"\">theguardian.com/world</span><span class=\"invisible\"></span></a></p><p>Guardian News and Media Limited or its affiliated companies. All rights reserved. 2024</p><p>This bot posts entries from The Guardian's RSS feed. Hosted by <span class=\"h-card\" translate=\"no\"><a href=\"https://halo.nu/@elektron\" class=\"u-url mention\" rel=\"nofollow noopener\" target=\"_blank\">@<span>elektron</span></a></span></p>",
+   "url": "https://halo.nu/@theguardian_world_news",
+   "uri": "https://halo.nu/users/theguardian_world_news",
+   "avatar": "https://files.mastodon.social/cache/accounts/avatars/111/851/866/013/469/467/original/2b766db69b09d01b.png",
+   "avatar_static": "https://files.mastodon.social/cache/accounts/avatars/111/851/866/013/469/467/original/2b766db69b09d01b.png",
+   "avatar_description": "",
+   "header": "https://mastodon.social/headers/original/missing.png",
+   "header_static": "https://mastodon.social/headers/original/missing.png",
+   "header_description": "",
+   "followers_count": 556,
+   "following_count": 0,
+   "statuses_count": 21792,
+   "last_status_at": "2026-09-16",
+   "hide_collections": false,
+   "show_media": true,
+   "show_media_replies": true,
+   "show_featured": true,
+   "feature_approval": {
+    "automatic": [
+     "public"
+    ],
+    "manual": [],
+    "current_user": "denied"
+   },
+   "emojis": [],
+   "fields": []
+  },
+  "media_attachments": [],
+  "mentions": [],
+  "tags": [
+   {
+    "name": "climatescience",
+    "url": "https://mastodon.social/tags/climatescience"
+   },
+   {
+    "name": "nepaltibetflooddisaster",
+    "url": "https://mastodon.social/tags/nepaltibetflooddisaster"
+   },
+   {
+    "name": "climatecrisis",
+    "url": "https://mastodon.social/tags/climatecrisis"
+   },
+   {
+    "name": "flooding",
+    "url": "https://mastodon.social/tags/flooding"
+   },
+   {
+    "name": "nepal",
+    "url": "https://mastodon.social/tags/nepal"
+   },
+   {
+    "name": "tibet",
+    "url": "https://mastodon.social/tags/tibet"
+   },
+   {
+    "name": "environment",
+    "url": "https://mastodon.social/tags/environment"
+   },
+   {
+    "name": "extremeweather",
+    "url": "https://mastodon.social/tags/extremeweather"
+   },
+   {
+    "name": "science",
+    "url": "https://mastodon.social/tags/science"
+   },
+   {
+    "name": "imperialcollegelondon",
+    "url": "https://mastodon.social/tags/imperialcollegelondon"
+   },
+   {
+    "name": "worldnews",
+    "url": "https://mastodon.social/tags/worldnews"
+   },
+   {
+    "name": "southandcentralasia",
+    "url": "https://mastodon.social/tags/southandcentralasia"
+   }
+  ],
+  "emojis": [],
+  "tagged_collections": [],
+  "quote": null,
+  "card": {
+   "url": "https://www.theguardian.com/science/2026/sep/17/climate-crisis-likely-behind-deadly-nepal-tibet-floods",
+   "title": "Climate crisis likely behind devastating Nepal-Tibet floods that killed more than 1,300, first study finds",
+   "description": "Scientists say global heating was a destabilising factor in collapse of 200,000 sq metre glacier in August",
+   "language": "en",
+   "type": "link",
+   "author_name": "Damien Gayle",
+   "author_url": "",
+   "provider_name": "The Guardian",
+   "provider_url": "",
+   "html": "",
+   "width": 662,
+   "height": 348,
+   "image": "https://files.mastodon.social/cache/preview_cards/images/207/498/740/original/fd185369dccc8b96.jpg",
+   "image_description": "",
+   "embed_url": "",
+   "blurhash": "UGBDcx-mRkj?0JNLt6j?bwadWEof-:t7WBaf",
+   "published_at": "2026-09-16T23:01:32.000Z",
+   "authors": [
+    {
+     "name": "Damien Gayle",
+     "url": "",
+     "account": null
+    }
+   ]
+  },
+  "poll": null,
+  "quote_approval": {
+   "automatic": [
+    "public"
+   ],
+   "manual": [],
+   "current_user": "denied"
+  }
+ },
+ {
+  "id": "117283215408638571",
+  "created_at": "2026-09-16T23:04:01.000Z",
+  "in_reply_to_id": null,
+  "in_reply_to_account_id": null,
+  "sensitive": false,
+  "spoiler_text": "",
+  "visibility": "public",
+  "language": "en",
+  "uri": "https://mastodon.world/users/backpackandsnorkel/statuses/117283215236783783",
+  "url": "https://mastodon.world/@backpackandsnorkel/117283215236783783",
+  "replies_count": 0,
+  "reblogs_count": 4,
+  "favourites_count": 0,
+  "quotes_count": 0,
+  "edited_at": null,
+  "content": "<p><a href=\"https://mastodon.world/tags/Thamel\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>Thamel</span></a> in <a href=\"https://mastodon.world/tags/Kathmandu\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>Kathmandu</span></a> , <a href=\"https://mastodon.world/tags/Nepal\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>Nepal</span></a> , with its lively mix of narrow streets, colorful shops, bustling cafes, and centuries-old <a href=\"https://mastodon.world/tags/Temple\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>Temple</span></a> s is the place where most people start their <a href=\"https://mastodon.world/tags/Nepal\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>Nepal</span></a>  trips. How did you like it? <a href=\"https://backpackandsnorkel.com/Nepal/Day2/\" rel=\"nofollow noopener\" translate=\"no\" target=\"_blank\"><span class=\"invisible\">https://</span><span class=\"ellipsis\">backpackandsnorkel.com/Nepal/D</span><span class=\"invisible\">ay2/</span></a></p>",
+  "reblog": null,
+  "account": {
+   "id": "109390709230475831",
+   "username": "backpackandsnorkel",
+   "acct": "backpackandsnorkel@mastodon.world",
+   "display_name": "Backpack and Snorkel",
+   "locked": false,
+   "bot": false,
+   "discoverable": true,
+   "indexable": true,
+   "group": false,
+   "created_at": "2022-11-23T00:00:00.000Z",
+   "note": "<p>We <a href=\"https://mastodon.world/tags/travel\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>travel</span></a> the <a href=\"https://mastodon.world/tags/world\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>world</span></a> and show you the best places to see and the best things to do. <br>With our <a href=\"https://mastodon.world/tags/backpack\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>backpack</span></a> and <a href=\"https://mastodon.world/tags/snorkel\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>snorkel</span></a> we do not just seek out <a href=\"https://mastodon.world/tags/whitesand\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>whitesand</span></a> <a href=\"https://mastodon.world/tags/beaches\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>beaches</span></a> and <a href=\"https://mastodon.world/tags/turquoisewater\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>turquoisewater</span></a> , but we <a href=\"https://mastodon.world/tags/hike\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>hike</span></a> <a href=\"https://mastodon.world/tags/mountains\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>mountains</span></a> and <a href=\"https://mastodon.world/tags/explore\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>explore</span></a> big and small <a href=\"https://mastodon.world/tags/cities\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>cities</span></a> <a href=\"https://mastodon.world/tags/worldwide\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>worldwide</span></a>. <br>Let us <a href=\"https://mastodon.world/tags/inspire\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>inspire</span></a> you to make memorable moments on <a href=\"https://mastodon.world/tags/relaxing\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>relaxing</span></a> <a href=\"https://mastodon.world/tags/vacations\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>vacations</span></a> .<br>You can find us here:<br>Blue Sky: <a href=\"https://bsky.app/profile/backpackandsnorkel.bsky.social\" rel=\"nofollow noopener\" translate=\"no\" target=\"_blank\"><span class=\"invisible\">https://</span><span class=\"ellipsis\">bsky.app/profile/backpackandsn</span><span class=\"invisible\">orkel.bsky.social</span></a><br>Pixelfed: <a href=\"https://pixelfed.social/i/web/profile/782808699691094977\" rel=\"nofollow noopener\" translate=\"no\" target=\"_blank\"><span class=\"invisible\">https://</span><span class=\"ellipsis\">pixelfed.social/i/web/profile/</span><span class=\"invisible\">782808699691094977</span></a></p>",
+   "url": "https://mastodon.world/@backpackandsnorkel",
+   "uri": "https://mastodon.world/users/backpackandsnorkel",
+   "avatar": "https://files.mastodon.social/cache/accounts/avatars/109/390/709/230/475/831/original/ba4d58cf5c3b774b.jpg",
+   "avatar_static": "https://files.mastodon.social/cache/accounts/avatars/109/390/709/230/475/831/original/ba4d58cf5c3b774b.jpg",
+   "avatar_description": "",
+   "header": "https://files.mastodon.social/cache/accounts/headers/109/390/709/230/475/831/original/79f281e0987f197e.png",
+   "header_static": "https://files.mastodon.social/cache/accounts/headers/109/390/709/230/475/831/original/79f281e0987f197e.png",
+   "header_description": "",
+   "followers_count": 4546,
+   "following_count": 3693,
+   "statuses_count": 12705,
+   "last_status_at": "2026-09-17",
+   "hide_collections": false,
+   "show_media": true,
+   "show_media_replies": true,
+   "show_featured": true,
+   "feature_approval": {
+    "automatic": [
+     "public"
+    ],
+    "manual": [],
+    "current_user": "denied"
+   },
+   "emojis": [],
+   "fields": [
+    {
+     "name": "Website",
+     "value": "<a href=\"https://backpackandsnorkel.com/\" rel=\"nofollow noopener\" translate=\"no\" target=\"_blank\"><span class=\"invisible\">https://</span><span class=\"\">backpackandsnorkel.com/</span><span class=\"invisible\"></span></a>",
+     "verified_at": null
+    },
+    {
+     "name": "facebook",
+     "value": "<a href=\"https://www.facebook.com/BPaSnorkel\" rel=\"nofollow noopener\" translate=\"no\" target=\"_blank\"><span class=\"invisible\">https://www.</span><span class=\"\">facebook.com/BPaSnorkel</span><span class=\"invisible\"></span></a>",
+     "verified_at": null
+    },
+    {
+     "name": "instagram",
+     "value": "<a href=\"https://www.instagram.com/backpack_and_snorkel/\" rel=\"nofollow noopener\" translate=\"no\" target=\"_blank\"><span class=\"invisible\">https://www.</span><span class=\"ellipsis\">instagram.com/backpack_and_sno</span><span class=\"invisible\">rkel/</span></a>",
+     "verified_at": null
+    },
+    {
+     "name": "pinterest",
+     "value": "<a href=\"https://www.pinterest.com/backpackandsnorkel/\" rel=\"nofollow noopener\" translate=\"no\" target=\"_blank\"><span class=\"invisible\">https://www.</span><span class=\"ellipsis\">pinterest.com/backpackandsnork</span><span class=\"invisible\">el/</span></a>",
+     "verified_at": null
+    }
+   ]
+  },
+  "media_attachments": [
+   {
+    "id": "117283215311393218",
+    "type": "image",
+    "url": "https://files.mastodon.social/cache/media_attachments/files/117/283/215/311/393/218/original/288b28853be916cf.jpeg",
+    "preview_url": "https://files.mastodon.social/cache/media_attachments/files/117/283/215/311/393/218/small/288b28853be916cf.jpeg",
+    "remote_url": "https://s3.eu-central-2.wasabisys.com/mastodonworld/media_attachments/files/117/283/215/173/083/817/original/1492d43ab2243923.jpeg",
+    "preview_remote_url": null,
+    "text_url": null,
+    "meta": {
+     "original": {
+      "width": 500,
+      "height": 376,
+      "size": "500x376",
+      "aspect": 1.3297872340425532
+     },
+     "small": {
+      "width": 500,
+      "height": 376,
+      "size": "500x376",
+      "aspect": 1.3297872340425532
+     }
+    },
+    "description": null,
+    "blurhash": "ULGkzf0KobNxyX9aV@xu-=D%Rj%M?aWnD*tR"
+   }
+  ],
+  "mentions": [],
+  "tags": [
+   {
+    "name": "Thamel",
+    "url": "https://mastodon.social/tags/Thamel"
+   },
+   {
+    "name": "kathmandu",
+    "url": "https://mastodon.social/tags/kathmandu"
+   },
+   {
+    "name": "nepal",
+    "url": "https://mastodon.social/tags/nepal"
+   },
+   {
+    "name": "temple",
+    "url": "https://mastodon.social/tags/temple"
+   }
+  ],
+  "emojis": [],
+  "tagged_collections": [],
+  "quote": null,
+  "card": null,
+  "poll": null,
+  "quote_approval": {
+   "automatic": [
+    "public"
+   ],
+   "manual": [],
+   "current_user": "denied"
+  }
+ },
+ {
+  "id": "117282971498474833",
+  "created_at": "2026-09-16T22:02:01.000Z",
+  "in_reply_to_id": null,
+  "in_reply_to_account_id": null,
+  "sensitive": false,
+  "spoiler_text": "",
+  "visibility": "public",
+  "language": "en",
+  "uri": "https://mastodon.world/users/backpackandsnorkel/statuses/117282971414405709",
+  "url": "https://mastodon.world/@backpackandsnorkel/117282971414405709",
+  "replies_count": 0,
+  "reblogs_count": 3,
+  "favourites_count": 0,
+  "quotes_count": 0,
+  "edited_at": null,
+  "content": "<p>Boudhanath in <a href=\"https://mastodon.world/tags/Kathmandu\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>Kathmandu</span></a>, <a href=\"https://mastodon.world/tags/Nepal\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>Nepal</span></a>, is a key pilgrimage site for Buddhists. The <a href=\"https://mastodon.world/tags/Stupa\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>Stupa</span></a>  is believed to house relics of Kassapa Buddha, a predecessor of Siddhartha Gautama, who founded the current form of Buddhism <a href=\"https://backpackandsnorkel.com/Nepal/Day3/5312-BoudhanathStupa/\" rel=\"nofollow noopener\" translate=\"no\" target=\"_blank\"><span class=\"invisible\">https://</span><span class=\"ellipsis\">backpackandsnorkel.com/Nepal/D</span><span class=\"invisible\">ay3/5312-BoudhanathStupa/</span></a></p>",
+  "reblog": null,
+  "account": {
+   "id": "109390709230475831",
+   "username": "backpackandsnorkel",
+   "acct": "backpackandsnorkel@mastodon.world",
+   "display_name": "Backpack and Snorkel",
+   "locked": false,
+   "bot": false,
+   "discoverable": true,
+   "indexable": true,
+   "group": false,
+   "created_at": "2022-11-23T00:00:00.000Z",
+   "note": "<p>We <a href=\"https://mastodon.world/tags/travel\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>travel</span></a> the <a href=\"https://mastodon.world/tags/world\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>world</span></a> and show you the best places to see and the best things to do. <br>With our <a href=\"https://mastodon.world/tags/backpack\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>backpack</span></a> and <a href=\"https://mastodon.world/tags/snorkel\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>snorkel</span></a> we do not just seek out <a href=\"https://mastodon.world/tags/whitesand\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>whitesand</span></a> <a href=\"https://mastodon.world/tags/beaches\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>beaches</span></a> and <a href=\"https://mastodon.world/tags/turquoisewater\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>turquoisewater</span></a> , but we <a href=\"https://mastodon.world/tags/hike\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>hike</span></a> <a href=\"https://mastodon.world/tags/mountains\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>mountains</span></a> and <a href=\"https://mastodon.world/tags/explore\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>explore</span></a> big and small <a href=\"https://mastodon.world/tags/cities\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>cities</span></a> <a href=\"https://mastodon.world/tags/worldwide\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>worldwide</span></a>. <br>Let us <a href=\"https://mastodon.world/tags/inspire\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>inspire</span></a> you to make memorable moments on <a href=\"https://mastodon.world/tags/relaxing\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>relaxing</span></a> <a href=\"https://mastodon.world/tags/vacations\" class=\"mention hashtag\" rel=\"nofollow noopener\" target=\"_blank\">#<span>vacations</span></a> .<br>You can find us here:<br>Blue Sky: <a href=\"https://bsky.app/profile/backpackandsnorkel.bsky.social\" rel=\"nofollow noopener\" translate=\"no\" target=\"_blank\"><span class=\"invisible\">https://</span><span class=\"ellipsis\">bsky.app/profile/backpackandsn</span><span class=\"invisible\">orkel.bsky.social</span></a><br>Pixelfed: <a href=\"https://pixelfed.social/i/web/profile/782808699691094977\" rel=\"nofollow noopener\" translate=\"no\" target=\"_blank\"><span class=\"invisible\">https://</span><span class=\"ellipsis\">pixelfed.social/i/web/profile/</span><span class=\"invisible\">782808699691094977</span></a></p>",
+   "url": "https://mastodon.world/@backpackandsnorkel",
+   "uri": "https://mastodon.world/users/backpackandsnorkel",
+   "avatar": "https://files.mastodon.social/cache/accounts/avatars/109/390/709/230/475/831/original/ba4d58cf5c3b774b.jpg",
+   "avatar_static": "https://files.mastodon.social/cache/accounts/avatars/109/390/709/230/475/831/original/ba4d58cf5c3b774b.jpg",
+   "avatar_description": "",
+   "header": "https://files.mastodon.social/cache/accounts/headers/109/390/709/230/475/831/original/79f281e0987f197e.png",
+   "header_static": "https://files.mastodon.social/cache/accounts/headers/109/390/709/230/475/831/original/79f281e0987f197e.png",
+   "header_description": "",
+   "followers_count": 4546,
+   "following_count": 3693,
+   "statuses_count": 12705,
+   "last_status_at": "2026-09-17",
+   "hide_collections": false,
+   "show_media": true,
+   "show_media_replies": true,
+   "show_featured": true,
+   "feature_approval": {
+    "automatic": [
+     "public"
+    ],
+    "manual": [],
+    "current_user": "denied"
+   },
+   "emojis": [],
+   "fields": [
+    {
+     "name": "Website",
+     "value": "<a href=\"https://backpackandsnorkel.com/\" rel=\"nofollow noopener\" translate=\"no\" target=\"_blank\"><span class=\"invisible\">https://</span><span class=\"\">backpackandsnorkel.com/</span><span class=\"invisible\"></span></a>",
+     "verified_at": null
+    },
+    {
+     "name": "facebook",
+     "value": "<a href=\"https://www.facebook.com/BPaSnorkel\" rel=\"nofollow noopener\" translate=\"no\" target=\"_blank\"><span class=\"invisible\">https://www.</span><span class=\"\">facebook.com/BPaSnorkel</span><span class=\"invisible\"></span></a>",
+     "verified_at": null
+    },
+    {
+     "name": "instagram",
+     "value": "<a href=\"https://www.instagram.com/backpack_and_snorkel/\" rel=\"nofollow noopener\" translate=\"no\" target=\"_blank\"><span class=\"invisible\">https://www.</span><span class=\"ellipsis\">instagram.com/backpack_and_sno</span><span class=\"invisible\">rkel/</span></a>",
+     "verified_at": null
+    },
+    {
+     "name": "pinterest",
+     "value": "<a href=\"https://www.pinterest.com/backpackandsnorkel/\" rel=\"nofollow noopener\" translate=\"no\" target=\"_blank\"><span class=\"invisible\">https://www.</span><span class=\"ellipsis\">pinterest.com/backpackandsnork</span><span class=\"invisible\">el/</span></a>",
+     "verified_at": null
+    }
+   ]
+  },
+  "media_attachments": [
+   {
+    "id": "117282971469032772",
+    "type": "image",
+    "url": "https://files.mastodon.social/cache/media_attachments/files/117/282/971/469/032/772/original/bcb5c48e77dd1270.jpeg",
+    "preview_url": "https://files.mastodon.social/cache/media_attachments/files/117/282/971/469/032/772/small/bcb5c48e77dd1270.jpeg",
+    "remote_url": "https://s3.eu-central-2.wasabisys.com/mastodonworld/media_attachments/files/117/282/971/378/279/977/original/1740b02d13923e19.jpeg",
+    "preview_remote_url": null,
+    "text_url": null,
+    "meta": {
+     "original": {
+      "width": 500,
+      "height": 376,
+      "size": "500x376",
+      "aspect": 1.3297872340425532
+     },
+     "small": {
+      "width": 500,
+      "height": 376,
+      "size": "500x376",
+      "aspect": 1.3297872340425532
+     }
+    },
+    "description": null,
+    "blurhash": "UpD,.=S%WXofcIt8ofayIVkCofa}xBWBWBay"
+   }
+  ],
+  "mentions": [],
+  "tags": [
+   {
+    "name": "kathmandu",
+    "url": "https://mastodon.social/tags/kathmandu"
+   },
+   {
+    "name": "nepal",
+    "url": "https://mastodon.social/tags/nepal"
+   },
+   {
+    "name": "stupa",
+    "url": "https://mastodon.social/tags/stupa"
+   }
+  ],
+  "emojis": [],
+  "tagged_collections": [],
+  "quote": null,
+  "card": null,
+  "poll": null,
+  "quote_approval": {
+   "automatic": [
+    "public"
+   ],
+   "manual": [],
+   "current_user": "denied"
+  }
+ }
+]

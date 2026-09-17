@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f0d98c"/><stop offset=".45" stop-color="#c9a84c"/><stop offset="1" stop-color="#8a6a26"/>
+    </linearGradient>
+    <radialGradient id="bgglow" cx=".5" cy=".5" r=".62">
+      <stop offset="0" stop-color="#2a1060"/><stop offset=".55" stop-color="#0d0820"/><stop offset="1" stop-color="#04020c"/>
+    </radialGradient>
+    <radialGradient id="halo" cx=".5" cy=".5" r=".5">
+      <stop offset=".6" stop-color="#7c3aed" stop-opacity=".9"/><stop offset="1" stop-color="#7c3aed" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="gglow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="14" result="b"/>
+      <feColorMatrix in="b" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 .75 0" result="bb"/>
+      <feMerge><feMergeNode in="bb"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs><rect width="1024" height="1024" fill="url(#bgglow)"/>
+  <g filter="url(#gglow)">
+    <polygon points="512.0,182.0 797.8,347.0 797.8,677.0 512.0,842.0 226.2,677.0 226.2,347.0" fill="none" stroke="url(#gold)" stroke-width="48" stroke-linejoin="round"/>
+  </g>
+  <circle cx="512" cy="512" r="158.4" fill="url(#halo)"/>
+  <circle cx="512" cy="512" r="132" fill="#04020c" stroke="#7c3aed" stroke-width="14.399999999999999"/>
+  <circle cx="512" cy="512" r="111.84" fill="none" stroke="#c9a84c" stroke-opacity=".35" stroke-width="3.84"/>
+</svg>

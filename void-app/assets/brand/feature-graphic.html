@@ -1,0 +1,42 @@
+<!doctype html><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@800&family=Syne+Mono&family=DM+Serif+Display:ital@0;1&display=block" rel="stylesheet">
+<style>html,body{margin:0;width:1024px;height:500px;overflow:hidden;background:#04020c}
+.w{position:relative;width:1024px;height:500px;background:radial-gradient(ellipse 60% 90% at 26% 50%,#2a1060 0%,#0d0820 45%,#04020c 80%)}
+.stars{position:absolute;inset:0;background-image:radial-gradient(1px 1px at 12% 20%,#6a58a0,transparent),radial-gradient(1px 1px at 70% 14%,#6a58a0,transparent),radial-gradient(1.5px 1.5px at 88% 70%,#c9a84c88,transparent),radial-gradient(1px 1px at 55% 86%,#6a58a0,transparent),radial-gradient(1px 1px at 40% 10%,#6a58a0,transparent),radial-gradient(1px 1px at 95% 35%,#6a58a0,transparent)}
+svg{position:absolute;left:50px;top:70px;width:360px;height:360px}
+.t{position:absolute;left:440px;top:118px;right:48px;color:#f4f0ff}
+.wm{font-family:Syne;font-weight:800;font-size:52px;letter-spacing:.12em;white-space:nowrap;line-height:1}
+.wm em{font-style:normal;color:#c9a84c;text-shadow:0 0 28px rgba(201,168,76,.6);font-size:.8em;margin:0 .1em}
+.tag{font-family:'DM Serif Display';font-style:italic;font-size:40px;color:#e8dcff;margin-top:26px;line-height:1.12}
+.tag b{font-weight:400;color:#c9a84c}
+.m{font-family:'Syne Mono';font-size:17px;letter-spacing:.2em;color:#9d92c4;margin-top:28px}
+.m i{font-style:normal;color:#ef4444}</style>
+<div class="w"><div class="stars"></div>
+<svg preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f0d98c"/><stop offset=".45" stop-color="#c9a84c"/><stop offset="1" stop-color="#8a6a26"/>
+    </linearGradient>
+    <radialGradient id="bgglow" cx=".5" cy=".5" r=".62">
+      <stop offset="0" stop-color="#2a1060"/><stop offset=".55" stop-color="#0d0820"/><stop offset="1" stop-color="#04020c"/>
+    </radialGradient>
+    <radialGradient id="halo" cx=".5" cy=".5" r=".5">
+      <stop offset=".6" stop-color="#7c3aed" stop-opacity=".9"/><stop offset="1" stop-color="#7c3aed" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="gglow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="14" result="b"/>
+      <feColorMatrix in="b" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 .75 0" result="bb"/>
+      <feMerge><feMergeNode in="bb"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <g filter="url(#gglow)">
+    <polygon points="512.0,182.0 797.8,347.0 797.8,677.0 512.0,842.0 226.2,677.0 226.2,347.0" fill="none" stroke="url(#gold)" stroke-width="48" stroke-linejoin="round"/>
+  </g>
+  <circle cx="512" cy="512" r="158.4" fill="url(#halo)"/>
+  <circle cx="512" cy="512" r="132" fill="#04020c" stroke="#7c3aed" stroke-width="14.399999999999999"/>
+  <circle cx="512" cy="512" r="111.84" fill="none" stroke="#c9a84c" stroke-opacity=".35" stroke-width="3.84"/>
+</svg>
+
+<div class="t"><div class="wm">THE<em>&#x2B21;</em>VOID</div>
+<div class="tag">The world as it happens.<br><b>Unfiltered.</b> Live.</div>
+<div class="m"><i>&#9679;</i> LIVE STREAMS · NATIONS · THREADS</div></div></div>

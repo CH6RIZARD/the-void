@@ -1,0 +1,24 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Camera: front camera for the on-device face/attention + pulse estimate (only
+         while the feed is visible and the "face" tier is consented), and rear camera +
+         torch for the explicit 30s fingertip "calm reading". Frames never leave the
+         device and are never stored. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.front" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.flash" android:required="false" />
+
+    <!-- Optional BLE heart-rate strap / watch (standard Heart Rate Service 0x180D).
+         Android 12+: runtime BLUETOOTH_SCAN (never used for location) + BLUETOOTH_CONNECT.
+         Android <= 11: legacy install-time permissions. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
+
+    <!-- Not used: microphone, Health Connect, BODY_SENSORS, ACTIVITY_RECOGNITION. -->
+
+</manifest>

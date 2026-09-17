@@ -3,38 +3,172 @@
     "name": "The Void",
     "slug": "the-void",
     "scheme": "thevoid",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
     "backgroundColor": "#04020c",
-    "assetBundlePatterns": ["assets/**/*"],
+    "icon": "./assets/brand/icon.png",
     "ios": {
       "bundleIdentifier": "com.thevoid.app",
       "supportsTablet": false,
+      "usesAppleSignIn": true,
       "infoPlist": {
-        "NSCameraUsageDescription": "The Void uses the rear camera only during an explicit, opt-in calm-state reading to estimate heart rate on-device. Frames never leave your phone.",
-        "NSMotionUsageDescription": "The Void reads device motion on-device to discard readings taken while you move. Motion data never leaves your phone.",
-        "NSHealthShareUsageDescription": "With your permission, The Void reads heart-rate/HRV from Health on-device to improve personalization. It is never used for ads and never leaves your phone.",
-        "NSFaceIDUsageDescription": "Used only to protect on-device settings.",
+        "NSCameraUsageDescription": "Only if you turn on body signals: the front camera estimates attention, expression and pulse on your device while the feed is open, and the rear camera with the flash takes an optional 30-second fingertip calm reading. Frames are processed in memory, never stored or uploaded. This is an estimate, not a medical device. The camera is also used if you choose to take a photo for a post.",
+        "NSBluetoothAlwaysUsageDescription": "Only if you choose to pair one: The Void connects to a Bluetooth heart-rate strap or watch to read heart rate on your device. Readings never leave your phone.",
+        "NSMicrophoneUsageDescription": "Only when you tap record in the composer: The Void records a voice note to attach to your post. Nothing is recorded at any other time.",
+        "NSPhotoLibraryUsageDescription": "Only when you choose to attach one: pick photos or videos from your library to add to a post or reply. The Void does not browse your library.",
         "ITSAppUsesNonExemptEncryption": false
+      },
+      "privacyManifests": {
+        "NSPrivacyTracking": false,
+        "NSPrivacyTrackingDomains": [],
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "CA92.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategorySystemBootTime",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "35F9.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "C617.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryDiskSpace",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "E174.1"
+            ]
+          }
+        ],
+        "NSPrivacyCollectedDataTypes": [
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeEmailAddress",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeName",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeUserID",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeOtherUserContent",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          }
+        ]
       }
     },
     "android": {
       "package": "com.thevoid.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#04020c",
+        "foregroundImage": "./assets/brand/adaptive-icon-foreground.png",
+        "backgroundImage": "./assets/brand/adaptive-icon-background.png",
+        "monochromeImage": "./assets/brand/adaptive-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.ACTIVITY_RECOGNITION",
-        "android.permission.health.READ_HEART_RATE"
+        "android.permission.BLUETOOTH_SCAN",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.RECORD_AUDIO"
       ],
-      "blockedPermissions": ["android.permission.RECORD_AUDIO"]
+      "blockedPermissions": [
+        "android.permission.ACTIVITY_RECOGNITION",
+        "android.permission.BODY_SENSORS",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ]
     },
     "plugins": [
+      "expo-router",
       "expo-dev-client",
-      ["expo-camera", { "cameraPermission": "The Void uses the camera only for an opt-in on-device heart-rate reading. Frames never leave your phone." }],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 24,
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36
+          },
+          "ios": {
+            "deploymentTarget": "16.4"
+          }
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#04020c",
+          "image": "./assets/brand/splash-icon.png",
+          "imageWidth": 120
+        }
+      ],
+      "expo-font",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Only if you turn on body signals: the front camera estimates attention, expression and pulse on your device while the feed is open, and the rear camera with the flash takes an optional 30-second fingertip calm reading. Frames are processed in memory, never stored or uploaded. This is an estimate, not a medical device. The camera is also used if you choose to take a photo for a post.",
+          "microphonePermission": "Only when you tap record in the composer: The Void records a voice note to attach to your post. Nothing is recorded at any other time.",
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": false
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Only when you tap record in the composer: The Void records a voice note to attach to your post. Nothing is recorded at any other time.",
+          "recordAudioAndroid": true,
+          "enableBackgroundPlayback": false,
+          "enableBackgroundRecording": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Only when you choose to attach one: pick photos or videos from your library to add to a post or reply. The Void does not browse your library.",
+          "cameraPermission": "Only if you turn on body signals: the front camera estimates attention, expression and pulse on your device while the feed is open, and the rear camera with the flash takes an optional 30-second fingertip calm reading. Frames are processed in memory, never stored or uploaded. This is an estimate, not a medical device. The camera is also used if you choose to take a photo for a post.",
+          "microphonePermission": "Only when you tap record in the composer: The Void records a voice note to attach to your post. Nothing is recorded at any other time."
+        }
+      ],
+      "expo-video",
+      "expo-apple-authentication",
+      "expo-web-browser",
       "./modules/expo-void-sensing/app.plugin.js"
     ],
+    "experiments": {
+      "typedRoutes": false
+    },
     "extra": {
-      "voidProxyBase": ""
+      "voidProxyBase": "",
+      "supabaseUrl": "",
+      "supabaseAnonKey": ""
     }
   }
 }

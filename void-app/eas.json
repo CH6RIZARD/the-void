@@ -8,27 +8,34 @@
       "developmentClient": true,
       "distribution": "internal",
       "ios": {
+        "image": "latest",
         "simulator": true
       },
       "android": {
+        "image": "latest",
         "buildType": "apk"
       }
     },
     "preview": {
       "distribution": "internal",
       "android": {
+        "image": "latest",
         "buildType": "apk"
       },
       "ios": {
+        "image": "latest",
         "simulator": false
       }
     },
     "production": {
       "autoIncrement": true,
       "android": {
+        "image": "latest",
         "buildType": "app-bundle"
       },
-      "ios": {}
+      "ios": {
+        "image": "latest"
+      }
     }
   },
   "submit": {

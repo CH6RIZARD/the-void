@@ -1,7 +1,11 @@
 const { getDefaultConfig } = require("expo/metro-config");
 
 const config = getDefaultConfig(__dirname);
-// Bundle the existing web UI (.html) as an asset so the WebView can load it offline.
-config.resolver.assetExts.push("html");
+// three ships .cjs entry points alongside ESM; let Metro resolve them.
+if (!config.resolver.sourceExts.includes("cjs")) config.resolver.sourceExts.push("cjs");
+// Globe textures / models (used by src/features/globe via expo-gl + three).
+for (const ext of ["glb", "gltf", "bin", "hdr", "ktx2"]) {
+  if (!config.resolver.assetExts.includes(ext)) config.resolver.assetExts.push(ext);
+}
 
 module.exports = config;

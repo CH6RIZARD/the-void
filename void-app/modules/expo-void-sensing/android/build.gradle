@@ -1,0 +1,56 @@
+// Expo SDK 57 local-module style: the `expo-module-gradle-plugin` (shipped inside
+// expo-modules-core and put on the classpath by expo-autolinking) applies Kotlin,
+// adds the expo-modules-core dependency, sets compile/min/target SDK from the root
+// project (compileSdk/targetSdk 36 via expo-build-properties), JVM 17 and lint
+// defaults. It replaces the SDK 51 `apply from: ExpoModulesCorePlugin.gradle` +
+// `applyKotlinExpoModulesCorePlugin()` / `useCoreDependencies()` / `useExpoPublishing()`.
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.thevoid.sensing'
+version = '0.3.0'
+
+android {
+  namespace 'com.thevoid.sensing'
+  defaultConfig {
+    versionCode 1
+    versionName '0.3.0'
+  }
+  lint {
+    abortOnError false
+  }
+}
+
+dependencies {
+  // Versions below require compileSdk 36 / AGP >= 8.9.1 (Expo SDK 57 / RN 0.86 ship
+  // compileSdk 36, AGP 8.12). core-ktx + coroutines match what expo-modules-core 57 exposes.
+
+  // Kotlin coroutines (the 1 Hz evaluation loop + calm-reading progress loop).
+  implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2"
+
+  implementation "androidx.core:core-ktx:1.17.0"
+  implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.10.0"
+  implementation "androidx.annotation:annotation-experimental:1.5.1"
+
+  // Encrypted, device-local persistence for baselines / consent / kill switch.
+  // (1.1.0 stable deprecates the API but it is still functional; migrating the stored
+  // data to a Keystore-backed format is a separate change.)
+  implementation "androidx.security:security-crypto:1.1.0"
+
+  // CameraX: front camera (face + rPPG) and rear camera + torch (calm reading).
+  def cameraxVersion = "1.6.2"
+  implementation "androidx.camera:camera-core:${cameraxVersion}"
+  implementation "androidx.camera:camera-camera2:${cameraxVersion}"
+  implementation "androidx.camera:camera-lifecycle:${cameraxVersion}"
+
+  // ML Kit face detection, BUNDLED model (no Play Services model download).
+  // 16.1.7 is the latest release; its libface_detector_v2_jni.so LOAD segments are
+  // 0x4000-aligned (verified), i.e. 16 KB page-size compatible.
+  implementation "com.google.mlkit:face-detection:16.1.7"
+
+  // Intentionally NOT included:
+  //  - androidx.health.connect (Health Connect needs Play health-permission review)
+  //  - org.tensorflow:tensorflow-lite (no trained model ships yet)
+}
