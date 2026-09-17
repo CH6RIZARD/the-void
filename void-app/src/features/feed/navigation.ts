@@ -7,15 +7,15 @@ import { isPostHidden } from './stores';
 
 /** Video media -> the reel viewer, seeded with this post (web openReel(postId)). */
 export function openReel(postId: string): void {
-  router.push({ pathname: ROUTES.reels as any, params: { id: postId } });
+  router.push({ pathname: ROUTES.reels as any, params: { id: postId, post: postId } }); // app/reels.tsx reads `post`
 }
 
 type PhotoOpener = (postId: string, index: number) => void;
 let photoOpener: PhotoOpener | null = null;
 /**
- * The still photo viewer (web openPhoto) is not part of this agent's files and there
- * is no /photo route yet. Whoever builds it registers here; until then an image tap
- * opens the post's thread, where the image is shown large.
+ * The still photo viewer (web openPhoto) lives in src/features/photo and registers here
+ * at boot (app/_layout.tsx -> registerPhotoViewer). Without a registration an image
+ * tap falls back to the post's thread.
  */
 export function registerPhotoOpener(fn: PhotoOpener | null): void {
   photoOpener = fn;

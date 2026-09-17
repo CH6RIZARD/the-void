@@ -48,6 +48,20 @@ The screen pushes `/thread/<encodeURIComponent(id)>` after `openSearchPost(id)` 
   `rgba(13,8,32,…)` on the pills, cards and GO button. Only the `var(--…)` tokens follow `useTheme`. In
   LIGHT, the cover loader uses the milky feed panel (`surface="feed"`).
 
+## Video play-on-view (native addition)
+- A card whose post has a clip (`p._video`) shows it in the same `.search-post-cover` box. The poster
+  sits under the shared player (`feed/videoStore.useSharedPlayer`) with the sparkle loader until it
+  paints, and the graphic veil applies. The card layout and look are unchanged, and a tap still opens
+  the thread.
+- The results are a plain `ScrollView`, so there are no FlatList viewability callbacks. `SearchScreen`
+  measures video cards (`onLayout`) against the scroll viewport (`onScroll`, throttled to 100ms).
+  Cards that are at least 60% visible (the feed's `observeVideos` threshold) are reported with
+  `setInView('search', ids)`, capped at the 2 most visible. A card holds a player only while it is
+  in view, which caps decoding at 2, and it plays muted and looped. Out of view, it pauses and the
+  player is released 400ms later. Blurring the tab clears the set.
+- It follows the `v_autoplay` setting, as the feed does.
+- Search LIVE NOW tiles heal: when `StreamTile`'s frame check finds bars or a slate, `useLiveSlot.heal` re-walks the chain.
+
 ## Deviations
 - **Input style:** the input is bare. `.search-input-wrap` exists in the CSS, but no element in the
   markup uses it. What the web renders is the bare `.search-input`.

@@ -44,7 +44,14 @@ function useLiveSlot(ch: LiveChannelRef, active: boolean) {
     return () => cascade.cancel();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ch.id, active]);
-  return { phase, player, cascade };
+  // A playing HLS tile that went to colour bars / slate mid-stream (StreamTile frame
+  // check) is already refused by markBadStream: re-walk the chain so the slot refills.
+  const heal = useCallback(() => {
+    setPhase('connecting');
+    cascade.start([{ type: 'youtube', id: ch.id, label: 'LIVE' } as StreamSource, ...((GLOBAL_POOL as unknown as StreamSource[]) || [])]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ch.id]);
+  return { phase, player, cascade, heal };
 }
 
 function SlotBody({ tileId, radius, slot }: { tileId: string; radius: number; slot: ReturnType<typeof useLiveSlot> }) {
@@ -60,6 +67,7 @@ function SlotBody({ tileId, radius, slot }: { tileId: string; radius: number; sl
           radius={radius}
           showLoader={false}
           onSettled={(ok) => slot.cascade.settle(a.key, ok)}
+          onNeedsHeal={slot.heal}
         />
       ) : null}
       {/* connectTile: sparkleTile('● CONNECTING') for every attempt; '● NO SIGNAL' when exhausted. */}

@@ -1,0 +1,58 @@
+# Play Store AAB for the native app (void-app), built on GitHub's runner with
+# `eas build --local`. Local EAS builds don't consume the Expo cloud build quota,
+# and they still sign with the project's existing remote Android keystore and
+# bump the remote versionCode, so the result is upload-ready for Google Play.
+#
+# Run: GitHub → Actions → "Android AAB" → Run workflow (or `gh workflow run android-aab.yml`).
+# Needs repo secret EXPO_TOKEN (expo.dev → Account settings → Access tokens).
+# The .aab is attached to the run as the artifact "the-void-aab".
+name: Android AAB
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: EAS build profile
+        default: production
+        required: true
+
+jobs:
+  aab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    defaults:
+      run:
+        working-directory: void-app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
+
+      # EAS cloud installs with yarn 1 (no lockfile is committed); match it.
+      - name: Install dependencies
+        run: yarn install --non-interactive --network-timeout 600000
+
+      - name: Build AAB (local, signed with the remote keystore)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          NODE_OPTIONS: --max-old-space-size=6144
+        run: eas build -p android --profile "${{ inputs.profile }}" --local --non-interactive --output "$GITHUB_WORKSPACE/the-void.aab"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: the-void-aab
+          path: the-void.aab
+          if-no-files-found: error
+          retention-days: 30

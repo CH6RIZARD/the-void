@@ -21,7 +21,7 @@
 //     ::after{flex:1;height:1px;background:linear-gradient(90deg,rgba(201,168,76,.4),transparent)}
 //   NO SIGNAL: text-align:center;padding:30px;'Syne Mono' 9px;color:var(--muted)
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { InteractionManager, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { InteractionManager, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { moderation, onPostsChanged, openSearchPost, pullSearchDiscovery, findPost, searchPostById } from '../../core';
@@ -31,7 +31,13 @@ import { useTheme } from '../../theme/tokens';
 import { FONTS, em } from '../../theme/palettes';
 import { useBottomNavSpace } from '../../nav/layout';
 import { FILTERS, buildSearch, type SearchBlock, type SearchFilter } from './searchModel';
-import { SearchPostCard } from './SearchPostCard';
+import { SEARCH_SURFACE, SearchPostCard } from './SearchPostCard';
+import { setInView } from '../feed/stores';
+
+/** observeVideos threshold (feed usePostViewability: >=60% visible plays). */
+const VIDEO_VISIBLE = 0.6;
+/** At most this many search clips decode at once. */
+const MAX_DECODING = 2;
 import { SearchLiveFeat, SearchLiveRow } from './SearchLiveTile';
 
 /** Web renders SEARCH content on a delay after load (setTimeout(pullSearchDiscovery, 5000)). */
@@ -106,6 +112,67 @@ export default function SearchScreen() {
     });
   }, []);
 
+  // ── Play-on-view for video cards ───────────────────────────────────────
+  // The results are a plain ScrollView (the original screen), so the FlatList viewability
+  // callbacks the feed uses are computed here by hand: card rects from onLayout, the
+  // viewport from onScroll/onLayout. Same semantics as usePostViewability's video pair:
+  // >=60% visible -> in view (play muted), otherwise out (pause). Capped at 2.
+  const vis = useRef({ y: 0, h: 0, resultsY: 0, cards: new Map<string, { y: number; h: number }>(), last: '' }).current;
+  const recomputeView = useCallback(() => {
+    const top = vis.y;
+    const bottom = vis.y + vis.h;
+    const hits: Array<{ id: string; frac: number }> = [];
+    if (focusedRef.current && vis.h > 0) {
+      vis.cards.forEach((r, id) => {
+        const y0 = vis.resultsY + r.y;
+        const y1 = y0 + r.h;
+        const frac = r.h > 0 ? Math.max(0, Math.min(bottom, y1) - Math.max(top, y0)) / r.h : 0;
+        if (frac >= VIDEO_VISIBLE) hits.push({ id, frac });
+      });
+    }
+    hits.sort((a, b) => b.frac - a.frac);
+    const ids = hits.slice(0, MAX_DECODING).map((x) => x.id);
+    const sig = ids.join('|');
+    if (sig === vis.last) return;
+    vis.last = sig;
+    setInView(SEARCH_SURFACE, ids);
+  }, [vis]);
+  const onScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      vis.y = e.nativeEvent.contentOffset.y;
+      vis.h = e.nativeEvent.layoutMeasurement.height;
+      recomputeView();
+    },
+    [vis, recomputeView],
+  );
+  const cardLayout = useRef(new Map<string, (e: LayoutChangeEvent) => void>()).current;
+  const layoutFor = useCallback(
+    (id: string) => {
+      let fn = cardLayout.get(id);
+      if (!fn) {
+        fn = (e: LayoutChangeEvent) => {
+          vis.cards.set(id, { y: e.nativeEvent.layout.y, h: e.nativeEvent.layout.height });
+          recomputeView();
+        };
+        cardLayout.set(id, fn);
+      }
+      return fn;
+    },
+    [cardLayout, vis, recomputeView],
+  );
+  // Only cards currently rendered with a clip are candidates.
+  useEffect(() => {
+    const live = new Set(blocks.filter((b) => b.kind === 'post' && !!(b as any).post._video).map((b) => (b as any).post.id as string));
+    for (const id of [...vis.cards.keys()]) if (!live.has(id)) vis.cards.delete(id);
+    recomputeView();
+  }, [blocks, vis, recomputeView]);
+  // Leaving the tab pauses every clip (usePostViewability unmount / blur).
+  useEffect(() => {
+    vis.last = '';
+    recomputeView();
+  }, [focused, vis, recomputeView]);
+  useEffect(() => () => setInView(SEARCH_SURFACE, []), []);
+
   const openPost = useCallback((id: string) => {
     const p = searchPostById(id) || findPost(id);
     if (p && moderation.hidden(p)) {
@@ -133,7 +200,7 @@ export default function SearchScreen() {
       case 'row':
         return <SearchLiveRow key={b.key} chs={b.chs} active={focused} rowKey={b.key} />;
       case 'post':
-        return <SearchPostCard key={b.key} post={b.post} onOpen={openPost} />;
+        return <SearchPostCard key={b.key} post={b.post} onOpen={openPost} onLayout={b.post._video ? layoutFor(b.post.id) : undefined} />;
       case 'empty':
         return (
           <Text key={b.key} allowFontScaling={false} style={[styles.empty, { color: colors.muted }]}>
@@ -150,6 +217,12 @@ export default function SearchScreen() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
+        onScroll={onScroll}
+        scrollEventThrottle={100}
+        onLayout={(e) => {
+          vis.h = e.nativeEvent.layout.height;
+          recomputeView();
+        }}
         contentContainerStyle={{ paddingBottom: 80 + Math.max(0, navSpace - 58) }}
       >
         <View
@@ -197,7 +270,15 @@ export default function SearchScreen() {
             })}
           </ScrollView>
         </View>
-        <View style={styles.results}>{blocks.map(renderBlock)}</View>
+        <View
+          style={styles.results}
+          onLayout={(e) => {
+            vis.resultsY = e.nativeEvent.layout.y;
+            recomputeView();
+          }}
+        >
+          {blocks.map(renderBlock)}
+        </View>
       </ScrollView>
     </View>
   );

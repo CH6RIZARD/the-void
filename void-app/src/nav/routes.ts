@@ -14,6 +14,8 @@ export const ROUTES = {
   nation: (iso: string) => `/nation/${encodeURIComponent(iso)}`,
   /** Thread / post detail. */
   thread: (id: string) => `/thread/${encodeURIComponent(id)}`,
+  /** Still photo viewer for a post's image(s), opened at slide `index`. */
+  photo: (id: string, index = 0) => `/photo?id=${encodeURIComponent(id)}&i=${Math.max(0, index | 0)}`,
   /** Reels, optionally seeded: ROUTES.reelsFor('NG', postId) */
   reels: '/reels',
   reelsFor: (nation?: string, post?: string) => `/reels?${[nation ? `nation=${encodeURIComponent(nation)}` : '', post ? `post=${encodeURIComponent(post)}` : ''].filter(Boolean).join('&')}`,

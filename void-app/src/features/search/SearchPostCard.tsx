@@ -11,17 +11,110 @@
 // .search-post-body.take{'Syne' 600 14px/1.45 normal}
 // .search-post-meta{'Syne Mono' 8px;color:var(--muted);letter-spacing:.06em;gap:12px}  span{gap:5px}  .vi 11px
 // .search-user-badge{font-size:7px;background:var(--pdim);color:var(--dim);padding:1px 5px;border-radius:2px;letter-spacing:.08em}
-import React, { memo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+//
+// Video items (native addition, no search restyle): a post carrying a clip gets the same
+// .search-post-cover box with the feed's shared player (videoStore) inside, muted + loop.
+// It plays while SearchScreen reports it >=60% in view (setInView('search', ...), capped
+// at 2 decoding) and pauses when it leaves; the player is released off screen. The whole
+// card still taps through to the thread.
+import React, { memo, useEffect, useState } from 'react';
+import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { Image } from 'expo-image';
-import type { Post } from '../../core';
+import { VideoView } from 'expo-video';
+import { moderation, type Post } from '../../core';
 import { Icon } from '../../ui/icons';
 import { ImageOrbitLoader } from '../../ui/ImageOrbitLoader';
+import { SparkleLoader } from '../../ui/SparkleLoader';
+import { useInView, useLifted } from '../feed/stores';
+import { useSharedPlayer } from '../feed/videoStore';
+import { settingsAutoplay } from '../feed/format';
+import { GraphicVeil, VeilDim } from '../feed/media/GraphicVeil';
 import { useTheme } from '../../theme/tokens';
 import { FONTS, em } from '../../theme/palettes';
 import { ago, fmt } from './format';
 
-export const SearchPostCard = memo(function SearchPostCard({ post: p, onOpen }: { post: Post; onOpen(id: string): void }) {
+/** Search surface id for the in-view store (feed/stores setInView). */
+export const SEARCH_SURFACE = 'search';
+
+const SearchVideoCover = memo(function SearchVideoCover({ post: p, hue }: { post: Post; hue: number }) {
+  const inView = useInView(p.id, SEARCH_SURFACE);
+  const lifted = useLifted(p.id);
+  const [posterShown, setPosterShown] = useState(false);
+  const [frameShown, setFrameShown] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const veiled = moderation.graphicVeilOn() && moderation.isGraphic(p);
+  // Only an in-view card holds a player, so at most the 2 reported ids decode.
+  const want = inView && !lifted && !failed && !veiled && settingsAutoplay();
+  const player = useSharedPlayer(p.id, p._video || undefined, want);
+
+  useEffect(() => {
+    if (!player || lifted) return;
+    try {
+      if (want) player.play();
+      else if (player.playing) player.pause();
+    } catch {}
+  }, [player, want, lifted]);
+
+  useEffect(() => {
+    if (!player) return;
+    let sub: { remove(): void } | null = null;
+    try {
+      sub = player.addListener('statusChange', (e: any) => {
+        if (e && e.status === 'error') setFailed(true);
+      });
+    } catch {}
+    return () => sub?.remove();
+  }, [player]);
+
+  const painted = posterShown || frameShown;
+  return (
+    <View style={styles.cover} pointerEvents="none">
+      <View
+        style={[
+          StyleSheet.absoluteFill,
+          { experimental_backgroundImage: `linear-gradient(135deg, hsl(${hue},70%,8%), hsl(${hue + 30},50%,3%))` } as any,
+        ]}
+      />
+      {p._img ? (
+        <Image
+          source={{ uri: p._img }}
+          style={[StyleSheet.absoluteFill, styles.z1]}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={0}
+          blurRadius={veiled ? 32 : 0}
+          onDisplay={() => setPosterShown(true)}
+        />
+      ) : null}
+      {player && !lifted ? (
+        <View style={[StyleSheet.absoluteFill, styles.z1, { backgroundColor: frameShown ? '#000' : 'transparent' }]}>
+          <VideoView
+            player={player}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            nativeControls={false}
+            allowsPictureInPicture={false}
+            onFirstFrameRender={() => setFrameShown(true)}
+          />
+        </View>
+      ) : null}
+      {veiled ? <VeilDim /> : null}
+      {!painted && !veiled ? <SparkleLoader surface="feed" /> : null}
+      {veiled ? <GraphicVeil /> : null}
+    </View>
+  );
+});
+
+export const SearchPostCard = memo(function SearchPostCard({
+  post: p,
+  onOpen,
+  onLayout,
+}: {
+  post: Post;
+  onOpen(id: string): void;
+  /** SearchScreen measures video cards for play-on-view. */
+  onLayout?: (e: LayoutChangeEvent) => void;
+}) {
   const { colors } = useTheme();
   const [imgState, setImgState] = useState<'loading' | 'shown' | 'failed'>('loading');
   const isImg = p.style === 'image';
@@ -31,9 +124,12 @@ export const SearchPostCard = memo(function SearchPostCard({ post: p, onOpen }: 
   return (
     <Pressable
       onPress={() => onOpen(String(p.id).replace(/'/g, ''))}
+      onLayout={onLayout}
       style={({ pressed }) => [styles.card, { opacity: pressed ? 0.72 : 1 }]}
     >
-      {isImg && p._img ? (
+      {p._video ? (
+        <SearchVideoCover post={p} hue={hue} />
+      ) : isImg && p._img ? (
         <View style={styles.cover}>
           <View
             style={[

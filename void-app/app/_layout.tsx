@@ -17,10 +17,13 @@ import { bootCore } from '../src/lib/core';
 import { AuthProvider } from '../src/lib/auth';
 import { SensingProvider } from '../src/lib/sensing';
 import { AudioOwnerProvider } from '../src/features/live';
+import { registerPhotoViewer } from '../src/features/photo';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 // configureCore + initAuth + loadModeration start before React renders anything.
 const corePromise = bootCore();
+// Image taps anywhere (feed, carousel, thread OP) open /photo instead of the thread.
+registerPhotoViewer();
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -70,6 +73,8 @@ function Shell() {
               <Stack.Screen name="u/[handle]" options={{ animation: 'slide_from_right' }} />
               <Stack.Screen name="blocked" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
               <Stack.Screen name="reels" options={{ presentation: 'fullScreenModal', animation: 'fade', contentStyle: { backgroundColor: '#05020e' } }} />
+              {/* #photo-overlay: draws its own dark surface and swipe-down fade. */}
+              <Stack.Screen name="photo" options={{ presentation: 'transparentModal', animation: 'fade', contentStyle: { backgroundColor: 'transparent' }, gestureEnabled: false }} />
               <Stack.Screen name="composer" options={{ presentation: 'transparentModal', animation: 'none', contentStyle: { backgroundColor: 'transparent' } }} />
               <Stack.Screen name="settings" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
               <Stack.Screen name="sign-in" options={{ presentation: 'fullScreenModal', animation: 'fade', gestureEnabled: false }} />

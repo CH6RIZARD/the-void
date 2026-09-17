@@ -3,7 +3,7 @@
 // Contract (mirrors the web Promise):
 //   • mounts the player for `source` muted + autoplaying under the CONNECTING loader
 //   • calls onSettled(true) exactly once on a REAL playing signal
-//     (HLS: expo-video playing for 700ms; YouTube: playerState 1 or currentTime>0;
+//     (HLS: expo-video playing for 700ms AND the frame at 700ms is not colour bars; YouTube: playerState 1 or currentTime>0;
 //      mjpeg: first frame loaded; iframe cam: load end)
 //   • calls onSettled(false) exactly once on fatal error or CONNECT_TIMEOUT
 //   • after success, a hard death calls onNeedsHeal() (the wall heals it)
@@ -18,6 +18,8 @@ import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { AudioRing, TileLoader } from './TileChrome';
 import { useAudioOwner, type AudioTarget } from './AudioOwner';
 import { liveVidFor, markBadStream, type StreamSource } from './core';
+import { createSignalChecker, frameVerdict, FRAME_H, FRAME_JUDGE_DELAY, FRAME_W } from '../../core';
+import { sampleFrame } from './frameSample';
 import { CONNECT_TIMEOUT, YT_DEAD_CODES, YT_NUDGE_MS, YT_VEIL_MS, youtubeEmbedSrc } from './constants';
 import { PLAYER_WEBVIEW_PROPS, YT_BASE_URL, parseYtMsg, ytCmd, ytPlayerHtml } from './ytHtml';
 
@@ -51,6 +53,9 @@ interface PlayerApi {
   needsHeal(): void;
   register(h: { nudge(force?: boolean): void; isPlaying(): boolean; target: AudioTarget }): void;
 }
+
+/** Mid-stream frame check cadence; createSignalChecker itself enforces >= 6s between verdicts. */
+const SIGNAL_CHECK_MS = 6100;
 
 const EASE = Easing.bezier(0.25, 0.1, 0.25, 1);
 
@@ -166,6 +171,7 @@ function HlsPlayer({ tileId, source, parked, api }: PlayerProps & { parked: bool
   });
   const parkedRef = useRef(parked);
   parkedRef.current = parked;
+  const shotRef = useRef<View>(null);
 
   useEffect(() => {
     let judgeT: ReturnType<typeof setTimeout> | null = null;
@@ -178,11 +184,24 @@ function HlsPlayer({ tileId, source, parked, api }: PlayerProps & { parked: bool
     const subPlaying = player.addListener('playingChange', (e: any) => {
       const isPlaying = !!(e && (e.isPlaying ?? e));
       if (isPlaying && !api.isDone() && !judgeT) {
-        // web: judge one decoded frame 700ms after `playing`. frameVerdict (test-bars)
-        // is not portable — expo-video exposes no pixel access (see README).
-        judgeT = setTimeout(() => {
-          if (!api.isDone()) api.finish(!!player.playing || player.status === 'readyToPlay');
-        }, 700);
+        // web: judge one decoded frame 700ms after `playing`. PLAYING is not proof of a
+        // picture: an off-air channel serves SMPTE bars. Bars fail the attempt (and are
+        // refused for the session) so the cascade moves on; unknown counts as fine.
+        judgeT = setTimeout(async () => {
+          if (api.isDone()) return;
+          let bars = false;
+          if (AppState.currentState === 'active') {
+            const px = await sampleFrame(shotRef.current);
+            bars = frameVerdict(px, FRAME_W, FRAME_H) === 'bars';
+          }
+          if (api.isDone()) return;
+          if (bars) {
+            markBadStream(source);
+            api.finish(false);
+            return;
+          }
+          api.finish(!!player.playing || player.status === 'readyToPlay');
+        }, FRAME_JUDGE_DELAY);
       }
       // If the OS pauses later, nudge — never show a controls UI.
       if (!isPlaying && api.succeeded() && !parkedRef.current && AppState.currentState === 'active') resume();
@@ -223,7 +242,37 @@ function HlsPlayer({ tileId, source, parked, api }: PlayerProps & { parked: bool
       subPlaying.remove();
       subStatus.remove();
     };
-  }, [player, api, audio, tileId]);
+  }, [player, api, audio, tileId, source]);
+
+  // Mid-stream (web checkTileSignal from the watchdog): only while on screen, the app is
+  // in the foreground and the clip is playing. At most one capture per ~6s per tile;
+  // bars = dead now, a slate must repeat 3 checks. Dead -> refuse + heal.
+  useEffect(() => {
+    if (parked) return;
+    const check = createSignalChecker();
+    let busy = false;
+    let dead = false;
+    const t = setInterval(async () => {
+      if (busy || dead || !api.succeeded() || AppState.currentState !== 'active') return;
+      try {
+        if (!player.playing) return;
+      } catch {
+        return;
+      }
+      busy = true;
+      try {
+        const px = await sampleFrame(shotRef.current);
+        if (px && check(px, Date.now())) {
+          dead = true;
+          markBadStream(source);
+          api.needsHeal();
+        }
+      } finally {
+        busy = false;
+      }
+    }, SIGNAL_CHECK_MS);
+    return () => clearInterval(t);
+  }, [parked, player, api, source]);
 
   useEffect(() => {
     if (!api.succeeded()) return;
@@ -237,18 +286,22 @@ function HlsPlayer({ tileId, source, parked, api }: PlayerProps & { parked: bool
   }, [parked, player, api, audio, tileId]);
 
   return (
-    <VideoView
-      player={player}
-      style={StyleSheet.absoluteFill}
-      contentFit="cover"
-      nativeControls={false}
-      allowsPictureInPicture={false}
-      // textureView: respects the tile's rounded clip and overlay z-order while
-      // scrolling (a SurfaceView punches through labels/loader on Android).
-      surfaceType="textureView"
-      useExoShutter={false}
-      pointerEvents="none"
-    />
+    // The capture target for sampleFrame: the video alone, never the loader or labels.
+    <View ref={shotRef} collapsable={false} style={StyleSheet.absoluteFill} pointerEvents="none">
+      <VideoView
+        player={player}
+        style={StyleSheet.absoluteFill}
+        contentFit="cover"
+        nativeControls={false}
+        allowsPictureInPicture={false}
+        // textureView: respects the tile's rounded clip and overlay z-order while
+        // scrolling (a SurfaceView punches through labels/loader on Android), and it is
+        // the only surface react-native-view-shot can read pixels from (colour-bar check).
+        surfaceType="textureView"
+        useExoShutter={false}
+        pointerEvents="none"
+      />
+    </View>
   );
 }
 

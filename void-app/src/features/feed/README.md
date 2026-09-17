@@ -55,9 +55,11 @@ interface PostCardProps {
 `toggleBolt`, `toggleRepost`, `useReelStoreVersion`). `feed/reactions.ts` is a thin
 adapter over it, so a bolt on a reel, a feed card or the thread shows everywhere.
 
-**Photo viewer.** There is no photo route. Whoever builds one should call
-`registerPhotoOpener((postId, index) => …)`. Until then, tapping an image or a carousel
-slide opens the thread.
+**Photo viewer.** `src/features/photo` registers `registerPhotoOpener` at boot
+(`app/_layout.tsx` calls `registerPhotoViewer()`), so tapping an image opens `/photo?id=&i=`
+and a carousel slide opens at its own index. It is a port of the web `#photo-overlay`: the
+slides can be swiped, it has pinch and double-tap zoom, you drag down to dismiss it, and it has
+share, the ⋯ menu and the graphic veil. If nothing is registered, an image tap opens the thread.
 
 ## Files
 | file | web counterpart |
