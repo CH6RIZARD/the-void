@@ -61,14 +61,23 @@ const stat = git('diff', '--stat', `${BASE}...HEAD`).trim().split('\n').filter(B
 
 const { before, added } = addedNations();
 
-/* Measurements from the audit. Stated as data so the page cannot drift from the
-   commit messages by being re-worded in two places. */
+/* Coverage is READ FROM THE COMMITTED POOL rather than typed out, so the page
+   can never claim a number the pool does not actually contain. */
+const poolFile = path.join(ROOT, 'scripts', 'iptv-sources.generated.json');
+const pool = fs.existsSync(poolFile) ? JSON.parse(fs.readFileSync(poolFile, 'utf8')) : { sources: {} };
+const src = pool.sources || {};
+let basePool = {};
+try { basePool = JSON.parse(git('show', `${BASE}:scripts/iptv-sources.generated.json`) || '{}').sources || {}; } catch { basePool = {}; }
+const count = o => Object.values(o).reduce((a, v) => a + v.length, 0);
+const depth = Object.values(nations.nations).map(n => (src[n.name] || []).length);
+const atLeast = v => depth.filter(d => d >= v).length;
+
 const FACTS = [
-  ['17,418', 'streams in the iptv-org catalogue'],
-  ['14,078', 'of those served over https — the rest are mixed content and can never play'],
-  ['79%', 'passed a browser-realistic probe (https + #EXTM3U + CORS), sampled over 200 random streams'],
-  ['508', 'streams in the pool before this work — a cap artifact, not scarcity'],
-  ['51 of 80', 'countries sitting exactly on the old --per-country 8 cap'],
+  [`${count(basePool).toLocaleString()} → ${count(src).toLocaleString()}`, 'live streams in the pool'],
+  [`${Object.keys(basePool).length} → ${Object.keys(src).length}`, 'nations carrying at least one stream'],
+  [`${atLeast(30)} of ${depth.length}`, 'nations at 30+ streams — the target is 30–40 everywhere, so this is what is left to move'],
+  [`${depth.filter(d => !d).length}`, 'nations still at zero, which no amount of iptv-org will fix'],
+  ['68%', 'of probed channels were playable (https + #EXTM3U + CORS, following master → variant)'],
 ];
 
 const page = `<!doctype html>
