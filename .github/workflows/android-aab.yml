@@ -77,11 +77,16 @@ jobs:
           # Play needs 64-bit; arm64 + armv7 covers every phone. Dropping the x86
           # emulator ABIs roughly halves the native build.
           ORG_GRADLE_PROJECT_reactNativeArchitectures: arm64-v8a,armeabi-v7a
-        run: eas build -p android --profile "${{ inputs.profile }}" --local --non-interactive --output "$GITHUB_WORKSPACE/the-void.aab"
+        run: |
+          # preview builds an installable APK; production builds an AAB for Play.
+          # Naming the output .aab either way produced an APK called the-void.aab.
+          ext=aab; [ "${{ inputs.profile }}" = preview ] && ext=apk
+          echo "EXT=$ext" >> "$GITHUB_ENV"
+          eas build -p android --profile "${{ inputs.profile }}" --local --non-interactive --output "$GITHUB_WORKSPACE/the-void.$ext"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: the-void-aab
-          path: the-void.aab
+          name: the-void-${{ env.EXT }}
+          path: the-void.${{ env.EXT }}
           if-no-files-found: error
           retention-days: 30
