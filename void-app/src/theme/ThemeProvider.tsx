@@ -63,7 +63,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [saved, setSaved] = useState<ThemeName>('void');
   const [match, setMatch] = useState(false);
   const [ready, setReady] = useState(false);
-  const [scheme, setScheme] = useState<ColorSchemeName>(() => Appearance.getColorScheme());
+  const [scheme, setScheme] = useState<ColorSchemeName>(() => Appearance.getColorScheme() ?? 'unspecified');
 
   useEffect(() => {
     let alive = true;

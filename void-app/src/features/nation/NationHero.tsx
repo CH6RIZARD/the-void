@@ -72,7 +72,7 @@ export const NationHero = memo(function NationHero({ c, onOpenReels }: { c: Coun
 
 const styles = StyleSheet.create({
   hero: { position: 'relative', width: '100%', aspectRatio: 16 / 10, overflow: 'hidden', backgroundColor: '#05020e' },
-  stage: { ...StyleSheet.absoluteFillObject, backgroundColor: '#05020e', overflow: 'hidden' },
+  stage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#05020e', overflow: 'hidden' },
   top: { position: 'absolute', top: 12, left: 16, zIndex: 5, flexDirection: 'row', alignItems: 'center', gap: 6 },
   badge: { paddingVertical: 3, paddingHorizontal: 9, borderRadius: 14, backgroundColor: 'rgba(239,68,68,0.85)', flexShrink: 0 },
   badgeVod: { backgroundColor: 'rgba(201,168,76,0.85)' },

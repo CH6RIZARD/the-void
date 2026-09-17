@@ -431,7 +431,7 @@ const styles = StyleSheet.create({
   bg: { backgroundColor: 'rgba(2,1,8,0.97)' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 },
   box: { borderRadius: 14, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  failBox: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  failBox: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   failT: { fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.15), color: '#6a58a0' },
   dots: { flexDirection: 'row', gap: 6, justifyContent: 'center', marginTop: -6 },
   dot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: 'rgba(244,240,255,0.28)' },

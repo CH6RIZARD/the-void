@@ -150,6 +150,6 @@ export const PostMedia = memo(function PostMedia({ post: p, mode = 'feed', surfa
 
 const styles = StyleSheet.create({
   box: { width: '100%', aspectRatio: 16 / 9, marginBottom: 12, position: 'relative', overflow: 'hidden', borderRadius: 13 },
-  lblBox: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  lblBox: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   lbl: { fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.15) },
 });
