@@ -26,6 +26,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # A React Native release build needs room: the runner image ships ~20GB of
+      # toolchains this job never uses, and the first attempt died mid-Gradle.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android/sdk/ndk /opt/ghc "$AGENT_TOOLSDIRECTORY"/Ruby "$AGENT_TOOLSDIRECTORY"/PyPy || true
+          df -h /
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -52,6 +59,10 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           NODE_OPTIONS: --max-old-space-size=6144
+          GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx5g -Dorg.gradle.daemon=false -Dorg.gradle.workers.max=2
+          # Play needs 64-bit; arm64 + armv7 covers every phone. Dropping the x86
+          # emulator ABIs roughly halves the native build.
+          ORG_GRADLE_PROJECT_reactNativeArchitectures: arm64-v8a,armeabi-v7a
         run: eas build -p android --profile "${{ inputs.profile }}" --local --non-interactive --output "$GITHUB_WORKSPACE/the-void.aab"
 
       - uses: actions/upload-artifact@v4
