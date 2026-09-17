@@ -5081,7 +5081,12 @@ function attemptSource(cell,source){
     // Not confirmed live -> refuse instantly. This is what keeps the wall fast:
     // dead channels never occupy a lane.
     if(source&&source.type==='youtube'&&liveVidFor(source)===undefined){resolve(false);return;}
-    if(isBadStream(source)){resolve(false);return;}   // showed bars/slate earlier this session    if(!claimLiveKey(source)){resolve(false);return;}
+    if(isBadStream(source)){resolve(false);return;}   // showed bars/slate earlier this session
+    // ONE STREAM, ONE PLACE. This line had been swallowed onto the end of the
+    // comment above by an earlier edit, so nothing claimed a key and the same
+    // channel could mount in every tile that asked for it — the search grid showed
+    // one stream eight times over.
+    if(!claimLiveKey(source)){resolve(false);return;}
     if(source.thumbnail){
       const poster=document.createElement('img');
       poster.className='csg-poster';poster.src=source.thumbnail;poster.alt=source.label||'Stream poster';
