@@ -24,6 +24,9 @@ on:
       - 'void2-final.html'
       - 'copy33thevoid.html'
       - 'build.js'
+      - 'privacy.html'
+      - 'terms.html'
+      - 'account-deletion.html'
       - '.github/workflows/deploy-pages.yml'
   workflow_dispatch:
 
@@ -64,6 +67,11 @@ jobs:
           mkdir -p public
           cp void2-final.html   public/void2-final.html
           cp copy33thevoid.html public/copy33thevoid.html
+          # Store-required pages (Play/App Store privacy policy, EULA, account
+          # deletion URL). Pages serves them at /privacy, /terms, /account-deletion.
+          cp privacy.html          public/privacy.html
+          cp terms.html            public/terms.html
+          cp account-deletion.html public/account-deletion.html
           cat > public/index.html <<'HTML'
           <!doctype html><meta charset="utf-8"><title>THE VOID — builds</title>
           <style>body{background:#04020c;color:#f4f0ff;font-family:system-ui,sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center;gap:28px;flex-wrap:wrap;margin:0}

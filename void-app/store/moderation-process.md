@@ -13,7 +13,7 @@ This is the smallest process that meets the "timely response" part of the rules.
 | Mute a keyword | `...` then Mute a keyword, or Settings > Blocked accounts | Stored on the device (`void_muted`). |
 | Filter graphic media | Settings > Content > Hide graphic content (on by default) | Blurs media tagged `graphic` until the user taps it. |
 | Accept terms | A sheet before the first post, reply or DM | Sets `profiles.terms_accepted_at`. `posts_insert` RLS rejects posts from accounts that have not accepted. |
-| Contact us | Settings > Safety > Contact & support | Shows `SUPPORT_EMAIL` (**TODO: set the real inbox** in `void2-final.html`) plus links to the terms and privacy policy. |
+| Contact us | Settings > Safety > Contact & support | Shows `SUPPORT_EMAIL` (daniel4chigs@gmail.com, set in `void2-final.html` and `void-app/src/core/api/moderation.ts`) plus links to the terms and privacy policy. |
 
 Automatic: a post reported by 3 or more distinct users gets `posts.hidden_at` set. It disappears for everyone except its author until a moderator reviews it.
 

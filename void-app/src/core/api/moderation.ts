@@ -7,7 +7,7 @@ import type { Comment, Post } from '../types.ts';
 import { parseUrl } from '../util.ts';
 import { VoidAPI } from './voidApi.ts';
 
-export const SUPPORT_EMAIL = 'support@thevoid.app';   // TODO(owner) in web: replace before store submission
+export const SUPPORT_EMAIL = 'daniel4chigs@gmail.com';
 export const TERMS_URL = 'https://void-app-d35c.pages.dev/terms';
 export const PRIVACY_URL = 'https://void-app-d35c.pages.dev/privacy';
 export const LS = { blocks: 'void_blocks', hidden: 'void_hidden_posts', reports: 'void_reports_pending', terms: 'void_terms_accepted', termsSync: 'void_terms_sync_pending', gfx: 'void_hide_graphic' };

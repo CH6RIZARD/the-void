@@ -13,7 +13,7 @@
 `vmod.tsx` holds the shared `.vmod-*` sheet vocabulary and `Toggle`. `prefs.ts` holds `usePrefs()` for `v_lang`/`v_autoplay`/`v_notify`/`v_grid3`.
 
 ## Deviations
-- `SUPPORT_EMAIL` is re-exported from core with a TODO: replace it before submission.
+- `SUPPORT_EMAIL` (daniel4chigs@gmail.com) is re-exported from core.
 - **Dense grid toggle**: the web removed it (the grid is a build property, 2-wide on mobile). It was restored on request. It defaults to off and nothing reads it yet; the feed should use `usePrefs().grid3`.
 - Language is a sheet picker (there is no native `<select>`).
 - Body signals is a native-only section.
