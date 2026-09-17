@@ -35,7 +35,11 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - uses: android-actions/setup-android@v3
+      # The ubuntu runner ships the Android SDK (ANDROID_HOME is preset). The
+      # setup-android action broke: its default package list asks for the removed
+      # 'tools' package, so sdkmanager exits 1.
+      - name: Android SDK licenses
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
 
       - name: Install EAS CLI
         run: npm install -g eas-cli
