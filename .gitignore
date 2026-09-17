@@ -42,3 +42,6 @@ scripts/railway/.cache/
 
 # Wrangler local cache — holds the Cloudflare account id + email
 .wrangler/
+
+# Stream-patches review site (regenerated in CI by build-review-site.js)
+/public/
