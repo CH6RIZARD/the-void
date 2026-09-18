@@ -98,6 +98,65 @@ Copy `.env.example` to `.env` (gitignored):
 
 - `PORT` — listen port (default `8787`).
 - `X_BEARER` — X API v2 bearer token; enables `XProvider` when present.
+- `REDDIT_CLIENT_ID` / `REDDIT_SECRET` — from a **script** app at
+  <https://www.reddit.com/prefs/apps>. See below.
+- `REDDIT_USERNAME` — your Reddit handle, used only to build a compliant
+  User-Agent. `REDDIT_USER_AGENT` overrides the whole string.
+
+### Reddit auth
+
+Unauthenticated `www.reddit.com/*.json` answers **403** from anything that looks
+like a server, so the keyless path only ever worked from a browser-ish IP. With
+credentials the provider fetches an application-only token
+(`client_credentials`, no user login) and reads from `oauth.reddit.com` at
+100 req/min instead of 10.
+
+Set up: <https://www.reddit.com/prefs/apps> -> create app -> type **script** ->
+redirect uri `http://localhost:8787/` (required by the form, unused). The client
+ID is the string under the app name; the secret is the `secret` field.
+
+Without the keys everything still runs — the provider silently uses the keyless
+host, and a bad key logs once and degrades the same way rather than failing the
+feed. `GET /health` reports `reddit: { auth: "oauth" | "keyless", userAgent }`.
+
+Reddit free tier is **non-commercial**; once the app earns money you need a
+commercial agreement (<https://redditinc.com/policies/developer-terms>).
+
+### Translation
+
+`POST /translate` with `{ texts: ["..."], target: "en" }` returns
+`{ translations: ["..."] }`, aligned with the input. It runs on DeepL and needs
+`DEEPL_KEY` (<https://www.deepl.com/pro-api>). Free keys end in `:fx` and stop at
+500k characters/month instead of billing you. Results are cached server-side, so
+a thread translated for one reader costs nothing for the next.
+
+Limits, because the endpoint is public: 50 texts and 20k characters per request,
+30 requests/minute per IP. With no key it answers **503**, and the app falls
+back to Google's free endpoint by itself. That endpoint blocks by IP without
+warning, so it is not something to launch on.
+
+### X spend caps
+
+X bills **per post read** ($0.005 each on pay-per-use), so `XProvider` is the only
+provider that costs money. Four limits keep that bounded:
+
+| Key | Default | Effect |
+|---|---|---|
+| `X_DAILY_POSTS` | `1000` | Posts read per UTC day — a $5/day ceiling. `0` turns X off. |
+| `X_MAX_RESULTS` | `10` | Posts per API call (10 is the API minimum). |
+| `X_CACHE_MS` | `900000` | How long one query is reused before paying again (15 min). |
+| `X_MAX_SHARE` | `0.15` | Share of a returned page that may be X items. |
+
+The cap is **global, not per user** — and that is the cheaper direction. The proxy
+serves every user from one shared 60s cache, so a per-user budget would mean
+per-user fetches; capping globally means the second user through the door reads
+the first user's posts for free.
+
+Spending is counted in `.x-budget.json` beside `server.js`, so a crash-restart
+loop cannot re-spend the day. On an ephemeral host that file dies with the
+container, so the cap protects a running day, not a redeploy day. `GET /health`
+reports `xBudget: { dailyPosts, spentToday, left, maxShare }`. When the budget is
+gone X reads exactly like an absent key: `[]`, and the feed falls back to Reddit.
 
 ## Tension ranking
 

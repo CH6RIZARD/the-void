@@ -1,3 +1,6 @@
 node_modules/
 .env
 *.log
+
+# Runtime X spend counter — local state, never committed
+.x-budget.json

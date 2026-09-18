@@ -177,7 +177,7 @@ test('nationStreamSources: Japan / Morocco / Nepal equal the web, with no foreig
 function loadRank(w: WebSandbox) {
   w.load(...REGION, ...TAGS, ...STORY, ...SEEN, '_refreshBoost', 'textFit', 'earned', 'BIO');
   w.stmt('Object.assign(BIO,{');
-  w.load('SUBJECTS', 'subjectOf', 'spreadSubjects', 'diversify', 'STORY_TOP_N', 'spreadStories', 'orderFeedBatch', 'decodeEnt', 'isFeedMeta', 'bskyToPost');
+  w.load('SUBJECTS', 'subjectOf', 'spreadSubjects', 'diversify', 'STORY_TOP_N', 'spreadStories', 'orderFeedBatch', 'decodeEnt', 'isFeedMeta', 'dispHandle', 'bskyToPost');
 }
 function rankPool(): core.Post[] {
   const H = 3600000;

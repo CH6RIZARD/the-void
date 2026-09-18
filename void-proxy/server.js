@@ -16,6 +16,7 @@
  */
 
 const http = require('http');
+const fs = require('fs');
 const { URL } = require('url');
 
 // Load .env if present (tiny parser, no dependency).
@@ -172,12 +173,56 @@ class SocialProvider {
   async fetchByCountry({ country, mode, limit }) { return []; }
 }
 
-// --- RedditProvider (REAL, keyless) ----------------------------------------
+// --- Reddit OAuth ----------------------------------------------------------
+// Unauthenticated www.reddit.com/*.json answers 403 from anything that looks
+// like a server, so the keyless path only ever worked from a browser-ish IP.
+// With a registered "script" app (reddit.com/prefs/apps) the same listings come
+// from oauth.reddit.com at 100 req/min instead of 10.
+//
+// Application-only client_credentials: no user login, no refresh token, just the
+// app's own identity. Credentials absent => every call below no-ops and the
+// provider falls back to the keyless host, so an unconfigured deploy still runs.
+//
+// Reddit requires a unique, descriptive User-Agent and rate-limits generic ones
+// harder than it rate-limits anything else.
+const REDDIT_CLIENT_ID = process.env.REDDIT_CLIENT_ID || '';
+const REDDIT_SECRET = process.env.REDDIT_SECRET || '';
+const REDDIT_UA = process.env.REDDIT_USER_AGENT ||
+  ('nodejs:void-proxy:1.1 (by /u/' + (process.env.REDDIT_USERNAME || 'unknown') + ')');
+const redditAuthed = () => !!(REDDIT_CLIENT_ID && REDDIT_SECRET);
+
+let _rToken = { value: '', exp: 0 };
+let _rTokenWarned = false;
+
+// Returns a bearer token, or '' to mean "use the keyless path". Tokens last an
+// hour; renew a minute early so a request never races the expiry.
+async function redditToken() {
+  if (!redditAuthed()) return '';
+  if (_rToken.value && Date.now() < _rToken.exp) return _rToken.value;
+  try {
+    const basic = Buffer.from(REDDIT_CLIENT_ID + ':' + REDDIT_SECRET).toString('base64');
+    const d = await postForm('https://www.reddit.com/api/v1/access_token',
+      { grant_type: 'client_credentials' },
+      { 'Authorization': 'Basic ' + basic, 'User-Agent': REDDIT_UA });
+    if (!d || !d.access_token) throw new Error('no access_token in response');
+    _rToken = { value: d.access_token, exp: Date.now() + Math.max(60, (d.expires_in || 3600) - 60) * 1000 };
+    _rTokenWarned = false;
+    return _rToken.value;
+  } catch (e) {
+    // Warn once per failure streak, then degrade quietly to the keyless host.
+    if (!_rTokenWarned) { console.error('[void-proxy] reddit token failed, falling back to keyless:', e && e.message); _rTokenWarned = true; }
+    _rToken = { value: '', exp: 0 };
+    return '';
+  }
+}
+
+// --- RedditProvider (REAL, keyless or OAuth) --------------------------------
 class RedditProvider extends SocialProvider {
   constructor() {
     super();
     this.platform = 'reddit';
-    // Rotate a browser-ish UA; Reddit throttles the default node UA harshly.
+    // Authenticated calls must send the descriptive UA Reddit's rules ask for;
+    // the keyless fallback still needs a browser-ish one or it is throttled hard.
     this.ua = 'Mozilla/5.0 (compatible; VoidProxy/1.0; +https://example.com)';
   }
 
@@ -207,8 +252,15 @@ class RedditProvider extends SocialProvider {
 
   async fetchListing(sub, listing, limit, country) {
     const q = listing === 'controversial' ? '?t=day&limit=' : '?limit=';
-    const url = `https://www.reddit.com/r/${encodeURIComponent(sub)}/${listing}.json${q}${limit}`;
-    const data = await getJson(url, { 'User-Agent': this.ua });
+    // oauth.reddit.com serves the same listing shape as www, so mapPost is
+    // unchanged — only the host and the headers differ.
+    const token = await redditToken();
+    const host = token ? 'https://oauth.reddit.com' : 'https://www.reddit.com';
+    const url = `${host}/r/${encodeURIComponent(sub)}/${listing}.json${q}${limit}`;
+    const headers = token
+      ? { 'Authorization': 'Bearer ' + token, 'User-Agent': REDDIT_UA }
+      : { 'User-Agent': this.ua };
+    const data = await getJson(url, headers);
     const children = (data && data.data && data.data.children) || [];
     return children
       .map((c) => this.mapPost(c.data, country))
@@ -294,6 +346,51 @@ class RedditProvider extends SocialProvider {
   }
 }
 
+// --- X spend budget --------------------------------------------------------
+// X bills per post READ (pay-per-use is $0.005 each), so every item this
+// provider returns costs money. Four limits, all env-tunable:
+//   X_DAILY_POSTS  ceiling on posts read per UTC day (0 = X off entirely)
+//   X_MAX_RESULTS  posts per API call (10 is the API's own minimum, and ours)
+//   X_CACHE_MS     how long one query's result is reused before paying again
+//   X_MAX_SHARE    fraction of a returned page that may be X items
+//
+// The cap is GLOBAL, not per user, and that is the cheap direction: this proxy
+// answers every user from one shared cache, so a per-user budget would mean
+// per-user fetches — more calls, not fewer. Capping globally means the second
+// user through the door reads the first user's posts for free.
+//
+// The counter lives in a file so a restart loop cannot re-spend the day's
+// budget. On an ephemeral host (Railway, Fly) the file dies with the container;
+// the cap then protects a running day, not a redeploy day.
+const X_DAILY_POSTS = intEnv('X_DAILY_POSTS', 1000);   // 1000 x $0.005 = $5/day ceiling
+const X_MAX_RESULTS = intEnv('X_MAX_RESULTS', 10);
+const X_CACHE_MS = intEnv('X_CACHE_MS', 15 * 60 * 1000);
+const X_MAX_SHARE = Number(process.env.X_MAX_SHARE || 0.15);
+const X_BUDGET_FILE = require('path').join(__dirname, '.x-budget.json');
+
+function utcDay() { return new Date().toISOString().slice(0, 10); }
+
+function xBudget() {
+  let b = { day: utcDay(), spent: 0 };
+  try { b = JSON.parse(fs.readFileSync(X_BUDGET_FILE, 'utf8')) || b; } catch (_) {}
+  if (b.day !== utcDay()) b = { day: utcDay(), spent: 0 };   // new UTC day, fresh budget
+  return b;
+}
+
+function xBudgetLeft() { return Math.max(0, X_DAILY_POSTS - xBudget().spent); }
+
+function xBudgetSpend(n) {
+  if (!(n > 0)) return;
+  const b = xBudget();
+  b.spent += n;
+  try { fs.writeFileSync(X_BUDGET_FILE, JSON.stringify(b)); } catch (e) {
+    console.error('[void-proxy] could not persist X budget:', e && e.message);
+  }
+  if (b.spent >= X_DAILY_POSTS) {
+    console.log('[void-proxy] X daily budget spent (' + b.spent + '/' + X_DAILY_POSTS + ') — X is off until ' + utcDay() + ' ends');
+  }
+}
+
 // --- XProvider (keyed, optional) -------------------------------------------
 // Uses Twitter/X API v2 recent search only when X_BEARER is set. Never hardcode
 // a key — read it from the environment. Inert (returns []) with no key.
@@ -302,13 +399,21 @@ class XProvider extends SocialProvider {
     super();
     this.bearer = process.env.X_BEARER || '';
     this.platform = 'x';
+    this._qcache = new Map();
   }
 
-  get enabled() { return !!this.bearer; }
+  // Out of budget reads exactly like no key: the feed falls back to Reddit.
+  get enabled() { return !!this.bearer && xBudgetLeft() > 0; }
 
   async search(query, limit) {
     if (!this.enabled) return [];
-    const max = Math.min(Math.max(limit || 10, 10), 100); // API v2 min 10, max 100
+    // Reuse a recent identical query before paying for it again. /social is
+    // per-country, so without this every country on the globe is its own bill.
+    const hit = this._qcache.get(query);
+    if (hit && Date.now() - hit.t < X_CACHE_MS) return hit.v;
+    // Ask for the API minimum by default, and never more than the budget left.
+    const want = Math.min(limit || X_MAX_RESULTS, X_MAX_RESULTS, xBudgetLeft());
+    const max = Math.min(Math.max(want, 10), 100); // API v2 min 10, max 100
     const params = new URLSearchParams({
       query: query + ' -is:retweet',
       max_results: String(max),
@@ -319,7 +424,10 @@ class XProvider extends SocialProvider {
     });
     const url = 'https://api.twitter.com/2/tweets/search/recent?' + params.toString();
     const data = await getJson(url, { 'Authorization': 'Bearer ' + this.bearer });
-    return this.mapResponse(data);
+    const items = this.mapResponse(data);
+    xBudgetSpend(items.length);            // billed on what came back, so count that
+    this._qcache.set(query, { t: Date.now(), v: items });
+    return items;
   }
 
   mapResponse(data) {
@@ -439,11 +547,25 @@ function collect(results, mode, limit, arrange) {
     cur._sources++;
     if (velocityOf(it) > velocityOf(cur)) Object.assign(cur, it, { _sources: cur._sources });
   }
-  let ranked = rankItems(items, mode);
+  let ranked = capXShare(rankItems(items, mode));
   // Arrange (e.g. regional interleave) BEFORE truncation, or low-engagement
   // regional items are cut from the pool before they can be placed.
   if (arrange) ranked = arrange(ranked);
   return ranked.slice(0, limit || 40).map(withProvenance);
+}
+
+// X items are the only paid ones in the mix, so they are also the only ones
+// worth rationing on display: keep the top X_MAX_SHARE of them in rank order
+// and drop the tail. Nothing else is touched, and the cap is on the pool, so
+// every page inherits roughly the same ratio.
+function capXShare(ranked) {
+  if (!(X_MAX_SHARE >= 0) || X_MAX_SHARE >= 1) return ranked;
+  // Measured against the FREE items, not the whole pool: capping a pool that
+  // still contains the X items would leave them over-represented once trimmed.
+  const free = ranked.reduce((n, it) => n + (it.platform === 'x' ? 0 : 1), 0);
+  const allowed = Math.floor(free * X_MAX_SHARE / (1 - X_MAX_SHARE));
+  let kept = 0;
+  return ranked.filter((it) => it.platform !== 'x' || ++kept <= allowed);
 }
 
 // The client refuses proxy content without a source and a stable response
@@ -493,11 +615,99 @@ async function cached(key, producer) {
 }
 
 // ---------------------------------------------------------------------------
+// Translation (DeepL).
+// The client called Google's free gtx endpoint directly, which rate-limits by IP
+// (429, then a "Sorry…" page for hours) with no warning. Routing through here
+// puts one real key behind every user, and the cache means a thread translated
+// for one reader costs nothing for the next.
+//
+//   DEEPL_KEY  DeepL API key. Free-tier keys end in ":fx" and go to api-free;
+//              any other key goes to the paid host. Unset => /translate answers
+//              503 and the client falls back to gtx by itself.
+//
+// The Free tier hard-stops at 500k chars/month (HTTP 456) instead of billing,
+// so running out is an outage, not an invoice. Needs Node 18+ (global fetch).
+// ---------------------------------------------------------------------------
+const DEEPL_KEY = process.env.DEEPL_KEY || '';
+const DEEPL_URL = /:fx$/.test(DEEPL_KEY) ? 'https://api-free.deepl.com/v2/translate' : 'https://api.deepl.com/v2/translate';
+// /translate is public (CORS *), so without these anyone could drain the
+// month's quota through it.
+const TR_MAX_TEXTS = 50;       // DeepL's own per-request ceiling
+const TR_MAX_CHARS = 20000;    // per request, all texts together
+const TR_RATE_PER_MIN = 30;    // requests per client IP
+const TR_CACHE_MAX = 5000;     // entries; oldest evicted first
+
+const trCache = new Map();     // `${target}|${text}` -> translation; Map order = age
+const trHits = new Map();      // ip -> request times within the last minute
+
+// DeepL refuses plain EN/PT as a TARGET; it wants the regional variant.
+function deeplTarget(lang) {
+  const l = String(lang || 'en').toLowerCase();
+  if (l === 'en') return 'EN-US';
+  if (l === 'pt') return 'PT-BR';
+  if (l === 'zh' || l === 'zh-cn') return 'ZH-HANS';
+  if (l === 'zh-tw') return 'ZH-HANT';
+  return l.toUpperCase();
+}
+
+function trRateOk(ip) {
+  const now = Date.now();
+  const recent = (trHits.get(ip) || []).filter((t) => now - t < 60000);
+  if (recent.length >= TR_RATE_PER_MIN) { trHits.set(ip, recent); return false; }
+  recent.push(now);
+  trHits.set(ip, recent);
+  if (trHits.size > 10000) trHits.clear();   // bounded memory under a scan
+  return true;
+}
+
+// Answer from cache where possible and send DeepL only the misses, in one call.
+// Returns an array aligned with `texts`.
+async function translateTexts(texts, lang) {
+  const target = deeplTarget(lang);
+  const out = new Array(texts.length), miss = [];
+  texts.forEach((t, i) => {
+    if (!t.trim()) { out[i] = t; return; }
+    const hit = trCache.get(target + '|' + t);
+    if (hit !== undefined) out[i] = hit; else miss.push(i);
+  });
+  if (miss.length) {
+    const r = await fetch(DEEPL_URL, {
+      method: 'POST',
+      headers: { 'Authorization': 'DeepL-Auth-Key ' + DEEPL_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: miss.map((i) => texts[i]), target_lang: target }),
+    });
+    if (!r.ok) { const e = new Error('deepl HTTP ' + r.status); e.status = r.status; throw e; }
+    const d = await r.json();
+    const tr = (d && d.translations) || [];
+    if (tr.length !== miss.length) throw new Error('deepl returned ' + tr.length + ' of ' + miss.length);
+    miss.forEach((i, j) => {
+      out[i] = tr[j].text;
+      trCache.set(target + '|' + texts[i], out[i]);
+      if (trCache.size > TR_CACHE_MAX) trCache.delete(trCache.keys().next().value);
+    });
+  }
+  return out;
+}
+
+function readBody(req, max) {
+  return new Promise((resolve, reject) => {
+    let data = '';
+    req.setEncoding('utf8');
+    req.on('data', (c) => {
+      data += c;
+      if (data.length > max) { reject(new Error('body too large')); req.destroy(); }
+    });
+    req.on('end', () => resolve(data));
+    req.on('error', reject);
+  });
+}
+
+// ---------------------------------------------------------------------------
 // HTTP layer.
 // ---------------------------------------------------------------------------
 function cors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
@@ -517,6 +727,27 @@ const server = http.createServer(async (req, res) => {
     const mode = u.searchParams.get('mode') || 'tension';
     const limit = clampInt(u.searchParams.get('limit'), 40, 1, 100);
     const offset = clampInt(u.searchParams.get('offset'), 0, 0, FEED_POOL);
+
+    if (path === '/translate') {
+      if (req.method !== 'POST') return sendJson(res, 405, { error: 'POST only' });
+      if (!DEEPL_KEY) return sendJson(res, 503, { error: 'translate not configured' });
+      const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+      if (!trRateOk(ip)) return sendJson(res, 429, { error: 'slow down' });
+      let body;
+      try { body = JSON.parse(await readBody(req, TR_MAX_CHARS * 4)); } catch (_) { return sendJson(res, 400, { error: 'bad body' }); }
+      const texts = Array.isArray(body && body.texts) ? body.texts.map((t) => String(t == null ? '' : t)) : null;
+      if (!texts || !texts.length || texts.length > TR_MAX_TEXTS) return sendJson(res, 400, { error: 'texts: 1-' + TR_MAX_TEXTS + ' strings' });
+      if (texts.reduce((n, t) => n + t.length, 0) > TR_MAX_CHARS) return sendJson(res, 413, { error: 'too much text' });
+      try {
+        return sendJson(res, 200, { translations: await translateTexts(texts, body.target) });
+      } catch (e) {
+        // 456 = the month's quota is gone. 503 tells the client to stop asking
+        // for this session and use its gtx fallback.
+        console.error('[void-proxy] translate failed:', e && e.message);
+        const quota = e && e.status === 456;
+        return sendJson(res, quota ? 503 : 502, { error: quota ? 'quota exhausted' : 'upstream failed' });
+      }
+    }
 
     if (path === '/feed') {
       // Page locally over ONE fixed, cached pool. The old endpoint ignored
@@ -538,8 +769,11 @@ const server = http.createServer(async (req, res) => {
     if (path === '/' || path === '/health') {
       return sendJson(res, 200, {
         ok: true,
-        endpoints: ['/feed?mode=tension&limit=40', '/social?country=<name>&mode=tension&limit=30'],
+        endpoints: ['/feed?mode=tension&limit=40', '/social?country=<name>&mode=tension&limit=30', 'POST /translate {texts:[...], target:"en"}'],
         providers: PROVIDERS.map((p) => ({ platform: p.platform, enabled: p.enabled !== false })),
+        reddit: { auth: redditAuthed() ? 'oauth' : 'keyless', userAgent: REDDIT_UA },
+        translate: { provider: DEEPL_KEY ? 'deepl' : 'off', cached: trCache.size },
+        xBudget: { dailyPosts: X_DAILY_POSTS, spentToday: xBudget().spent, left: xBudgetLeft(), maxShare: X_MAX_SHARE },
       });
     }
 
@@ -553,14 +787,21 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`[void-proxy] listening on http://localhost:${PORT}`);
-  console.log(`[void-proxy] providers: reddit(on)` +
-    `, x(${process.env.X_BEARER ? 'on' : 'off — set X_BEARER'})` +
-    `, threads(stub)`);
+  console.log(`[void-proxy] providers: reddit(${redditAuthed() ? 'oauth' : 'keyless — 403 likely, set REDDIT_CLIENT_ID/REDDIT_SECRET'})` +
+    `, x(${process.env.X_BEARER ? `on, ${xBudgetLeft()}/${X_DAILY_POSTS} posts left today` : 'off — set X_BEARER'})` +
+    `, threads(stub)` +
+    `, translate(${DEEPL_KEY ? 'deepl' : 'off — set DEEPL_KEY'})`);
 });
 
 // ---------------------------------------------------------------------------
 // Helpers.
 // ---------------------------------------------------------------------------
+// Env var as a non-negative integer, falling back when unset or malformed.
+function intEnv(name, dflt) {
+  const n = parseInt(process.env[name], 10);
+  return Number.isFinite(n) && n >= 0 ? n : dflt;
+}
+
 function clampInt(v, dflt, min, max) {
   const n = parseInt(v, 10);
   if (Number.isNaN(n)) return dflt;
@@ -574,6 +815,37 @@ function cleanUrl(u) {
 }
 
 // Fetch JSON. Uses global fetch (Node 18+); falls back to https otherwise.
+// POST a urlencoded body and parse JSON back. Only Reddit's token endpoint needs
+// this; everything else in the proxy is a GET.
+async function postForm(url, fields, headers) {
+  const body = new URLSearchParams(fields).toString();
+  headers = Object.assign({ 'Content-Type': 'application/x-www-form-urlencoded' }, headers || {});
+  if (typeof fetch === 'function') {
+    const r = await fetch(url, { method: 'POST', headers, body });
+    if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
+    return r.json();
+  }
+  return new Promise((resolve, reject) => {
+    const https = require('https');
+    const u = new URL(url);
+    const req = https.request({
+      hostname: u.hostname, path: u.pathname + u.search, method: 'POST',
+      headers: Object.assign({ 'Content-Length': Buffer.byteLength(body) }, headers),
+    }, (resp) => {
+      if (resp.statusCode < 200 || resp.statusCode >= 300) {
+        resp.resume();
+        return reject(new Error(`HTTP ${resp.statusCode} for ${url}`));
+      }
+      let data = '';
+      resp.setEncoding('utf8');
+      resp.on('data', (c) => { data += c; });
+      resp.on('end', () => { try { resolve(JSON.parse(data)); } catch (e) { reject(e); } });
+    });
+    req.on('error', reject);
+    req.end(body);
+  });
+}
+
 async function getJson(url, headers) {
   headers = headers || {};
   if (typeof fetch === 'function') {
@@ -619,4 +891,4 @@ function loadDotEnv() {
   } catch (_) { /* ignore */ }
 }
 
-module.exports = { tensionScore, rankItems, subsForCountry, withProvenance, interleaveRegional, page, RedditProvider, XProvider, ThreadsProvider };
+module.exports = { tensionScore, capXShare, xBudgetLeft, redditToken, redditAuthed, deeplTarget, translateTexts, rankItems, subsForCountry, withProvenance, interleaveRegional, page, RedditProvider, XProvider, ThreadsProvider };

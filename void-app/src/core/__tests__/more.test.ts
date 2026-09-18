@@ -54,7 +54,7 @@ test('feedGate returns the same verdicts as the web (seeded animal trickle)', ()
   for (const n of ['C', 'REGION_ALIASES', '_regionNorm', '_REGION_ALIAS_N', '_regionByName', '_regionByCode', 'resolveRegion', 'stampRegion', 'TAG_KEYWORDS', 'TAG_RE', 'CRISIS_WEAK', 'CRISIS_INTL', 'inferTags',
     'TENSION_TAGS', 'SPIKE_HALF_LIFE_H', 'hasTension', 'postAgeH', 'velocity', 'isBreaking', 'STORY_KIND', 'STORY_PLACE_HINTS', '_placeRe', 'regionInText', 'STORY_STOP', 'storyTokens', 'storyInfo', '_stories', '_storyTokIdx', 'storyOf', 'noteStory',
     '_SEEN_CAP', '_h', '_loadSeen', '_seenIds', '_seenDirty', '_normText', '_linkKey', 'admitPost', 'BIO', 'ANIMAL_WORDS', 'ANIMAL_CJK', 'ANIMAL_EMOJI', 'isAnimalPost', 'ANIMAL_UNLOCK', 'animalSuppressed',
-    'VOID_NATIVE', 'isNewsAccount', 'isArticleDrop', 'MUTED', 'MUTE_RE', '_muteRe', 'isMuted', 'isFeedMeta', 'feedGate', 'bskyToPost']) w.load(n);
+    'VOID_NATIVE', 'isNewsAccount', 'isArticleDrop', 'MUTED', 'MUTE_RE', '_muteRe', 'isMuted', 'isFeedMeta', 'feedGate', 'dispHandle', 'bskyToPost']) w.load(n);
   const H = 3600000;
   const items = fx('bsky-feed.json').feed;
   const synth = [

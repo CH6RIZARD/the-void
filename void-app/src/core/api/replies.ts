@@ -4,6 +4,7 @@
 import { env } from '../env.ts';
 import type { Comment, Post } from '../types.ts';
 import { allPosts, findPost } from '../feed/store.ts';
+import { dispHandle } from '../feed/bluesky.ts';
 import { htmlText, fediHost, nfFetchJson } from '../util.ts';
 import { filterComments } from './moderation.ts';
 import { VoidAPI } from './voidApi.ts';
@@ -21,7 +22,7 @@ export function bskyReplyToComment(node: any, parentId: string | null): Comment 
   const p = (node && node.post) || {}, rec = p.record || {}, au = p.author || {};
   if (!rec.text) return null;
   return {
-    id: 'r_' + (p.cid || p.uri || env.random()), author: au.displayName || au.handle || 'bluesky', handle: '@' + (au.handle || 'bsky'),
+    id: 'r_' + (p.cid || p.uri || env.random()), author: au.displayName || dispHandle(au.handle), handle: '@' + dispHandle(au.handle),
     text: rec.text, time: rec.createdAt ? Date.parse(rec.createdAt) : env.now(), bolts: p.likeCount || 0,
     parentId: parentId || null, remote: true,                  // cannot be edited or posted back to
   };

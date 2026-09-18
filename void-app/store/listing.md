@@ -21,7 +21,7 @@ The world's arguments, ranked live. News, streams and debate. Anonymous first.
 ```
 Every feed shows you what's popular. The Void shows you what's contested.
 
-The Void pulls public posts and news from across the open web (Bluesky, Mastodon, Lemmy, Reddit, GDELT world events, PeerTube and more) and ranks them by tension: the stories people are actually fighting about, right now, everywhere. Not an echo chamber. The signal in the noise.
+The Void pulls public posts and news from across the open web (Mastodon, Lemmy, Reddit, GDELT world events, PeerTube and more) and ranks them by tension: the stories people are actually fighting about, right now, everywhere. Not an echo chamber. The signal in the noise.
 
 THE FEED
 • Controversy-ranked: velocity, divisiveness and how many independent sources carry a story decide what rises, not ad spend.
@@ -87,7 +87,7 @@ The three pages go live after the next push to `main` that touches them (see `.g
 
 ```
 The Void is here.
-• Controversy-ranked feed from Bluesky, Mastodon, Lemmy, Reddit, GDELT and more
+• Controversy-ranked feed from Mastodon, Lemmy, Reddit, GDELT and more
 • 3D globe with nation pages, live news streams, city cams and radio
 • Anonymous by default; optional email, Google or Apple sign-in
 • Posts, replies, reactions, media and direct messages

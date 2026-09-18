@@ -61,7 +61,7 @@ export function authorOf(p: Partial<Post> | null | undefined): Author | null {
   if (src === 'news') { const h = hostOf(p) || nh(p._handle); return h ? { key: 'host:' + h, handle: h, label: h, source: 'news', external: true, hostOnly: true } : null; }
   const h = nh(p._handle);
   if (h && !GENERIC.has(h) && h !== src) return { key: src + ':' + h, handle: h, label: p._author || h, source: src, external: src !== 'void' };
-  const host = hostOf(p);
+  const host = /bsky/i.test(hostOf(p)) ? '' : hostOf(p);   // appview host is plumbing, never an author
   if (host && src !== 'void') return { key: 'host:' + host, handle: host, label: host, source: src, external: true, hostOnly: true };
   return null;
 }

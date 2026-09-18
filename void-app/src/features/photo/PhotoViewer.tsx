@@ -37,7 +37,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { findPost, moderation, VoidAPI, vwBump, type Post } from '../../core';
+import { findPost, moderation, shareUrl, srcName, VoidAPI, vwBump, type Post } from '../../core';
 import { ImageOrbitLoader } from '../../ui/ImageOrbitLoader';
 import { VText } from '../../ui/Text';
 import { Icon } from '../../ui/icons';
@@ -164,18 +164,17 @@ export default function PhotoViewer() {
 
   const share = useCallback(async () => {
     if (!p) return;
-    const img = slides[kRef.current] || slides[0];
-    const url = p.sourceUrl || p._url || img || `https://void-app-d35c.pages.dev/#${p.id}`;
+    const url = shareUrl(p);
     try {
       await Share.share(Platform.OS === 'ios' ? { url, message: p.body ? String(p.body).slice(0, 200) : undefined } : { message: url });
     } catch {}
     VoidAPI.share(p.id).catch(() => voidToast('SIGNAL LOST · RETRY'));
-  }, [p, slides]);
+  }, [p]);
 
   if (!p || !n) return <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(2,1,8,0.97)' }]} />;
 
   const mediaH = Math.round(H * 0.72);
-  const host = (p.provenance && p.provenance.sourceHost) || p.source || 'void';
+  const host = srcName((p.provenance && p.provenance.sourceHost) || p.source);
   const srcLine = `${String(host)}${n > 1 ? ` · ${n} SLIDES` : ''} · SWIPE DOWN TO CLOSE`.toUpperCase();
 
   return (

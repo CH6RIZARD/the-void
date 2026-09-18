@@ -52,6 +52,23 @@ function _saveBskyState() {
   } catch { /* */ }
 }
 
+/** A person's name, without the appview's domain suffix stapled to it. */
+export function dispHandle(h?: string): string {
+  return String(h || '').replace(/\.bsky\.social$/i, '') || 'void';
+}
+
+/** A source/host as shown on screen: the appview is plumbing, it reads as VOID. */
+export function srcName(s?: string): string {
+  const v = String(s || 'void').toLowerCase();
+  return /^(bluesky|bsky|(cdn\.|public\.api\.)?bsky\.app)$/.test(v) ? 'void' : v;
+}
+
+/** Where a post's share link points: the original, unless the original is the appview. */
+export function shareUrl(p: { id: string; source?: string; sourceUrl?: string; _url?: string }): string {
+  const orig = srcName(p.source) === 'void' ? '' : p.sourceUrl || p._url;
+  return orig || `https://void-app-d35c.pages.dev/#${p.id}`;
+}
+
 export function bskyToPost(item: any): Post {
   const post = (item && item.post) || {}, rec = post.record || {}, emb = post.embed || {};
   let img = '', vid = '', style = 'take';
@@ -82,7 +99,7 @@ export function bskyToPost(item: any): Post {
     _repost: /Repost/i.test((item && item.reason && item.reason.$type) || ''),
     body: rec.text || '', score: post.likeCount || 0, replies: post.replyCount || 0,
     time: rec.createdAt ? Date.parse(rec.createdAt) : env.now(), source: 'bluesky',
-    _author: au.displayName || handle || 'bluesky', _handle: '@' + (handle || 'bsky'), _img: img, _imgs: imgs, _video: vid,
+    _author: au.displayName || dispHandle(handle), _handle: '@' + dispHandle(handle), _img: img, _imgs: imgs, _video: vid,
     _url: handle && rkey ? `https://bsky.app/profile/${handle}/post/${rkey}` : '', _social: true,
     // The at:// URI is what getPostThread needs (replies).
     _uri: post.uri || '',

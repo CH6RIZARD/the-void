@@ -62,7 +62,7 @@ export const auBars = (seed: number) => Array.from({ length: 26 }, (_, j) => 6 +
 /** openThread source label. */
 const SRC_LABEL: Record<string, string> = {
   reddit: 'REDDIT', twitter: 'X', instagram: 'INSTAGRAM', telegram: 'TELEGRAM', youtube: 'YOUTUBE', void: 'VOID', forum: 'FORUM',
-  mastodon: 'MASTODON', lemmy: 'LEMMY', bluesky: 'BLUESKY', peertube: 'PEERTUBE', radio: 'RADIO', commons: 'WIKIMEDIA COMMONS',
+  mastodon: 'MASTODON', lemmy: 'LEMMY', bluesky: 'VOID', peertube: 'PEERTUBE', radio: 'RADIO', commons: 'WIKIMEDIA COMMONS',
 };
 export function sourceLabel(p: Post): string {
   if (p.source === 'news') return String((p.provenance && p.provenance.sourceHost) || p._author || 'NEWS').toUpperCase();

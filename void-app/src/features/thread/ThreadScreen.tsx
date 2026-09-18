@@ -13,7 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { VoidAPI, fediHost, findPost, loadRemoteReplies, repliesLoading, syncReplyCount, _remoteReplies, type Comment, type Post } from '../../core';
+import { VoidAPI, fediHost, shareUrl, findPost, loadRemoteReplies, repliesLoading, syncReplyCount, _remoteReplies, type Comment, type Post } from '../../core';
 import { useAuth } from '../../lib/auth';
 import { useTheme } from '../../theme/ThemeProvider';
 import { FONTS, em } from '../../theme/palettes';
@@ -302,7 +302,7 @@ function Thread({ post: p }: { post: Post }) {
   };
 
   const share = async () => {
-    const url = p.sourceUrl || p._url || `https://void-app-d35c.pages.dev/#${p.id}`;
+    const url = shareUrl(p);
     try {
       await Share.share(Platform.OS === 'ios' ? { url, message: p.body ? String(p.body).slice(0, 200) : undefined } : { message: url });
     } catch {}

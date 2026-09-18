@@ -8,7 +8,7 @@
 // so the sheet always presents above the surface that asked for it).
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Linking, Pressable, StyleSheet, TextInput, View } from 'react-native';
-import { moderation, MUTED, voidMute, voidUnmute, type Comment, type Post } from '../../core';
+import { moderation, MUTED, srcName, voidMute, voidUnmute, type Comment, type Post } from '../../core';
 import { Sheet } from '../../ui/Sheet';
 import { VText } from '../../ui/Text';
 import { Icon } from '../../ui/icons';
@@ -351,7 +351,7 @@ function AuthorView() {
   const b = moderation.isBlocked(a);
   return (
     <View>
-      <Hdr title={a.external ? String(a.source).toUpperCase() + ' ACCOUNT' : 'VOID ACCOUNT'} />
+      <Hdr title={a.external ? srcName(a.source).toUpperCase() + ' ACCOUNT' : 'VOID ACCOUNT'} />
       <View style={[styles.avBig, { backgroundColor: tcCol(a.label) }]}>
         <VText weight={700} size={22} color={colors.white}>
           {String(a.label || '?')[0].toUpperCase()}

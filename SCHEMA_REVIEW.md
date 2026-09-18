@@ -220,6 +220,15 @@ give it a bypass (e.g. a session flag it sets, or move the counter to a separate
 `post_scores` table the client has no write policy on — cleaner, and it stops
 reaction writes from bloating the `posts` row).
 
+> **Status (004_ranking_security.sql):** UPDATE was closed in 001 by column
+> grants. INSERT stayed open (`posts_insert` checked only `author_id`), so a post
+> could be created with any `rank_score`. 004 adds a `posts_guard_insert` trigger
+> (forces `rank_score = 0`, clears `region_code` before `posts_set_region`
+> re-derives it) and restricts INSERT to `(id, author_id, body, location,
+> reply_to)`. It also blocks moving a reaction to another post
+> (`reactions_lock_keys`): `apply_reaction_score` credited the delta only to the
+> new post, so insert/move/re-insert pumped the original without bound.
+
 ---
 
 ## HIGH — `topics.source` omits `gdelt`

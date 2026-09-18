@@ -5,7 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MUTED, moderation, voidUnmute, VoidAPI } from '../../core';
+import { MUTED, moderation, srcName, voidUnmute, VoidAPI } from '../../core';
 import { useTheme } from '../../theme';
 import { FONTS, em } from '../../theme/palettes';
 import { VText } from '../../ui/Text';
@@ -46,7 +46,7 @@ export default function BlockedAccountsScreen({ onClose }: { onClose?: () => voi
       key={b.key}
       left={<VAv label={b.label || b.handle} seed={b.label} />}
       label={b.label || b.handle}
-      sub={(b.hostOnly ? 'SOURCE' : '@' + (b.handle || '')) + (b.external ? ' · ' + String(b.source).toUpperCase() : '')}
+      sub={(b.hostOnly ? 'SOURCE' : '@' + (b.handle || '')) + (b.external ? ' · ' + srcName(b.source).toUpperCase() : '')}
       pill={b.external ? 'SHOW' : 'UNBLOCK'}
       onPill={() => unblock(b.key)}
     />

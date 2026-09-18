@@ -16,7 +16,7 @@
 // .vmod-av.big{56px;font 22px;margin:4px auto 10px;background:var(--card2)}
 import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { MUTED, findPost, moderation, voidMute, voidUnmute } from '../../core';
+import { MUTED, findPost, moderation, srcName, voidMute, voidUnmute } from '../../core';
 import type { Post } from '../../core';
 import { Sheet } from '../../ui/Sheet';
 import { Icon } from '../../ui/icons';
@@ -136,7 +136,7 @@ export function ReelModSheet({ target, onClose, onChanged }: { target: ModTarget
       if (a) {
         body = (
           <>
-            <Hdr t={a.external ? String(a.source).toUpperCase() + ' ACCOUNT' : 'VOID ACCOUNT'} />
+            <Hdr t={a.external ? srcName(a.source).toUpperCase() + ' ACCOUNT' : 'VOID ACCOUNT'} />
             <View style={[styles.avBig, { backgroundColor: colors.card2 }]}>
               <Text allowFontScaling={false} style={[styles.avBigText, { color: colors.white }]}>
                 {String(a.label || '?')[0].toUpperCase()}

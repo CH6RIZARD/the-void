@@ -230,6 +230,11 @@ html,body{height:100%;background:var(--bg);background-image:var(--bg-radial);col
 /* A tile that ended on NO SIGNAL is not loading anything — it has no reason to keep
    14 particles animating for the rest of the session. */
 /* (removed: .csg-offline froze the particles — a visible sparkle loader must ALWAYS be moving) */
+/* A PARKED tile (out of view, decoder handed back - see the decoder budget in JS)
+   is deliberately frozen, so its 14 particles have nothing to report either. This is
+   not the .csg-offline case above: a parked tile is not showing a loader to anyone. */
+.gl-tile.live-parked .sparkle-fallback-particle,
+.csg-tile.live-parked .sparkle-fallback-particle{animation-play-state:paused!important}
 
 .gl-tile iframe,.gl-tile video,.gl-tile img{width:100%;height:100%;border:none;object-fit:cover;pointer-events:none;position:absolute;inset:0}
 /* CURSOR #5 / #5.1 — never show native / poster play chrome on the wall. */
@@ -811,6 +816,7 @@ body.tab-void .bio-hud{display:flex}
   .ro-sheet,.ro-scrim,.thread-scrim{transition:none}
 }
 .translated-badge{font-family:'Syne Mono',monospace;font-size:7px;color:var(--purple);background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.3);padding:1px 5px;border-radius:2px;margin-left:6px;letter-spacing:.08em;vertical-align:middle}
+.tr-pending{opacity:.45;transition:opacity .2s}
 /* Bottom nav — patch-3 §1, 5a-B, inside the ORIGINAL floating pill (same
    position, margins, radius, surface). Icons only: no text labels, 19px hairline
    VICONs. Active = gold icon + 12x1 gold rule 7px below; inactive = --nav-dim.
@@ -1200,7 +1206,12 @@ body.tab-void .bio-hud{display:flex}
      second for as long as a clip plays. Same for the globe mode toggle and the
      country-panel play button, which sit over the wall's live tiles. Alphas below
      are raised so the controls keep their separation without the blur. */
-  .vw-act,.reel-back,.gmode-toggle,.cn-play{backdrop-filter:none;-webkit-backdrop-filter:none}
+  .vw-act,.reel-back,.gmode-toggle,.cn-play,
+  /* .c-overlay is the whole screen, and its backdrop is the live wall. Even with the
+     wall parked behind it, a full-viewport blur is the single most expensive layer
+     the app can paint while the panel animates in. Its own background is an opaque
+     radial gradient, so nothing of the look is lost. */
+  .c-overlay,#globe-search-modal{backdrop-filter:none;-webkit-backdrop-filter:none}
   .search-head{background:linear-gradient(var(--bg) 78%,transparent)}
   .vw-act{background:rgba(13,8,32,.82)}
   .reel-back,.cn-play{background:rgba(13,8,32,.78)}
@@ -2519,7 +2530,7 @@ function tensionCountries(){
     .sort((a,b)=>rankOf(a)-rankOf(b));
 }
 
-const C=[{n:"Afghanistan",lat:33.9,lon:67.7,sr:"afghanistan",iso:"AF"},{n:"Albania",lat:41.2,lon:20.2,sr:"albania",iso:"AL"},{n:"Algeria",lat:28.0,lon:1.7,sr:"algeria",iso:"DZ"},{n:"Angola",lat:-11.2,lon:17.9,sr:"angola",iso:"AO"},{n:"Argentina",lat:-38.4,lon:-63.6,sr:"argentina",iso:"AR"},{n:"Armenia",lat:40.1,lon:45.0,sr:"armenia",iso:"AM"},{n:"Australia",lat:-25.3,lon:133.8,sr:"australia",iso:"AU"},{n:"Austria",lat:47.5,lon:14.6,sr:"austria",iso:"AT"},{n:"Azerbaijan",lat:40.1,lon:47.6,sr:"azerbaijan",iso:"AZ"},{n:"Bangladesh",lat:23.7,lon:90.4,sr:"bangladesh",iso:"BD"},{n:"Belarus",lat:53.7,lon:28.0,sr:"belarus",iso:"BY"},{n:"Belgium",lat:50.5,lon:4.5,sr:"belgium",iso:"BE"},{n:"Bolivia",lat:-16.3,lon:-63.6,sr:"bolivia",iso:"BO"},{n:"Brazil",lat:-14.2,lon:-51.9,sr:"brazil",iso:"BR"},{n:"Bulgaria",lat:42.7,lon:25.5,sr:"bulgaria",iso:"BG"},{n:"Cambodia",lat:12.6,lon:105.0,sr:"cambodia",iso:"KH"},{n:"Canada",lat:56.1,lon:-106.4,sr:"canada",iso:"CA"},{n:"Chile",lat:-35.7,lon:-71.5,sr:"chile",iso:"CL"},{n:"China",lat:35.9,lon:104.2,sr:"china",iso:"CN"},{n:"Colombia",lat:4.6,lon:-74.3,sr:"colombia",iso:"CO"},{n:"Cuba",lat:21.5,lon:-79.5,sr:"cuba",iso:"CU"},{n:"DR Congo",lat:-2.9,lon:23.7,sr:null,iso:"CD"},{n:"Egypt",lat:26.8,lon:30.8,sr:"egypt",iso:"EG"},{n:"Ethiopia",lat:9.1,lon:40.5,sr:"ethiopia",iso:"ET"},{n:"France",lat:46.2,lon:2.2,sr:"france",iso:"FR"},{n:"Germany",lat:51.2,lon:10.5,sr:"germany",iso:"DE"},{n:"Ghana",lat:8.0,lon:-1.0,sr:"ghana",iso:"GH"},{n:"Greece",lat:39.1,lon:21.8,sr:"greece",iso:"GR"},{n:"Haiti",lat:19.0,lon:-72.3,sr:"haiti",iso:"HT"},{n:"India",lat:20.6,lon:79.0,sr:"india",iso:"IN"},{n:"Indonesia",lat:-0.8,lon:113.9,sr:"indonesia",iso:"ID"},{n:"Iran",lat:32.4,lon:53.7,sr:"iran",iso:"IR"},{n:"Iraq",lat:33.2,lon:43.7,sr:"iraq",iso:"IQ"},{n:"Ireland",lat:53.4,lon:-8.2,sr:"ireland",iso:"IE"},{n:"Israel",lat:31.1,lon:34.9,sr:"israel",iso:"IL"},{n:"Italy",lat:41.9,lon:12.6,sr:"italy",iso:"IT"},{n:"Japan",lat:36.2,lon:138.3,sr:"japan",iso:"JP"},{n:"Jordan",lat:30.6,lon:36.2,sr:"jordan",iso:"JO"},{n:"Kazakhstan",lat:48.0,lon:66.9,sr:"kazakhstan",iso:"KZ"},{n:"Kenya",lat:0.0,lon:37.9,sr:"kenya",iso:"KE"},{n:"Lebanon",lat:33.9,lon:35.9,sr:"lebanon",iso:"LB"},{n:"Libya",lat:26.3,lon:17.2,sr:"libya",iso:"LY"},{n:"Malaysia",lat:4.2,lon:108.0,sr:"malaysia",iso:"MY"},{n:"Mali",lat:17.6,lon:-4.0,sr:"mali",iso:"ML"},{n:"Mexico",lat:23.6,lon:-102.6,sr:"mexico",iso:"MX"},{n:"Morocco",lat:31.8,lon:-7.1,sr:"morocco",iso:"MA"},{n:"Myanmar",lat:16.9,lon:96.2,sr:"myanmar",iso:"MM"},{n:"Nepal",lat:28.4,lon:84.1,sr:"nepal",iso:"NP"},{n:"Netherlands",lat:52.1,lon:5.3,sr:"thenetherlands",iso:"NL"},{n:"New Zealand",lat:-40.9,lon:174.9,sr:"newzealand",iso:"NZ"},{n:"Nigeria",lat:9.1,lon:8.7,sr:"nigeria",iso:"NG"},{n:"North Korea",lat:40.3,lon:127.5,sr:"northkorea",iso:"KP"},{n:"Norway",lat:60.5,lon:8.5,sr:"norway",iso:"NO"},{n:"Pakistan",lat:30.4,lon:69.4,sr:"pakistan",iso:"PK"},{n:"Peru",lat:-9.2,lon:-75.0,sr:"peru",iso:"PE"},{n:"Philippines",lat:12.9,lon:121.8,sr:"philippines",iso:"PH"},{n:"Poland",lat:51.9,lon:19.1,sr:"poland",iso:"PL"},{n:"Portugal",lat:39.4,lon:-8.2,sr:"portugal",iso:"PT"},{n:"Romania",lat:45.9,lon:25.0,sr:"romania",iso:"RO"},{n:"Russia",lat:61.5,lon:105.3,sr:"russia",iso:"RU"},{n:"Saudi Arabia",lat:23.9,lon:45.1,sr:"saudiarabia",iso:"SA"},{n:"Serbia",lat:44.0,lon:21.0,sr:"serbia",iso:"RS"},{n:"Somalia",lat:5.2,lon:46.2,sr:"somalia",iso:"SO"},{n:"South Africa",lat:-30.6,lon:22.9,sr:"southafrica",iso:"ZA"},{n:"South Korea",lat:35.9,lon:127.8,sr:"korea",iso:"KR"},{n:"Spain",lat:40.5,lon:-3.7,sr:"spain",iso:"ES"},{n:"Sudan",lat:12.9,lon:30.2,sr:"sudan",iso:"SD"},{n:"Sweden",lat:60.1,lon:18.6,sr:"sweden",iso:"SE"},{n:"Syria",lat:34.8,lon:39.0,sr:"syria",iso:"SY"},{n:"Taiwan",lat:23.7,lon:121.0,sr:"taiwan",iso:"TW"},{n:"Thailand",lat:15.9,lon:101.0,sr:"thailand",iso:"TH"},{n:"Tunisia",lat:33.9,lon:9.5,sr:"tunisia",iso:"TN"},{n:"Turkey",lat:39.0,lon:35.2,sr:"turkey",iso:"TR"},{n:"Uganda",lat:1.4,lon:32.3,sr:"uganda",iso:"UG"},{n:"Ukraine",lat:48.4,lon:31.2,sr:"ukraine",iso:"UA"},{n:"United Arab Emirates",lat:23.4,lon:53.8,sr:"dubai",iso:"AE"},{n:"United Kingdom",lat:55.4,lon:-3.4,sr:"unitedkingdom",iso:"GB"},{n:"United States",lat:37.1,lon:-95.7,sr:"news",iso:"US"},{n:"Venezuela",lat:6.4,lon:-66.6,sr:"vzla",iso:"VE"},{n:"Vietnam",lat:14.1,lon:108.3,sr:"vietnam",iso:"VN"},{n:"Yemen",lat:15.6,lon:48.5,sr:"yemen",iso:"YE"},{n:"Zimbabwe",lat:-19.0,lon:29.2,sr:"zimbabwe",iso:"ZW"}];
+const C=[{n:"Afghanistan",lat:33.9,lon:67.7,sr:"afghanistan",iso:"AF"},{n:"Albania",lat:41.2,lon:20.2,sr:"albania",iso:"AL"},{n:"Algeria",lat:28.0,lon:1.7,sr:"algeria",iso:"DZ"},{n:"Andorra",lat:42.5,lon:1.6,sr:null,iso:"AD"},{n:"Angola",lat:-11.2,lon:17.9,sr:"angola",iso:"AO"},{n:"Antigua and Barbuda",lat:17.1,lon:-61.8,sr:null,iso:"AG"},{n:"Argentina",lat:-38.4,lon:-63.6,sr:"argentina",iso:"AR"},{n:"Armenia",lat:40.1,lon:45.0,sr:"armenia",iso:"AM"},{n:"Australia",lat:-25.3,lon:133.8,sr:"australia",iso:"AU"},{n:"Austria",lat:47.5,lon:14.6,sr:"austria",iso:"AT"},{n:"Azerbaijan",lat:40.1,lon:47.6,sr:"azerbaijan",iso:"AZ"},{n:"Bahamas",lat:24.3,lon:-76,sr:null,iso:"BS"},{n:"Bahrain",lat:26,lon:50.5,sr:null,iso:"BH"},{n:"Bangladesh",lat:23.7,lon:90.4,sr:"bangladesh",iso:"BD"},{n:"Barbados",lat:13.2,lon:-59.5,sr:null,iso:"BB"},{n:"Belarus",lat:53.7,lon:28.0,sr:"belarus",iso:"BY"},{n:"Belgium",lat:50.5,lon:4.5,sr:"belgium",iso:"BE"},{n:"Belize",lat:17.3,lon:-88.8,sr:null,iso:"BZ"},{n:"Benin",lat:9.5,lon:2.3,sr:null,iso:"BJ"},{n:"Bhutan",lat:27.5,lon:90.5,sr:null,iso:"BT"},{n:"Bolivia",lat:-16.3,lon:-63.6,sr:"bolivia",iso:"BO"},{n:"Bosnia and Herzegovina",lat:44,lon:18,sr:null,iso:"BA"},{n:"Botswana",lat:-22,lon:24,sr:null,iso:"BW"},{n:"Brazil",lat:-14.2,lon:-51.9,sr:"brazil",iso:"BR"},{n:"Brunei",lat:4.5,lon:114.7,sr:null,iso:"BN"},{n:"Bulgaria",lat:42.7,lon:25.5,sr:"bulgaria",iso:"BG"},{n:"Burkina Faso",lat:13,lon:-2,sr:null,iso:"BF"},{n:"Burundi",lat:-3.5,lon:30,sr:null,iso:"BI"},{n:"Cambodia",lat:12.6,lon:105.0,sr:"cambodia",iso:"KH"},{n:"Cameroon",lat:6,lon:12,sr:null,iso:"CM"},{n:"Canada",lat:56.1,lon:-106.4,sr:"canada",iso:"CA"},{n:"Cape Verde",lat:16,lon:-24,sr:null,iso:"CV"},{n:"Central African Republic",lat:7,lon:21,sr:null,iso:"CF"},{n:"Chad",lat:15,lon:19,sr:null,iso:"TD"},{n:"Chile",lat:-35.7,lon:-71.5,sr:"chile",iso:"CL"},{n:"China",lat:35.9,lon:104.2,sr:"china",iso:"CN"},{n:"Colombia",lat:4.6,lon:-74.3,sr:"colombia",iso:"CO"},{n:"Comoros",lat:-12.2,lon:44.3,sr:null,iso:"KM"},{n:"Congo",lat:-1,lon:15,sr:null,iso:"CG"},{n:"Costa Rica",lat:10,lon:-84,sr:null,iso:"CR"},{n:"Cote d'Ivoire",lat:8,lon:-5,sr:null,iso:"CI"},{n:"Croatia",lat:45.2,lon:15.5,sr:null,iso:"HR"},{n:"Cuba",lat:21.5,lon:-79.5,sr:"cuba",iso:"CU"},{n:"Cyprus",lat:35,lon:33,sr:null,iso:"CY"},{n:"Czechia",lat:49.8,lon:15.5,sr:null,iso:"CZ"},{n:"Denmark",lat:56,lon:10,sr:null,iso:"DK"},{n:"Djibouti",lat:11.5,lon:43,sr:null,iso:"DJ"},{n:"Dominica",lat:15.4,lon:-61.3,sr:null,iso:"DM"},{n:"Dominican Republic",lat:19,lon:-70.7,sr:null,iso:"DO"},{n:"DR Congo",lat:-2.9,lon:23.7,sr:null,iso:"CD"},{n:"Ecuador",lat:-1.8,lon:-78.2,sr:null,iso:"EC"},{n:"Egypt",lat:26.8,lon:30.8,sr:"egypt",iso:"EG"},{n:"El Salvador",lat:13.8,lon:-88.9,sr:null,iso:"SV"},{n:"Equatorial Guinea",lat:2,lon:10,sr:null,iso:"GQ"},{n:"Eritrea",lat:15,lon:39,sr:null,iso:"ER"},{n:"Estonia",lat:59,lon:26,sr:null,iso:"EE"},{n:"Eswatini",lat:-26.5,lon:31.5,sr:null,iso:"SZ"},{n:"Ethiopia",lat:9.1,lon:40.5,sr:"ethiopia",iso:"ET"},{n:"Fiji",lat:-18,lon:175,sr:null,iso:"FJ"},{n:"Finland",lat:64,lon:26,sr:null,iso:"FI"},{n:"France",lat:46.2,lon:2.2,sr:"france",iso:"FR"},{n:"Gabon",lat:-1,lon:11.8,sr:null,iso:"GA"},{n:"Gambia",lat:13.5,lon:-16.6,sr:null,iso:"GM"},{n:"Georgia",lat:42,lon:43.5,sr:null,iso:"GE"},{n:"Germany",lat:51.2,lon:10.5,sr:"germany",iso:"DE"},{n:"Ghana",lat:8.0,lon:-1.0,sr:"ghana",iso:"GH"},{n:"Greece",lat:39.1,lon:21.8,sr:"greece",iso:"GR"},{n:"Greenland",lat:72,lon:-40,sr:null,iso:"GL"},{n:"Grenada",lat:12.1,lon:-61.7,sr:null,iso:"GD"},{n:"Guatemala",lat:15.5,lon:-90.3,sr:null,iso:"GT"},{n:"Guinea",lat:11,lon:-10,sr:null,iso:"GN"},{n:"Guinea-Bissau",lat:12,lon:-15,sr:null,iso:"GW"},{n:"Guyana",lat:5,lon:-59,sr:null,iso:"GY"},{n:"Haiti",lat:19.0,lon:-72.3,sr:"haiti",iso:"HT"},{n:"Honduras",lat:15,lon:-86.5,sr:null,iso:"HN"},{n:"Hong Kong",lat:22.3,lon:114.2,sr:null,iso:"HK"},{n:"Hungary",lat:47,lon:20,sr:null,iso:"HU"},{n:"Iceland",lat:65,lon:-18,sr:null,iso:"IS"},{n:"India",lat:20.6,lon:79.0,sr:"india",iso:"IN"},{n:"Indonesia",lat:-0.8,lon:113.9,sr:"indonesia",iso:"ID"},{n:"Iran",lat:32.4,lon:53.7,sr:"iran",iso:"IR"},{n:"Iraq",lat:33.2,lon:43.7,sr:"iraq",iso:"IQ"},{n:"Ireland",lat:53.4,lon:-8.2,sr:"ireland",iso:"IE"},{n:"Israel",lat:31.1,lon:34.9,sr:"israel",iso:"IL"},{n:"Italy",lat:41.9,lon:12.6,sr:"italy",iso:"IT"},{n:"Jamaica",lat:18.3,lon:-77.5,sr:null,iso:"JM"},{n:"Japan",lat:36.2,lon:138.3,sr:"japan",iso:"JP"},{n:"Jordan",lat:30.6,lon:36.2,sr:"jordan",iso:"JO"},{n:"Kazakhstan",lat:48.0,lon:66.9,sr:"kazakhstan",iso:"KZ"},{n:"Kenya",lat:0.0,lon:37.9,sr:"kenya",iso:"KE"},{n:"Kiribati",lat:1.4,lon:173,sr:null,iso:"KI"},{n:"Kosovo",lat:42.6,lon:20.9,sr:null,iso:"XK"},{n:"Kuwait",lat:29.3,lon:47.7,sr:null,iso:"KW"},{n:"Kyrgyzstan",lat:41,lon:75,sr:null,iso:"KG"},{n:"Laos",lat:18,lon:105,sr:null,iso:"LA"},{n:"Latvia",lat:57,lon:25,sr:null,iso:"LV"},{n:"Lebanon",lat:33.9,lon:35.9,sr:"lebanon",iso:"LB"},{n:"Lesotho",lat:-29.5,lon:28.5,sr:null,iso:"LS"},{n:"Liberia",lat:6.5,lon:-9.5,sr:null,iso:"LR"},{n:"Libya",lat:26.3,lon:17.2,sr:"libya",iso:"LY"},{n:"Liechtenstein",lat:47.2,lon:9.5,sr:null,iso:"LI"},{n:"Lithuania",lat:56,lon:24,sr:null,iso:"LT"},{n:"Luxembourg",lat:49.8,lon:6.2,sr:null,iso:"LU"},{n:"Madagascar",lat:-20,lon:47,sr:null,iso:"MG"},{n:"Malawi",lat:-13.5,lon:34,sr:null,iso:"MW"},{n:"Malaysia",lat:4.2,lon:108.0,sr:"malaysia",iso:"MY"},{n:"Maldives",lat:3.3,lon:73,sr:null,iso:"MV"},{n:"Mali",lat:17.6,lon:-4.0,sr:"mali",iso:"ML"},{n:"Malta",lat:35.8,lon:14.6,sr:null,iso:"MT"},{n:"Marshall Islands",lat:9,lon:168,sr:null,iso:"MH"},{n:"Mauritania",lat:20,lon:-12,sr:null,iso:"MR"},{n:"Mauritius",lat:-20.3,lon:57.5,sr:null,iso:"MU"},{n:"Mexico",lat:23.6,lon:-102.6,sr:"mexico",iso:"MX"},{n:"Micronesia",lat:6.9,lon:158.3,sr:null,iso:"FM"},{n:"Moldova",lat:47,lon:29,sr:null,iso:"MD"},{n:"Monaco",lat:43.7,lon:7.4,sr:null,iso:"MC"},{n:"Mongolia",lat:46,lon:105,sr:null,iso:"MN"},{n:"Montenegro",lat:42,lon:19,sr:null,iso:"ME"},{n:"Morocco",lat:31.8,lon:-7.1,sr:"morocco",iso:"MA"},{n:"Mozambique",lat:-18.3,lon:35,sr:null,iso:"MZ"},{n:"Myanmar",lat:16.9,lon:96.2,sr:"myanmar",iso:"MM"},{n:"Namibia",lat:-22,lon:17,sr:null,iso:"NA"},{n:"Nauru",lat:-0.5,lon:166.9,sr:null,iso:"NR"},{n:"Nepal",lat:28.4,lon:84.1,sr:"nepal",iso:"NP"},{n:"Netherlands",lat:52.1,lon:5.3,sr:"thenetherlands",iso:"NL"},{n:"New Zealand",lat:-40.9,lon:174.9,sr:"newzealand",iso:"NZ"},{n:"Nicaragua",lat:13,lon:-85,sr:null,iso:"NI"},{n:"Niger",lat:16,lon:8,sr:null,iso:"NE"},{n:"Nigeria",lat:9.1,lon:8.7,sr:"nigeria",iso:"NG"},{n:"North Korea",lat:40.3,lon:127.5,sr:"northkorea",iso:"KP"},{n:"North Macedonia",lat:41.8,lon:22,sr:null,iso:"MK"},{n:"Norway",lat:60.5,lon:8.5,sr:"norway",iso:"NO"},{n:"Oman",lat:21,lon:57,sr:null,iso:"OM"},{n:"Pakistan",lat:30.4,lon:69.4,sr:"pakistan",iso:"PK"},{n:"Palau",lat:7.5,lon:134.5,sr:null,iso:"PW"},{n:"Palestine",lat:31.9,lon:35.2,sr:null,iso:"PS"},{n:"Panama",lat:9,lon:-80,sr:null,iso:"PA"},{n:"Papua New Guinea",lat:-6,lon:147,sr:null,iso:"PG"},{n:"Paraguay",lat:-23,lon:-58,sr:null,iso:"PY"},{n:"Peru",lat:-9.2,lon:-75.0,sr:"peru",iso:"PE"},{n:"Philippines",lat:12.9,lon:121.8,sr:"philippines",iso:"PH"},{n:"Poland",lat:51.9,lon:19.1,sr:"poland",iso:"PL"},{n:"Portugal",lat:39.4,lon:-8.2,sr:"portugal",iso:"PT"},{n:"Puerto Rico",lat:18.3,lon:-66.5,sr:null,iso:"PR"},{n:"Qatar",lat:25.5,lon:51.3,sr:null,iso:"QA"},{n:"Romania",lat:45.9,lon:25.0,sr:"romania",iso:"RO"},{n:"Russia",lat:61.5,lon:105.3,sr:"russia",iso:"RU"},{n:"Rwanda",lat:-2,lon:30,sr:null,iso:"RW"},{n:"Saint Kitts and Nevis",lat:17.3,lon:-62.8,sr:null,iso:"KN"},{n:"Saint Lucia",lat:13.9,lon:-61.1,sr:null,iso:"LC"},{n:"Saint Vincent and the Grenadines",lat:13.3,lon:-61.2,sr:null,iso:"VC"},{n:"Samoa",lat:-13.6,lon:-172.3,sr:null,iso:"WS"},{n:"San Marino",lat:43.8,lon:12.4,sr:null,iso:"SM"},{n:"Sao Tome and Principe",lat:1,lon:7,sr:null,iso:"ST"},{n:"Saudi Arabia",lat:23.9,lon:45.1,sr:"saudiarabia",iso:"SA"},{n:"Senegal",lat:14,lon:-14,sr:null,iso:"SN"},{n:"Serbia",lat:44.0,lon:21.0,sr:"serbia",iso:"RS"},{n:"Seychelles",lat:-4.6,lon:55.7,sr:null,iso:"SC"},{n:"Sierra Leone",lat:8.5,lon:-11.5,sr:null,iso:"SL"},{n:"Singapore",lat:1.4,lon:103.8,sr:null,iso:"SG"},{n:"Slovakia",lat:48.7,lon:19.5,sr:null,iso:"SK"},{n:"Slovenia",lat:46,lon:15,sr:null,iso:"SI"},{n:"Solomon Islands",lat:-8,lon:159,sr:null,iso:"SB"},{n:"Somalia",lat:5.2,lon:46.2,sr:"somalia",iso:"SO"},{n:"South Africa",lat:-30.6,lon:22.9,sr:"southafrica",iso:"ZA"},{n:"South Korea",lat:35.9,lon:127.8,sr:"korea",iso:"KR"},{n:"South Sudan",lat:7.9,lon:29.7,sr:null,iso:"SS"},{n:"Spain",lat:40.5,lon:-3.7,sr:"spain",iso:"ES"},{n:"Sri Lanka",lat:7,lon:81,sr:null,iso:"LK"},{n:"Sudan",lat:12.9,lon:30.2,sr:"sudan",iso:"SD"},{n:"Suriname",lat:4,lon:-56,sr:null,iso:"SR"},{n:"Sweden",lat:60.1,lon:18.6,sr:"sweden",iso:"SE"},{n:"Switzerland",lat:47,lon:8,sr:null,iso:"CH"},{n:"Syria",lat:34.8,lon:39.0,sr:"syria",iso:"SY"},{n:"Taiwan",lat:23.7,lon:121.0,sr:"taiwan",iso:"TW"},{n:"Tajikistan",lat:39,lon:71,sr:null,iso:"TJ"},{n:"Tanzania",lat:-6,lon:35,sr:null,iso:"TZ"},{n:"Thailand",lat:15.9,lon:101.0,sr:"thailand",iso:"TH"},{n:"Timor-Leste",lat:-8.6,lon:125.5,sr:null,iso:"TL"},{n:"Togo",lat:8,lon:1.2,sr:null,iso:"TG"},{n:"Tonga",lat:-20,lon:-175,sr:null,iso:"TO"},{n:"Trinidad and Tobago",lat:11,lon:-61,sr:null,iso:"TT"},{n:"Tunisia",lat:33.9,lon:9.5,sr:"tunisia",iso:"TN"},{n:"Turkey",lat:39.0,lon:35.2,sr:"turkey",iso:"TR"},{n:"Turkmenistan",lat:40,lon:60,sr:null,iso:"TM"},{n:"Tuvalu",lat:-8,lon:178,sr:null,iso:"TV"},{n:"Uganda",lat:1.4,lon:32.3,sr:"uganda",iso:"UG"},{n:"Ukraine",lat:48.4,lon:31.2,sr:"ukraine",iso:"UA"},{n:"United Arab Emirates",lat:23.4,lon:53.8,sr:"dubai",iso:"AE"},{n:"United Kingdom",lat:55.4,lon:-3.4,sr:"unitedkingdom",iso:"GB"},{n:"United States",lat:37.1,lon:-95.7,sr:"news",iso:"US"},{n:"Uruguay",lat:-33,lon:-56,sr:null,iso:"UY"},{n:"Uzbekistan",lat:41,lon:64,sr:null,iso:"UZ"},{n:"Vanuatu",lat:-16,lon:167,sr:null,iso:"VU"},{n:"Venezuela",lat:6.4,lon:-66.6,sr:"vzla",iso:"VE"},{n:"Vietnam",lat:14.1,lon:108.3,sr:"vietnam",iso:"VN"},{n:"Yemen",lat:15.6,lon:48.5,sr:"yemen",iso:"YE"},{n:"Zambia",lat:-15,lon:30,sr:null,iso:"ZM"},{n:"Zimbabwe",lat:-19.0,lon:29.2,sr:"zimbabwe",iso:"ZW"}];
 
 // ─── REGION RESOLUTION (ingest side) ─────────────────────────
 // posts.region_code in the Supabase schema is DERIVED by a trigger from a PostGIS
@@ -3254,6 +3265,12 @@ function _saveBskyState(){
 // Feed-generator operators pin housekeeping posts (feed announcements, Graze
 // promos) to the top of their own feed. They are not content.
 function isFeedMeta(t){return /PINNED POST|graze\.social|remixing the .{0,20}feed|feed info/i.test(t||'');}
+// How a post's origin reads on screen. Items pulled from the AT Protocol appview
+// render as native Void: the wall is one surface, not a list of other people's
+// servers. Internal source/provenance values are untouched — only the label is.
+function srcName(s){const v=String(s||'void').toLowerCase();return(v==='bluesky'||v==='bsky'||v==='bsky.app'||v==='cdn.bsky.app')?'void':v;}
+// A person's name, without the appview's domain suffix stapled to it.
+function dispHandle(h){return String(h||'').replace(/\.bsky\.social$/i,'')||'void';}
 function bskyToPost(item){
   const post=(item&&item.post)||{}, rec=post.record||{}, emb=post.embed||{};
   let img='',vid='',style='take';
@@ -3292,7 +3309,7 @@ function bskyToPost(item){
     _repost:/Repost/i.test((item&&item.reason&&item.reason.$type)||''),
     body:rec.text||'', score:post.likeCount||0, replies:post.replyCount||0,
     time:rec.createdAt?Date.parse(rec.createdAt):Date.now(), source:'bluesky',
-    _author:au.displayName||handle||'bluesky', _handle:'@'+(handle||'bsky'), _img:img, _imgs:imgs, _video:vid,
+    _author:au.displayName||dispHandle(handle), _handle:'@'+dispHandle(handle), _img:img, _imgs:imgs, _video:vid,
     _url:handle&&rkey?`https://bsky.app/profile/${handle}/post/${rkey}`:'', _social:true,
     // The at:// URI is what getPostThread needs. It was dropped here, which is why
     // a post could advertise 50 replies and open a thread showing none: the count
@@ -3450,9 +3467,13 @@ async function pullPeerTubeSearch(){
     const j=await r.json();
     const rows=(j.data||[]).filter(v=>v&&v.uuid&&!v.isLive&&!v.nsfw&&(v.duration||0)>2&&(v.duration||0)<900);
     let added=0;
-    for(const v of rows.slice(0,8)){
-      if(reelPosts.some(x=>x.id==='pt_'+host+':'+v.uuid))continue;
-      const det=await ptDetail(host,v.uuid);
+    // These 8 detail calls used to run strictly one after another, so the first reel
+    // could not paint until 8 sequential round trips had finished - seconds of
+    // PULLING SIGNAL on a normal connection. They are independent; fire them at once.
+    const want=rows.slice(0,8).filter(v=>!reelPosts.some(x=>x.id==='pt_'+host+':'+v.uuid));
+    const dets=await Promise.all(want.map(v=>ptDetail(host,v.uuid).catch(()=>null)));
+    for(let di=0;di<want.length;di++){
+      const v=want[di],det=dets[di];
       if(!det)continue;
       const p={id:'pt_'+host+':'+v.uuid, style:'video', country:'', iso:'',
         tags:inferTags(v.name,[]), _graphic:false,
@@ -3514,7 +3535,7 @@ async function pullPeerTubeReels(){
     return added;
   }catch(e){return 0;}
 }
-let reelPosts=[], _reelIdx=0, _reelLoading=false;
+let reelPosts=[], _reelIdx=0, _reelLoading=false, _reelPromise=null;
 // Reel cards live in reelPosts, feed cards in allPosts. Any lookup by post id has
 // to check BOTH or every reel interaction resolves to undefined.
 function findPost(id){return allPosts.find(x=>x.id===id)||reelPosts.find(x=>x.id===id);}
@@ -3531,8 +3552,16 @@ function reelBlocked(item){
   if(al.some(v=>REEL_BLOCK_LABELS.test(v)||REEL_BLOCK_AUTHOR_LABELS.test(v)))return true;
   return false;
 }
+// Callers get the IN-FLIGHT pull instead of an instant false. Returning false
+// while a pull was already running is what let fillGlobeReels believe the work was
+// finished and retry immediately, forever.
 async function pullReelPage(){
-  if(_reelLoading)return false; _reelLoading=true;
+  if(_reelPromise)return _reelPromise;
+  _reelPromise=_pullReelPageOnce().finally(()=>{_reelPromise=null;_reelLoading=false;});
+  return _reelPromise;
+}
+async function _pullReelPageOnce(){
+  _reelLoading=true;
   // ONE try/finally around the whole body. A previous version returned early from
   // the PeerTube branch inside its own try, which skipped the finally that releases
   // this lock — so the first successful PeerTube pull left _reelLoading stuck true
@@ -4392,14 +4421,13 @@ async function quickTranslate(e,postId){
   if(el.dataset.pending)return;
   el.dataset.pending='1';
   btn.classList.add('on');                 // acknowledge the tap immediately
+  const src=el.innerText;                 // read before the placeholder replaces it
   el.dataset.original=el.innerHTML;
   el.innerHTML='<span style="opacity:.5;font-size:11px;font-family:\'Syne Mono\',monospace">translating&#x2026;</span>';
   try{
-    const r=await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${SETTINGS.lang}&dt=t&q=${encodeURIComponent(el.dataset.original.replace(/<[^>]+>/g,''))}`);
-    const d=await r.json();
-    el.innerHTML=esc(d[0].map(x=>x[0]).join(''))+`<span class="translated-badge">&#x21BA; ${SETTINGS.lang.toUpperCase()}</span>`;
+    el.innerHTML=esc(await trText(src))+`<span class="translated-badge">&#x21BA; ${SETTINGS.lang.toUpperCase()}</span>`;
     el.dataset.translated='1';
-  }catch{el.innerHTML=el.dataset.original;delete el.dataset.original;btn.classList.remove('on');}
+  }catch{el.innerHTML=el.dataset.original;delete el.dataset.original;btn.classList.remove('on');voidToast('TRANSLATION UNAVAILABLE · TRY AGAIN SOON');}
   finally{delete el.dataset.pending;}
 }
 function react(postId,type,e){e.stopPropagation();if(!postReactions[postId])postReactions[postId]={fire:0,rank:0,slash:0,mf:false,mr:false,ms:false};const r=postReactions[postId];const p=findPost(postId);const flip={fire:'mf',rank:'mr',slash:'ms'}[type];r[flip]=!r[flip];r[type]=(r[type]||0)+(r[flip]?1:-1);const el=document.getElementById(type[0]+'c-'+postId);if(el){const base=!p?0:type==='fire'?p.score:type==='rank'?p.replies:0;el.textContent=fmt(Math.max(0,base+(r[type]||0)));}const btn=document.querySelector(`#post-${postId} .pa.${type}`);btn?.classList.toggle('on',r[flip]);if(type==='fire'&&btn){const svg=btn.querySelector('.vi');if(svg)svg.outerHTML=(r.mf?VICON.boltFill:VICON.bolt);}
@@ -4758,6 +4786,8 @@ function disposeCell(cell){
   const s=liveInstances.get(cell); if(s){s.forEach(fn=>{try{fn();}catch(e){}});liveInstances.delete(cell);}
   clearTimeout(cell.__parkT); cell.__parkT=null; liveCells.delete(cell);
   if(_liveObs)try{_liveObs.unobserve(cell);}catch(e){}
+  if(_liveFarObs)try{_liveFarObs.unobserve(cell);}catch(e){}
+  cell.__parked=false;
 }
 function teardownAllLive(){
   _liveClaimed.clear();   // nothing is on screen -> nothing is claimed
@@ -4952,38 +4982,163 @@ document.addEventListener('click',e=>{
   if(_audioCell.contains(m))return;
   releaseStreamAudio();
 },true));
+// ─── DECODER BUDGET (2026-09-17) ────────────────────────────────────────
+// The keep-alive rule above was right about the SYMPTOM — a parked tile painted
+// a play button and paid for a reconnect — and wrong about the price. Every tile
+// that ever connected held a decoder for the rest of the session, on every
+// surface at once: a scrolled wall ran 30+ HD decoders, and kept running them
+// under the reels view, under the nation panel and on other tabs. A phone has
+// 4-16 hardware decoders; everything past that falls back to software on the
+// CPU, which is why EVERY stream in the app sat at ~10fps.
+//
+// So tiles now decode only near the viewport — but parking keeps the player:
+// hls.stopLoad() + video.pause() with the <video>, its src and its last painted
+// frame left in place. Waking is startLoad + a seek to the live edge, which is
+// well under a second, and no native chrome can appear because these elements
+// carry controls=false. Nothing here ever detaches a source.
+//
+// YouTube is the exception: pauseVideo paints the giant centre play glyph, so a
+// far YouTube frame is disposed instead and reconnects through healWallCell when
+// it comes back near. Only wall tiles (which remember __wallName) are treated
+// that way; a nation or search frame has no heal path, so it is left alone.
+// The ceiling is a SAFETY VALVE, not a quota: a tile the user can actually see is
+// never parked, whatever the count (a frozen tile in view would be the exact thing
+// the keep-alive rule was protecting against). The valve only trims tiles that are
+// warm but off screen, so what it really bounds is the scroll tail.
+const LIVE_MAX_DECODING=(()=>{try{
+  return (matchMedia('(pointer:coarse)').matches||innerWidth<700)?14:24;
+}catch(e){return 14;}})();
+const LIVE_PARK_GRACE=1200;    // a fast scroll past a tile must not churn it
+// One config for every live tile. The tile picks the rendition that fits it, and
+// both buffers are bounded so a long session cannot grow into swap. lowLatency is
+// off on purpose: it chases the live edge and stutters on the flaky IPTV origins.
+function liveHlsConfig(extra){
+  return Object.assign({
+    capLevelToPlayerSize:true,
+    startLevel:0,
+    maxBufferLength:6,
+    maxMaxBufferLength:12,
+    backBufferLength:10,
+    liveSyncDurationCount:3,
+    lowLatencyMode:false,
+    enableWorker:true,
+    liveDurationInfinity:true
+  },extra||{});
+}
 function livePark(cell){
-  // Intentional no-op for continuous streaming. Do NOT pauseVideo / detach src.
-  if(cell)cell.__live=true;
+  if(!cell||cell.__parked)return;
+  clearTimeout(cell.__parkT);cell.__parkT=null;
+  if(cell===_audioCell)return;                 // the one audible stream never parks
+  const v=cell.querySelector('video');
+  if(v){
+    cell.__parked=true;cell.__live=false;
+    try{if(v.__hls)v.__hls.stopLoad();}catch(e){}
+    try{v.pause();}catch(e){}                   // last frame stays, no chrome, src intact
+    cell.classList.add('live-parked');
+    return;
+  }
+  const yt=cell.querySelector('iframe');
+  if(yt&&yt.__ytPost&&cell.__wallName&&!cell.__healing){
+    cell.__parked=true;cell.__live=false;cell.__needsHeal=true;
+    try{disposeCell(cell);}catch(e){}           // also drops it from liveCells…
+    cell.querySelectorAll('iframe').forEach(n=>{try{n.remove();}catch(e){}});
+    cell.classList.remove('playing');
+    try{sparkleTile(cell,'● CONNECTING');}catch(e){}
+    liveGate(cell);                             // …so re-observe it, still parked
+    cell.__parked=true;cell.__live=false;
+  }
+}
+// Is the surface this tile lives on actually the one being looked at? The globe
+// wall and the reels view are SIBLINGS that slide past each other on translateX,
+// so a wall tile stays inside the viewport - and therefore keeps satisfying the
+// IntersectionObserver - while reels are on screen in front of it. Without this,
+// sliding to reels re-woke the whole wall a frame after liveParkAll parked it, and
+// the reel competed with it for decoders. Measured: 3 wall videos still decoding
+// under reels.
+function liveSurfaceActive(cell){
+  if(!cell||!cell.isConnected)return false;
+  const scr=cell.closest&&cell.closest('.screen');
+  if(scr&&!scr.classList.contains('active'))return false;
+  if(cell.closest&&cell.closest('#globe-map-view,#globe-live-grid,#gl-grid')&&
+     typeof globeMode!=='undefined'&&globeMode!=='globe')return false;
+  if(typeof globePanOpen!=='undefined'&&globePanOpen&&
+     cell.closest&&cell.closest('#gl-grid'))return false;   // nation panel is over it
+  return true;
 }
 function liveWake(cell){
   if(!cell)return;
+  if(!liveSurfaceActive(cell)){livePark(cell);return;}
+  clearTimeout(cell.__parkT);cell.__parkT=null;
   cell.__live=true;
+  cell.classList.remove('live-parked');
+  if(cell.__parked){
+    cell.__parked=false;
+    const v=cell.querySelector('video');
+    if(v){
+      try{if(v.__hls)v.__hls.startLoad(-1);}catch(e){}
+      // A parked live stream is behind by however long it sat. Jump to the edge
+      // so waking never replays stale seconds before catching up.
+      try{
+        const t=v.__hls&&v.__hls.liveSyncPosition;
+        if(typeof t==='number'&&isFinite(t))v.currentTime=t;
+        else if(v.seekable&&v.seekable.length)v.currentTime=v.seekable.end(v.seekable.length-1);
+      }catch(e){}
+    }else if(cell.__needsHeal&&typeof healWallCell==='function'){
+      healWallCell(cell);return;                // YouTube tile: remount from scratch
+    }
+  }
   liveNudgePlay(cell);
+  liveBudget(cell);
 }
-let _liveObs=null;
+// Hard ceiling on decoders. Anything over budget parks, furthest from the middle
+// of the screen first, so what the user is actually looking at keeps the hardware.
+function liveBudget(keep){
+  const live=[...liveCells].filter(c=>c.isConnected&&!c.__parked);
+  let over=live.length-LIVE_MAX_DECODING;
+  if(over<=0)return;
+  const onScreen=c=>{const r=c.__rect;return r&&r.bottom>0&&r.top<innerHeight&&r.width>0;};
+  const mid=innerHeight/2;
+  const dist=c=>{const r=c.__rect;return r?Math.abs((r.top+r.bottom)/2-mid):1e9;};
+  const trim=live.filter(c=>c!==keep&&c!==_audioCell&&!onScreen(c)).sort((a,b)=>dist(b)-dist(a));
+  for(const c of trim){
+    if(over<=0)break;
+    livePark(c);
+    if(c.__parked)over--;
+  }
+}
+let _liveObs=null,_liveFarObs=null;
 function liveGate(cell){
   if(!cell||liveCells.has(cell))return;
   liveCells.add(cell); cell.__live=true;
   if(!_liveObs)_liveObs=new IntersectionObserver(es=>es.forEach(e=>{
-    const el=e.target;
-    // Only WAKE/nudge when near — never park. Far tiles keep decoding so scroll
-    // never paints a play button or forces a reconnect.
-    if(e.isIntersecting&&!document.hidden)liveWake(el);
-  }),{rootMargin:'900px'});
-  _liveObs.observe(cell);
+    e.target.__rect=e.boundingClientRect;
+    if(e.isIntersecting&&!document.hidden)liveWake(e.target);
+  }),{rootMargin:'100px'});
+  if(!_liveFarObs)_liveFarObs=new IntersectionObserver(es=>es.forEach(e=>{
+    const el=e.target;el.__rect=e.boundingClientRect;
+    if(e.isIntersecting)return;
+    clearTimeout(el.__parkT);
+    el.__parkT=setTimeout(()=>livePark(el),LIVE_PARK_GRACE);
+  }),{rootMargin:'500px'});
+  _liveObs.observe(cell);_liveFarObs.observe(cell);
+  if(!liveSurfaceActive(cell))livePark(cell);
 }
 function liveParkAll(){
-  // Soft mark only. Used when leaving the globe surface so callers keep working,
-  // but players are NOT torn down (resume must be instant).
-  liveCells.forEach(c=>{clearTimeout(c.__parkT);c.__parkT=null;c.__live=true;});
+  // Leaving the surface: park for real. This used to be a flag-only no-op, so the
+  // whole wall kept decoding under reels, under the nation panel and on every
+  // other tab — the single biggest source of the 10fps.
+  liveCells.forEach(c=>{clearTimeout(c.__parkT);c.__parkT=null;livePark(c);});
 }
 function liveWakeVisible(){
   if(document.hidden)return;
   liveCells.forEach(c=>{
     const _scr=c.closest?c.closest('.screen'):null;
     if(!c.isConnected||(_scr&&!_scr.classList.contains('active')))return;
-    liveNudgePlay(c);
+    // Only what is actually near the viewport comes back — waking the whole set
+    // would put every decoder back at once and undo the budget.
+    const r=c.getBoundingClientRect();c.__rect=r;
+    if(r.bottom<-innerHeight||r.top>innerHeight*2)return;
+    liveWake(c);
   });
 }
 document.addEventListener('visibilitychange',()=>{
@@ -5010,8 +5165,8 @@ setInterval(()=>{
   if(document.hidden||typeof activeTab==='undefined'||activeTab!=='globe')return;
   if(typeof globeMode!=='undefined'&&globeMode!=='globe')return;
   liveCells.forEach(c=>{
-    if(!c.isConnected)return;
-    const r=c.getBoundingClientRect();
+    if(!c.isConnected||c.__parked)return;       // parked tiles are meant to be still
+    const r=c.getBoundingClientRect();c.__rect=r;
     if(r.bottom<-200||r.top>innerHeight+200)return;
     const v=c.querySelector('video');
     const yt=c.querySelector('iframe');
@@ -5152,7 +5307,7 @@ function attemptSource(cell,source){
           else{cell.__needsHeal=true;}
         });
         // If OS pauses later, nudge — do not show a controls UI.
-        v.addEventListener('pause',()=>{if(!document.hidden&&cell.__live!==false){try{v.muted=cell!==_audioCell;v.play&&v.play().catch(()=>{v.muted=true;v.play().catch(()=>{});});}catch(e){}}});
+        v.addEventListener('pause',()=>{if(!document.hidden&&cell.__live!==false&&!cell.__parked){try{v.muted=cell!==_audioCell;v.play&&v.play().catch(()=>{v.muted=true;v.play().catch(()=>{});});}catch(e){}}});
         cell.insertBefore(v,cell.firstChild);
         if(v.canPlayType('application/vnd.apple.mpegurl')){          // Safari native
           v.src=source.url;if(v.play)v.play().catch(()=>{});
@@ -5173,7 +5328,12 @@ function attemptSource(cell,source){
           loadLib('hls').then(()=>{
             if(done){v.remove();return;}              // timed out while the library loaded
             if(!(window.Hls&&window.Hls.isSupported())){v.remove();finish(false);return;}
-            const hls=new Hls({maxBufferLength:8,liveDurationInfinity:true,enableWorker:true});
+            // capLevelToPlayerSize is the other half of the 10fps fix: without it a
+            // 180px wall tile decoded the stream's TOP rendition (720p/1080p - the
+            // IPTV urls even ask for ?hd=1). backBufferLength defaulted to Infinity,
+            // so a player that never stops grew its buffer for the whole session.
+            const hls=new Hls(liveHlsConfig());
+            v.__hls=hls;                      // livePark / liveWake drive this
             hls.on(Hls.Events.MANIFEST_PARSED,()=>{if(v.play)v.play().catch(()=>{});});
             // CURSOR #6 — post-PLAYING fatals used to no-op (finish already done)
             // and leave a black cell. Recover in place; only heal on hard death.
@@ -6180,7 +6340,7 @@ async function pullCountryBsky(c){
   }catch(e){return [];}
 }
 // Country feed: seed posts → Reddit → Wikipedia fallback (always shows something)
-function feedPostHtml(p,i,iso){const src=p.source||'void';const srcHandle={'reddit':'r/worldnews','telegram':'telegram','twitter':'x.com','void':'void.signal','forum':'forum'}[src]||src;return `<div class="post" style="animation-delay:${i*.04}s"><div class="post-header"><div class="post-avatar" style="background:${AVC[i%AVC.length]}">${iso}</div><div class="post-meta"><div class="post-name">${esc(p.country||'world')} <span class="post-handle">@${srcHandle}</span></div><div class="post-time">${ago(p.time)}</div></div></div><div class="post-body${p.style==='take'?' take':''}" onclick="openThread('${p.id}')">${esc(p.body)}</div><div class="post-acts"><button class="pa fire">${VICON.bolt}<span>${fmt(p.score)}</span></button><button class="pa rank">${VICON.reply}<span>${fmt(p.replies||0)}</span></button></div></div>`;}
+function feedPostHtml(p,i,iso){const src=p.source||'void';const srcHandle={'reddit':'r/worldnews','telegram':'telegram','twitter':'x.com','void':'void.signal','forum':'forum','bluesky':'void.signal'}[src]||src;return `<div class="post" style="animation-delay:${i*.04}s"><div class="post-header"><div class="post-avatar" style="background:${AVC[i%AVC.length]}">${iso}</div><div class="post-meta"><div class="post-name">${esc(p.country||'world')} <span class="post-handle">@${srcHandle}</span></div><div class="post-time">${ago(p.time)}</div></div></div><div class="post-body${p.style==='take'?' take':''}" onclick="openThread('${p.id}')">${esc(p.body)}</div><div class="post-acts"><button class="pa fire">${VICON.bolt}<span>${fmt(p.score)}</span></button><button class="pa rank">${VICON.reply}<span>${fmt(p.replies||0)}</span></button></div></div>`;}
 function redditPostHtml(p,i,iso,url){const sub=url.match(/\/r\/([^/]+)/)?.[1]||'worldnews';return `<div class="post" style="animation-delay:${i*.04}s"><div class="post-header"><div class="post-avatar" style="background:${AVC[i%AVC.length]}">${iso}</div><div class="post-meta"><div class="post-name">reddit <span class="post-handle">r/${sub}</span></div><div class="post-time">${ago(p.time)} &middot; ${fmt(p.nc||0)} voices</div></div></div><div class="post-body take" onclick="openThreadFromUrl('${encodeURIComponent(url)}',this)">${esc(p.title)}</div><div class="post-acts"><button class="pa fire">${VICON.bolt}<span>${fmt(p.score||0)}</span></button><button class="pa rank">${VICON.reply}<span>${fmt(p.nc||0)}</span></button><a href="${url}" target="_blank" class="pa" style="text-decoration:none">&#x2197; VIEW</a></div></div>`;}
 // ─── NATION FEED ────────────────────────────────────────────────────────
 // Why it showed "NO VERIFIED SIGNAL": Bluesky's public searchPosts now answers 403
@@ -6787,7 +6947,7 @@ function openThread(postId){const p=allPosts.find(x=>x.id===postId);if(!p)return
   // A thread still open or mid-close settles instantly, so its borrowed media is home first.
   if(_ov.classList.contains('open')||_tFlip.media||_tFlip.src)_threadFinishClose();
   closeReplies(true,true);
-  currentThreadPost=postId;const srcIcons={reddit:'REDDIT',twitter:'X',instagram:'INSTAGRAM',telegram:'TELEGRAM',youtube:'YOUTUBE',void:'VOID',forum:'FORUM',mastodon:'MASTODON',lemmy:'LEMMY',bluesky:'BLUESKY',peertube:'PEERTUBE',radio:'RADIO',commons:'WIKIMEDIA COMMONS'};const srcLabel=p.source==='news'?String((p.provenance&&p.provenance.sourceHost)||p._author||'NEWS').toUpperCase():(srcIcons[p.source]||'SOURCE');const srcHref=p.sourceUrl||'#';const _av=(p._author||p.iso||'?')[0].toUpperCase();const _col=p._isoColor||AVC[0];
+  currentThreadPost=postId;const srcIcons={reddit:'REDDIT',twitter:'X',instagram:'INSTAGRAM',telegram:'TELEGRAM',youtube:'YOUTUBE',void:'VOID',forum:'FORUM',mastodon:'MASTODON',lemmy:'LEMMY',bluesky:'VOID',peertube:'PEERTUBE',radio:'RADIO',commons:'WIKIMEDIA COMMONS'};const srcLabel=p.source==='news'?String((p.provenance&&p.provenance.sourceHost)||p._author||'NEWS').toUpperCase():(srcIcons[p.source]||'SOURCE');const srcHref=p.sourceUrl||'#';const _av=(p._author||p.iso||'?')[0].toUpperCase();const _col=p._isoColor||AVC[0];
   // The thread used to render TEXT ONLY. Opening a video post from the feed gave you
   // its caption and nothing else — posts literally reading "Video: ..." with no video
   // anywhere on screen. Media now renders here too: video with real controls (in a
@@ -6828,7 +6988,7 @@ function openThread(postId){const p=allPosts.find(x=>x.id===postId);if(!p)return
   // set the flag synchronously before their first await, so ordering is all it took.)
   _threadAnimateOpen(_ov,_card);
 }
-function closeThread(){
+function closeThread(){_thTr.on=false;
   // replyParent is module-level and was cleared only on a successful submit. Left
   // set, it followed you into the NEXT thread and stamped your comment with a
   // parentId from the old one — renderThreadComments excludes it from the top-level
@@ -6867,7 +7027,148 @@ function closeThread(){
   }
   _tFlip.timer=setTimeout(()=>{if(tok===_tFlip.token)_threadFinishClose();},dur);
 }
-async function translateThreadBody(){const el=document.getElementById('thread-body-text');if(!el)return;if(el.dataset.translated){el.innerHTML=el.dataset.original;delete el.dataset.translated;document.querySelector('.btn-translate')?.classList.remove('on');return;}el.dataset.original=el.innerHTML;try{const r=await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${SETTINGS.lang}&dt=t&q=${encodeURIComponent(el.innerText)}`);const d=await r.json();el.innerHTML=esc(d[0].map(x=>x[0]).join(''))+`<span class="translated-badge">&#x21BA; ${SETTINGS.lang.toUpperCase()}</span>`;el.dataset.translated='1';document.querySelector('.btn-translate')?.classList.add('on');}catch{el.innerHTML=el.dataset.original;}}
+// ── Thread translation ─────────────────────────────────────────────────────
+// TR in the thread header translates the WHOLE thread: the post, its description
+// and every reply — including replies that render later (late fetches, sort
+// toggles, the nested reply overlay). It used to translate #thread-body-text
+// alone, so on a video post, whose words live in the description, the tap
+// changed nothing a reader could see.
+//
+// Replies go out BATCHED — one request per ~900 chars of replies, not one per
+// reply. The free gtx endpoint rate-limits by IP (429, then a "Sorry…" page for
+// hours), and a 30-reply thread sent one-per-reply trips it on the first tap.
+// Failures now say so: the old catch silently restored the original, which is
+// exactly what "translate did nothing" looks like from the outside.
+let _thTr={post:null,on:false};
+const _trCache=new Map();
+const _TR_SOLO='#thread-body-text,#thread-overlay .t-desc';
+const _TR_REPLIES='#thread-comments .thread-comment-text,#ro-body .thread-comment-text';
+const _trKey=t=>SETTINGS.lang+'|'+String(t||'').trim();
+async function _gtx(q){
+  const r=await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${SETTINGS.lang}&dt=t&q=${encodeURIComponent(q)}`);
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  const d=await r.json();return d[0].map(x=>x[0]).join('');
+}
+// Real translation goes through the proxy: DeepL, one key behind every user,
+// and a shared server cache, so a thread translated for one reader is free for
+// the next. gtx is only the fallback — it has no key and Google blocks it per IP
+// without notice. A proxy answering 503 (no key, or the month's quota is gone)
+// is skipped for the rest of the session instead of being retried every tap.
+let _trProxyOff=false;
+async function _proxyTr(texts){
+  if(!VOID_PROXY_BASE||_trProxyOff)throw new Error('no proxy');
+  const r=await fetch(`${VOID_PROXY_BASE}/translate`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({texts,target:SETTINGS.lang})});
+  if(r.status===503)_trProxyOff=true;
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  const d=await r.json();
+  if(!d||!Array.isArray(d.translations)||d.translations.length!==texts.length)throw new Error('bad translate reply');
+  return d.translations;
+}
+// gtx is a GET. 900 chars stays under URL limits even for 3-byte scripts once
+// percent-encoded; longer text is split on a newline or space and rejoined.
+async function trText(text){
+  const src=String(text||'').trim();if(!src)return '';
+  const key=_trKey(src);
+  if(_trCache.has(key))return _trCache.get(key);
+  try{const [t]=await _proxyTr([src]);_trCache.set(key,t);return t;}catch(e){/* fall back to gtx */}
+  const chunks=[];let rest=src;
+  while(rest.length>900){let cut=rest.lastIndexOf('\n',900);if(cut<400)cut=rest.lastIndexOf(' ',900);if(cut<400)cut=900;chunks.push(rest.slice(0,cut));rest=rest.slice(cut);}
+  chunks.push(rest);
+  let out='';
+  for(const c of chunks)out+=await _gtx(c);
+  _trCache.set(key,out);return out;
+}
+// Many texts in few requests. Proxy first: DeepL takes 50 texts a call and keeps
+// newlines. Whatever it doesn't answer goes to gtx one text per line, split back
+// on newlines — inner newlines flattened to keep lines aligned, and a group whose
+// answer comes back misaligned falls back to one request per text. Returns an
+// array; a slot left undefined failed.
+async function trBatch(texts){
+  const out=new Array(texts.length),todo=[];
+  texts.forEach((t,i)=>{
+    const k=_trKey(t);
+    if(_trCache.has(k))out[i]=_trCache.get(k);
+    else if(!String(t||'').trim())out[i]='';
+    else todo.push(i);
+  });
+  if(!todo.length)return out;
+  if(VOID_PROXY_BASE&&!_trProxyOff){
+    try{
+      for(let k=0;k<todo.length;k+=50){
+        const part=todo.slice(k,k+50);
+        const tr=await _proxyTr(part.map(i=>String(texts[i]).trim()));
+        part.forEach((i,j)=>{out[i]=tr[j];_trCache.set(_trKey(texts[i]),tr[j]);});
+      }
+    }catch(e){/* whatever is still missing falls through to gtx */}
+  }
+  const groups=[];let g=[],len=0;
+  for(const i of todo){
+    if(out[i]!==undefined)continue;
+    const flat=String(texts[i]).replace(/\s*\n+\s*/g,' ').trim();
+    if(len+flat.length>900&&g.length){groups.push(g);g=[];len=0;}
+    g.push([i,flat]);len+=flat.length+1;
+  }
+  if(g.length)groups.push(g);
+  await Promise.all(groups.map(async grp=>{
+    await _trSlot();
+    try{
+      const parts=grp.length===1?[await trText(grp[0][1])]:(await _gtx(grp.map(x=>x[1]).join('\n'))).split('\n');
+      if(parts.length===grp.length)grp.forEach(([i],j)=>{out[i]=parts[j].trim();_trCache.set(_trKey(texts[i]),out[i]);});
+      else for(const [i] of grp){try{out[i]=await trText(texts[i]);}catch(e){}}
+    }catch(e){/* leave this group undefined: shown as original */}
+    finally{_trFree();}
+  }));
+  return out;
+}
+let _trActive=0;const _trWait=[];
+function _trSlot(){return new Promise(res=>{if(_trActive<3){_trActive++;res();}else _trWait.push(res);});}
+function _trFree(){const n=_trWait.shift();if(n)n();else _trActive--;}
+// data-tr-orig marks an element done or in flight, so re-applying is a no-op.
+function _trMark(els){return els.filter(el=>el.dataset.trOrig===undefined).map(el=>{el.dataset.trOrig=el.innerHTML;el.classList.add('tr-pending');return el;});}
+// Writes one result, unless the thread closed, toggled off or moved on meanwhile.
+// t==null means that text failed: put the original back and clear the mark.
+function _trPut(el,t,postId){
+  el.classList.remove('tr-pending');
+  if(!_thTr.on||_thTr.post!==postId||!el.isConnected)return;
+  if(t==null){el.innerHTML=el.dataset.trOrig;delete el.dataset.trOrig;return;}
+  el.textContent=t;
+  if(el.id==='thread-body-text')el.insertAdjacentHTML('beforeend',`<span class="translated-badge">&#x21BA; ${esc(SETTINGS.lang.toUpperCase())}</span>`);
+}
+async function _thTrApply(){
+  const postId=currentThreadPost;let ok=0,fail=0;
+  const solo=_trMark([...document.querySelectorAll(_TR_SOLO)]);
+  const reps=_trMark([...document.querySelectorAll(_TR_REPLIES)]);
+  const soloJobs=solo.map(async el=>{
+    await _trSlot();
+    try{_trPut(el,await trText(el.innerText),postId);ok++;}
+    catch(e){_trPut(el,null,postId);fail++;}
+    finally{_trFree();}
+  });
+  const repJob=(async()=>{
+    if(!reps.length)return;
+    const res=await trBatch(reps.map(el=>el.innerText));
+    reps.forEach((el,i)=>{_trPut(el,res[i],postId);if(res[i]==null)fail++;else ok++;});
+  })();
+  await Promise.all([...soloJobs,repJob]);
+  return {ok,fail};
+}
+function _thTrRestore(){
+  document.querySelectorAll(_TR_SOLO+','+_TR_REPLIES).forEach(el=>{
+    if(el.dataset.trOrig===undefined)return;
+    el.innerHTML=el.dataset.trOrig;delete el.dataset.trOrig;el.classList.remove('tr-pending');
+  });
+}
+// Scoped to the thread header: a bare querySelector('.btn-translate') could hit
+// another TR button elsewhere in the page and leave this one looking idle.
+function _thTrBtn(on){const b=document.querySelector('#thread-original .btn-translate');if(b)b.classList.toggle('on',on);}
+async function translateThreadBody(){
+  const postId=currentThreadPost;if(!postId)return;
+  if(_thTr.on&&_thTr.post===postId){_thTr.on=false;_thTrRestore();_thTrBtn(false);return;}
+  _thTr={post:postId,on:true};_thTrBtn(true);
+  const {ok,fail}=await _thTrApply();
+  if(!ok&&fail&&_thTr.on&&_thTr.post===postId){_thTr.on=false;_thTrBtn(false);voidToast('TRANSLATION UNAVAILABLE · TRY AGAIN SOON');}
+  else if(fail&&_thTr.on)voidToast('SOME REPLIES COULD NOT BE TRANSLATED');
+}
 // Replies are a tree: a reply with a parentId lives BEHIND its parent card (§4.A
 // stack edges) and is read in the reply overlay (§4.B). TOP = bolts desc, NEW =
 // time desc, applied to the thread deck and to each reply-overlay level alike.
@@ -6889,8 +7190,8 @@ function bskyReplyToComment(node,parentId){
   if(!rec.text)return null;
   return {
     id:'r_'+(p.cid||p.uri||Math.random()),
-    author:au.displayName||au.handle||'bluesky',
-    handle:'@'+(au.handle||'bsky'),
+    author:au.displayName||dispHandle(au.handle),
+    handle:'@'+dispHandle(au.handle),
     text:rec.text,
     time:rec.createdAt?Date.parse(rec.createdAt):Date.now(),
     bolts:p.likeCount||0,
@@ -7246,6 +7547,7 @@ function renderThreadComments(postId){
   document.getElementById('thread-comments').innerHTML=html||
     (failed?`<button class="tc-empty tc-retry" onclick="delete _fediFailAt[currentThreadPost];loadRemoteReplies(currentThreadPost);renderThreadComments(currentThreadPost)">REPLIES DIDN&#x2019;T ARRIVE &middot; TAP TO RETRY</button>`
     :`<div class="tc-empty">${loading?'PULLING REPLIES…':'BE FIRST TO ENTER THE THREAD'}</div>`);
+  if(_thTr.on&&_thTr.post===postId)_thTrApply();
 }
 // ── §4.B reply overlay (ref 8f) ─────────────────────────────────────────────
 // _roStack is the drill-down path of comment ids; the top is the PARENT on screen.
@@ -7297,6 +7599,7 @@ function renderReplies(anim){
   const inp=document.getElementById('reply-input');
   if(inp)inp.placeholder=`reply to ${String(parent.author||'anon')}…`;
   if(anim){body.classList.remove('swap','back');void body.offsetWidth;body.classList.add(anim==='back'?'back':'swap');body.scrollTop=0;}
+  if(_thTr.on&&_thTr.post===postId)_thTrApply();
 }
 // Optimistic local write + VoidAPI.reply(threadId, body, parentId). A local parent
 // that has already landed server-side is addressed by its server id, so Supabase
@@ -7911,6 +8214,13 @@ function vwFill(n=5,any){
   // broken rather than loading.
   let pool=reelPosts.filter(p=>p._video&&!vwSeen.has(p.id)&&eligible(p));
   if(pool.length<n)pool=pool.concat(allPosts.filter(p=>p._video&&!vwSeen.has(p.id)&&!pool.includes(p)&&eligible(p)));
+  // The feed renders first and laneClaims every video it draws, so on a cold start
+  // laneFree(p,'reel') refused ALL of them and reels opened empty. Sharing a clip
+  // with the feed beats showing nothing.
+  if(pool.length<n){
+    const loose=reelPosts.concat(allPosts).filter(p=>p._video&&!vwSeen.has(p.id)&&pool.indexOf(p)<0);
+    pool=pool.concat(loose);
+  }
   if(!pool.length){ // genuinely exhausted — recycle, but never repeat what is on screen
     vwSeen.clear();vwQueue.slice(-3).forEach(p=>vwSeen.add(p.id.split('~')[0]));
     pool=reelPosts.filter(p=>p._video&&!vwSeen.has(p.id)&&eligible(p));
@@ -8014,12 +8324,29 @@ function fillGlobeReels(force){
   if(!picks.length){
     // Nothing to show yet because the feed itself hasn't arrived. Say so and
     // pull — then fill as soon as posts land, instead of sitting blank.
+    // THE FREEZE. This used to be pullVoidFeed().then(()=>fillGlobeReels()).
+    // pullVoidFeed returns at once while a feed pull is already in flight, and
+    // pullReelPage did the same, so the retry resolved as a MICROTASK and re-entered
+    // instantly: an unbounded microtask loop that starved the event loop, so the
+    // very fetches it was waiting on could never complete. The tab sat on PULLING
+    // SIGNAL or locked up outright, which is "reels not working, not even loading".
+    // Now it awaits the real pulls, waits a beat, bounds the retries, and can never
+    // re-enter synchronously.
     ct.innerHTML='<div class="greel-empty">PULLING SIGNAL&#x2026;</div>';
-    if(typeof pullVoidFeed==='function')pullVoidFeed().then(()=>{
-      if(globeMode==='reels'&&activeTab==='globe')fillGlobeReels();
+    if((fillGlobeReels._tries=(fillGlobeReels._tries||0)+1)>3){
+      fillGlobeReels._tries=0;
+      ct.innerHTML='<div class="greel-empty">NO SIGNAL &#x00b7; PULL TO REFRESH</div>';
+      return;
+    }
+    Promise.allSettled([
+      typeof pullReelPage==='function'?pullReelPage():null,
+      typeof pullVoidFeed==='function'?pullVoidFeed():null
+    ]).then(()=>new Promise(r=>setTimeout(r,800))).then(()=>{
+      if(globeMode==='reels'&&activeTab==='globe')fillGlobeReels(true);
     });
     return;
   }
+  fillGlobeReels._tries=0;
   ct.innerHTML=picks.map(vwItemHtml).join('');
   vwObserve(ct);ct.scrollTop=0;
   ct.onscroll=()=>{if(ct.scrollTop+ct.clientHeight*3>ct.scrollHeight){
@@ -8261,21 +8588,57 @@ function vwAttach(v){
   // or an unsupported codec left the orbit spinner turning over a purple gradient
   // FOREVER — no timeout, no error state, and swiping away and back did not help.
   // The image path already got this right (onerror clears and removes).
-  v.addEventListener('error',()=>vwClearLoad(v),{passive:true});
+  v.addEventListener('error',()=>{vwClearLoad(v);if(!v.__played)vwDrop(v);},{passive:true});
+  v.addEventListener('playing',()=>{v.__played=1;},{passive:true});
   ['loadeddata','canplay','canplaythrough'].forEach(ev=>
     v.addEventListener(ev,()=>{if(v.isConnected&&!v.__gone&&v.__want)vwTryPlay(v);},{passive:true}));
   const src=v.dataset.src||'';
   if(/\.m3u8(\?|$)/i.test(src)){
-    if(v.canPlayType('application/vnd.apple.mpegurl'))v.src=src;
-    else loadLib('hls').then(()=>{                 // lazy: see __LIB in the head
+    // hls.js FIRST wherever it runs. canPlayType('application/vnd.apple.mpegurl')
+    // is truthy in Android Chrome and in most WebViews, which then fail to play the
+    // manifest - and that branch had no fallback, so the card sat under its loader
+    // forever with nothing logged. Native HLS is now only for where hls.js cannot
+    // run at all, which in practice is iOS/Safari.
+    const native=()=>{try{v.src=src;}catch(e){vwClearLoad(v);vwDrop(v);}};
+    loadLib('hls').then(()=>{                      // lazy: see __LIB in the head
       // The reel may have been scrolled past and torn down while hls.js loaded.
-      if(v.__gone||!v.isConnected||!window.Hls||!window.Hls.isSupported()){vwClearLoad(v);return;}
-      const h=new window.Hls({maxBufferLength:8});
+      // Bailing here must also UNDO the ready flag, or this card can never
+      // attach again (see the dead-card note in vwPlay).
+      if(v.__gone||!v.isConnected){delete v.dataset.ready;vwClearLoad(v);return;}
+      if(!(window.Hls&&window.Hls.isSupported())){
+        if(v.canPlayType('application/vnd.apple.mpegurl'))native();
+        else{vwClearLoad(v);vwDrop(v);}
+        return;
+      }
+      const h=new window.Hls(liveHlsConfig({startLevel:-1,maxBufferLength:10,backBufferLength:5,liveDurationInfinity:false}));
       h.on(window.Hls.Events.MANIFEST_PARSED,()=>{if(v.__want)vwTryPlay(v);});
-      h.on(window.Hls.Events.ERROR,(_,d)=>{if(d&&d.fatal)vwClearLoad(v);});
+      h.on(window.Hls.Events.ERROR,(_,d)=>{
+        if(!d||!d.fatal)return;
+        // One real recovery attempt per kind, THEN give the slot up. Clearing the
+        // loader and leaving the card behind is how reels filled with black panels.
+        try{
+          if(d.type===window.Hls.ErrorTypes.MEDIA_ERROR&&!v.__recovered){v.__recovered=1;h.recoverMediaError();return;}
+          if(d.type===window.Hls.ErrorTypes.NETWORK_ERROR&&!v.__retried){v.__retried=1;setTimeout(()=>{try{h.startLoad();}catch(e){}},800);return;}
+        }catch(e){}
+        try{h.destroy();}catch(e){}
+        v.__hls=null;vwClearLoad(v);vwDrop(v);
+      });
       h.loadSource(src);h.attachMedia(v);v.__hls=h;
-    }).catch(()=>{vwClearLoad(v);});
+    }).catch(()=>{
+      if(v.canPlayType('application/vnd.apple.mpegurl'))native();
+      else{vwClearLoad(v);vwDrop(v);}
+    });
   }else v.src=src;
+}
+// A card whose video is genuinely dead leaves the rail instead of sitting there as
+// a black panel the user has to swipe past. If it empties the inline surface, refill.
+function vwDrop(v){
+  const el=v&&v.closest&&v.closest('.vw-item');if(!el)return;
+  const ct=el.parentNode;
+  try{console.warn('[reels] dead card dropped',v.dataset.src||'');}catch(e){}
+  if(ct&&ct.__obs){try{ct.__obs.unobserve(el);}catch(e){}}
+  el.remove();
+  if(ct&&ct.id==='greel-container'&&!ct.querySelector('.vw-item')&&typeof fillGlobeReels==='function')fillGlobeReels(true);
 }
 // Buffer ahead. __want stays false so a warmed item downloads but never plays.
 function vwWarm(el){
@@ -8295,6 +8658,9 @@ function vwRelease(el){
 function vwPlay(el){
   const v=el.querySelector('.vw-vid');if(!v)return;
   v.__gone=0; v.__want=true;
+  // Belt and braces for the same dead-card case: a card flagged ready that ended up
+  // with no source at all gets its flag cleared so vwAttach really runs.
+  if(v.dataset.ready&&!v.__hls&&!v.src&&!v.currentSrc)delete v.dataset.ready;
   vwAttach(v);
   vwTryPlay(v);
 }
@@ -8355,7 +8721,7 @@ function openPhoto(postId,idx){
 
   document.getElementById('photo-cap').innerHTML=esc(p.body||'')+
     `<button class="photo-thread" onclick="event.stopPropagation();closePhoto();openThread('${p.id}')">${VICON.reply} OPEN THREAD</button>`+
-    `<div class="photo-src">${esc((p.provenance&&p.provenance.sourceHost)||p.source||'void')}${slides.length>1?` \xb7 ${slides.length} SLIDES`:''} \xb7 SWIPE DOWN TO CLOSE</div>`;
+    `<div class="photo-src">${esc(srcName((p.provenance&&p.provenance.sourceHost)||p.source))}${slides.length>1?` \xb7 ${slides.length} SLIDES`:''} \xb7 SWIPE DOWN TO CLOSE</div>`;
   ov.style.transform='';ov.style.opacity='';
   ov.classList.add('open');
   if(p.tags)vwBump(p.tags,.3);
@@ -9298,7 +9664,7 @@ function authorOf(p){
   if(src==='news'){const h=hostOf(p)||nh(p._handle);return h?{key:'host:'+h,handle:h,label:h,source:'news',external:true,hostOnly:true}:null;}
   const h=nh(p._handle);
   if(h&&!GENERIC.has(h)&&h!==src)return {key:src+':'+h,handle:h,label:p._author||h,source:src,external:src!=='void'};
-  const host=hostOf(p);
+  const _hh=hostOf(p);const host=/bsky/i.test(_hh)?'':_hh;   // appview host is plumbing, never an author
   if(host&&src!=='void')return {key:'host:'+host,handle:host,label:host,source:src,external:true,hostOnly:true};
   return null;
 }
@@ -9437,7 +9803,7 @@ function author(id){
   if(!a){if(p._user)return;return voidToast('NO ACCOUNT TO SHOW');}
   T={kind:'post',id:baseId(p.id),p,a};
   const b=isBlocked(a),who=a.hostOnly?a.handle:'@'+(a.handle||a.label);
-  open(hdr(a.external?String(a.source).toUpperCase()+' ACCOUNT':'VOID ACCOUNT')+
+  open(hdr(a.external?srcName(a.source).toUpperCase()+' ACCOUNT':'VOID ACCOUNT')+
     `<div class="vmod-av big" style="background:${typeof _tcCol==='function'?_tcCol(a.label):'var(--card2)'}">${att(String(a.label||'?')[0].toUpperCase())}</div>
      <div class="vmod-title" style="text-align:center">${att(a.label)}</div>
      <div class="vmod-p" style="text-align:center;font-family:'Syne Mono',monospace;font-size:9px;letter-spacing:.1em">${att(who)}${b?' &middot; '+(a.external?'HIDDEN':'BLOCKED'):''}</div>`+
@@ -9502,7 +9868,7 @@ function unmute(m,fromMute){voidUnmute(m);voidToast('UNMUTED · '+String(m).toUp
 // ─── settings pages ──────────────────────────────────────────────────────
 function blockedSheet(){
   const v=blocks.filter(b=>!b.external),x=blocks.filter(b=>b.external);
-  const item=b=>`<div class="vmod-item"><div class="vmod-av" style="background:${typeof _tcCol==='function'?_tcCol(b.label):'var(--card2)'}">${att(String(b.label||b.handle||'?')[0].toUpperCase())}</div><span class="vmod-row-t"><span class="vmod-row-l">${att(b.label||b.handle)}</span><span class="vmod-row-s">${b.hostOnly?'SOURCE':'@'+att(b.handle||'')}${b.external?' · '+att(String(b.source).toUpperCase()):''}</span></span><button class="vmod-pill" onclick="VMod.unblock('${att(b.key)}')">${b.external?'SHOW':'UNBLOCK'}</button></div>`;
+  const item=b=>`<div class="vmod-item"><div class="vmod-av" style="background:${typeof _tcCol==='function'?_tcCol(b.label):'var(--card2)'}">${att(String(b.label||b.handle||'?')[0].toUpperCase())}</div><span class="vmod-row-t"><span class="vmod-row-l">${att(b.label||b.handle)}</span><span class="vmod-row-s">${b.hostOnly?'SOURCE':'@'+att(b.handle||'')}${b.external?' · '+att(srcName(b.source).toUpperCase()):''}</span></span><button class="vmod-pill" onclick="VMod.unblock('${att(b.key)}')">${b.external?'SHOW':'UNBLOCK'}</button></div>`;
   const muted=typeof MUTED!=='undefined'?[...MUTED]:[];
   open(hdr('SAFETY')+`<div id="vmod-blocked"><div class="vmod-title">Blocked accounts</div>
     <div class="vmod-p">Blocked Void accounts cannot message you and their posts and replies are hidden everywhere. ${ready()?'Synced to your account.':'Stored on this device until you sign in.'}</div>

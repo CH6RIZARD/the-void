@@ -813,6 +813,7 @@ body.tab-void .bio-hud{display:flex}
   .ro-sheet,.ro-scrim,.thread-scrim{transition:none}
 }
 .translated-badge{font-family:'Syne Mono',monospace;font-size:7px;color:var(--purple);background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.3);padding:1px 5px;border-radius:2px;margin-left:6px;letter-spacing:.08em;vertical-align:middle}
+.tr-pending{opacity:.45;transition:opacity .2s}
 /* Bottom nav — patch-3 §1, 5a-B, inside the ORIGINAL floating pill (same
    position, margins, radius, surface). Icons only: no text labels, 19px hairline
    VICONs. Active = gold icon + 12x1 gold rule 7px below; inactive = --nav-dim.
@@ -3256,6 +3257,12 @@ function _saveBskyState(){
 // Feed-generator operators pin housekeeping posts (feed announcements, Graze
 // promos) to the top of their own feed. They are not content.
 function isFeedMeta(t){return /PINNED POST|graze\.social|remixing the .{0,20}feed|feed info/i.test(t||'');}
+// How a post's origin reads on screen. Items pulled from the AT Protocol appview
+// render as native Void: the wall is one surface, not a list of other people's
+// servers. Internal source/provenance values are untouched — only the label is.
+function srcName(s){const v=String(s||'void').toLowerCase();return(v==='bluesky'||v==='bsky'||v==='bsky.app'||v==='cdn.bsky.app')?'void':v;}
+// A person's name, without the appview's domain suffix stapled to it.
+function dispHandle(h){return String(h||'').replace(/\.bsky\.social$/i,'')||'void';}
 function bskyToPost(item){
   const post=(item&&item.post)||{}, rec=post.record||{}, emb=post.embed||{};
   let img='',vid='',style='take';
@@ -3294,7 +3301,7 @@ function bskyToPost(item){
     _repost:/Repost/i.test((item&&item.reason&&item.reason.$type)||''),
     body:rec.text||'', score:post.likeCount||0, replies:post.replyCount||0,
     time:rec.createdAt?Date.parse(rec.createdAt):Date.now(), source:'bluesky',
-    _author:au.displayName||handle||'bluesky', _handle:'@'+(handle||'bsky'), _img:img, _imgs:imgs, _video:vid,
+    _author:au.displayName||dispHandle(handle), _handle:'@'+dispHandle(handle), _img:img, _imgs:imgs, _video:vid,
     _url:handle&&rkey?`https://bsky.app/profile/${handle}/post/${rkey}`:'', _social:true,
     // The at:// URI is what getPostThread needs. It was dropped here, which is why
     // a post could advertise 50 replies and open a thread showing none: the count
@@ -4394,14 +4401,13 @@ async function quickTranslate(e,postId){
   if(el.dataset.pending)return;
   el.dataset.pending='1';
   btn.classList.add('on');                 // acknowledge the tap immediately
+  const src=el.innerText;                 // read before the placeholder replaces it
   el.dataset.original=el.innerHTML;
   el.innerHTML='<span style="opacity:.5;font-size:11px;font-family:\'Syne Mono\',monospace">translating&#x2026;</span>';
   try{
-    const r=await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${SETTINGS.lang}&dt=t&q=${encodeURIComponent(el.dataset.original.replace(/<[^>]+>/g,''))}`);
-    const d=await r.json();
-    el.innerHTML=esc(d[0].map(x=>x[0]).join(''))+`<span class="translated-badge">&#x21BA; ${SETTINGS.lang.toUpperCase()}</span>`;
+    el.innerHTML=esc(await trText(src))+`<span class="translated-badge">&#x21BA; ${SETTINGS.lang.toUpperCase()}</span>`;
     el.dataset.translated='1';
-  }catch{el.innerHTML=el.dataset.original;delete el.dataset.original;btn.classList.remove('on');}
+  }catch{el.innerHTML=el.dataset.original;delete el.dataset.original;btn.classList.remove('on');voidToast('TRANSLATION UNAVAILABLE · TRY AGAIN SOON');}
   finally{delete el.dataset.pending;}
 }
 function react(postId,type,e){e.stopPropagation();if(!postReactions[postId])postReactions[postId]={fire:0,rank:0,slash:0,mf:false,mr:false,ms:false};const r=postReactions[postId];const p=findPost(postId);const flip={fire:'mf',rank:'mr',slash:'ms'}[type];r[flip]=!r[flip];r[type]=(r[type]||0)+(r[flip]?1:-1);const el=document.getElementById(type[0]+'c-'+postId);if(el){const base=!p?0:type==='fire'?p.score:type==='rank'?p.replies:0;el.textContent=fmt(Math.max(0,base+(r[type]||0)));}const btn=document.querySelector(`#post-${postId} .pa.${type}`);btn?.classList.toggle('on',r[flip]);if(type==='fire'&&btn){const svg=btn.querySelector('.vi');if(svg)svg.outerHTML=(r.mf?VICON.boltFill:VICON.bolt);}
@@ -6177,7 +6183,7 @@ async function pullCountryBsky(c){
   }catch(e){return [];}
 }
 // Country feed: seed posts → Reddit → Wikipedia fallback (always shows something)
-function feedPostHtml(p,i,iso){const src=p.source||'void';const srcHandle={'reddit':'r/worldnews','telegram':'telegram','twitter':'x.com','void':'void.signal','forum':'forum'}[src]||src;return `<div class="post" style="animation-delay:${i*.04}s"><div class="post-header"><div class="post-avatar" style="background:${AVC[i%AVC.length]}">${iso}</div><div class="post-meta"><div class="post-name">${esc(p.country||'world')} <span class="post-handle">@${srcHandle}</span></div><div class="post-time">${ago(p.time)}</div></div></div><div class="post-body${p.style==='take'?' take':''}" onclick="openThread('${p.id}')">${esc(p.body)}</div><div class="post-acts"><button class="pa fire">${VICON.bolt}<span>${fmt(p.score)}</span></button><button class="pa rank">${VICON.reply}<span>${fmt(p.replies||0)}</span></button></div></div>`;}
+function feedPostHtml(p,i,iso){const src=p.source||'void';const srcHandle={'reddit':'r/worldnews','telegram':'telegram','twitter':'x.com','void':'void.signal','forum':'forum','bluesky':'void.signal'}[src]||src;return `<div class="post" style="animation-delay:${i*.04}s"><div class="post-header"><div class="post-avatar" style="background:${AVC[i%AVC.length]}">${iso}</div><div class="post-meta"><div class="post-name">${esc(p.country||'world')} <span class="post-handle">@${srcHandle}</span></div><div class="post-time">${ago(p.time)}</div></div></div><div class="post-body${p.style==='take'?' take':''}" onclick="openThread('${p.id}')">${esc(p.body)}</div><div class="post-acts"><button class="pa fire">${VICON.bolt}<span>${fmt(p.score)}</span></button><button class="pa rank">${VICON.reply}<span>${fmt(p.replies||0)}</span></button></div></div>`;}
 function redditPostHtml(p,i,iso,url){const sub=url.match(/\/r\/([^/]+)/)?.[1]||'worldnews';return `<div class="post" style="animation-delay:${i*.04}s"><div class="post-header"><div class="post-avatar" style="background:${AVC[i%AVC.length]}">${iso}</div><div class="post-meta"><div class="post-name">reddit <span class="post-handle">r/${sub}</span></div><div class="post-time">${ago(p.time)} &middot; ${fmt(p.nc||0)} voices</div></div></div><div class="post-body take" onclick="openThreadFromUrl('${encodeURIComponent(url)}',this)">${esc(p.title)}</div><div class="post-acts"><button class="pa fire">${VICON.bolt}<span>${fmt(p.score||0)}</span></button><button class="pa rank">${VICON.reply}<span>${fmt(p.nc||0)}</span></button><a href="${url}" target="_blank" class="pa" style="text-decoration:none">&#x2197; VIEW</a></div></div>`;}
 // ─── NATION FEED ────────────────────────────────────────────────────────
 // Why it showed "NO VERIFIED SIGNAL": Bluesky's public searchPosts now answers 403
@@ -6784,7 +6790,7 @@ function openThread(postId){const p=allPosts.find(x=>x.id===postId);if(!p)return
   // A thread still open or mid-close settles instantly, so its borrowed media is home first.
   if(_ov.classList.contains('open')||_tFlip.media||_tFlip.src)_threadFinishClose();
   closeReplies(true,true);
-  currentThreadPost=postId;const srcIcons={reddit:'REDDIT',twitter:'X',instagram:'INSTAGRAM',telegram:'TELEGRAM',youtube:'YOUTUBE',void:'VOID',forum:'FORUM',mastodon:'MASTODON',lemmy:'LEMMY',bluesky:'BLUESKY',peertube:'PEERTUBE',radio:'RADIO',commons:'WIKIMEDIA COMMONS'};const srcLabel=p.source==='news'?String((p.provenance&&p.provenance.sourceHost)||p._author||'NEWS').toUpperCase():(srcIcons[p.source]||'SOURCE');const srcHref=p.sourceUrl||'#';const _av=(p._author||p.iso||'?')[0].toUpperCase();const _col=p._isoColor||AVC[0];
+  currentThreadPost=postId;const srcIcons={reddit:'REDDIT',twitter:'X',instagram:'INSTAGRAM',telegram:'TELEGRAM',youtube:'YOUTUBE',void:'VOID',forum:'FORUM',mastodon:'MASTODON',lemmy:'LEMMY',bluesky:'VOID',peertube:'PEERTUBE',radio:'RADIO',commons:'WIKIMEDIA COMMONS'};const srcLabel=p.source==='news'?String((p.provenance&&p.provenance.sourceHost)||p._author||'NEWS').toUpperCase():(srcIcons[p.source]||'SOURCE');const srcHref=p.sourceUrl||'#';const _av=(p._author||p.iso||'?')[0].toUpperCase();const _col=p._isoColor||AVC[0];
   // The thread used to render TEXT ONLY. Opening a video post from the feed gave you
   // its caption and nothing else — posts literally reading "Video: ..." with no video
   // anywhere on screen. Media now renders here too: video with real controls (in a
@@ -6825,7 +6831,7 @@ function openThread(postId){const p=allPosts.find(x=>x.id===postId);if(!p)return
   // set the flag synchronously before their first await, so ordering is all it took.)
   _threadAnimateOpen(_ov,_card);
 }
-function closeThread(){
+function closeThread(){_thTr.on=false;
   // replyParent is module-level and was cleared only on a successful submit. Left
   // set, it followed you into the NEXT thread and stamped your comment with a
   // parentId from the old one — renderThreadComments excludes it from the top-level
@@ -6864,7 +6870,148 @@ function closeThread(){
   }
   _tFlip.timer=setTimeout(()=>{if(tok===_tFlip.token)_threadFinishClose();},dur);
 }
-async function translateThreadBody(){const el=document.getElementById('thread-body-text');if(!el)return;if(el.dataset.translated){el.innerHTML=el.dataset.original;delete el.dataset.translated;document.querySelector('.btn-translate')?.classList.remove('on');return;}el.dataset.original=el.innerHTML;try{const r=await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${SETTINGS.lang}&dt=t&q=${encodeURIComponent(el.innerText)}`);const d=await r.json();el.innerHTML=esc(d[0].map(x=>x[0]).join(''))+`<span class="translated-badge">&#x21BA; ${SETTINGS.lang.toUpperCase()}</span>`;el.dataset.translated='1';document.querySelector('.btn-translate')?.classList.add('on');}catch{el.innerHTML=el.dataset.original;}}
+// ── Thread translation ─────────────────────────────────────────────────────
+// TR in the thread header translates the WHOLE thread: the post, its description
+// and every reply — including replies that render later (late fetches, sort
+// toggles, the nested reply overlay). It used to translate #thread-body-text
+// alone, so on a video post, whose words live in the description, the tap
+// changed nothing a reader could see.
+//
+// Replies go out BATCHED — one request per ~900 chars of replies, not one per
+// reply. The free gtx endpoint rate-limits by IP (429, then a "Sorry…" page for
+// hours), and a 30-reply thread sent one-per-reply trips it on the first tap.
+// Failures now say so: the old catch silently restored the original, which is
+// exactly what "translate did nothing" looks like from the outside.
+let _thTr={post:null,on:false};
+const _trCache=new Map();
+const _TR_SOLO='#thread-body-text,#thread-overlay .t-desc';
+const _TR_REPLIES='#thread-comments .thread-comment-text,#ro-body .thread-comment-text';
+const _trKey=t=>SETTINGS.lang+'|'+String(t||'').trim();
+async function _gtx(q){
+  const r=await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${SETTINGS.lang}&dt=t&q=${encodeURIComponent(q)}`);
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  const d=await r.json();return d[0].map(x=>x[0]).join('');
+}
+// Real translation goes through the proxy: DeepL, one key behind every user,
+// and a shared server cache, so a thread translated for one reader is free for
+// the next. gtx is only the fallback — it has no key and Google blocks it per IP
+// without notice. A proxy answering 503 (no key, or the month's quota is gone)
+// is skipped for the rest of the session instead of being retried every tap.
+let _trProxyOff=false;
+async function _proxyTr(texts){
+  if(!VOID_PROXY_BASE||_trProxyOff)throw new Error('no proxy');
+  const r=await fetch(`${VOID_PROXY_BASE}/translate`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({texts,target:SETTINGS.lang})});
+  if(r.status===503)_trProxyOff=true;
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  const d=await r.json();
+  if(!d||!Array.isArray(d.translations)||d.translations.length!==texts.length)throw new Error('bad translate reply');
+  return d.translations;
+}
+// gtx is a GET. 900 chars stays under URL limits even for 3-byte scripts once
+// percent-encoded; longer text is split on a newline or space and rejoined.
+async function trText(text){
+  const src=String(text||'').trim();if(!src)return '';
+  const key=_trKey(src);
+  if(_trCache.has(key))return _trCache.get(key);
+  try{const [t]=await _proxyTr([src]);_trCache.set(key,t);return t;}catch(e){/* fall back to gtx */}
+  const chunks=[];let rest=src;
+  while(rest.length>900){let cut=rest.lastIndexOf('\n',900);if(cut<400)cut=rest.lastIndexOf(' ',900);if(cut<400)cut=900;chunks.push(rest.slice(0,cut));rest=rest.slice(cut);}
+  chunks.push(rest);
+  let out='';
+  for(const c of chunks)out+=await _gtx(c);
+  _trCache.set(key,out);return out;
+}
+// Many texts in few requests. Proxy first: DeepL takes 50 texts a call and keeps
+// newlines. Whatever it doesn't answer goes to gtx one text per line, split back
+// on newlines — inner newlines flattened to keep lines aligned, and a group whose
+// answer comes back misaligned falls back to one request per text. Returns an
+// array; a slot left undefined failed.
+async function trBatch(texts){
+  const out=new Array(texts.length),todo=[];
+  texts.forEach((t,i)=>{
+    const k=_trKey(t);
+    if(_trCache.has(k))out[i]=_trCache.get(k);
+    else if(!String(t||'').trim())out[i]='';
+    else todo.push(i);
+  });
+  if(!todo.length)return out;
+  if(VOID_PROXY_BASE&&!_trProxyOff){
+    try{
+      for(let k=0;k<todo.length;k+=50){
+        const part=todo.slice(k,k+50);
+        const tr=await _proxyTr(part.map(i=>String(texts[i]).trim()));
+        part.forEach((i,j)=>{out[i]=tr[j];_trCache.set(_trKey(texts[i]),tr[j]);});
+      }
+    }catch(e){/* whatever is still missing falls through to gtx */}
+  }
+  const groups=[];let g=[],len=0;
+  for(const i of todo){
+    if(out[i]!==undefined)continue;
+    const flat=String(texts[i]).replace(/\s*\n+\s*/g,' ').trim();
+    if(len+flat.length>900&&g.length){groups.push(g);g=[];len=0;}
+    g.push([i,flat]);len+=flat.length+1;
+  }
+  if(g.length)groups.push(g);
+  await Promise.all(groups.map(async grp=>{
+    await _trSlot();
+    try{
+      const parts=grp.length===1?[await trText(grp[0][1])]:(await _gtx(grp.map(x=>x[1]).join('\n'))).split('\n');
+      if(parts.length===grp.length)grp.forEach(([i],j)=>{out[i]=parts[j].trim();_trCache.set(_trKey(texts[i]),out[i]);});
+      else for(const [i] of grp){try{out[i]=await trText(texts[i]);}catch(e){}}
+    }catch(e){/* leave this group undefined: shown as original */}
+    finally{_trFree();}
+  }));
+  return out;
+}
+let _trActive=0;const _trWait=[];
+function _trSlot(){return new Promise(res=>{if(_trActive<3){_trActive++;res();}else _trWait.push(res);});}
+function _trFree(){const n=_trWait.shift();if(n)n();else _trActive--;}
+// data-tr-orig marks an element done or in flight, so re-applying is a no-op.
+function _trMark(els){return els.filter(el=>el.dataset.trOrig===undefined).map(el=>{el.dataset.trOrig=el.innerHTML;el.classList.add('tr-pending');return el;});}
+// Writes one result, unless the thread closed, toggled off or moved on meanwhile.
+// t==null means that text failed: put the original back and clear the mark.
+function _trPut(el,t,postId){
+  el.classList.remove('tr-pending');
+  if(!_thTr.on||_thTr.post!==postId||!el.isConnected)return;
+  if(t==null){el.innerHTML=el.dataset.trOrig;delete el.dataset.trOrig;return;}
+  el.textContent=t;
+  if(el.id==='thread-body-text')el.insertAdjacentHTML('beforeend',`<span class="translated-badge">&#x21BA; ${esc(SETTINGS.lang.toUpperCase())}</span>`);
+}
+async function _thTrApply(){
+  const postId=currentThreadPost;let ok=0,fail=0;
+  const solo=_trMark([...document.querySelectorAll(_TR_SOLO)]);
+  const reps=_trMark([...document.querySelectorAll(_TR_REPLIES)]);
+  const soloJobs=solo.map(async el=>{
+    await _trSlot();
+    try{_trPut(el,await trText(el.innerText),postId);ok++;}
+    catch(e){_trPut(el,null,postId);fail++;}
+    finally{_trFree();}
+  });
+  const repJob=(async()=>{
+    if(!reps.length)return;
+    const res=await trBatch(reps.map(el=>el.innerText));
+    reps.forEach((el,i)=>{_trPut(el,res[i],postId);if(res[i]==null)fail++;else ok++;});
+  })();
+  await Promise.all([...soloJobs,repJob]);
+  return {ok,fail};
+}
+function _thTrRestore(){
+  document.querySelectorAll(_TR_SOLO+','+_TR_REPLIES).forEach(el=>{
+    if(el.dataset.trOrig===undefined)return;
+    el.innerHTML=el.dataset.trOrig;delete el.dataset.trOrig;el.classList.remove('tr-pending');
+  });
+}
+// Scoped to the thread header: a bare querySelector('.btn-translate') could hit
+// another TR button elsewhere in the page and leave this one looking idle.
+function _thTrBtn(on){const b=document.querySelector('#thread-original .btn-translate');if(b)b.classList.toggle('on',on);}
+async function translateThreadBody(){
+  const postId=currentThreadPost;if(!postId)return;
+  if(_thTr.on&&_thTr.post===postId){_thTr.on=false;_thTrRestore();_thTrBtn(false);return;}
+  _thTr={post:postId,on:true};_thTrBtn(true);
+  const {ok,fail}=await _thTrApply();
+  if(!ok&&fail&&_thTr.on&&_thTr.post===postId){_thTr.on=false;_thTrBtn(false);voidToast('TRANSLATION UNAVAILABLE · TRY AGAIN SOON');}
+  else if(fail&&_thTr.on)voidToast('SOME REPLIES COULD NOT BE TRANSLATED');
+}
 // Replies are a tree: a reply with a parentId lives BEHIND its parent card (§4.A
 // stack edges) and is read in the reply overlay (§4.B). TOP = bolts desc, NEW =
 // time desc, applied to the thread deck and to each reply-overlay level alike.
@@ -6886,8 +7033,8 @@ function bskyReplyToComment(node,parentId){
   if(!rec.text)return null;
   return {
     id:'r_'+(p.cid||p.uri||Math.random()),
-    author:au.displayName||au.handle||'bluesky',
-    handle:'@'+(au.handle||'bsky'),
+    author:au.displayName||dispHandle(au.handle),
+    handle:'@'+dispHandle(au.handle),
     text:rec.text,
     time:rec.createdAt?Date.parse(rec.createdAt):Date.now(),
     bolts:p.likeCount||0,
@@ -7243,6 +7390,7 @@ function renderThreadComments(postId){
   document.getElementById('thread-comments').innerHTML=html||
     (failed?`<button class="tc-empty tc-retry" onclick="delete _fediFailAt[currentThreadPost];loadRemoteReplies(currentThreadPost);renderThreadComments(currentThreadPost)">REPLIES DIDN&#x2019;T ARRIVE &middot; TAP TO RETRY</button>`
     :`<div class="tc-empty">${loading?'PULLING REPLIES…':'BE FIRST TO ENTER THE THREAD'}</div>`);
+  if(_thTr.on&&_thTr.post===postId)_thTrApply();
 }
 // ── §4.B reply overlay (ref 8f) ─────────────────────────────────────────────
 // _roStack is the drill-down path of comment ids; the top is the PARENT on screen.
@@ -7294,6 +7442,7 @@ function renderReplies(anim){
   const inp=document.getElementById('reply-input');
   if(inp)inp.placeholder=`reply to ${String(parent.author||'anon')}…`;
   if(anim){body.classList.remove('swap','back');void body.offsetWidth;body.classList.add(anim==='back'?'back':'swap');body.scrollTop=0;}
+  if(_thTr.on&&_thTr.post===postId)_thTrApply();
 }
 // Optimistic local write + VoidAPI.reply(threadId, body, parentId). A local parent
 // that has already landed server-side is addressed by its server id, so Supabase
@@ -8352,7 +8501,7 @@ function openPhoto(postId,idx){
 
   document.getElementById('photo-cap').innerHTML=esc(p.body||'')+
     `<button class="photo-thread" onclick="event.stopPropagation();closePhoto();openThread('${p.id}')">${VICON.reply} OPEN THREAD</button>`+
-    `<div class="photo-src">${esc((p.provenance&&p.provenance.sourceHost)||p.source||'void')}${slides.length>1?` \xb7 ${slides.length} SLIDES`:''} \xb7 SWIPE DOWN TO CLOSE</div>`;
+    `<div class="photo-src">${esc(srcName((p.provenance&&p.provenance.sourceHost)||p.source))}${slides.length>1?` \xb7 ${slides.length} SLIDES`:''} \xb7 SWIPE DOWN TO CLOSE</div>`;
   ov.style.transform='';ov.style.opacity='';
   ov.classList.add('open');
   if(p.tags)vwBump(p.tags,.3);
@@ -9295,7 +9444,7 @@ function authorOf(p){
   if(src==='news'){const h=hostOf(p)||nh(p._handle);return h?{key:'host:'+h,handle:h,label:h,source:'news',external:true,hostOnly:true}:null;}
   const h=nh(p._handle);
   if(h&&!GENERIC.has(h)&&h!==src)return {key:src+':'+h,handle:h,label:p._author||h,source:src,external:src!=='void'};
-  const host=hostOf(p);
+  const _hh=hostOf(p);const host=/bsky/i.test(_hh)?'':_hh;   // appview host is plumbing, never an author
   if(host&&src!=='void')return {key:'host:'+host,handle:host,label:host,source:src,external:true,hostOnly:true};
   return null;
 }
@@ -9434,7 +9583,7 @@ function author(id){
   if(!a){if(p._user)return;return voidToast('NO ACCOUNT TO SHOW');}
   T={kind:'post',id:baseId(p.id),p,a};
   const b=isBlocked(a),who=a.hostOnly?a.handle:'@'+(a.handle||a.label);
-  open(hdr(a.external?String(a.source).toUpperCase()+' ACCOUNT':'VOID ACCOUNT')+
+  open(hdr(a.external?srcName(a.source).toUpperCase()+' ACCOUNT':'VOID ACCOUNT')+
     `<div class="vmod-av big" style="background:${typeof _tcCol==='function'?_tcCol(a.label):'var(--card2)'}">${att(String(a.label||'?')[0].toUpperCase())}</div>
      <div class="vmod-title" style="text-align:center">${att(a.label)}</div>
      <div class="vmod-p" style="text-align:center;font-family:'Syne Mono',monospace;font-size:9px;letter-spacing:.1em">${att(who)}${b?' &middot; '+(a.external?'HIDDEN':'BLOCKED'):''}</div>`+
@@ -9499,7 +9648,7 @@ function unmute(m,fromMute){voidUnmute(m);voidToast('UNMUTED · '+String(m).toUp
 // ─── settings pages ──────────────────────────────────────────────────────
 function blockedSheet(){
   const v=blocks.filter(b=>!b.external),x=blocks.filter(b=>b.external);
-  const item=b=>`<div class="vmod-item"><div class="vmod-av" style="background:${typeof _tcCol==='function'?_tcCol(b.label):'var(--card2)'}">${att(String(b.label||b.handle||'?')[0].toUpperCase())}</div><span class="vmod-row-t"><span class="vmod-row-l">${att(b.label||b.handle)}</span><span class="vmod-row-s">${b.hostOnly?'SOURCE':'@'+att(b.handle||'')}${b.external?' · '+att(String(b.source).toUpperCase()):''}</span></span><button class="vmod-pill" onclick="VMod.unblock('${att(b.key)}')">${b.external?'SHOW':'UNBLOCK'}</button></div>`;
+  const item=b=>`<div class="vmod-item"><div class="vmod-av" style="background:${typeof _tcCol==='function'?_tcCol(b.label):'var(--card2)'}">${att(String(b.label||b.handle||'?')[0].toUpperCase())}</div><span class="vmod-row-t"><span class="vmod-row-l">${att(b.label||b.handle)}</span><span class="vmod-row-s">${b.hostOnly?'SOURCE':'@'+att(b.handle||'')}${b.external?' · '+att(srcName(b.source).toUpperCase()):''}</span></span><button class="vmod-pill" onclick="VMod.unblock('${att(b.key)}')">${b.external?'SHOW':'UNBLOCK'}</button></div>`;
   const muted=typeof MUTED!=='undefined'?[...MUTED]:[];
   open(hdr('SAFETY')+`<div id="vmod-blocked"><div class="vmod-title">Blocked accounts</div>
     <div class="vmod-p">Blocked Void accounts cannot message you and their posts and replies are hidden everywhere. ${ready()?'Synced to your account.':'Stored on this device until you sign in.'}</div>
