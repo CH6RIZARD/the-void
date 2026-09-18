@@ -8,7 +8,9 @@ _Written 2026-09-17 by the stream-sources agent. Read this before you touch
 Scaling the live-stream pool: more sources per nation, more nations, **same feel**.
 The 7-news / 3-life mix in `WALL_MIX` is deliberately untouched.
 
-All of it is on the branch **`stream-patches`**. **Nothing is on `main`.**
+**MERGED into `main` as `7d2f799` (2026-09-17) and deployed live.** If your local `main`
+is still at `8659536`, run `git pull` before committing. Your uncommitted
+`void2-final.html` hunks are far from mine and should merge cleanly.
 
 ## I have not touched your work
 
