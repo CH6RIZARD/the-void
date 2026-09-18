@@ -9,6 +9,7 @@
 import { env } from '../env.ts';
 import type { Country, Post } from '../types.ts';
 import { NATION_VOCAB } from '../data/nationVocab.generated.ts';
+import { C as NATIONS } from '../data/countries.generated.ts';
 import { REGION_ALIASES, _regionNorm, resolveRegion } from '../data/regions.ts';
 import { _normText, wasSeen } from '../rank/seen.ts';
 import { inferTags } from '../rank/tags.ts';
@@ -21,7 +22,7 @@ import { pullSocial } from './proxy.ts';
 import { allPosts } from './store.ts';
 
 export { NATION_VOCAB };
-type C = Pick<Country, 'n' | 'iso'> & { _nre?: RegExp };
+type C = Pick<Country, 'n' | 'iso'> & Partial<Pick<Country, 'lat' | 'lon'>> & { _nre?: RegExp };
 
 export function nationVocab(c: { n: string } | null | undefined): string[] { return String((c && NATION_VOCAB[c.n]) || '').split('|'); }
 export function nationTerms(c: C): string[] {
@@ -69,7 +70,7 @@ let _tokenSeq = 0;
 /** Fresh per-open state (web loadCountryFeed). Opening another nation = a new state; old tokens go stale. */
 export function createNationFeed(c: C): NationFeedState {
   return {
-    c, token: ++_tokenSeq, busy: false, inflight: {}, rendered: 0, attempt: 0, dry: 0, ids: new Set(), texts: new Set(),
+    c, token: ++_tokenSeq, busy: false, inflight: {}, rendered: 0, attempt: 0, dry: 0, ids: new Set(), texts: new Set(), shapes: new Set(), authors: {},
     mastoMax: '', mastoMediaMax: '', lemmyPage: 1, gdeltSpan: '7d', exhausted: {}, pool: [], hist: [],
     ptQ: 0, ptStart: 0, radioOff: 0, radioUrls: new Set(), iaPage: 1, commonsOff: 0, commonsVidOff: 0, t0: env.now(),
   };
@@ -163,6 +164,15 @@ export async function nationFeedPeertube(c: C, st: NationFeedState): Promise<Pos
 // AUDIO — live radio from radio-browser.info. HTTPS streams only, no HLS/playlist
 // files (a bare audio element cannot open them), one post per stream URL.
 export const NF_RADIO_HOSTS = ['de1', 'de2', 'all'];
+// Nations whose own territory (or overseas parts) runs past 3000km from the centroid.
+const NF_WIDE = new Set(['RU', 'US', 'CA', 'CN', 'AU', 'BR', 'FR', 'GB', 'NL', 'DK', 'NZ', 'CL', 'AR', 'IN', 'ID', 'KZ', 'NO', 'ES', 'PT', 'MX']);
+/** Great-circle km from the nation's centroid; Infinity when the station gives no coordinates. */
+export function nfKmFrom(c: C, la: unknown, lo: unknown): number {
+  const lat = parseFloat(String(la)), lon = parseFloat(String(lo));
+  if (!isFinite(lat) || !isFinite(lon) || (!lat && !lon) || c.lat == null || c.lon == null) return Infinity;
+  const r = Math.PI / 180, a = Math.sin((lat - c.lat) * r / 2) ** 2 + Math.cos(c.lat * r) * Math.cos(lat * r) * Math.sin((lon - c.lon) * r / 2) ** 2;
+  return 12742 * Math.asin(Math.sqrt(a));
+}
 export async function nationFeedRadio(c: C, st: NationFeedState): Promise<Post[]> {
   const cc = (c.iso && /^[A-Z]{2}$/.test(c.iso)) ? c.iso : String(nationCode(c)).slice(0, 2);
   if (!/^[A-Z]{2}$/.test(cc)) { st.exhausted.radio = true; return []; }
@@ -185,7 +195,14 @@ export async function nationFeedRadio(c: C, st: NationFeedState): Promise<Post[]
     if (!name || seen.has(k) || seen.has('n:' + name.toLowerCase())) return null;
     seen.add(k); seen.add('n:' + name.toLowerCase());
     const tags = String(s.tags || '').split(',').map(t => t.trim()).filter(t => t && t.length < 24).slice(0, 6);
-    const where = [s.state, c.n].filter(Boolean).join(', ');
+    // radio-browser takes whoever filed a station at their word: MH carried
+    // "Offworld Radio", state "Cork". A state naming another nation, or coordinates
+    // far from this one, is a mis-filing; a state is only printed when the
+    // station's own coordinates put it here.
+    if (s.state && NATIONS.some(o => o.n !== c.n && nationNamed(o, s.state))) return null;
+    const km = nfKmFrom(c, s.geo_lat, s.geo_long);
+    if (isFinite(km) && km > 3000 && !NF_WIDE.has(cc)) return null;   // no coordinates is not evidence
+    const where = km < 1500 ? [s.state, c.n].filter(Boolean).join(', ') : c.n;
     return {
       id: 'rb_' + (s.stationuuid || urlKey(u)), style: 'audio', country: c.n, iso: c.iso, _region: nationCode(c), _nation: c.n,
       tags: inferTags(name + ' ' + tags.join(' '), []),
@@ -265,7 +282,9 @@ export async function nationFeedCommons(c: C, st: NationFeedState, video: boolea
   for (const p of pages) {
     const i = (p.imageinfo || [])[0]; if (!i || !i.thumburl || !nationNamed(c, clean(p.title))) continue;
     if ((i.width || 0) < 400 || (i.height || 0) < 300) continue;                 // icons, flags-in-a-box, map thumbnails
-    const stem = clean(p.title).replace(/\s*[\(\[]?\d{1,3}[\)\]]?$/, '').toLowerCase(), t = Date.parse(i.timestamp) || 0;
+    // Every digit run, not just a trailing "(3)": NASA dumps number mid-title
+    // ("ISS075-E-81076 - View of the Marshall Islands", 30 in 3 minutes).
+    const stem = clean(p.title).replace(/\d+/g, '#').toLowerCase(), t = Date.parse(i.timestamp) || 0;
     if (grp && grp.stem === stem && grp.user === i.user && Math.abs(grp.t - t) < 30 * 60e3 && grp.post._imgs!.length < 10) { grp.post._imgs!.push(i.thumburl); grp.post.style = 'carousel'; continue; }
     const post = { ...base(p.title, i), id: 'wc_' + p.pageid, style: 'image', _img: i.thumburl, _imgs: [i.thumburl], _video: '' } as Post;
     post.body = clean(p.title).replace(/\s*[\(\[]?\d{1,3}[\)\]]?$/, '');
@@ -283,6 +302,26 @@ export async function nationFeedCommons(c: C, st: NationFeedState, video: boolea
 export const nfGroup = (p: Partial<Post>) => p.style === 'carousel' ? 'image' : (p.style === 'image' || p.style === 'video' || p.style === 'audio') ? p.style as string : 'take';
 export const NF_GAP: Record<string, number> = { audio: 4, video: 1, image: 0, take: 0 };
 export const NF_RETRY = [3000, 8000, 20000, 45000];
+// SPAM GATE, per open nation (web nfSpam). Measured on Marshall Islands: a Commons
+// bot's 30 numbered ISS photos, a METAR report every few hours, the same history
+// post three times. Aviation weather never lands; one post per text SHAPE (digits,
+// links, tags stripped); at most NF_PER_AUTHOR per account. News is exempt from the
+// account cap: its author is the outlet, and a small nation may only have one or two.
+export const NF_METAR_RE = /\b(?:METAR|SPECI|TAF)\b|\b[A-Z]{4} \d{6}Z\b|\b\d{5}(?:G\d{2,3})?KT\b/;
+export const NF_PER_AUTHOR = 3;
+export function nfShape(s: unknown): string { return String(s || '').toLowerCase().replace(/https?:\/\/\S+/g, ' ').replace(/[#@][\p{L}\p{N}_.]+/gu, ' ').replace(/[^\p{L}]+/gu, ' ').trim().slice(0, 60); }
+export function nfSpam(st: NationFeedState, p: Partial<Post>): boolean {
+  const body = String(p.body || '');
+  if (NF_METAR_RE.test(body)) return true;
+  const sh = nfShape(body), shapes: Set<string> = st.shapes || (st.shapes = new Set());
+  if (sh.length >= 12) { if (shapes.has(sh)) return true; shapes.add(sh); }
+  if (p.source === 'news') return false;
+  // Radio and Archive handles are the stream host / archive.org — shared by many.
+  const a = String(((p.source === 'radio' || p.source === 'archive') ? p._author : (p._handle || p._author)) || '').toLowerCase();
+  if (!a) return false;
+  const n: Record<string, number> = st.authors || (st.authors = {});
+  return (n[a] = (n[a] || 0) + 1) > NF_PER_AUTHOR;
+}
 
 /** Add a landed batch to the pool: dedupe (id + same text), annotate, sort. */
 export function nationFeedPoolAdd(st: NationFeedState, list: Array<Post | null> | null | undefined, src?: string): void {
@@ -292,6 +331,7 @@ export function nationFeedPoolAdd(st: NationFeedState, list: Array<Post | null> 
     const t = _normText(p.body);
     if (t.length > 15 && st.texts.has(t)) continue;             // same story from two sources
     st.ids.add(p.id); if (t.length > 15) st.texts.add(t);
+    if (nfSpam(st, p)) continue;
     // READ-ONLY seen check. Calling admitPost() here once MARKED nation items seen,
     // so opening Nepal first deduped its breaking stories out of the main feed.
     p._seenBefore = wasSeen(p);

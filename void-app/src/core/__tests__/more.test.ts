@@ -81,7 +81,7 @@ test('nation feed pool deals a format mix: <=3 in a row while others wait, audio
   fresh();
   const c = core.C.find(x => x.n === 'Nepal')!;
   const st = core.createNationFeed(c);
-  const mk = (id: string, style: string, body = 'Kathmandu Nepal report ' + id) => ({ id, style, body, tags: [], score: 0, replies: 0, time: NOW, source: 'x', country: '', iso: '' });
+  const mk = (id: string, style: string, body = 'Kathmandu Nepal report ' + id.replace(/\d/g, d => 'abcdefghij'[+d])) => ({ id, style, body, tags: [], score: 0, replies: 0, time: NOW, source: 'x', country: '', iso: '' });
   core.nationFeedPoolAdd(st, Array.from({ length: 12 }, (_, i) => mk('a' + i, 'audio')), 'radio');
   core.nationFeedPoolAdd(st, Array.from({ length: 8 }, (_, i) => mk('t' + i, 'take')), 'masto');
   core.nationFeedPoolAdd(st, Array.from({ length: 6 }, (_, i) => mk('v' + i, 'video')), 'peertube');
@@ -95,4 +95,35 @@ test('nation feed pool deals a format mix: <=3 in a row while others wait, audio
   assert.ok(st.pool.every(p => p.style === 'audio'), 'a lone format is held back');
   // force lets a few of the lone format out.
   assert.equal(core.nationFeedDeal(st, 40, 3).length > 0, true);
+});
+
+test('nation feed spam gate: Marshall Islands samples, identical verdicts to the web', () => {
+  fresh();
+  const w = webSandbox({ now: NOW });
+  w.load('NF_METAR_RE', 'NF_PER_AUTHOR', 'nfShape', 'nfSpam');
+  const m = (h: string, body: string, source = 'mastodon') => ({ _handle: h, _author: h, body, source });
+  const posts = [
+    m('@bigorre_org', 'Aviation weather for Majuro Atoll airport (Marshall Islands) is “PKMJ 172352Z 04014KT 15SM FEW014 SCT015 BKN1”'),
+    m('@bigorre_org', 'Aviation weather for Bucholz Army Air Field airport (Marshall Islands) is “PKWA 300120Z AUTO”'),
+    ...[76, 78, 80].map(n => m('@OptimusPrimeBot@commons', `ISS075-E-810${n} - View of the Marshall Islands`, 'commons')),
+    ...[1, 2, 3].map(() => m('@PugJesus@piefed.social', 'US Marines with puppies, the Marshall Islands, WW2, ~1942-1945 https://piefed.social/c/x/' + Math.random())),
+    ...['one', 'two', 'three', 'four', 'five'].map(t => m('@longreads@mastodon.world', `The Marshall Islands story number ${t}, a different piece each time`)),
+    ...['a', 'b', 'c', 'd'].map(t => m('gdelt', `Outlet story ${t} about Majuro and the Pacific`, 'news')),
+    ...['Offshore', 'Offworld', 'Quran'].map(n => ({ _handle: '@asurahosting.com', _author: n + ' Radio', body: n + ' Radio · LIVE radio from Marshall Islands', source: 'radio' })),
+    m('@thepathtopeace', 'A MarshallIslands-flagged floating LNG storage facility'),
+    m('@x', 'Today in Labor History: METAL workers struck at a TAFE college'),   // no false METAR hit
+  ];
+  const native = { shapes: new Set(), authors: {} } as any;
+  const got = posts.map(p => core.nfSpam(native, p as any));
+  w.run(`var __st={shapes:new Set(),authors:{}},__p=${JSON.stringify(posts)};`);
+  assert.deepEqual(got, JSON.parse(w.run('JSON.stringify(__p.map(p=>nfSpam(__st,p)))')));
+  const kept = posts.filter((_, i) => !got[i]).map(p => p.body.slice(0, 24));
+  assert.equal(got.slice(0, 2).every(Boolean), true, 'METAR dropped');
+  assert.deepEqual(got.slice(2, 5), [false, true, true], 'numbered photo dump -> one');
+  assert.deepEqual(got.slice(5, 8), [false, true, true], 'same post three times -> one');
+  assert.deepEqual(got.slice(8, 13), [false, false, false, true, true], 'account cap 3');
+  assert.deepEqual(got.slice(13, 17), [false, false, false, false], 'news exempt from the cap');
+  assert.deepEqual(got.slice(17, 20), [false, false, false], 'radio stations sharing a host are separate authors');
+  assert.equal(got[21], false, 'METAL / TAFE are not aviation weather');
+  assert.ok(kept.length >= 14);
 });
