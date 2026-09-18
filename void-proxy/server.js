@@ -28,7 +28,9 @@ const PORT = process.env.PORT || 8787;
 // Per-nation subreddit map. Covers the tension-ranked nations plus common ones.
 // Unknown countries fall back to the global geopolitics set.
 // ---------------------------------------------------------------------------
-const GLOBAL_SUBS = ['worldnews', 'geopolitics', 'anime_titties', 'CombatFootage'];
+// r/CombatFootage and r/PublicFreakout were dropped: graphic-content subs are the
+// ones Reddit's API reviewers question, and approval gates every other sub here.
+const GLOBAL_SUBS = ['worldnews', 'geopolitics', 'anime_titties'];
 // A global-only source list cannot surface a fast-moving story from a country
 // whose subreddit is not already one of the usual large-world-news communities.
 // Keep this deliberately small: it is a signal lane, not a replacement for the
@@ -36,16 +38,16 @@ const GLOBAL_SUBS = ['worldnews', 'geopolitics', 'anime_titties', 'CombatFootage
 const REGIONAL_ALERT_SUBS = [{ sub: 'Nepal', country: 'Nepal' }];
 
 const COUNTRY_SUBS = {
-  'ukraine':      ['ukraine', 'UkraineWarVideoReport', 'CombatFootage', 'UkrainianConflict'],
+  'ukraine':      ['ukraine', 'UkraineWarVideoReport', 'UkrainianConflict'],
   'russia':       ['russia', 'RussiaUkraineWar2022', 'UkraineRussiaReport'],
-  'israel':       ['Israel', 'IsraelPalestine', 'CombatFootage'],
+  'israel':       ['Israel', 'IsraelPalestine'],
   'palestine':    ['Palestine', 'IsraelPalestine', 'IsraelCrimes'],
   'iran':         ['iran', 'NewIran', 'middleeast'],
   'syria':        ['syriancivilwar', 'syria', 'middleeast'],
   'yemen':        ['yemen', 'yemenicrisis', 'middleeast'],
   'sudan':        ['Sudan', 'Africa', 'worldnews'],
-  'united states':['news', 'politics', 'PublicFreakout'],
-  'usa':          ['news', 'politics', 'PublicFreakout'],
+  'united states':['news', 'politics'],
+  'usa':          ['news', 'politics'],
   'china':        ['China', 'Sino', 'geopolitics'],
   'taiwan':       ['taiwan', 'geopolitics'],
   'india':        ['india', 'IndiaSpeaks', 'geopolitics'],
@@ -400,10 +402,28 @@ class XProvider extends SocialProvider {
     this.bearer = process.env.X_BEARER || '';
     this.platform = 'x';
     this._qcache = new Map();
+    this._pausedUntil = 0;
+    this._lastErr = '';
   }
 
   // Out of budget reads exactly like no key: the feed falls back to Reddit.
-  get enabled() { return !!this.bearer && xBudgetLeft() > 0; }
+  get enabled() { return !!this.bearer && xBudgetLeft() > 0 && Date.now() >= this._pausedUntil; }
+
+  // X errors used to vanish into .catch(() => []), so an unfunded account read
+  // as an empty feed with nothing in the log. Say it once per distinct error.
+  // 402 (credits depleted) will not fix itself: stand X down for a while rather
+  // than asking again on every cache miss.
+  _fail(e) {
+    const msg = (e && e.message) || String(e);
+    if (msg !== this._lastErr) {
+      this._lastErr = msg;
+      const hint = /HTTP 402/.test(msg) ? ' — account has no credits; add them under Billing > Credits at developer.x.com'
+        : /HTTP 401/.test(msg) ? ' — X_BEARER rejected; regenerate it' : '';
+      console.error('[void-proxy] X request failed: ' + msg.replace(/ for https?:\/\/\S+/, '') + hint);
+    }
+    if (/HTTP 402/.test(msg)) this._pausedUntil = Date.now() + 15 * 60 * 1000;
+    return [];
+  }
 
   async search(query, limit) {
     if (!this.enabled) return [];
@@ -415,7 +435,9 @@ class XProvider extends SocialProvider {
     const want = Math.min(limit || X_MAX_RESULTS, X_MAX_RESULTS, xBudgetLeft());
     const max = Math.min(Math.max(want, 10), 100); // API v2 min 10, max 100
     const params = new URLSearchParams({
-      query: query + ' -is:retweet',
+      // Replies are half of any X search and nearly all noise out of context
+      // ("@someone my take is…"); at a price per post, never pay for them.
+      query: query + ' -is:retweet -is:reply',
       max_results: String(max),
       'tweet.fields': 'created_at,public_metrics,author_id,lang',
       expansions: 'author_id,attachments.media_keys',
@@ -471,12 +493,14 @@ class XProvider extends SocialProvider {
   }
 
   async fetchGlobal({ limit }) {
-    return this.search('(war OR crisis OR protest OR strike) lang:en', limit).catch(() => []);
+    // Every term here must be unambiguous, because X bills per post read: the
+    // old 'strike'/'protest' query paid for NFL touchdowns and rap beef.
+    return this.search('(airstrike OR ceasefire OR missile OR invasion OR coup OR protesters OR "state of emergency" OR evacuation OR earthquake) lang:en', limit).catch((e) => this._fail(e));
   }
 
   async fetchByCountry({ country, limit }) {
     if (!country) return this.fetchGlobal({ limit });
-    return this.search(`"${country}" (war OR crisis OR protest OR attack)`, limit).catch(() => []);
+    return this.search(`"${country}" (airstrike OR ceasefire OR missile OR invasion OR protesters OR killed OR attack) lang:en`, limit).catch((e) => this._fail(e));
   }
 }
 
@@ -563,6 +587,9 @@ function capXShare(ranked) {
   // Measured against the FREE items, not the whole pool: capping a pool that
   // still contains the X items would leave them over-represented once trimmed.
   const free = ranked.reduce((n, it) => n + (it.platform === 'x' ? 0 : 1), 0);
+  // Nothing free to share the page with (Reddit down, not yet approved): X is
+  // the feed. Dropping it would throw away posts that were already paid for.
+  if (!free) return ranked;
   const allowed = Math.floor(free * X_MAX_SHARE / (1 - X_MAX_SHARE));
   let kept = 0;
   return ranked.filter((it) => it.platform !== 'x' || ++kept <= allowed);

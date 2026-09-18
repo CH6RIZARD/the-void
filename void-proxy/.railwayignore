@@ -1,0 +1,6 @@
+# Secrets live in Railway variables, never in the upload.
+.env
+.env.*
+!.env.example
+.x-budget.json
+node_modules/

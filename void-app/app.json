@@ -166,7 +166,7 @@
       "typedRoutes": false
     },
     "extra": {
-      "voidProxyBase": "",
+      "voidProxyBase": "https://void-proxy-production.up.railway.app",
       "supabaseUrl": "",
       "supabaseAnonKey": ""
     }
