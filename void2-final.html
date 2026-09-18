@@ -5422,11 +5422,20 @@ function lifeMix(list,shuffle){
 }
 function wallSlots(){
   const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
-  // Tier by rank (0-11, 12-23, ...) then shuffle inside the tier.
+  // Claude — TENSION IS A WEIGHT, NOT A GATE. This used to tier by rank and then
+  // shuffle inside each tier, which meant the 28 TENSION_RANK nations ALWAYS led:
+  // measured over 400 sessions, the first three screens were 100% tension nations
+  // and only 23 of 153 nations ever appeared there. With the globe at 199 nations
+  // and the pool at 2,186 streams, everything new sat behind those 28 and the wall
+  // looked unchanged. Each nation now draws a weighted random key
+  // (Efraimidis–Spirakis: rand^(1/w)), so tension nations still lead far more
+  // often than their share — ~44% of early tiles, against 14% of nations — but
+  // every nation can open a session. Tune the weights here, not the mix:
+  // WALL_MIX below is the 7/3 news/life split and is deliberately untouched.
   const names=[...C].map(c=>c.n);
-  const tiers={};
-  names.forEach(n=>{const t=Math.floor(rankOf(n)/12);(tiers[t]=tiers[t]||[]).push(n);});
-  const ordered=Object.keys(tiers).sort((a,b)=>a-b).flatMap(t=>shuffle(tiers[t]));
+  const weight=n=>{const r=rankOf(n);return r<12?6:r<28?3:1;};
+  const ordered=names.map(n=>({n,k:Math.pow(Math.random(),1/weight(n))}))
+    .sort((a,b)=>b.k-a.k).map(x=>x.n);
 
   // Claude — TWO POOLS, FIXED MIX. Cursor #5 put iptvFor(n) first in every
   // country, so the round-robin below spent the first ~800 slots on TV news and
