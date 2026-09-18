@@ -20,6 +20,7 @@ import { lemmyToPost, mastoToPost, peertubeSrc } from './fedi.ts';
 import { _gdeltCache, gdeltQuery } from './gdelt.ts';
 import { pullSocial } from './proxy.ts';
 import { allPosts } from './store.ts';
+import { sbPostToApp } from './voidFeed.ts';
 
 export { NATION_VOCAB };
 type C = Pick<Country, 'n' | 'iso'> & Partial<Pick<Country, 'lat' | 'lon'>> & { _nre?: RegExp };
@@ -64,13 +65,14 @@ export interface NationFeedState {
   ids: Set<string>; texts: Set<string>; mastoMax: string; mastoMediaMax: string; lemmyPage: number; gdeltSpan: string;
   exhausted: Record<string, boolean>; pool: Post[]; hist: string[]; ptQ: number; ptStart: number; radioOff: number;
   radioUrls: Set<string>; iaPage: number; commonsOff: number; commonsVidOff: number; t0: number;
+  lastRadio: number | null; voiceOff: number;
   [k: string]: any;
 }
 let _tokenSeq = 0;
 /** Fresh per-open state (web loadCountryFeed). Opening another nation = a new state; old tokens go stale. */
 export function createNationFeed(c: C): NationFeedState {
   return {
-    c, token: ++_tokenSeq, busy: false, inflight: {}, rendered: 0, attempt: 0, dry: 0, ids: new Set(), texts: new Set(), shapes: new Set(), authors: {},
+    c, token: ++_tokenSeq, busy: false, inflight: {}, rendered: 0, attempt: 0, dry: 0, ids: new Set(), texts: new Set(), shapes: new Set(), authors: {}, lastRadio: null, voiceOff: 0,
     mastoMax: '', mastoMediaMax: '', lemmyPage: 1, gdeltSpan: '7d', exhausted: {}, pool: [], hist: [],
     ptQ: 0, ptStart: 0, radioOff: 0, radioUrls: new Set(), iaPage: 1, commonsOff: 0, commonsVidOff: 0, t0: env.now(),
   };
@@ -83,11 +85,21 @@ export async function nationFeedSupabase(c: C): Promise<Post[]> {
   const rv = await nationRegionView(c);
   let rows: any[] = (rv && rv.posts) || [];
   if (!rows.length && VoidAPI.base) { try { rows = ((await VoidAPI.nationFeed(nationCode(c))) || {}).items || []; } catch { rows = []; } }
-  return rows.filter(r => r && r.id && r.body && !r.reply_to).map(r => ({
-    id: r.id, style: 'take', country: c.n, iso: c.iso, _region: r.region_code || nationCode(c), _authorId: r.author_id || null,
-    tags: inferTags(r.body, []), body: r.body, score: r.rank_score || 0, replies: 0, time: r.created_at ? Date.parse(r.created_at) : env.now(),
-    source: 'void', _author: 'void', _handle: '@void', _img: '', _video: '',
-  }));
+  rows = rows.filter(r => r && r.id && !r.reply_to);
+  // region_view returns bare rows: no post_media, no author. Voice notes (empty
+  // body + an audio attachment) were dropped outright and every photo/video drop
+  // became a text card. Re-read the same posts with the main feed's select.
+  const full: Record<string, Post> = {};
+  try { (await VoidAPI.recentPosts(rows.length, rows.map(r => r.id))).forEach(x => { const p = sbPostToApp(x); if (p) full[p.id] = p; }); } catch { /* */ }
+  return rows.map(r => {
+    const p = full[r.id];
+    if (p) return { ...p, country: c.n, iso: c.iso, _region: r.region_code || nationCode(c), tags: inferTags(p.body, []), score: r.rank_score || p.score || 0 } as Post;
+    return r.body ? {
+      id: r.id, style: 'take', country: c.n, iso: c.iso, _region: r.region_code || nationCode(c), _authorId: r.author_id || null,
+      tags: inferTags(r.body, []), body: r.body, score: r.rank_score || 0, replies: 0, time: r.created_at ? Date.parse(r.created_at) : env.now(),
+      source: 'void', _author: 'void', _handle: '@void', _img: '', _video: '',
+    } as Post : null;
+  }).filter(Boolean) as Post[];
 }
 export async function nationFeedGdelt(c: C, st: NationFeedState): Promise<Post[]> {
   const slug = (c.n || '').toLowerCase().replace(/[^a-z]/g, '');
@@ -293,6 +305,40 @@ export async function nationFeedCommons(c: C, st: NationFeedState, video: boolea
   return out;
 }
 
+// VOICE — people speaking about the nation: speeches, statements, press briefings,
+// short spoken news clips, from Wikimedia Commons audio whose TITLE names it (web
+// nationFeedVoice). Not voice, and dropped: Lingua Libre one-word pronunciations,
+// language-coded pronunciation clips ("Pt-Ukraine"), anthems and other music, and
+// Wikipedia articles read by an AI voice. An mp3 transcode is preferred (iOS
+// cannot play Ogg).
+export const NF_VOICE_SKIP = /^LL-Q\d|pronunciation|anthem|hymn|\bsong\b|music|instrumental|spoken by ai|ai voice|text-to-speech/i;
+export async function nationFeedVoice(c: C, st: NationFeedState): Promise<Post[]> {
+  const term = nfFold(c.n).replace(/"/g, '');
+  const d = await nfFetchJson('https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrnamespace=6' +
+    `&gsrsort=create_timestamp_desc&gsrlimit=30&gsrsearch=${encodeURIComponent(`intitle:"${term}" filetype:audio`)}&gsroffset=${st.voiceOff || 0}` +
+    '&prop=videoinfo&viprop=url|timestamp|user|mime|derivatives', 9000);
+  if (!d) return [];
+  const next = d.continue && d.continue.gsroffset;
+  if (next == null || next >= 300) st.exhausted.voice = true; else st.voiceOff = next;
+  const clean = (t: unknown) => String(t || '').replace(/^File:/, '').replace(/\.[a-z0-9]{2,5}$/i, '').replace(/_/g, ' ').trim();
+  const pages: any[] = Object.values((d.query && d.query.pages) || {}).sort((a: any, b: any) => (a.index || 0) - (b.index || 0));
+  return pages.map(p => {
+    const i = (p.videoinfo || [])[0], title = clean(p.title);
+    if (!i || NF_VOICE_SKIP.test(title) || /^[a-z]{2,3}(?:-[a-z]{2,4})?-\S/i.test(title) || title.split(/\s+/).length < 4 || !nationNamed(c, title)) return null;
+    const dur = Math.round(+i.duration || 0);
+    if (dur && (dur < 8 || dur > 2 * 3600)) return null;
+    const mp3 = (i.derivatives || []).find((x: any) => /mpeg|mp3/i.test(x.type || x.transcodekey || ''));
+    const src = mp3 ? mp3.src : /mpeg|mp3|wav|mp4|aac/i.test(i.mime || '') ? i.url : '';
+    if (!src) return null;
+    return {
+      id: 'wa_' + p.pageid, style: 'audio', country: '', iso: '', _nation: c.n, body: title, tags: inferTags(title, []), score: 0, replies: 0, reposts: 0,
+      time: Date.parse(i.timestamp) || env.now(), source: 'commons', _voice: true, _author: i.user || 'Wikimedia Commons',
+      _handle: '@' + String(i.user || 'commons').replace(/\s+/g, '_') + '@commons', _img: '', _video: '', _audio: src, _audioDur: dur || undefined,
+      _url: i.descriptionurl || '', sourceUrl: i.descriptionurl || '', _social: true, provenance: { sourceHost: 'commons.wikimedia.org' }, imgHue: 270,
+    } as Post;
+  }).filter(Boolean) as Post[];
+}
+
 // ── pool + format interleave ─────────────────────────────────────────────
 // Sources land one at a time (a radio page is 20 audio posts), so appending each
 // batch gave long runs of one format. Everything lands in a pool and is dealt out
@@ -307,6 +353,21 @@ export const NF_RETRY = [3000, 8000, 20000, 45000];
 // post three times. Aviation weather never lands; one post per text SHAPE (digits,
 // links, tags stripped); at most NF_PER_AUTHOR per account. News is exempt from the
 // account cap: its author is the outlet, and a small nation may only have one or two.
+// Which pool item fills a slot of format g (web nfPick). For audio a person speaking
+// (a Void voice note, a Mastodon audio post, a Commons speech or statement) always
+// goes before radio, and radio gets at most one card per NF_RADIO_EVERY posts: radio
+// answers first and always looks newest, so it used to take every audio slot.
+// -1 = only radio is waiting and it is too soon for another station.
+export const NF_RADIO_EVERY = 12;
+export function nfPick(st: NationFeedState, pool: Post[], g: string, at: number, peek?: boolean): number {
+  if (g !== 'audio') return pool.findIndex(p => nfGroup(p) === g);
+  const v = pool.findIndex(p => nfGroup(p) === 'audio' && p.source !== 'radio');
+  if (v >= 0) return v;
+  if (st.lastRadio != null && at - st.lastRadio < NF_RADIO_EVERY) return -1;
+  const k = pool.findIndex(p => nfGroup(p) === 'audio');
+  if (k >= 0 && !peek) st.lastRadio = at;
+  return k;
+}
 export const NF_METAR_RE = /\b(?:METAR|SPECI|TAF)\b|\b[A-Z]{4} \d{6}Z\b|\b\d{5}(?:G\d{2,3})?KT\b/;
 export const NF_PER_AUTHOR = 3;
 export function nfShape(s: unknown): string { return String(s || '').toLowerCase().replace(/https?:\/\/\S+/g, ' ').replace(/[#@][\p{L}\p{N}_.]+/gu, ' ').replace(/[^\p{L}]+/gu, ' ').trim().slice(0, 60); }
@@ -366,14 +427,16 @@ export function nationFeedDeal(st: NationFeedState, need = 16, force = 0): Post[
   const run = (g: string) => { let n = 0; for (let k = hist.length - 1; k >= 0 && hist[k] === g; k--) n++; return n; };
   const fresh: Post[] = []; let spare = +force || 0;
   while (pool.length && fresh.length < need) {
-    const groups = [...new Set(pool.map(nfGroup))];
+    let groups = [...new Set(pool.map(nfGroup))];
+    if (groups.includes('audio') && nfPick(st, pool, 'audio', st.rendered + fresh.length, true) < 0) groups = groups.filter(g => g !== 'audio');   // only radio waiting, too soon
+    if (!groups.length) break;
     let ok = groups.filter(g => run(g) < 3 && since(g) >= NF_GAP[g]);
     if (!ok.length) ok = groups.filter(g => run(g) < 3 && (g !== 'audio' || groups.length === 1));
     if (!ok.length) ok = groups.filter(g => run(g) < 3);
     if (!ok.length) { if (spare-- > 0) ok = groups; else break; }    // one format left, nothing else waiting
     if (ok.length === 1 && groups.length === 1 && run(ok[0]) >= 2 && !force) break;
     const g = ok.sort((a, b) => since(b) - since(a))[0];
-    const k = pool.findIndex(p => nfGroup(p) === g);
+    const k = nfPick(st, pool, g, st.rendered + fresh.length);
     fresh.push(pool.splice(k, 1)[0]); hist.push(g); if (hist.length > 40) hist.shift();
   }
   if (!fresh.length) return [];
@@ -450,7 +513,7 @@ export async function nationFeedPull(st: NationFeedState, first: boolean, ui: Na
   };
   const detached: Record<string, () => Promise<Post[]>> = {
     peertube: () => nationFeedPeertube(c, st), archive: () => nationFeedArchive(c, st),
-    commonsVid: () => nationFeedCommons(c, st, true), gdelt: () => nationFeedGdelt(c, st),
+    commonsVid: () => nationFeedCommons(c, st, true), gdelt: () => nationFeedGdelt(c, st), voice: () => nationFeedVoice(c, st),
   };
   for (const k in awaited) if (!st.exhausted[k] && backlog(k) < 20) jobs.push(detach(k, awaited[k]));
   for (const k in detached) if (!st.exhausted[k] && backlog(k) < 20) detach(k, detached[k]);   // not awaited

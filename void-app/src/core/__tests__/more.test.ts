@@ -127,3 +127,21 @@ test('nation feed spam gate: Marshall Islands samples, identical verdicts to the
   assert.equal(got[21], false, 'METAL / TAFE are not aviation weather');
   assert.ok(kept.length >= 14);
 });
+
+test('nation feed audio: a person speaking goes before radio, radio at most 1 per NF_RADIO_EVERY', () => {
+  fresh();
+  const c = core.C.find(x => x.n === 'Kenya')!;
+  const st = core.createNationFeed(c);
+  const words = ['alpha', 'bravo', 'charlie', 'delta', 'echo', 'foxtrot', 'golf', 'hotel', 'india', 'juliet', 'kilo', 'lima', 'mike', 'november', 'oscar', 'papa', 'quebec', 'romeo', 'sierra', 'tango'];
+  const mk = (id: string, style: string, source: string, i: number) => ({ id, style, source, body: `Nairobi Kenya ${source} ${words[i]} ${words[(i + 7) % 20]}`, _author: source + words[i], tags: [], score: 0, replies: 0, time: NOW, country: '', iso: '' });
+  core.nationFeedPoolAdd(st, Array.from({ length: 10 }, (_, i) => mk('r' + i, 'audio', 'radio', i)), 'radio');
+  core.nationFeedPoolAdd(st, Array.from({ length: 2 }, (_, i) => mk('v' + i, 'audio', 'commons', i)), 'voice');
+  core.nationFeedPoolAdd(st, Array.from({ length: 20 }, (_, i) => mk('t' + i, 'take', 'mastodon', i)), 'masto');
+  core.nationFeedPoolAdd(st, Array.from({ length: 20 }, (_, i) => mk('i' + i, 'image', 'commons', i)), 'commons');
+  const dealt = core.nationFeedDeal(st, 60, 0);
+  const aud = dealt.map((p, i) => [i, p.source] as const).filter(([i]) => dealt[i].style === 'audio');
+  assert.deepEqual(aud.slice(0, 2).map(a => a[1]), ['commons', 'commons'], 'voice first: ' + JSON.stringify(aud));
+  const radioAt = aud.filter(a => a[1] === 'radio').map(a => a[0]);
+  for (let k = 1; k < radioAt.length; k++) assert.ok(radioAt[k] - radioAt[k - 1] >= core.NF_RADIO_EVERY, 'radio spacing ' + radioAt.join(','));
+  assert.ok(radioAt.length >= 1, 'radio still appears');
+});

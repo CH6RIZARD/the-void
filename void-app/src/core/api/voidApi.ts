@@ -85,10 +85,13 @@ export const VoidAPI = {
     return { ok: true, id };
   },
   /** Recent top-level Void posts with author + media. Public read (anon key works). */
-  async recentPosts(limit?: number): Promise<any[]> {
+  // ids: fetch exactly these posts (region_view rows carry no media or author).
+  async recentPosts(limit?: number, ids?: string[]): Promise<any[]> {
     if (!env.supabaseUrl) return [];
+    const only = (ids || []).filter(x => /^[0-9a-f-]{36}$/i.test(x));
+    if (ids && !only.length) return [];
     const full = 'id,author_id,body,rank_score,created_at,profiles:author_id(handle,display_name),post_media(url,ordinal,kind,mime,duration_s)';
-    const q = (s: string) => '/rest/v1/posts?reply_to=is.null&select=' + s + '&order=created_at.desc&limit=' + (limit || 40);
+    const q = (s: string) => '/rest/v1/posts?reply_to=is.null&select=' + s + (only.length ? '&id=in.(' + only.join(',') + ')' : '') + '&order=created_at.desc&limit=' + (limit || 40);
     const get = (s: string, tok: string | null) => env.fetch(env.supabaseUrl + q(s), { headers: { 'apikey': env.supabaseAnonKey, 'Authorization': 'Bearer ' + (tok || env.supabaseAnonKey) } });
     let r = await get(full, this.token);
     if (r.status === 401) r = await get(full, null);
