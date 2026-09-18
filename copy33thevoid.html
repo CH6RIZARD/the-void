@@ -6568,6 +6568,15 @@ async function nationFeedPeertube(c,st){
 // only (an http stream is blocked as mixed content on the deployed page), no HLS
 // or playlist files (a bare <audio> cannot open them), one post per stream URL.
 const NF_RADIO_HOSTS=['de1','de2','all'];
+// Nations whose own territory (or overseas parts) runs past 3000km from the centroid.
+const NF_WIDE=new Set(['RU','US','CA','CN','AU','BR','FR','GB','NL','DK','NZ','CL','AR','IN','ID','KZ','NO','ES','PT','MX']);
+// Great-circle km from the nation's centroid; Infinity when the station gives no coordinates.
+function nfKmFrom(c,lat,lon){
+  lat=parseFloat(lat);lon=parseFloat(lon);
+  if(!isFinite(lat)||!isFinite(lon)||(!lat&&!lon)||c.lat==null)return Infinity;
+  const r=Math.PI/180,a=Math.sin((lat-c.lat)*r/2)**2+Math.cos(c.lat*r)*Math.cos(lat*r)*Math.sin((lon-c.lon)*r/2)**2;
+  return 12742*Math.asin(Math.sqrt(a));
+}
 async function nationFeedRadio(c,st){
   const cc=(c.iso&&/^[A-Z]{2}$/.test(c.iso))?c.iso:String(nationCode(c)).slice(0,2);
   if(!/^[A-Z]{2}$/.test(cc)){st.exhausted.radio=true;return [];}
@@ -6590,7 +6599,14 @@ async function nationFeedRadio(c,st){
     if(!name||seen.has(k)||seen.has('n:'+name.toLowerCase()))return null;
     seen.add(k);seen.add('n:'+name.toLowerCase());
     const tags=String(s.tags||'').split(',').map(t=>t.trim()).filter(t=>t&&t.length<24).slice(0,6);
-    const where=[s.state,c.n].filter(Boolean).join(', ');
+    // radio-browser takes whoever filed a station at their word: MH (Marshall
+    // Islands) carried "Offworld Radio", state "Cork". A state naming another
+    // nation, or coordinates far from this one, is a mis-filing; a state is only
+    // printed when the station's own coordinates put it here.
+    if(s.state&&C.some(o=>o.n!==c.n&&nationNamed(o,s.state)))return null;
+    const km=nfKmFrom(c,s.geo_lat,s.geo_long);
+    if(isFinite(km)&&km>3000&&!NF_WIDE.has(cc))return null;   // no coordinates is not evidence
+    const where=km<1500?[s.state,c.n].filter(Boolean).join(', '):c.n;
     return {id:'rb_'+(s.stationuuid||urlKey(u)),style:'audio',country:c.n,iso:c.iso,_region:nationCode(c),_nation:c.n,
       tags:inferTags(name+' '+tags.join(' '),[]),
       body:`${name} · LIVE radio from ${where}${tags.length?'\n'+tags.map(t=>'#'+t.replace(/[^\p{L}\p{N}]+/gu,'')).join(' '):''}`,
@@ -6663,7 +6679,9 @@ async function nationFeedCommons(c,st,video){
   for(const p of pages){
     const i=(p.imageinfo||[])[0];if(!i||!i.thumburl||!nationNamed(c,clean(p.title)))continue;
     if((i.width||0)<400||(i.height||0)<300)continue;                 // icons, flags-in-a-box, maps thumbnails
-    const stem=clean(p.title).replace(/\s*[\(\[]?\d{1,3}[\)\]]?$/,'').toLowerCase(),t=Date.parse(i.timestamp)||0;
+    // Every digit run, not just a trailing "(3)": NASA dumps number mid-title
+    // ("ISS075-E-81076 - View of the Marshall Islands", 30 in 3 minutes).
+    const stem=clean(p.title).replace(/\d+/g,'#').toLowerCase(),t=Date.parse(i.timestamp)||0;
     if(grp&&grp.stem===stem&&grp.user===i.user&&Math.abs(grp.t-t)<30*60e3&&grp.post._imgs.length<10){grp.post._imgs.push(i.thumburl);grp.post.style='carousel';continue;}
     const post={...base(p.title,i),id:'wc_'+p.pageid,style:'image',_img:i.thumburl,_imgs:[i.thumburl],_video:''};
     post.body=clean(p.title).replace(/\s*[\(\[]?\d{1,3}[\)\]]?$/,'');
@@ -6686,6 +6704,27 @@ function nationRelevance(p,c){
 // is held back for the next source unless the reader needs posts now (force).
 const nfGroup=p=>p.style==='carousel'?'image':(p.style==='image'||p.style==='video'||p.style==='audio')?p.style:'take';
 const NF_GAP={audio:4,video:1,image:0,take:0};
+// SPAM GATE, per open nation. Measured on Marshall Islands: a Commons bot's 30
+// numbered ISS photos, an account posting a METAR report every few hours, the
+// same history post three times. Aviation weather never lands; one post per text
+// SHAPE (digits, links, tags stripped), so templates and numbered dumps collapse
+// to one; at most NF_PER_AUTHOR per account. News is exempt from the account cap:
+// its author is the outlet, and a small nation may only have one or two.
+const NF_METAR_RE=/\b(?:METAR|SPECI|TAF)\b|\b[A-Z]{4} \d{6}Z\b|\b\d{5}(?:G\d{2,3})?KT\b/;
+const NF_PER_AUTHOR=3;
+function nfShape(s){return String(s||'').toLowerCase().replace(/https?:\/\/\S+/g,' ').replace(/[#@][\p{L}\p{N}_.]+/gu,' ').replace(/[^\p{L}]+/gu,' ').trim().slice(0,60);}
+function nfSpam(st,p){
+  const body=String(p.body||'');
+  if(NF_METAR_RE.test(body))return true;
+  const sh=nfShape(body),shapes=st.shapes||(st.shapes=new Set());
+  if(sh.length>=12){if(shapes.has(sh))return true;shapes.add(sh);}
+  if(p.source==='news')return false;
+  // Radio and Archive handles are the stream host / archive.org — shared by many.
+  const a=String((p.source==='radio'||p.source==='archive')?p._author:(p._handle||p._author)||'').toLowerCase();
+  if(!a)return false;
+  const n=st.authors||(st.authors={});
+  return (n[a]=(n[a]||0)+1)>NF_PER_AUTHOR;
+}
 function nationFeedAppend(list,force,src){
   const st=_nf,pane=document.getElementById('cpane-feed');
   if(!st.c||!pane)return 0;
@@ -6695,6 +6734,7 @@ function nationFeedAppend(list,force,src){
     const t=_normText(p.body);
     if(t.length>15&&st.texts.has(t))continue;             // same story from two sources
     st.ids.add(p.id);if(t.length>15)st.texts.add(t);
+    if(nfSpam(st,p))continue;
     // READ-ONLY seen check. This used to call admitPost(), which MARKS a post seen —
     // so opening Nepal first deduped its breaking stories out of the main VOID feed.
     // A nation pane may look at the seen sets; only the main feed may write them.
@@ -6839,7 +6879,7 @@ async function loadCountryFeed(c){
   const pane=document.getElementById('cpane-feed');
   const token=++_cfToken;                                 // a slow nation must not paint into the one now open
   clearTimeout(_nf.retryT);
-  Object.assign(_nf,{c,token,retryT:null,busy:false,inflight:{},rendered:0,attempt:0,dry:0,ids:new Set(),texts:new Set(),
+  Object.assign(_nf,{c,token,retryT:null,busy:false,inflight:{},rendered:0,attempt:0,dry:0,ids:new Set(),texts:new Set(),shapes:new Set(),authors:{},
     mastoMax:'',mastoMediaMax:'',lemmyPage:1,gdeltSpan:'7d',exhausted:{},pool:[],hist:[],
     ptQ:0,ptStart:0,radioOff:0,radioUrls:new Set(),iaPage:1,commonsOff:0,commonsVidOff:0,t0:Date.now(),dealRaf:0});
   clearTimeout(_nf.mixT);
