@@ -37,11 +37,13 @@ export function lifeMix(list: StreamSource[], shuffle?: Shuffle | null): StreamS
 /** The full, ordered world-wall slot list (one source per tile). */
 export function wallSlots(): WallSlot[] {
   const shuffle = shuffleInPlace;
-  // Tier by rank (0-11, 12-23, ...) then shuffle inside the tier.
+  // TENSION IS A WEIGHT, NOT A GATE (web lifeMix). Rank tiers made the 28 tension
+  // nations lead every session; a weighted random key (Efraimidis–Spirakis:
+  // rand^(1/w)) keeps them ahead ~3x their share while every nation can open.
   const names = [...C].map(c => c.n);
-  const tiers: Record<string, string[]> = {};
-  names.forEach(n => { const t = Math.floor(rankOf(n) / 12); (tiers[t] = tiers[t] || []).push(n); });
-  const ordered = Object.keys(tiers).sort((a, b) => (a as any) - (b as any)).flatMap(t => shuffle(tiers[t]));
+  const weight = (n: string) => { const r = rankOf(n); return r < 12 ? 6 : r < 28 ? 3 : 1; };
+  const ordered = names.map(n => ({ n, k: Math.pow(env.random(), 1 / weight(n)) }))
+    .sort((a, b) => b.k - a.k).map(x => x.n);
 
   // TWO POOLS, FIXED MIX. Putting iptvFor(n) first in every country spent the first
   // ~800 slots on TV news and starved the walking tours (the point of the wall).
