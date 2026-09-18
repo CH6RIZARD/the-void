@@ -393,6 +393,14 @@ function xBudgetSpend(n) {
   }
 }
 
+// What the wall wants from X: an event, told by someone who is there. Every
+// query pairs an event term with a first-hand signal — photos/video from the
+// scene, or present-tense witness language. An event term alone matched jokes
+// ("a real ceasefire 👀 #BB28") and memes; the app filters news orgs out on its
+// own, so asking for "news accounts" would be the opposite of the point.
+const X_EVENTS = "(airstrike OR ceasefire OR missile OR invasion OR coup OR protesters OR \"state of emergency\" OR evacuation OR earthquake)";
+const X_FIRSTHAND = "(has:media OR \"right now\" OR \"happening now\" OR \"just now\" OR \"outside my\" OR \"we can hear\" OR \"on the ground\")";
+
 // --- XProvider (keyed, optional) -------------------------------------------
 // Uses Twitter/X API v2 recent search only when X_BEARER is set. Never hardcode
 // a key — read it from the environment. Inert (returns []) with no key.
@@ -435,19 +443,25 @@ class XProvider extends SocialProvider {
     const want = Math.min(limit || X_MAX_RESULTS, X_MAX_RESULTS, xBudgetLeft());
     const max = Math.min(Math.max(want, 10), 100); // API v2 min 10, max 100
     const params = new URLSearchParams({
-      // Replies are half of any X search and nearly all noise out of context
-      // ("@someone my take is…"); at a price per post, never pay for them.
-      query: query + ' -is:retweet -is:reply',
+      // The wall wants people who are THERE, not commentary on them. At a price
+      // per post, never pay for: replies ("@someone my take is…"), retweets
+      // (someone else's post again), or quotes (a take on someone else's post).
+      query: query + ' -is:retweet -is:reply -is:quote',
+      // Relevancy ranks posts people are engaging with over the newest firehose
+      // noise; recency returned whatever was typed in the last few seconds.
+      sort_order: 'relevancy',
       max_results: String(max),
-      'tweet.fields': 'created_at,public_metrics,author_id,lang',
+      'tweet.fields': 'created_at,public_metrics,author_id,lang,possibly_sensitive',
       expansions: 'author_id,attachments.media_keys',
       'user.fields': 'username,name',
       'media.fields': 'type,url,preview_image_url',
     });
     const url = 'https://api.twitter.com/2/tweets/search/recent?' + params.toString();
     const data = await getJson(url, { 'Authorization': 'Bearer ' + this.bearer });
+    // X bills every post it returned, including ones dropped below — so count
+    // the raw response, not what survives.
+    xBudgetSpend((data && Array.isArray(data.data)) ? data.data.length : 0);
     const items = this.mapResponse(data);
-    xBudgetSpend(items.length);            // billed on what came back, so count that
     this._qcache.set(query, { t: Date.now(), v: items });
     return items;
   }
@@ -460,7 +474,9 @@ class XProvider extends SocialProvider {
     for (const u of inc.users || []) users[u.id] = u;
     for (const m of inc.media || []) mediaByKey[m.media_key] = m;
 
-    return data.data.map((t) => {
+    // X's own possibly_sensitive flag: gore, porn, crude spam. Paid for already,
+    // but never worth a place on the wall.
+    return data.data.filter((t) => !t.possibly_sensitive).map((t) => {
       const u = users[t.author_id] || {};
       const pm = t.public_metrics || {};
       const media = [];
@@ -495,12 +511,12 @@ class XProvider extends SocialProvider {
   async fetchGlobal({ limit }) {
     // Every term here must be unambiguous, because X bills per post read: the
     // old 'strike'/'protest' query paid for NFL touchdowns and rap beef.
-    return this.search('(airstrike OR ceasefire OR missile OR invasion OR coup OR protesters OR "state of emergency" OR evacuation OR earthquake) lang:en', limit).catch((e) => this._fail(e));
+    return this.search(X_EVENTS + ' ' + X_FIRSTHAND + ' lang:en', limit).catch((e) => this._fail(e));
   }
 
   async fetchByCountry({ country, limit }) {
     if (!country) return this.fetchGlobal({ limit });
-    return this.search(`"${country}" (airstrike OR ceasefire OR missile OR invasion OR protesters OR killed OR attack) lang:en`, limit).catch((e) => this._fail(e));
+    return this.search(`"${country}" (airstrike OR ceasefire OR missile OR invasion OR protesters OR killed OR attack) ${X_FIRSTHAND} lang:en`, limit).catch((e) => this._fail(e));
   }
 }
 
