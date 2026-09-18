@@ -1790,10 +1790,13 @@ const VoidAPI={
     return {ok:true,id};
   },
   // Recent top-level Void posts with author + media. Public read (anon key works).
-  async recentPosts(limit){
+  // ids: fetch exactly these posts (region_view rows carry no media or author).
+  async recentPosts(limit,ids){
     if(typeof SUPABASE_URL==='undefined'||!SUPABASE_URL) return [];
+    const only=(ids||[]).filter(x=>/^[0-9a-f-]{36}$/i.test(x));
+    if(ids&&!only.length) return [];
     const full='id,author_id,body,rank_score,created_at,profiles:author_id(handle,display_name),post_media(url,ordinal,kind,mime,duration_s)';
-    const q=s=>'/rest/v1/posts?reply_to=is.null&select='+s+'&order=created_at.desc&limit='+(limit||40);
+    const q=s=>'/rest/v1/posts?reply_to=is.null&select='+s+(only.length?'&id=in.('+only.join(',')+')':'')+'&order=created_at.desc&limit='+(limit||40);
     const get=(s,tok)=>fetch(SUPABASE_URL+q(s),{headers:{'apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+(tok||SUPABASE_ANON_KEY)}});
     let r=await get(full,this.token);
     if(r.status===401) r=await get(full,null);
@@ -6439,9 +6442,19 @@ async function nationFeedSupabase(c){
   const rv=await nationRegionView(c);
   let rows=(rv&&rv.posts)||[];
   if(!rows.length&&VoidAPI.base){try{rows=((await VoidAPI.nationFeed(nationCode(c)))||{}).items||[];}catch(e){rows=[];}}
-  return rows.filter(r=>r&&r.id&&r.body&&!r.reply_to).map(r=>({id:r.id,style:'take',country:c.n,iso:c.iso,_region:r.region_code||nationCode(c),_authorId:r.author_id||null,
-    tags:inferTags(r.body,[]),body:r.body,score:r.rank_score||0,replies:0,time:r.created_at?Date.parse(r.created_at):Date.now(),
-    source:'void',_author:'void',_handle:'@void',_img:'',_video:''}));
+  rows=rows.filter(r=>r&&r.id&&!r.reply_to);
+  // region_view returns bare rows: no post_media, no author. Voice notes (empty
+  // body + an audio attachment) were dropped outright and every photo/video drop
+  // became a text card. Re-read the same posts with the main feed's select.
+  const full={};
+  try{(await VoidAPI.recentPosts(rows.length,rows.map(r=>r.id))).forEach(x=>{const p=sbPostToApp(x);if(p)full[p.id]=p;});}catch(e){}
+  return rows.map(r=>{
+    const p=full[r.id];
+    if(p)return {...p,country:c.n,iso:c.iso,_region:r.region_code||nationCode(c),tags:inferTags(p.body,[]),score:r.rank_score||p.score||0};
+    return r.body?{id:r.id,style:'take',country:c.n,iso:c.iso,_region:r.region_code||nationCode(c),_authorId:r.author_id||null,
+      tags:inferTags(r.body,[]),body:r.body,score:r.rank_score||0,replies:0,time:r.created_at?Date.parse(r.created_at):Date.now(),
+      source:'void',_author:'void',_handle:'@void',_img:'',_video:''}:null;
+  }).filter(Boolean);
 }
 async function nationFeedGdelt(c,st){
   const slug=(c.n||'').toLowerCase().replace(/[^a-z]/g,'');
@@ -6689,6 +6702,38 @@ async function nationFeedCommons(c,st,video){
   }
   return out;
 }
+// VOICE — people speaking about the nation: speeches, statements, press briefings,
+// short spoken news clips, from Wikimedia Commons audio whose TITLE names it. Radio
+// was the only other audio, so every audio card in a nation feed was a station.
+// Not voice, and dropped: Lingua Libre one-word pronunciations ("LL-Q1860 (eng)-…"),
+// anthems and other music, and Wikipedia articles read by an AI voice. An mp3
+// transcode is preferred (iOS Safari cannot play Ogg).
+const NF_VOICE_SKIP=/^LL-Q\d|pronunciation|anthem|hymn|\bsong\b|music|instrumental|spoken by ai|ai voice|text-to-speech/i;
+async function nationFeedVoice(c,st){
+  const term=nfFold(c.n).replace(/"/g,'');
+  const d=await nfFetchJson('https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrnamespace=6'+
+    `&gsrsort=create_timestamp_desc&gsrlimit=30&gsrsearch=${encodeURIComponent(`intitle:"${term}" filetype:audio`)}&gsroffset=${st.voiceOff||0}`+
+    '&prop=videoinfo&viprop=url|timestamp|user|mime|size|derivatives',9000);
+  if(!d)return [];
+  const next=d.continue&&d.continue.gsroffset;
+  if(next==null||next>=300)st.exhausted.voice=true;else st.voiceOff=next;
+  const clean=t=>String(t||'').replace(/^File:/,'').replace(/\.[a-z0-9]{2,5}$/i,'').replace(/_/g,' ').trim();
+  return Object.values((d.query&&d.query.pages)||{}).sort((a,b)=>(a.index||0)-(b.index||0)).map(p=>{
+    const i=(p.videoinfo||[])[0],title=clean(p.title);
+    // "Pt-Ukraine", "En-us-Marshall Islands", "Sw-ke-Jamhuri ya Kenya", bare "Nepal":
+    // pronunciation clips named by language code. A recording has a sentence of a title.
+    if(!i||NF_VOICE_SKIP.test(title)||/^[a-z]{2,3}(?:-[a-z]{2,4})?-\S/i.test(title)||title.split(/\s+/).length<4||!nationNamed(c,title))return null;
+    const dur=Math.round(+i.duration||0);
+    if(dur&&(dur<8||dur>2*3600))return null;
+    const mp3=(i.derivatives||[]).find(x=>/mpeg|mp3/i.test(x.type||x.transcodekey||''));
+    const src=mp3?mp3.src:/mpeg|mp3|wav|mp4|aac/i.test(i.mime||'')?i.url:'';
+    if(!src)return null;
+    return {id:'wa_'+p.pageid,style:'audio',country:'',iso:'',_nation:c.n,body:title,tags:inferTags(title,[]),score:0,replies:0,reposts:0,
+      time:Date.parse(i.timestamp)||Date.now(),source:'commons',_voice:true,_author:i.user||'Wikimedia Commons',
+      _handle:'@'+String(i.user||'commons').replace(/\s+/g,'_')+'@commons',_img:'',_video:'',_audio:src,_audioDur:dur||undefined,
+      _url:i.descriptionurl||'',sourceUrl:i.descriptionurl||'',_social:true,provenance:{sourceHost:'commons.wikimedia.org'},imgHue:270};
+  }).filter(Boolean);
+}
 // 0 when the nation is named in the post's own words, 1 when it only appears as a
 // trailing #hashtag — tag-stuffed link posts ("10 Interesting Things… #morocco")
 // sink below posts actually about the place instead of leading the feed.
@@ -6710,6 +6755,21 @@ const NF_GAP={audio:4,video:1,image:0,take:0};
 // SHAPE (digits, links, tags stripped), so templates and numbered dumps collapse
 // to one; at most NF_PER_AUTHOR per account. News is exempt from the account cap:
 // its author is the outlet, and a small nation may only have one or two.
+// Which pool item fills a slot of format g. For audio a person speaking (a Void
+// voice note, a Mastodon audio post, a Commons speech or statement) always goes
+// before radio, and radio gets at most one card per NF_RADIO_EVERY posts: radio
+// answers first and always looks newest, so it used to take every audio slot.
+// -1 = only radio is waiting and it is too soon for another station.
+const NF_RADIO_EVERY=12;
+function nfPick(st,pool,g,at,peek){
+  if(g!=='audio')return pool.findIndex(p=>nfGroup(p)===g);
+  const v=pool.findIndex(p=>nfGroup(p)==='audio'&&p.source!=='radio');
+  if(v>=0)return v;
+  if(st.lastRadio!=null&&at-st.lastRadio<NF_RADIO_EVERY)return -1;
+  const k=pool.findIndex(p=>nfGroup(p)==='audio');
+  if(k>=0&&!peek)st.lastRadio=at;
+  return k;
+}
 const NF_METAR_RE=/\b(?:METAR|SPECI|TAF)\b|\b[A-Z]{4} \d{6}Z\b|\b\d{5}(?:G\d{2,3})?KT\b/;
 const NF_PER_AUTHOR=3;
 function nfShape(s){return String(s||'').toLowerCase().replace(/https?:\/\/\S+/g,' ').replace(/[#@][\p{L}\p{N}_.]+/gu,' ').replace(/[^\p{L}]+/gu,' ').trim().slice(0,60);}
@@ -6771,14 +6831,16 @@ function nationFeedAppend(list,force,src){
   }
   const fresh=[];let spare=+force||0;                     // force: how many of a lone format may still go out
   while(pool.length&&fresh.length<need){
-    const groups=[...new Set(pool.map(nfGroup))];
+    let groups=[...new Set(pool.map(nfGroup))];
+    if(groups.includes('audio')&&nfPick(st,pool,'audio',st.rendered+fresh.length,true)<0)groups=groups.filter(g=>g!=='audio');   // only radio waiting, too soon
+    if(!groups.length)break;
     let ok=groups.filter(g=>run(g)<3&&since(g)>=NF_GAP[g]);
     if(!ok.length)ok=groups.filter(g=>run(g)<3&&(g!=='audio'||groups.length===1));
     if(!ok.length)ok=groups.filter(g=>run(g)<3);
     if(!ok.length){if(spare-->0)ok=groups;else break;}    // one format left, nothing else waiting
     if(ok.length===1&&groups.length===1&&run(ok[0])>=2&&!force)break;
     const g=ok.sort((a,b)=>since(b)-since(a))[0];
-    const k=pool.findIndex(p=>nfGroup(p)===g);
+    const k=nfPick(st,pool,g,st.rendered+fresh.length);
     fresh.push(pool.splice(k,1)[0]);hist.push(g);if(hist.length>40)hist.shift();
   }
   if(!fresh.length)return 0;
@@ -6837,7 +6899,7 @@ async function nationFeedPull(first){
   const awaited={masto:()=>nationFeedMastodon(c,st,false),mastoMedia:()=>nationFeedMastodon(c,st,true),
     lemmy:()=>nationFeedLemmy(c,st),radio:()=>nationFeedRadio(c,st),commons:()=>nationFeedCommons(c,st,false)};
   const detached={peertube:()=>nationFeedPeertube(c,st),archive:()=>nationFeedArchive(c,st),
-    commonsVid:()=>nationFeedCommons(c,st,true),gdelt:()=>nationFeedGdelt(c,st)};
+    commonsVid:()=>nationFeedCommons(c,st,true),gdelt:()=>nationFeedGdelt(c,st),voice:()=>nationFeedVoice(c,st)};
   for(const k in awaited)if(!st.exhausted[k]&&backlog(k)<20)jobs.push(detach(k,awaited[k]));
   for(const k in detached)if(!st.exhausted[k]&&backlog(k)<20)detach(k,detached[k]);   // not awaited
   await Promise.all(jobs.filter(Boolean));
@@ -6879,7 +6941,7 @@ async function loadCountryFeed(c){
   const pane=document.getElementById('cpane-feed');
   const token=++_cfToken;                                 // a slow nation must not paint into the one now open
   clearTimeout(_nf.retryT);
-  Object.assign(_nf,{c,token,retryT:null,busy:false,inflight:{},rendered:0,attempt:0,dry:0,ids:new Set(),texts:new Set(),shapes:new Set(),authors:{},
+  Object.assign(_nf,{c,token,retryT:null,busy:false,inflight:{},rendered:0,attempt:0,dry:0,ids:new Set(),texts:new Set(),shapes:new Set(),authors:{},lastRadio:null,voiceOff:0,
     mastoMax:'',mastoMediaMax:'',lemmyPage:1,gdeltSpan:'7d',exhausted:{},pool:[],hist:[],
     ptQ:0,ptStart:0,radioOff:0,radioUrls:new Set(),iaPage:1,commonsOff:0,commonsVidOff:0,t0:Date.now(),dealRaf:0});
   clearTimeout(_nf.mixT);
