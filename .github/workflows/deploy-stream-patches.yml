@@ -1,0 +1,81 @@
+# Deploy the stream-department review site to its OWN Cloudflare Pages project.
+#
+# WHY THIS EXISTS
+# Stream work lands on the `stream-patches` branch and is merged into main only
+# after review. A diff is a poor review surface for it: the globe going from 82
+# nations to 199 is ONE line of void2-final.html, because the C array is a single
+# line. What actually needs reviewing is whether the globe still looks right and
+# whether the new nations carry streams — so this publishes the PATCHED BUILD,
+# playable, next to the numbers behind each patch.
+#
+# It deploys a SEPARATE project (`stream-patches`), never void-app-d35c, so the
+# live app is untouched until the branch is merged. Merging to main is what ships
+# it, via deploy-pages.yml.
+#
+# Uses the same two secrets as deploy-pages.yml. The Pages project is created on
+# first run if it does not exist yet.
+name: Deploy stream patches review site
+
+on:
+  push:
+    branches: [stream-patches]
+  workflow_dispatch:
+
+# A second push while one deploy is mid-flight would race for the same project.
+concurrency:
+  group: stream-patches-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0    # the review site diffs against main; a shallow clone has no main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Fetch main to diff against
+        run: git fetch origin main:main || echo "no main on the remote yet — the site will show an empty diff"
+
+      # Fail before publishing rather than shipping a build that black-screens.
+      # A broken C array takes the whole app down, and it is exactly what this
+      # branch edits, so this check is the point rather than a formality.
+      - name: Verify the patched build parses
+        run: |
+          node -e "
+          const fs=require('fs');
+          const h=fs.readFileSync('void2-final.html','utf8');
+          const re=/<script(?![^>]*src=)[^>]*>([\s\S]*?)<\/script>/g;
+          let m,n=0,e=0;
+          while ((m=re.exec(h))) { n++; try { new Function(m[1]); } catch(err) { e++; console.error(err.message); } }
+          console.log('void2-final.html', n+' scripts', e+' errors', h.length+'B');
+          const c=/const C\s*=\s*\[/.exec(h);
+          if(!c){ console.error('the C country array is gone'); process.exit(1); }
+          const from=h.indexOf('[',c.index); let d=0,k=from;
+          for(;k<h.length;k++){ if(h[k]==='[')d++; else if(h[k]===']'){ d--; if(!d) break; } }
+          const isos=[...h.slice(from,k).matchAll(/iso:\s*\"([A-Za-z]{2})\"/g)].map(x=>x[1]);
+          const dupes=isos.filter((x,i)=>isos.indexOf(x)!==i);
+          console.log('C array', isos.length+' nations', dupes.length+' duplicate ISO');
+          if (e || dupes.length) process.exit(1);
+          "
+
+      - name: Stage the review site
+        run: node scripts/streams/build-review-site.js --out public --base main
+
+      - name: Create the Pages project if it does not exist
+        continue-on-error: true    # already exists -> non-zero, which is fine
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler@3 pages project create stream-patches --production-branch stream-patches
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy public --project-name=stream-patches --branch=stream-patches --commit-dirty=true

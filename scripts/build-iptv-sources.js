@@ -91,13 +91,27 @@ const NATION_ALIASES = {
   'North Korea': ['dprk', 'korean', 'choson'], 'South Korea': ['korean'], 'France': ['french'],
   'Germany': ['deutsch', 'german'], 'Saudi Arabia': ['saudi'], 'Somalia': ['somali'],
 };
+/**
+ * A nation whose name CONTAINS another nation's name as a whole word cannot be
+ * tested against it: every channel in DR Congo says "Congo", every channel in
+ * Equatorial Guinea says "Guinea", every channel in South Sudan says "Sudan".
+ * Before the globe held 199 nations this never fired, because none of those
+ * shorter names were placed. Now they are, and without this the longer nation
+ * loses its entire catalogue to the shorter one.
+ */
+const containsNation = (own, other) => {
+  const w = ' ' + own.toLowerCase() + ' ';
+  return w.includes(' ' + other.toLowerCase() + ' ');
+};
 function mentionsOtherNation(label, own, names) {
   const t = ' ' + String(label).toLowerCase().replace(/[^a-z0-9À-￿]+/g, ' ') + ' ';
-  if (/palestin/.test(t)) return 'Palestine';
+  // Palestine is a nation on the globe now, so this is only a foreign mention
+  // when some OTHER nation is the one carrying the channel.
+  if (/palestin/.test(t)) return own === 'Palestine' ? null : 'Palestine';
   const ownWords = [own.toLowerCase(), ...(NATION_ALIASES[own] || [])];
   if (ownWords.some(w => t.includes(' ' + w + ' '))) return null;   // names itself: its own
   for (const n of names) {
-    if (n === own) continue;
+    if (n === own || containsNation(own, n)) continue;
     for (const w of [n.toLowerCase(), ...(NATION_ALIASES[n] || [])]) if (t.includes(' ' + w + ' ')) return n;
   }
   // A foreign-language service ("BBC Arabic", "CGTN Russian") speaks to other nations.
