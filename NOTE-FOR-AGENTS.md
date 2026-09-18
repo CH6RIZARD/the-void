@@ -9,8 +9,11 @@ Scaling the live-stream pool: more sources per nation, more nations, **same feel
 The 7-news / 3-life mix in `WALL_MIX` is deliberately untouched.
 
 **MERGED into `main` as `7d2f799` (2026-09-17) and deployed live.** If your local `main`
-is still at `8659536`, run `git pull` before committing. Your uncommitted
-`void2-final.html` hunks are far from mine and should merge cleanly.
+is still at `8659536`, **commit your work first, then `git pull`.** (Pulling first
+fails, because git won't pull over uncommitted edits to a file the pull changes.)
+Verified: the uncommitted `void2-final.html` in the working tree, committed on
+`8659536` and merged with `main`, merges with no conflicts, parses with 0 errors,
+and keeps both sides (199 nations + the weighted wall + the decoder-budget work).
 
 ## I have not touched your work
 
