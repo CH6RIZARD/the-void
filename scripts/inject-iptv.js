@@ -73,13 +73,21 @@ const newSrc = 'src:shuffle([...(CAM_SOURCES[n]||[]),...(RAW_FOOTAGE[n]||[])])' 
 const legacySrc = 'src:shuffle([...(CAM_SOURCES[n]||[]),...(RAW_FOOTAGE[n]||[])])' +
                   '.concat(shuffle([...((typeof IPTV_SOURCES!=="undefined"&&IPTV_SOURCES[n])||[])]))';
 if (html.includes(legacySrc)) html = html.replace(legacySrc, newSrc);
-if (html.includes(newSrc)) {
+// wallSlots was since rewritten around WALL_MIX, which reads the pool as
+//   const news = shuffle(iptvFor(n).filter(usable));
+// None of the three literal spellings above survive that rewrite, so this
+// script warned "NOT wired" on a build where the pool was, in fact, wired —
+// a false alarm that would eventually be believed. Ask the real question
+// (does anything call iptvFor?) before falling back to patching a literal.
+if (/\biptvFor\s*\(\s*n\s*\)/.test(html)) {
+  console.log('wallSlots reads the pool via iptvFor(n)');
+} else if (html.includes(newSrc)) {
   console.log('wallSlots already merges IPTV_SOURCES');
 } else if (html.includes(oldSrc)) {
   html = html.replace(oldSrc, newSrc);
   console.log('wallSlots now merges IPTV_SOURCES (appended, so curated cams still lead)');
 } else {
-  console.warn('WARN: wallSlots source-list pattern not found — block written but NOT wired');
+  console.warn('WARN: nothing calls iptvFor() — block written but NOT wired');
 }
 
 fs.writeFileSync(SRC, html);
