@@ -165,6 +165,9 @@ export default function VoidFeedScreen() {
 
   return (
     <View style={[styles.fill, { backgroundColor: 'transparent' }]}>
+      {/* Measured 2026-09-20: windowSize 7 kept ~7 screens of cards — with their decoded
+          images — mounted, for 162 MB of graphics memory and a UI thread at ~90%. Three
+          screens still leaves a screen of runway either side of the viewport. */}
       <FlatList
         ref={listRef}
         data={visible}
@@ -178,10 +181,11 @@ export default function VoidFeedScreen() {
         ListEmptyComponent={empty}
         contentContainerStyle={{ paddingTop: 46 + insets.top, paddingBottom: 90 + 58 + insets.bottom }}
         maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
-        windowSize={7}
-        initialNumToRender={6}
-        maxToRenderPerBatch={6}
-        removeClippedSubviews={false}
+        windowSize={3}
+        initialNumToRender={4}
+        maxToRenderPerBatch={4}
+        updateCellsBatchingPeriod={60}
+        removeClippedSubviews
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl

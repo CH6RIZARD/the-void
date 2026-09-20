@@ -48,6 +48,13 @@ export const VoidImage = memo(function VoidImage({ uri, style, radius, contentFi
       <Image
         cachePolicy="memory-disk"
         transition={0}
+        // Decode to the size of the box, not the source. A 16:9 feed image is ~720×405
+        // on a phone; full-resolution decodes were a large part of the 162 MB of
+        // graphics memory measured on 2026-09-20.
+        allowDownscaling
+        // Tie the bitmap to the URI so a recycled row releases the old one instead of
+        // holding both while the new image decodes.
+        recyclingKey={uri}
         {...imageProps}
         source={{ uri }}
         style={StyleSheet.absoluteFill}

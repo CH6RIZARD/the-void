@@ -126,9 +126,10 @@ function NationView({ iso }: { iso: string }) {
         viewabilityConfigCallbackPairs={viewPairs}
         overScrollMode="never"
         bounces={false}
-        removeClippedSubviews={false}
-        initialNumToRender={6}
-        windowSize={11}
+        removeClippedSubviews
+        initialNumToRender={4}
+        maxToRenderPerBatch={4}
+        windowSize={3}
         keyboardShouldPersistTaps="handled"
       />
     </View>

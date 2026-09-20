@@ -141,14 +141,14 @@ export function createGlobeScene(gl: any, countries: Country[], viewW: number, v
     return new THREE.Vector3(-r * Math.sin(phi) * Math.cos(th), r * Math.cos(phi), r * Math.sin(phi) * Math.sin(th));
   };
 
-  const onEarth = (tex: THREE.Texture) => {
-    if (disposed) return;
+  // The sphere is built at once on the local fallback, and the real map is swapped in
+  // when it is ready, so the globe never waits on the texture to appear.
+  let earthMat: THREE.MeshPhongMaterial;
+  const buildGlobe = (tex: THREE.Texture) => {
     // 72 segments on mobile: 48 left a faceted limb, 80 is invisible extra cost.
     const seg = 72;
-    globe = new THREE.Mesh(
-      new THREE.SphereGeometry(1, seg, seg),
-      new THREE.MeshPhongMaterial({ map: tex, emissive: 0x020010, emissiveIntensity: 0.7, specular: 0x3a1e90, shininess: 18 }),
-    );
+    earthMat = new THREE.MeshPhongMaterial({ map: tex, emissive: 0x020010, emissiveIntensity: 0.7, specular: 0x3a1e90, shininess: 18 });
+    globe = new THREE.Mesh(new THREE.SphereGeometry(1, seg, seg), earthMat);
     sc.add(globe);
     sc.add(
       new THREE.Mesh(
@@ -165,16 +165,18 @@ export function createGlobeScene(gl: any, countries: Country[], viewW: number, v
       markers.push(sp);
     });
   };
-  // The globe is always built: on texture failure it gets the local fallback.
+  const fallback = fallbackEarthTexture();
+  buildGlobe(fallback);
+  // On texture failure the globe simply keeps the fallback, like the web's onError.
   loadEarthTexture(gl, renderer, rawPixelStorei)
-    .then(onEarth)
+    .then((tex) => {
+      if (disposed) return;
+      earthMat.map = tex;
+      earthMat.needsUpdate = true;
+      fallback.dispose();
+    })
     .catch((e) => {
-      console.warn('[globe] earth texture failed — building with the local fallback', e);
-      try {
-        onEarth(fallbackEarthTexture());
-      } catch (err) {
-        console.error('[globe] fallback build failed', err);
-      }
+      console.warn('[globe] earth texture failed — keeping the local fallback', e);
     });
 
   const ray = new THREE.Raycaster();

@@ -10,6 +10,7 @@ import { createGlobeScene, type GlobeScene } from './globeScene';
 import { GlobeSearch } from './GlobeSearch';
 import { countries, type Country } from '../live/core';
 import { em, useLiveTheme } from '../live/liveTheme';
+import { useObserve } from 'expo-observe';
 
 export interface GlobeCanvasProps {
   /** Render loop runs only while true (tab focused, GLOBE mode, app foregrounded). */
@@ -39,6 +40,11 @@ export function GlobeCanvas({ running, onOpenCountry }: GlobeCanvasProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const openRef = useRef(onOpenCountry);
   openRef.current = onOpenCountry;
+  // EAS Observe TTI for the globe tab: the first frame the globe actually draws.
+  const { markInteractive } = useObserve();
+  const interactiveRef = useRef(markInteractive);
+  interactiveRef.current = markInteractive;
+  const markedRef = useRef(false);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (s) => setAppActive(s === 'active'));
@@ -54,7 +60,10 @@ export function GlobeCanvas({ running, onOpenCountry }: GlobeCanvasProps) {
       rafId.current = requestAnimationFrame(loop);
       // Nothing renders unless the globe is the visible surface and the app is foregrounded.
       if (!runRef.current || !appRef.current) return;
-      s.frame(ts || Date.now());
+      if (s.frame(ts || Date.now()) && !markedRef.current) {
+        markedRef.current = true;
+        interactiveRef.current({ params: { surface: 'globe' } });
+      }
     };
     rafId.current = requestAnimationFrame(loop);
   }, []);
