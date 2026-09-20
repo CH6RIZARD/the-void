@@ -36,15 +36,21 @@ export const YT_ORIGIN = 'https://thevoid.app';
 
 /**
  * NATIVE-ONLY memory guard (no web equivalent — the web never unmounts a tile).
- * A phone cannot hold an unbounded number of WebViews/decoders. Tiles further than
- * PARK_SCREENS viewport-heights from the visible window are PAUSED (HLS) / left
- * running muted (YouTube). Only when more than MAX_MOUNTED_WEBVIEWS YouTube/iframe
- * players are mounted are the FARTHEST ones (beyond EVICT_SCREENS) unmounted; they
- * reconnect to the same source when scrolled back within PARK_SCREENS.
+ * A phone cannot hold an unbounded number of WebViews/decoders. EVERY TILE IN VIEW
+ * PLAYS; the guard only touches tiles that are off-screen.
+ *
+ * Tiles further than PARK_SCREENS viewport-heights from the visible window are PAUSED
+ * (HLS pauses the player, YouTube gets pauseVideo — see StreamTile). Beyond
+ * EVICT_SCREENS, once more than MAX_MOUNTED_WEBVIEWS YouTube/iframe players are
+ * mounted, the FARTHEST are unmounted and reconnect when scrolled back.
+ *
+ * Measured on a Helio P35 (2026-09-20): at 3/5/18 the app held ~18 live decoders,
+ * 200 MB of graphics memory and ran at 1–2 fps. One screen of parking keeps the
+ * visible tiles (a 2-wide wall shows ~6) playing while everything else is idle.
  */
-export const PARK_SCREENS = 3;
-export const EVICT_SCREENS = 5;
-export const MAX_MOUNTED_WEBVIEWS = 18;
+export const PARK_SCREENS = 1;
+export const EVICT_SCREENS = 2;
+export const MAX_MOUNTED_WEBVIEWS = 8;
 
 // ─── One stream, one place on screen (web claimLiveKey/releaseLiveKey) ───────
 const liveClaimed = new Set<string>();

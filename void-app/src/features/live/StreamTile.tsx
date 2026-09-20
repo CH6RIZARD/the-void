@@ -125,7 +125,7 @@ export const StreamTile = forwardRef<StreamTileHandle, StreamTileProps>(function
       media = <HlsPlayer tileId={tileId} source={source} parked={parked} api={api} />;
       break;
     case 'youtube':
-      media = <YouTubePlayer tileId={tileId} source={source} api={api} />;
+      media = <YouTubePlayer tileId={tileId} source={source} parked={parked} api={api} />;
       break;
     case 'mjpeg':
       media = <MjpegPlayer tileId={tileId} source={source} api={api} />;
@@ -306,7 +306,7 @@ function HlsPlayer({ tileId, source, parked, api }: PlayerProps & { parked: bool
 }
 
 // ─── YouTube → isolated IFrame-API WebView, veiled ───────────────────────────
-function YouTubePlayer({ tileId, source, api }: PlayerProps) {
+function YouTubePlayer({ tileId, source, parked, api }: PlayerProps & { parked: boolean }) {
   const audio = useAudioOwner();
   const wv = useRef<WebView>(null);
   const [src] = useState(() => youtubeEmbedSrc(source, liveVidFor(source)));
@@ -317,6 +317,21 @@ function YouTubePlayer({ tileId, source, api }: PlayerProps) {
   const s = useRef({ state: -1 as number, time: 0, at: 0, dur: 0, alive: false, veilT: null as any, nudge: null as any }).current;
 
   const post = useCallback((f: string, a: unknown[] = []) => wv.current?.injectJavaScript(ytCmd(f, a)), []);
+  // Off-screen (> PARK_SCREENS away) a YouTube tile keeps its WebView but stops its
+  // decoder; scrolling it back within one screen resumes it. Tiles IN VIEW always play.
+  const parkedRef = useRef(parked);
+  parkedRef.current = parked;
+  useEffect(() => {
+    if (!s.alive) return;
+    if (parked) {
+      clearInterval(s.nudge);
+      post('pauseVideo');
+    } else {
+      veil();
+      post('playVideo');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parked]);
 
   // ytVeil(): frame to opacity 0 under the sparkle hold, fade back in after YouTube's
   // chrome has timed out (3.2s). Called on first reveal, on ANY command after that,
@@ -344,6 +359,7 @@ function YouTubePlayer({ tileId, source, api }: PlayerProps) {
   );
 
   const listen = useCallback(() => {
+    if (parkedRef.current) return; // off-screen: never start a decoder
     if (s.alive) veil(); // after first reveal, any command must be veiled
     post('playVideo');
     // sound lives in the shadow player; the visible one only unmutes in fallback
@@ -367,6 +383,7 @@ function YouTubePlayer({ tileId, source, api }: PlayerProps) {
       nudge: (force) => {
         // Nudged ONLY when the last reported state is not PLAYING — every command makes
         // the player flash its chrome. force = resume-from-background (liveNudgePlay).
+        if (parkedRef.current) return; // parked tiles stay paused until they come back
         if (!force && s.state === 1) return;
         veil();
         post(audio.isAudible(tileId) && audio.isFallback(tileId) ? 'unMute' : 'mute');

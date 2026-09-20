@@ -308,9 +308,9 @@ export function ReelsView({ active, nation, postId, overlay: overlayProp, onClos
           getItemLayout={(_d, index) => ({ length: h, offset: h * index, index })}
           onViewableItemsChanged={onViewable}
           viewabilityConfig={viewabilityConfig}
-          windowSize={5}
+          windowSize={3}
           initialNumToRender={2}
-          maxToRenderPerBatch={3}
+          maxToRenderPerBatch={2}
         />
       ) : pulling || (!items.length && mode === 'inline') ? (
         overlay ? (
