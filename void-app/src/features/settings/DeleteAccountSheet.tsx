@@ -66,7 +66,7 @@ export default function DeleteAccountSheet({ visible, onClose }: { visible: bool
     if (reloadTimer.current) clearTimeout(reloadTimer.current);
     await auth.refreshSignedIn().catch(() => {});
     onClose();
-    router.replace(ROUTES.signIn as any);
+    router.replace(ROUTES.onboarding as any);
   };
 
   const run = async () => {

@@ -18,11 +18,11 @@ export const APPLE_REFRESH_TOKEN_KEY = 'void_apple_refresh_token';
 const PENDING_PROFILE_KEY = 'void_pending_profile';
 
 /** profiles upsert with the DB-form handle (no '@'). null when rejected (taken / invalid). */
-async function upsertProfile(handle: string, name: string, extra?: Record<string, unknown>) {
+export async function upsertProfile(handle: string, name: string, extra?: Record<string, unknown>) {
   return VoidAuth.upsertProfile({ handle: stripHandle(handle), display_name: name || 'Anonymous', ...(extra || {}) });
 }
 
-async function handleTaken(handle: string): Promise<boolean> {
+export async function handleTaken(handle: string): Promise<boolean> {
   try {
     const rows = await VoidAPI._sb('/rest/v1/profiles?handle=eq.' + encodeURIComponent(stripHandle(handle)) + '&select=id', 'GET');
     const id = rows && rows[0] && rows[0].id;
@@ -125,7 +125,7 @@ export async function emailAuth(emailRaw: string, pass: string, rawHandle: strin
 }
 
 /** After any OAuth / Apple session: apply the handle/name typed on the gate (web void_pending_profile). */
-async function applyPendingProfile(): Promise<void> {
+export async function applyPendingProfile(): Promise<void> {
   let pending: { handle?: string; name?: string } | null = null;
   try {
     pending = JSON.parse((await AsyncStorage.getItem(PENDING_PROFILE_KEY)) || 'null');
@@ -144,7 +144,7 @@ async function applyPendingProfile(): Promise<void> {
   setSignedInFlag(true);
 }
 
-async function rememberPending(handle: string, name: string) {
+export async function rememberPending(handle: string, name: string) {
   await AsyncStorage.setItem(PENDING_PROFILE_KEY, JSON.stringify({ handle: stripHandle(handle), name: name.trim() })).catch(() => {});
 }
 
@@ -153,7 +153,7 @@ async function rememberPending(handle: string, name: string) {
  * Web behaviour: a plain /authorize redirect (the OAuth identity becomes the session;
  * the anonymous account is not merged). Returns '' | error | 'CANCELLED'.
  */
-export async function oauthSignIn(provider: 'google' | 'apple', handle: string, name: string): Promise<string> {
+export async function oauthSignIn(provider: 'google' | 'apple', handle: string, name: string, opts?: { applyProfile?: boolean }): Promise<string> {
   await ensureCore();
   if (!VoidAuth.configured()) return 'BACKEND NOT CONFIGURED';
   try {
@@ -167,7 +167,9 @@ export async function oauthSignIn(provider: 'google' | 'apple', handle: string, 
       return ('OAUTH FAILED' + (m ? ': ' + decodeURIComponent(m[1].replace(/\+/g, ' ')) : '')).slice(0, 80).toUpperCase();
     }
     await pushSessionToSupabase();
-    await applyPendingProfile();
+    // Onboarding decides itself whether the typed handle may be written (a LOGIN
+    // must never create or rename a card), so it can defer this step.
+    if (opts?.applyProfile !== false) await applyPendingProfile();
     return '';
   } catch (e: any) {
     return ('OAUTH FAILED: ' + ((e && e.message) || '')).slice(0, 80).toUpperCase();
@@ -178,10 +180,10 @@ export async function oauthSignIn(provider: 'google' | 'apple', handle: string, 
  * APPLE on iOS: native sheet -> id_token grant with a SHA-256 nonce.
  * The authorizationCode is kept (APPLE_AUTH_CODE_KEY) for the account-deletion revoke.
  */
-export async function appleSignIn(handle: string, name: string): Promise<string> {
+export async function appleSignIn(handle: string, name: string, opts?: { applyProfile?: boolean }): Promise<string> {
   await ensureCore();
   if (Platform.OS !== 'ios' || !(await AppleAuthentication.isAvailableAsync().catch(() => false))) {
-    return oauthSignIn('apple', handle, name);
+    return oauthSignIn('apple', handle, name, opts);
   }
   if (!VoidAuth.configured()) return 'BACKEND NOT CONFIGURED';
   try {
@@ -200,7 +202,7 @@ export async function appleSignIn(handle: string, name: string): Promise<string>
     await pushSessionToSupabase();
     const full = [cred.fullName?.givenName, cred.fullName?.familyName].filter(Boolean).join(' ');
     await rememberPending(handle, name.trim() || full);
-    await applyPendingProfile();
+    if (opts?.applyProfile !== false) await applyPendingProfile();
     return '';
   } catch (e: any) {
     if (e?.code === 'ERR_REQUEST_CANCELED') return 'CANCELLED';

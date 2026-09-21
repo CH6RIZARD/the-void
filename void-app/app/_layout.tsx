@@ -78,6 +78,8 @@ function Shell() {
               <Stack.Screen name="composer" options={{ presentation: 'transparentModal', animation: 'none', contentStyle: { backgroundColor: 'transparent' } }} />
               <Stack.Screen name="settings" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
               <Stack.Screen name="sign-in" options={{ presentation: 'fullScreenModal', animation: 'fade', gestureEnabled: false }} />
+              {/* Jump In: first launch (index.tsx) and every way back out of an account. */}
+              <Stack.Screen name="onboarding" options={{ animation: 'fade', gestureEnabled: false, contentStyle: { backgroundColor: '#04020c' } }} />
               <Stack.Screen name="auth-callback" options={{ animation: 'none' }} />
             </Stack>
             <ToastHost />

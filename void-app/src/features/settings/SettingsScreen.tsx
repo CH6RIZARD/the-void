@@ -210,7 +210,7 @@ export default function SettingsScreen({ onClose }: { onClose?: () => void }) {
   const signOut = async () => {
     await signOutEverywhere();
     await auth.refreshSignedIn().catch(() => {});
-    router.replace(ROUTES.signIn as any);
+    router.replace(ROUTES.onboardingLogin as any);
   };
 
   const clearAll = () => {
@@ -225,7 +225,7 @@ export default function SettingsScreen({ onClose }: { onClose?: () => void }) {
           wipeLocalAccountData();
           await clearUserData();
           await auth.refreshSignedIn().catch(() => {});
-          router.replace(ROUTES.signIn as any);
+          router.replace(ROUTES.onboarding as any);
         },
       },
     ]);

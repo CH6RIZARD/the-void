@@ -11,6 +11,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { AppState, StyleSheet, View } from 'react-native';
 import * as Sensing from '../../modules/expo-void-sensing';
 import { ConsentScreen } from '../ConsentScreen';
+import { isOnboarded } from '../features/onboarding/flag';
 
 export interface SensingApi {
   native: boolean;
@@ -29,7 +30,9 @@ const SensingContext = createContext<SensingApi | null>(null);
 
 export function SensingProvider({ children }: { children: React.ReactNode }) {
   const [consent, setConsent] = useState<Sensing.ConsentState>(() => Sensing.getConsent());
-  const [consentOpen, setConsentOpen] = useState<boolean>(() => !Sensing.getConsent().hasChosen);
+  // A fresh install goes through Jump In first; the flow opens this sheet itself on
+  // the way into the app, so it no longer covers the first screen.
+  const [consentOpen, setConsentOpen] = useState<boolean>(() => !Sensing.getConsent().hasChosen && isOnboarded());
   const [sensingOn, setSensingOn] = useState<boolean>(() => Sensing.isKillSwitchEnabled());
   const [affect, setAffect] = useState<Sensing.AffectState | null>(null);
   const feedVisibleRef = useRef(false);
