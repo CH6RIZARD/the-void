@@ -150,8 +150,9 @@ export async function createWithEmail(rawHandle: string, emailRaw: string, pass:
 
 /**
  * Handle + password. The auth server only knows emails, so the `handle-login` edge
- * function maps handle → email server-side and runs the password grant there; the
- * email never reaches the device.
+ * function maps handle → email server-side and runs the password grant there, so a
+ * handle never reveals its email to anyone who doesn't already know the password
+ * (the session that comes back on success does carry the owner's own email).
  */
 export async function loginWithHandle(rawHandle: string, pass: string): Promise<AuthResult> {
   await ensureCore();
