@@ -79,12 +79,16 @@ export const BIO = {
     this.score = Math.min(100, this.score + w / 2); this.dirty = true; this.mapDirty = true;
   },
   /** Web: every 5s. */
-  decay() { Object.keys(this.tags).forEach(t => { this.tags[t] *= .995; }); },
+  /** Interests the reader chose outright (Jump In "Ignite"). Learned weight decays
+   *  as always; a chosen one never decays below its floor, so an explicit pick
+   *  isn't forgotten ~12 minutes into the first session. Empty = web behaviour. */
+  floors: {} as Record<string, number>,
+  decay() { Object.keys(this.tags).forEach(t => { this.tags[t] = Math.max(this.floors[t] || 0, this.tags[t] * .995); }); },
   bumpRegion(country: string | undefined, w: number) { if (!country) return; this.regions[country] = Math.min(100, (this.regions[country] || 0) + w); this.dirty = true; },
   bumpFormat(style: string | undefined, w: number) { if (!style) return; this.formats[style] = Math.min(100, (this.formats[style] || 0) + w); this.dirty = true; },
   /** Web: idle flush every 15s + pagehide/visibilitychange. */
-  save() { if (!this.dirty) return; this.dirty = false; try { env.storage.setItem('void_bio', JSON.stringify({ tags: this.tags, regions: this.regions, formats: this.formats, score: this.score })); } catch { /* */ } },
-  load() { try { const d = JSON.parse(env.storage.getItem('void_bio') || 'null'); if (d) { Object.assign(this.tags, d.tags || {}); this.regions = d.regions || {}; this.formats = d.formats || {}; this.score = d.score || 0; } } catch { /* */ } },
+  save() { if (!this.dirty) return; this.dirty = false; try { env.storage.setItem('void_bio', JSON.stringify({ tags: this.tags, regions: this.regions, formats: this.formats, score: this.score, floors: this.floors })); } catch { /* */ } },
+  load() { try { const d = JSON.parse(env.storage.getItem('void_bio') || 'null'); if (d) { Object.assign(this.tags, d.tags || {}); this.regions = d.regions || {}; this.formats = d.formats || {}; this.score = d.score || 0; this.floors = d.floors || {}; } } catch { /* */ } },
   /** Interest-map classes for the profile screen (web _update()). */
   interestMap(): Array<{ tag: string; level: 'hot' | 'warm' | 'cold' }> {
     this.mapDirty = false;
@@ -109,7 +113,7 @@ export const BIO = {
       + breakingLift(p) + controversyLift(p) + refreshLift;
   },
   /** Test/reset: zero every learned weight. */
-  reset() { for (const t of BIO_TAGS) this.tags[t] = 0; this.regions = {}; this.formats = {}; this.score = 0; this.totalDwell = 0; this.totalViewed = 0; this.sessions = {}; this.dirty = false; },
+  reset() { for (const t of BIO_TAGS) this.tags[t] = 0; this.regions = {}; this.formats = {}; this.floors = {}; this.score = 0; this.totalDwell = 0; this.totalViewed = 0; this.sessions = {}; this.dirty = false; },
 };
 BIO.load();
 onConfigure(() => { BIO.reset(); BIO.load(); });

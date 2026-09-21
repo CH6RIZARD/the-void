@@ -23,10 +23,12 @@ const TOPIC_TAGS: Record<Topic, string[]> = {
   Night: [],
 };
 
-// A pick weighs two bolts (react 'fire' = +15 per tag). Places weigh more: region
-// weights never decay, but tag weights lose half every ~12 min of use (decay()),
-// so a strong start is what survives into the first real session.
+// A pick weighs two bolts (react 'fire' = +15 per tag). Tag weights lose half every
+// ~12 min of use (decay()); a picked tag stops at TAG_FLOOR instead of zero, so the
+// choice keeps counting (about one bolt's worth) after the first session. Region
+// weights never decay.
 const TAG_SEED = 30;
+const TAG_FLOOR = 15;
 const REGION_SEED = 40;
 const VIDEO_SEED = 25;
 
@@ -34,7 +36,10 @@ export const PICKS_KEY = 'void_onboard_picks';
 
 export function seedFeed(topics: Topic[], places: LivePlace[]): void {
   for (const topic of topics) {
-    for (const tag of TOPIC_TAGS[topic] || []) BIO.tags[tag] = Math.min(100, (BIO.tags[tag] || 0) + TAG_SEED);
+    for (const tag of TOPIC_TAGS[topic] || []) {
+      BIO.tags[tag] = Math.min(100, (BIO.tags[tag] || 0) + TAG_SEED);
+      BIO.floors[tag] = Math.max(BIO.floors[tag] || 0, TAG_FLOOR);
+    }
   }
   if (topics.includes('Live streams')) BIO.bumpFormat('video', VIDEO_SEED);
   for (const p of places) BIO.bumpRegion(p.country, REGION_SEED);
