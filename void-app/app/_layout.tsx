@@ -3,7 +3,7 @@
 import '../src/lib/polyfills';
 import 'react-native-reanimated';
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { AppState, StyleSheet, View } from 'react-native';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
@@ -18,8 +18,14 @@ import { AuthProvider } from '../src/lib/auth';
 import { SensingProvider } from '../src/lib/sensing';
 import { AudioOwnerProvider } from '../src/features/live';
 import { registerPhotoViewer } from '../src/features/photo';
+import { Image as ExpoImage } from 'expo-image';
+import { Observe, ObserveRoot } from 'expo-observe';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+// EAS Observe: launch time, per-screen time-to-render/interactive and slow/frozen frames,
+// all collected natively and sent in batches. Network tracking stays off (the feed makes
+// many requests); debug builds are not dispatched.
+Observe.configure({ integrations: { 'expo-router': true } });
 // configureCore + initAuth + loadModeration start before React renders anything.
 const corePromise = bootCore();
 // Image taps anywhere (feed, carousel, thread OP) open /photo instead of the thread.
@@ -53,6 +59,16 @@ function Shell() {
     if (ready) SplashScreen.hideAsync().catch(() => {});
   }, [ready]);
 
+  // Backgrounding is the one safe moment to hand the decoded-image cache back: the
+  // disk cache still has every file, so returning re-decodes at the size now needed
+  // instead of holding the old bitmaps. Measured 2026-09-20: ~162 MB of graphics memory.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (st) => {
+      if (st === 'background') ExpoImage.clearMemoryCache().catch(() => {});
+    });
+    return () => sub.remove();
+  }, []);
+
   if (!ready) return <View style={[styles.fill, { backgroundColor: '#04020c' }]} />;
 
   const bg = theme.colors.bg;
@@ -78,6 +94,8 @@ function Shell() {
               <Stack.Screen name="composer" options={{ presentation: 'transparentModal', animation: 'none', contentStyle: { backgroundColor: 'transparent' } }} />
               <Stack.Screen name="settings" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
               <Stack.Screen name="sign-in" options={{ presentation: 'fullScreenModal', animation: 'fade', gestureEnabled: false }} />
+              {/* Jump In: first launch (index.tsx) and every way back out of an account. */}
+              <Stack.Screen name="onboarding" options={{ animation: 'fade', gestureEnabled: false, contentStyle: { backgroundColor: '#04020c' } }} />
               <Stack.Screen name="auth-callback" options={{ animation: 'none' }} />
             </Stack>
             <ToastHost />
@@ -90,13 +108,15 @@ function Shell() {
 
 export default function RootLayout() {
   return (
-    <GestureHandlerRootView style={styles.fill}>
-      <SafeAreaProvider>
-        <ThemeProvider>
-          <Shell />
-        </ThemeProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <ObserveRoot>
+      <GestureHandlerRootView style={styles.fill}>
+        <SafeAreaProvider>
+          <ThemeProvider>
+            <Shell />
+          </ThemeProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </ObserveRoot>
   );
 }
 

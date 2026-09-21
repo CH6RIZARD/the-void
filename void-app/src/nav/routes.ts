@@ -27,6 +27,10 @@ export const ROUTES = {
   composer: '/composer',
   settings: '/settings',
   signIn: '/sign-in',
+  /** Jump In: first launch, and after clear-all / account deletion. */
+  onboarding: '/onboarding',
+  /** Jump In opened straight on the card's LOGIN tab (after Sign out). */
+  onboardingLogin: '/onboarding?mode=login',
   /** OAuth return: thevoid://auth-callback */
   authCallback: '/auth-callback',
 } as const;

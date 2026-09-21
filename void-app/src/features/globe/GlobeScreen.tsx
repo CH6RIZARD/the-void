@@ -14,6 +14,7 @@ import { LiveWall } from '../live/LiveWall';
 import { cachedGlobeMode, loadGlobeMode, loadGrid3, saveGlobeMode, type GlobeMode } from './persist';
 import { useLiveTheme } from '../live/liveTheme';
 import type { Country } from '../live/core';
+import { LoaderActiveContext } from '../../ui/loaders/useLoaderClock';
 
 // #globe-reels-view,#globe-map-view{transition:transform .34s cubic-bezier(.22,.61,.36,1)}
 const SLIDE = { duration: 340, easing: Easing.bezier(0.22, 0.61, 0.36, 1) };
@@ -129,12 +130,17 @@ export function GlobeScreen({ bottomInset = 58 }: GlobeScreenProps) {
         <GestureDetector gesture={swipe}>
           <View style={styles.fill} collapsable={false}>
             <Animated.View style={[styles.view, reelsStyle]} pointerEvents={mode === 'reels' ? 'auto' : 'none'}>
-              <ReelsView active={reelsVisible} />
+              {/* The hidden side of the slide stays mounted; its loaders must not tick. */}
+              <LoaderActiveContext.Provider value={reelsVisible}>
+                <ReelsView active={reelsVisible} />
+              </LoaderActiveContext.Provider>
             </Animated.View>
             <Animated.View style={[styles.view, mapStyle]} pointerEvents={mode === 'globe' ? 'auto' : 'none'}>
-              <GlobeCanvas running={globeVisible} onOpenCountry={openCountry} />
-              {/* Built the first time GLOBE is shown (web: buildGlobeGrid inside setGlobeMode). */}
-              <LiveWall active={globeVisible} grid3={grid3} bottomInset={bottomInset} />
+              <LoaderActiveContext.Provider value={globeVisible}>
+                <GlobeCanvas running={globeVisible} onOpenCountry={openCountry} />
+                {/* Built the first time GLOBE is shown (web: buildGlobeGrid inside setGlobeMode). */}
+                <LiveWall active={globeVisible} grid3={grid3} bottomInset={bottomInset} />
+              </LoaderActiveContext.Provider>
             </Animated.View>
           </View>
         </GestureDetector>

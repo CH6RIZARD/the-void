@@ -5,13 +5,17 @@
 //                        un-premultiplied like getImageData) into a DataTexture with the
 //                        CanvasTexture defaults (linear / mipmapped).
 // web _fallbackEarth  → fallbackEarthTexture(): same 512×256 gradient + 900 faint rects.
-// web TextureLoader   → loadEarthTexture(): expo-asset downloads the JPEG, expo-gl uploads
-//                        it straight from the file ({ localUri }) into a raw GL texture that
-//                        is handed to three.js (three never re-uploads a version-0 texture).
+// web TextureLoader   → loadEarthTexture(): the bundled JPEG (assets/globe, 2048×1024: the
+//                        web's 4096×2048 unpkg copy is 32 MB of GPU memory for a ≤320pt
+//                        globe, and fetching it at runtime left the sphere missing on slow
+//                        networks) is uploaded by expo-gl straight from the file ({ localUri })
+//                        into a raw GL texture handed to three.js (three never re-uploads a
+//                        version-0 texture).
 import * as THREE from 'three';
 import { Asset } from 'expo-asset';
 
-export const EARTH_URL = 'https://unpkg.com/three-globe/example/img/earth-night.jpg';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const EARTH = require('../../../assets/globe/earth-night.jpg');
 
 type Stop = [number, number, number, number, number]; // offset, r, g, b, a(0..1)
 
@@ -134,7 +138,7 @@ export function fallbackEarthTexture(): THREE.DataTexture {
  * a raw GL texture, or rejects (caller uses the fallback, exactly like the web's onError).
  */
 export async function loadEarthTexture(gl: any, renderer: THREE.WebGLRenderer, rawPixelStorei: (p: number, v: any) => void): Promise<THREE.Texture> {
-  const asset = Asset.fromURI(EARTH_URL);
+  const asset = Asset.fromModule(EARTH);
   await asset.downloadAsync();
   if (!asset.localUri) throw new Error('earth texture: no localUri');
   for (let i = 0; i < 16 && gl.getError() !== gl.NO_ERROR; i++);
