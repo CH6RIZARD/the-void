@@ -6,8 +6,9 @@
 // behind the dark body. On the Helio P35 test phone expo-gl gave no working depth
 // test, so every back face drew and the globe came out as a white sun. Here nothing
 // relies on depth:
-//   • the atmosphere shell drops every fragment whose view ray hits the planet (an
-//     analytic ray/sphere test), so it only ever glows outside the silhouette;
+//   • the atmosphere (the mock's BackSide shader, unchanged) drops every fragment
+//     whose view ray hits the planet — an analytic ray/sphere test standing in for
+//     the depth test;
 //   • land dots and nation lights compute whether they face the camera and fade out
 //     on the far hemisphere themselves.
 // All transparent layers run with depthTest off, so every GPU draws the same picture.
@@ -36,26 +37,24 @@ function toXYZ(lat: number, lon: number, r: number): [number, number, number] {
 // 0 at the limb and beyond. Perspective-correct (uses the real view vector).
 const FACING = 'float facing(vec3 objNormal, vec4 mv){vec3 n=normalize(normalMatrix*objNormal);return dot(n,normalize(-mv.xyz));}';
 
-const HALO_VS = `varying float vRim;${FACING}
-void main(){vec4 mv=modelViewMatrix*vec4(position,1.0);vRim=1.0-max(facing(normal,mv),0.0);gl_Position=projectionMatrix*mv;}`;
-
-// Atmosphere: a front-facing shell (r = 1.1) whose glow is brightest where it meets
-// the planet's silhouette and fades to nothing at its own. The part of the shell
-// that lies over the planet disk is removed analytically — the view ray is tested
-// against the body sphere — which is the job the depth buffer did in the mock.
-const ATMO_R = 1.1;
+// The mock's own shaders, unchanged, so the picture matches the design exactly:
+// a dark body, a bright peach-white atmosphere hugging the silhouette and fading
+// outward (BackSide shell, r = 1.08), and a faint violet inner rim (r = 1.0).
+// The ONE addition: the atmosphere drops any fragment whose view ray hits the body
+// (analytic ray/sphere test) — what the depth buffer did in the browser.
 const BODY_R = 0.992;
-// facing() at the body silhouette, as seen on the shell: sqrt(1 - (Rb/Rs)^2).
-const ATMO_K = Math.sqrt(1 - (BODY_R / ATMO_R) ** 2).toFixed(4);
-const ATMO_VS = `varying float vFace;varying vec3 vPos;varying vec3 vCtr;${FACING}
-void main(){vec4 mv=modelViewMatrix*vec4(position,1.0);vFace=facing(normal,mv);vPos=mv.xyz;vCtr=(modelViewMatrix*vec4(0.0,0.0,0.0,1.0)).xyz;gl_Position=projectionMatrix*mv;}`;
-const ATMO_FS = `varying float vFace;varying vec3 vPos;varying vec3 vCtr;
-void main(){vec3 d=normalize(vPos);float b=dot(d,vCtr);float c=dot(vCtr,vCtr)-${BODY_R.toFixed(4)}*${BODY_R.toFixed(4)};if(b*b-c>0.0)discard;
-float t=clamp(vFace/${ATMO_K},0.0,1.0);float i=pow(t,3.0);
-gl_FragColor=vec4(vec3(0.79,0.66,0.30)*0.9+vec3(0.35,0.18,0.7)*0.35,i*0.5);}`;
-
-const EDGE_FS = `varying float vRim;
-void main(){float i=pow(vRim,5.0);gl_FragColor=vec4(0.49,0.36,0.93,i*0.55);}`;
+const ATMO_R = 1.08;
+const RIM_VS = 'varying vec3 vN;void main(){vN=normalize(normalMatrix*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}';
+const ATMO_VS =
+  'varying vec3 vN;varying vec3 vPos;varying vec3 vCtr;' +
+  'void main(){vN=normalize(normalMatrix*normal);vec4 mv=modelViewMatrix*vec4(position,1.0);vPos=mv.xyz;vCtr=(modelViewMatrix*vec4(0.0,0.0,0.0,1.0)).xyz;gl_Position=projectionMatrix*mv;}';
+const ATMO_FS =
+  'varying vec3 vN;varying vec3 vPos;varying vec3 vCtr;' +
+  'void main(){vec3 d=normalize(vPos);float b=dot(d,vCtr);float c=dot(vCtr,vCtr)-' +
+  (BODY_R * BODY_R).toFixed(5) +
+  ';if(b*b-c>0.0)discard;' +
+  'float i=pow(0.72-dot(vN,vec3(0.0,0.0,1.0)),3.5);gl_FragColor=vec4(vec3(0.79,0.66,0.30)*i*0.9+vec3(0.35,0.18,0.7)*i*0.5,i);}';
+const RIM_FS = 'varying vec3 vN;void main(){float i=pow(1.0-abs(dot(vN,vec3(0.0,0.0,1.0))),4.0);gl_FragColor=vec4(vec3(0.49,0.36,0.93)*i,i*0.55);}';
 
 const LAND_VS = `uniform float uSize;uniform float uScale;varying float vVis;${FACING}
 void main(){vec4 mv=modelViewMatrix*vec4(position,1.0);vVis=smoothstep(0.0,0.3,facing(position,mv));gl_PointSize=max(1.0,uSize*(uScale/-mv.z));gl_Position=projectionMatrix*mv;}`;
@@ -79,16 +78,16 @@ export interface GlobeParts {
  * @param pr    device px per layout px (the mock sized lights in CSS px × DPR)
  * @param land  land-dot xyz (landPositions())
  */
-export function buildGlobe(T: THREE, W: number, H: number, pr: number, land: Float32Array): GlobeParts {
+export function buildGlobe(T: THREE, W: number, H: number, pr: number, land: Float32Array, showLand = false): GlobeParts {
   const scene = new T.Scene();
   const camera = new T.PerspectiveCamera(38, W / Math.max(1, H), 0.1, 50);
   const group = new T.Group();
   scene.add(group);
 
-  const shell = (r: number, vs: string, fs: string) =>
+  const shell = (r: number, vs: string, fs: string, side: THREE_NS.Side) =>
     new T.Mesh(
       new T.SphereGeometry(r, 64, 64),
-      new T.ShaderMaterial({ vertexShader: vs, fragmentShader: fs, transparent: true, depthWrite: false, depthTest: false, blending: T.AdditiveBlending }),
+      new T.ShaderMaterial({ vertexShader: vs, fragmentShader: fs, side, transparent: true, depthWrite: false, depthTest: false, blending: T.AdditiveBlending }),
     );
 
   // Body first (opaque), then everything else painted over it in order.
@@ -111,12 +110,13 @@ export function buildGlobe(T: THREE, W: number, H: number, pr: number, land: Flo
     }),
   );
   landPts.renderOrder = 1;
-  group.add(landPts);
+  // The design as it shipped showed no land (its texture URL 404s); matching it.
+  if (showLand) group.add(landPts);
 
-  const edge = shell(1.0, HALO_VS, EDGE_FS);
+  const edge = shell(1.0, RIM_VS, RIM_FS, T.FrontSide);
   edge.renderOrder = 2;
   group.add(edge);
-  const halo = shell(ATMO_R, ATMO_VS, ATMO_FS);
+  const halo = shell(ATMO_R, ATMO_VS, ATMO_FS, T.BackSide);
   halo.renderOrder = 3;
   group.add(halo);
 
