@@ -144,6 +144,13 @@ export async function applyPendingProfile(): Promise<void> {
   setSignedInFlag(true);
 }
 
+/** Deep-link returns (email confirmation, an OAuth redirect the auth session missed):
+ *  apply a handle typed before leaving the app, but only if one is waiting. */
+export async function applyPendingProfileIfAny(): Promise<void> {
+  const waiting = await AsyncStorage.getItem(PENDING_PROFILE_KEY).catch(() => null);
+  if (waiting) await applyPendingProfile();
+}
+
 export async function rememberPending(handle: string, name: string) {
   await AsyncStorage.setItem(PENDING_PROFILE_KEY, JSON.stringify({ handle: stripHandle(handle), name: name.trim() })).catch(() => {});
 }

@@ -23,6 +23,8 @@ export type AuthResult = { err: string } | { err: ''; via: Via; handle: string }
 type Provider = 'apple' | 'google';
 
 const fail = (err: string): AuthResult => ({ err });
+/** Set while an email sign-up waits on its confirmation link (see auth-callback). */
+export const RESUME_KEY = 'void_onboard_resume';
 const ok = (via: Via, handle: string): AuthResult => ({ err: '', via, handle });
 
 // Random anonymous handles (anonHandle) are not a card someone chose.
@@ -118,8 +120,15 @@ export async function createWithEmail(rawHandle: string, emailRaw: string, pass:
   const email = emailRaw.trim();
   try {
     const d = await VoidAuth.signUpWithEmail(email, pass, { handle, display_name: handle });
-    // No session back = the project requires the confirmation email first.
-    if (!d || !d.access_token) return fail(t('err.server.confirmEmail'));
+    // No session back = the project requires the confirmation email first. The link
+    // reopens the app at auth-callback, which writes this handle and resumes at Ignite.
+    if (!d || !d.access_token) {
+      await rememberPending(handle, handle);
+      try {
+        env.storage.setItem(RESUME_KEY, 'ignite');
+      } catch {}
+      return fail(t('err.server.confirmEmail'));
+    }
     if (VoidAuth.session && !VoidAuth.session.user) {
       const me = await VoidAuth.me();
       if (me) VoidAuth.save({ ...VoidAuth.session, user: me });

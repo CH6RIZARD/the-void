@@ -10,6 +10,8 @@ import { useSensing } from '../../lib/sensing';
 import { ROUTES } from '../../nav/routes';
 import { t, type Topic } from './copy';
 import { markOnboarded } from './flag';
+import { RESUME_KEY } from './onboardAuth';
+import { env } from '../../core';
 import { seedFeed } from './seed';
 import type { LivePlace } from './places';
 import type { Via } from './onboardAuth';
@@ -44,13 +46,15 @@ function Dots({ step }: { step: Step }) {
 }
 
 export default function OnboardingScreen() {
-  const params = useLocalSearchParams<{ mode?: string }>();
+  const params = useLocalSearchParams<{ mode?: string; resume?: string }>();
   const loginFirst = params.mode === 'login';
+  // Back from an email confirmation link: the card is issued, pick up at Ignite.
+  const resumeIgnite = params.resume === 'ignite';
   const auth = useAuth();
   const sensing = useSensing();
-  const [step, setStep] = useState<Step>(loginFirst ? 2 : 0);
+  const [step, setStep] = useState<Step>(resumeIgnite ? 3 : loginFirst ? 2 : 0);
   const [cardMode, setCardMode] = useState<'create' | 'login'>(loginFirst ? 'login' : 'create');
-  const [via, setVia] = useState<Via | null>(null);
+  const [via, setVia] = useState<Via | null>(resumeIgnite ? 'email' : null);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [places, setPlaces] = useState<LivePlace[]>([]);
   const leaving = useRef(false);
@@ -91,6 +95,9 @@ export default function OnboardingScreen() {
     const id = setTimeout(async () => {
       leaving.current = true;
       markOnboarded();
+      try {
+        env.storage.removeItem(RESUME_KEY);
+      } catch {}
       await authRef.current.refreshSignedIn().catch(() => {});
       router.replace(ROUTES.void as any);
       const sn = sensingRef.current;

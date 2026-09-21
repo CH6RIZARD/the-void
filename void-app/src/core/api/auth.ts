@@ -54,7 +54,10 @@ export const VoidAuth = {
     }
   },
   async signUpWithEmail(email: string, password: string, meta?: Record<string, unknown>): Promise<any> {
-    const d = await this.call('/auth/v1/signup', 'POST', { email, password, data: meta || {} });
+    // redirect_to: the confirmation email's link opens the app (thevoid://auth-callback,
+    // allow-listed in the project's auth settings) instead of the project site_url.
+    const back = env.oauthRedirect ? '?redirect_to=' + encodeURIComponent(env.oauthRedirect) : '';
+    const d = await this.call('/auth/v1/signup' + back, 'POST', { email, password, data: meta || {} });
     if (d.access_token) this.save(d);
     return d;
   },
