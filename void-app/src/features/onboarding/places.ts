@@ -14,7 +14,8 @@ const P: ReadonlyArray<readonly [string, string, string]> = [
   ['Taipei', 'TW', 'z_fY1pj1VBw'],
   ['Baku', 'AZ', 'Bb-vF0Gq7RY'],
   ['Yerevan', 'AM', 'ifUdPP2zmPE'],
-  ['Kyiv', 'UA', 'BIecBekaeuE'],
+  // The Kyiv skyline stream (BIecBekaeuE) has ended; this is the app's other live Ukraine cam.
+  ['Kyiv', 'UA', 'IcZ-7sFi1HM'],
   ['St Petersburg', 'RU', 'CjtIYbmVfck'],
   ['Addis Ababa', 'ET', 'phgndoqNNOY'],
   ['Paris', 'FR', 'u-wHHiQeM34'],
