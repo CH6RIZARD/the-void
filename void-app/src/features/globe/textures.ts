@@ -168,6 +168,14 @@ function earthPixels(): { w: number; h: number; data: Uint8Array } | null {
   }
 }
 export async function loadEarthTexture(gl: any, renderer: THREE.WebGLRenderer, rawPixelStorei: (p: number, v: any) => void): Promise<THREE.Texture> {
+  // three's state reset reads gl.canvas.width; expo-gl's context has no canvas, so
+  // renderer.resetState() throws "Cannot read property 'width' of undefined" - which
+  // is what the device reported once the decode path finally ran, and what the
+  // original code would have hit too had it ever got past the upload. The scene builds
+  // a fake canvas for the RENDERER; the context needs one as well.
+  if (!(gl as any).canvas) {
+    (gl as any).canvas = { width: gl.drawingBufferWidth, height: gl.drawingBufferHeight };
+  }
   const asset = Asset.fromModule(EARTH);
   await asset.downloadAsync();
   if (!asset.localUri) throw new Error('earth texture: no localUri');
