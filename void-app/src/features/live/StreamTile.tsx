@@ -133,7 +133,7 @@ export const StreamTile = forwardRef<StreamTileHandle, StreamTileProps>(function
       media = <YouTubePlayer tileId={tileId} source={source} parked={parked} api={api} />;
       break;
     case 'mjpeg':
-      media = <MjpegPlayer tileId={tileId} source={source} api={api} />;
+      media = <MjpegPlayer tileId={tileId} source={source} parked={parked} api={api} />;
       break;
     case 'iframe':
       media = <IframePlayer tileId={tileId} source={source} api={api} />;
@@ -485,12 +485,35 @@ function YouTubePlayer({ tileId, source, parked, api }: PlayerProps & { parked: 
 // RN Image cannot decode multipart MJPEG, so the camera URL is re-requested as a
 // snapshot. The next frame loads invisibly and swaps in on load: no blank flashes.
 const MJPEG_REFRESH_MS = 1000;
-function MjpegPlayer({ tileId, source, api }: PlayerProps) {
+function MjpegPlayer({ tileId, source, parked, api }: PlayerProps & { parked: boolean }) {
   const url = source.url || '';
   const bust = (u: string) => u + (u.includes('?') ? '&' : '?') + '_vt=' + Date.now();
   const [next, setNext] = useState(url);
   const [shown, setShown] = useState<string | null>(null);
   const t = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Parked (off screen / wall hidden): stop refreshing. It re-downloaded and decoded a
+  // full JPEG every second on every tab. The last frame stays up; it resumes on return.
+  const parkedRef = useRef(parked);
+  parkedRef.current = parked;
+  const stalled = useRef(false);
+  const schedule = useCallback(
+    (ms: number) => {
+      if (t.current) clearTimeout(t.current);
+      if (parkedRef.current) {
+        stalled.current = true;
+        return;
+      }
+      t.current = setTimeout(() => setNext(bust(url)), ms);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [url],
+  );
+  useEffect(() => {
+    if (!parked && stalled.current) {
+      stalled.current = false;
+      schedule(0);
+    }
+  }, [parked, schedule]);
   useEffect(() => {
     api.register({ nudge: () => {}, isPlaying: () => true, target: { id: tileId, setMuted: () => {} } });
     return () => {
@@ -508,11 +531,11 @@ function MjpegPlayer({ tileId, source, api }: PlayerProps) {
         onLoad={() => {
           setShown(next);
           if (!api.isDone()) api.finish(true);
-          t.current = setTimeout(() => setNext(bust(url)), MJPEG_REFRESH_MS);
+          schedule(MJPEG_REFRESH_MS);
         }}
         onError={() => {
           if (!api.isDone()) api.finish(false);
-          else t.current = setTimeout(() => setNext(bust(url)), MJPEG_REFRESH_MS * 3);
+          else schedule(MJPEG_REFRESH_MS * 3);
         }}
       />
     </>

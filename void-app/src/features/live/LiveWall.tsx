@@ -23,8 +23,10 @@ import { useStreamCascade, type CascadeResult } from './useStreamCascade';
 import { rememberStream, wallCascadeFor, wallSlots, streamKey, type StreamSource, type StreamType, type WallSlot } from './core';
 import {
   EVICT_SCREENS,
+  FIRST_BATCH_DELAY_MS,
   MAX_MOUNTED_WEBVIEWS,
   PARK_SCREENS,
+  SLEEP_AFTER_MS,
   WALL_BATCH,
   WALL_HEAL_COOLDOWN,
   WALL_HEAL_MAX,
@@ -119,9 +121,27 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
     scrollY: 0,
     lanes: new Lanes(WALL_LANES),
     activeRef: active,
+    asleepRef: false,
     gen: 0,
   }).current;
   w.activeRef = active;
+
+  // SLEEP: out of sight for SLEEP_AFTER_MS (REELS mode, another tab, background), the
+  // wall lets go of every player - WebViews and decoders unmount through the paced
+  // release queue. Tiles, their order and each tile's last good source are kept, so
+  // on return only the tiles in view reconnect, last good source first. A quick flip
+  // away and back never tears anything down. Parking alone (pauseVideo / pause) left
+  // every WebView renderer alive: ~107% CPU in WebView processes with the wall hidden.
+  const [asleep, setAsleep] = useState(false);
+  w.asleepRef = asleep;
+  useEffect(() => {
+    if (active) {
+      setAsleep(false);
+      return;
+    }
+    const id = setTimeout(() => setAsleep(true), SLEEP_AFTER_MS);
+    return () => clearTimeout(id);
+  }, [active]);
 
   const tileW = (width - PAD * 2 - GAP * (cols - 1)) / cols;
   const tileH = (tileW * 9) / 16;
@@ -251,8 +271,9 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
   }, [active, width, build]);
   useEffect(() => {
     if (gen === 0) return;
-    const id = requestAnimationFrame(() => loadBatchRef.current(fillCount()));
-    return () => cancelAnimationFrame(id);
+    // Let the globe draw its first frames before the first tiles start connecting.
+    const id = setTimeout(() => loadBatchRef.current(fillCount()), FIRST_BATCH_DELAY_MS);
+    return () => clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gen]);
 
@@ -311,8 +332,14 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
     for (const [id, d] of dist) if (d > PARK_SCREENS || !w.activeRef) parked.add(id);
     const web = [...w.registry.values()].filter((e) => (e.kind === 'youtube' || e.kind === 'iframe') && (e.phase === 'playing' || e.phase === 'connecting'));
     const evicted = new Set<number>(placementRef.current.evicted);
-    // restore evicted tiles that came back near
-    for (const id of [...evicted]) if ((dist.get(id) ?? 0) <= PARK_SCREENS) evicted.delete(id);
+    if (w.asleepRef) {
+      // Asleep: every player goes (the tile effect only acts on PLAYING tiles; a tile
+      // still connecting is evicted once it connects, via the order change).
+      for (const e of w.registry.values()) evicted.add(e.id);
+    } else {
+      // restore evicted tiles that came back near
+      for (const id of [...evicted]) if ((dist.get(id) ?? 0) <= PARK_SCREENS) evicted.delete(id);
+    }
     let over = web.length - MAX_MOUNTED_WEBVIEWS;
     if (over > 0) {
       const far = web
@@ -330,7 +357,7 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
   placementRef.current = placement;
   useEffect(() => {
     recomputePlacement();
-  }, [active, tiles, order, recomputePlacement]);
+  }, [active, asleep, tiles, order, recomputePlacement]);
 
   const lastPlaceAt = useRef(0);
   const onScroll = useCallback(

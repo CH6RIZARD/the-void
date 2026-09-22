@@ -9,7 +9,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ToastModule from '../../ui/Toast';
 import { GlobeModeToggle } from './GlobeModeToggle';
-import { GlobeCanvas } from './GlobeCanvas';
+import { GlobeCanvas, useGlobeHeight } from './GlobeCanvas';
 import { ReelsView } from './ReelsView';
 import { LiveWall } from '../live/LiveWall';
 import { cachedGlobeMode, loadGlobeMode, loadGrid3, saveGlobeMode, type GlobeMode } from './persist';
@@ -168,6 +168,15 @@ function GlobeSurfaces({
 
   const globeVisible = focused && appActive && mode === 'globe';
   const reelsVisible = focused && appActive && mode === 'reels';
+  // The GL context, the three.js scene and its textures are built the first time
+  // GLOBE is shown, not on tab mount: most sessions open on REELS and may never
+  // flip, and building the scene is heavy synchronous JS. Until then a panel of
+  // the same size holds the layout.
+  const globeH = useGlobeHeight();
+  const [globeSeen, setGlobeSeen] = useState(initialMode === 'globe');
+  useEffect(() => {
+    if (mode === 'globe') setGlobeSeen(true);
+  }, [mode]);
 
   return (
     <>
@@ -181,7 +190,11 @@ function GlobeSurfaces({
             </Animated.View>
             <Animated.View style={[styles.view, { top: insets.top }, mapStyle]} pointerEvents={mode === 'globe' ? 'auto' : 'none'}>
               <LoaderActiveContext.Provider value={globeVisible}>
-                <GlobeCanvas running={globeVisible} onOpenCountry={openCountry} />
+                {globeSeen ? (
+                  <GlobeCanvas running={globeVisible} onOpenCountry={openCountry} />
+                ) : (
+                  <View style={{ height: globeH, backgroundColor: '#04020c' }} />
+                )}
                 {/* Built the first time GLOBE is shown (web: buildGlobeGrid inside setGlobeMode). */}
                 <LiveWall active={globeVisible} grid3={grid3} bottomInset={bottomInset} />
               </LoaderActiveContext.Provider>

@@ -29,11 +29,7 @@ export function GlobeCanvas({ running, onOpenCountry }: GlobeCanvasProps) {
   const { width } = useWindowDimensions();
   const height = useGlobeHeight();
   const scene = useRef<GlobeScene | null>(null);
-  const runRef = useRef(running);
-  runRef.current = running;
   const [appActive, setAppActive] = useState(AppState.currentState === 'active');
-  const appRef = useRef(appActive);
-  appRef.current = appActive;
   const size = useRef({ w: width, h: height });
   size.current = { w: width, h: height };
   const [tip, setTip] = useState<{ x: number; y: number; name: string } | null>(null);
@@ -52,21 +48,35 @@ export function GlobeCanvas({ running, onOpenCountry }: GlobeCanvasProps) {
   }, []);
 
   // ── GL context + render loop ─────────────────────────────────────────────
+  // The loop runs ONLY while the globe is the visible surface and the app is
+  // foregrounded. It used to re-arm requestAnimationFrame 60x/s for as long as the
+  // tab was mounted and just return early when hidden, which woke the JS thread
+  // every frame on every tab for the rest of the session.
   const rafId = useRef<number | null>(null);
+  const [sceneReady, setSceneReady] = useState(false);
   const onContextCreate = useCallback((gl: ExpoWebGLRenderingContext) => {
-    const s = createGlobeScene(gl, countries(), size.current.w, size.current.h);
-    scene.current = s;
+    scene.current = createGlobeScene(gl, countries(), size.current.w, size.current.h);
+    setSceneReady(true);
+  }, []);
+  useEffect(() => {
+    const s = scene.current;
+    if (!sceneReady || !s || !running || !appActive) return;
+    let alive = true;
     const loop = (ts: number) => {
+      if (!alive) return;
       rafId.current = requestAnimationFrame(loop);
-      // Nothing renders unless the globe is the visible surface and the app is foregrounded.
-      if (!runRef.current || !appRef.current) return;
       if (s.frame(ts || Date.now()) && !markedRef.current) {
         markedRef.current = true;
         interactiveRef.current({ params: { surface: 'globe' } });
       }
     };
     rafId.current = requestAnimationFrame(loop);
-  }, []);
+    return () => {
+      alive = false;
+      if (rafId.current != null) cancelAnimationFrame(rafId.current);
+      rafId.current = null;
+    };
+  }, [sceneReady, running, appActive]);
   useEffect(
     () => () => {
       if (rafId.current != null) cancelAnimationFrame(rafId.current);

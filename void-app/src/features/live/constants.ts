@@ -15,8 +15,16 @@ export const YT_DEAD_CODES = new Set([100, 101, 150, 153]);
 export const WALL_BATCH = 12;
 export const WALL_HEAL_MAX = 2;
 export const WALL_HEAL_COOLDOWN = 12000;
-/** Mobile connection lanes (web: IS_MOBILE ? 8 : 10). */
-export const WALL_LANES = 8;
+/**
+ * Mobile connection lanes (web: IS_MOBILE ? 8 : 10). Native: 4. Each lane is a player
+ * being created and buffering at once; eight at a time on a low-end phone starved the
+ * globe's first frames and the UI thread. Playing tiles do not hold a lane.
+ */
+export const WALL_LANES = 4;
+/** First wall batch waits this long after the build, so the globe paints first. */
+export const FIRST_BATCH_DELAY_MS = 800;
+/** Out of sight this long, the wall unmounts its players (see LiveWall SLEEP). */
+export const SLEEP_AFTER_MS = 20000;
 /** Watchdog period (web setInterval 2500). */
 export const WATCHDOG_MS = 2500;
 /** YouTube chrome veil hold (web ytVeil default). */
@@ -47,10 +55,12 @@ export const YT_ORIGIN = 'https://thevoid.app';
  * Measured on a Helio P35 (2026-09-20): at 3/5/18 the app held ~18 live decoders,
  * 200 MB of graphics memory and ran at 1–2 fps. One screen of parking keeps the
  * visible tiles (a 2-wide wall shows ~6) playing while everything else is idle.
+ * MAX_MOUNTED_WEBVIEWS 8 -> 4 (2026-09-22): a parked WebView still keeps its renderer
+ * process alive; only unmounting frees it.
  */
 export const PARK_SCREENS = 1;
 export const EVICT_SCREENS = 2;
-export const MAX_MOUNTED_WEBVIEWS = 8;
+export const MAX_MOUNTED_WEBVIEWS = 4;
 
 // ─── One stream, one place on screen (web claimLiveKey/releaseLiveKey) ───────
 const liveClaimed = new Set<string>();
