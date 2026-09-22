@@ -204,8 +204,6 @@ export function vwFill(n = 5, any = false): Post[] {
   }
   let pool = reelPosts.filter(p => fresh(p) && eligible(p));
   if (pool.length < n) pool = pool.concat(allPosts.filter(p => fresh(p) && eligible(p) && !pool.includes(p)));
-  // The feed laneClaims every video it draws first; sharing a clip beats an empty rail.
-  if (pool.length < n) pool = pool.concat(reelPosts.concat(allPosts).filter(p => fresh(p) && !pool.includes(p)));
   // One card per clip, even when two posts carry the same video.
   const byKey = new Set<string>();
   pool = pool.filter(p => { const k = vwKey(p); if (byKey.has(k)) return false; byKey.add(k); return true; });
