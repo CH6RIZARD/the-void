@@ -13,7 +13,8 @@
 // one-stream-one-place claim before mounting this, and releases the claim on unmount.
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Animated, AppState, Easing, Image, StyleSheet, View } from 'react-native';
-import { useVideoPlayer, VideoView } from 'expo-video';
+import { VideoView } from 'expo-video';
+import { usePacedPlayer } from './pacedPlayer';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { AudioRing, TileLoader } from './TileChrome';
 import { useAudioOwner, type AudioTarget } from './AudioOwner';
@@ -154,7 +155,7 @@ interface PlayerProps {
 function HlsPlayer({ tileId, source, parked, api }: PlayerProps & { parked: boolean }) {
   const audio = useAudioOwner();
   const url = source.url || '';
-  const player = useVideoPlayer({ uri: url, contentType: /\.m3u8(\?|$)/i.test(url) ? 'hls' : 'auto' } as any, (p) => {
+  const player = usePacedPlayer({ uri: url, contentType: /\.m3u8(\?|$)/i.test(url) ? 'hls' : 'auto' } as any, (p) => {
     p.muted = true;
     p.loop = true;
     try {
