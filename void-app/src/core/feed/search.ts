@@ -60,10 +60,13 @@ export function surfaceFree(p: Post, mine: SurfaceName, hidden?: (p: Post) => bo
   return !_surfHas('search', p);
 }
 
-// Feed / reel lane exclusivity by post id (first claim wins).
+// Feed / reel lane exclusivity by MEDIA (first claim wins). Keying on the post id let
+// the same clip play on both surfaces, because it arrives as two different posts: a
+// video in the feed and the same file from the reel sources (or a repost of it).
 const _lane = new Map<string, string>();
-export const laneFree = (p: Post, mine: string) => { const cur = _lane.get(p.id); return !cur || cur === mine; };
-export const laneClaim = (p: Post, mine: string) => { if (!_lane.has(p.id)) _lane.set(p.id, mine); };
+const laneKey = (p: Post) => String(p._video || '').split('?')[0].split('#')[0] || p.id;
+export const laneFree = (p: Post, mine: string) => { const cur = _lane.get(laneKey(p)); return !cur || cur === mine; };
+export const laneClaim = (p: Post, mine: string) => { const k = laneKey(p); if (!_lane.has(k)) _lane.set(k, mine); };
 
 // ─── SEARCH DISCOVERY SOURCES ──────────────────────────────────────────────
 // None of these is read by the feed, reels or the nation pane. Verified 2026-09-13:

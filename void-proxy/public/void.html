@@ -8400,9 +8400,14 @@ function auScrub(pill,e){const r=pill.querySelector('.au-wave').getBoundingClien
 // in both. A post is now claimed by exactly one lane on first render and is
 // invisible to the other from then on. Claiming happens only for items actually
 // rendered — filtering alone must not claim, or the losing lane gets starved.
+// Claimed by MEDIA, not by post id. The same clip reaches the app as two different
+// posts - a Bluesky video in the feed and the same file pulled by the reel sources,
+// or simply a repost - and an id-keyed lane let each surface claim its own copy, so
+// the reel and the feed played the same video. The video URL is the identity.
 const _lane=new Map();
-const laneFree=(p,mine)=>{const cur=_lane.get(p.id);return !cur||cur===mine;};
-const laneClaim=(p,mine)=>{if(!_lane.has(p.id))_lane.set(p.id,mine);};
+const laneKey=p=>{const v=String((p&&p._video)||'').split('?')[0].split('#')[0];return v||(p&&p.id);};
+const laneFree=(p,mine)=>{const cur=_lane.get(laneKey(p));return !cur||cur===mine;};
+const laneClaim=(p,mine)=>{const k=laneKey(p);if(!_lane.has(k))_lane.set(k,mine);};
 const VW_STYLES=['video','image','carousel','audio'];
 let vwQueue=[],vwSeen=new Set(),vwAff=JSON.parse(localStorage.getItem('void_aff')||'{}');
 function vwBump(tags,d){(tags||[]).forEach(t=>{vwAff[t]=Math.max(-8,Math.min(8,(vwAff[t]||0)+d))});localStorage.setItem('void_aff',JSON.stringify(vwAff));}
@@ -8448,9 +8453,6 @@ function vwFill(n=5,any){
   // VIDEO ONLY, and never a clip shown in the recent window.
   let pool=reelPosts.filter(p=>fresh(p)&&eligible(p));
   if(pool.length<n)pool=pool.concat(allPosts.filter(p=>fresh(p)&&eligible(p)&&pool.indexOf(p)<0));
-  // The feed laneClaims every video it draws, so on a cold start laneFree(p,'reel')
-  // refused all of them. Sharing a clip with the feed beats an empty rail.
-  if(pool.length<n)pool=pool.concat(reelPosts.concat(allPosts).filter(p=>fresh(p)&&pool.indexOf(p)<0));
   // One card per clip, even when two posts carry the same video.
   const byKey=new Set();
   pool=pool.filter(p=>{const k=vwKey(p);if(byKey.has(k))return false;byKey.add(k);return true;});
