@@ -147,13 +147,7 @@ export function createGlobeScene(gl: any, countries: Country[], viewW: number, v
   const buildGlobe = (tex: THREE.Texture) => {
     // 72 segments on mobile: 48 left a faceted limb, 80 is invisible extra cost.
     const seg = 72;
-    // SPECULAR IS NOT SCALED THE WAY DIFFUSE IS. Every light here is multiplied by LI
-    // (PI) because r155+ divides the DIFFUSE term by PI; the specular term keeps the
-    // full irradiance, so the same web specular colour comes out PI times hotter. On
-    // the phone that was a white-magenta blob over a quarter of the sphere with the
-    // night lights buried under it. Scale the specular colour by 1/PI to put the
-    // highlight back where the web (three r128, legacy lighting) has it.
-    earthMat = new THREE.MeshPhongMaterial({ map: tex, emissive: 0x020010, emissiveIntensity: 0.7, specular: LEGACY ? 0x3a1e90 : 0x12092e, shininess: 18 });
+    earthMat = new THREE.MeshPhongMaterial({ map: tex, emissive: 0x020010, emissiveIntensity: 0.7, specular: 0x3a1e90, shininess: 18 });
     globe = new THREE.Mesh(new THREE.SphereGeometry(1, seg, seg), earthMat);
     sc.add(globe);
     sc.add(

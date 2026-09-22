@@ -215,7 +215,12 @@ export async function loadEarthTexture(gl: any, renderer: THREE.WebGLRenderer, r
     if (!px) throw new Error('earth texture: GL ' + err + ' and the PNG decode failed too');
     flipRowsInPlace(px.data, px.w, px.h);   // DataTexture has no flipY
     const dt = new THREE.DataTexture(px.data, px.w, px.h, THREE.RGBAFormat);
-    dt.colorSpace = THREE.SRGBColorSpace;
+    // The WEB renders this map under three r128, whose default is LinearEncoding: the
+    // sRGB bytes are used as-is. Tagging it SRGBColorSpace here converts to linear and
+    // crushes exactly the dark tones a night-lights map is made of - measured on device,
+    // the globe came out ~2.5x darker than the web and read as black with a glow on it.
+    // Match the reference: treat the bytes as linear, like r128 does.
+    dt.colorSpace = THREE.LinearSRGBColorSpace;
     dt.magFilter = THREE.LinearFilter;
     dt.minFilter = THREE.LinearMipmapLinearFilter;
     dt.wrapS = THREE.ClampToEdgeWrapping;
