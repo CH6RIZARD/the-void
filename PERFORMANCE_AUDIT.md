@@ -296,6 +296,8 @@ Test phone: Helio P35 (MT6765), Android 11, 4 GB class, announces as SM-S938B. T
 
 ### Open after steps 1–4
 
+0. **Measured 2026-09-22: capping HLS to the tile size does not fix it.** With tile-sized variants the settled wall reads EGL 269 MB / GL 68 MB / PSS 770 MB, against 288 / 60 / 765 before — within noise. A probe of 50 stream URLs from `iptv.generated.ts` says why: only **14 offer a smaller variant**; 21 publish a single rendition (often 1080p) and 12 are media playlists with nothing to choose from. The capping is kept (it costs one small fetch and helps that 28%), but the decoders are large because the channels only broadcast large. The remaining levers are the surface type (`SurfaceView`, below) or fewer simultaneous decoders.
+
 1. **The wall's memory is the number of tiles decoding at once.** With 8 tiles in view: EGL 288 MB + GL 60 MB of ~765 MB total. Capping mounted players helps only off-screen ones, because every tile in view keeps playing by design. Options, in order of preference: cap the tiles that *play* at once (say 4) and rotate them, with the rest holding their poster or last frame; or move wall tiles to a `SurfaceView` (video composited outside the app's EGL memory, but it breaks rounded corners, overlay z-order and the colour-bar check); expo-video exposes no way to force a lower-resolution track (`videoTrack` is read-only).
 2. **Fresh install has no feed.** After `adb uninstall`, the app sits on "SCANNING VERIFIED PUBLIC SOURCES…" indefinitely with the network fine — the failure mode P0-8 predicts (no request has a deadline). Step 5.
 3. **The body-signals consent sheet reappears on every launch** once app data is cleared, and it renders over everything while the screens behind it stay in the accessibility tree.
