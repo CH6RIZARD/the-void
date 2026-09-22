@@ -4127,14 +4127,23 @@ function diversify(list,opts){
   // alternation and the share cap below still prevent a wall of one topic.
   const pos=new Map(list.map((p,i)=>[p,i]));
   const out=[]; let lastK='',lastW='',lastS='';
+  // Variety may lift a post a few ranks, never from the bottom of the batch. Strict
+  // alternation used to hand every turn to "any other topic" however far down its
+  // best post sat: with two or three topics in a batch, a lone 6-day-old post (the
+  // only one tagged void) came up 5th. Now, if no other topic is within REACH ranks
+  // of the best remaining post, the current topic simply continues.
+  const REACH=8;
   while(out.length<list.length){
-    let bk=null,bn=Infinity;
+    let bk=null,bn=Infinity,best=Infinity;
     for(const e of buckets){
       const k=e[0],arr=e[1];
-      if(!arr.length||k===lastK)continue;
+      if(!arr.length)continue;
       const head=pos.get(arr[0]);
+      if(head<best)best=head;
+      if(k===lastK)continue;
       if(head<bn){bn=head;bk=k;}
     }
+    if(bk!==null&&lastK&&bn-best>REACH&&(buckets.get(lastK)||[]).length)bk=lastK;
     if(bk===null){                       // only the just-used topic is left
       for(const e of buckets){ if(e[1].length){bk=e[0];break;} }
       if(bk===null)break;
@@ -5742,7 +5751,7 @@ async function healWallCell(cell){
       const fb=cell.querySelector('.sparkle-fallback');if(fb)fb.remove();
       clearStreamStatus&&clearStreamStatus(cell);
       if(!cell.querySelector('.csg-tile-label'))
-        cell.insertAdjacentHTML('beforeend',tileLabel(name.toUpperCase()+' · '+(res.src.label||'')));
+        cell.insertAdjacentHTML('beforeend',tileLabel(name.toUpperCase()));
       rememberStream(res.src);
       if(typeof liveGate==='function')liveGate(cell);
       cell.__needsHeal=false;
@@ -5791,7 +5800,7 @@ function spawnWallTile(){
     if(res.ok){
       const fb=cell.querySelector('.sparkle-fallback');if(fb)fb.remove();
       cell.style.order=String(_wallConn++);                         // loaded tiles rise to the top
-      cell.insertAdjacentHTML('beforeend',tileLabel(name.toUpperCase()+' · '+(res.src.label||''))); return true;
+      cell.insertAdjacentHTML('beforeend',tileLabel(name.toUpperCase())); return true;
     }
     // Was cell.remove(). Removing every failed tile is why the wall collapsed to a
     // handful of boxes: with ~240 candidates but most failing to connect, the
@@ -5860,7 +5869,7 @@ async function loadWallBatch(want){
         const fb=cell.querySelector('.sparkle-fallback');if(fb)fb.remove();
         clearStreamStatus&&clearStreamStatus(cell);
         cell.style.order=String(_wallConn++);           // connected tiles rise
-        cell.insertAdjacentHTML('beforeend',tileLabel(name.toUpperCase()+' · '+(res.src.label||'')));
+        cell.insertAdjacentHTML('beforeend',tileLabel(name.toUpperCase()));
         rememberStream(res.src);                        // so the next launch varies
         tagWallCell(cell,name,res.src);
         if(typeof liveGate==='function')liveGate(cell);  // wake with the rest

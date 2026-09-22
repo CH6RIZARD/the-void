@@ -56,14 +56,20 @@ export function diversify<T extends Partial<Post>>(list: T[], opts?: { maxShare?
   list.forEach(p => { const k = key(p); if (!buckets.has(k)) buckets.set(k, []); buckets.get(k)!.push(p); });
   const pos = new Map(list.map((p, i) => [p, i] as [T, number]));
   const out: T[] = []; let lastK = '', lastW = '', lastS = '';
+  // Variety may lift a post a few ranks, never from the bottom of the batch (web
+  // parity: strict alternation brought a lone 6-day-old void post up 5th).
+  const REACH = 8;
   while (out.length < list.length) {
-    let bk: string | null = null, bn = Infinity;
+    let bk: string | null = null, bn = Infinity, best = Infinity;
     for (const e of buckets) {
       const k = e[0], arr = e[1];
-      if (!arr.length || k === lastK) continue;
+      if (!arr.length) continue;
       const head = pos.get(arr[0])!;
+      if (head < best) best = head;
+      if (k === lastK) continue;
       if (head < bn) { bn = head; bk = k; }
     }
+    if (bk !== null && lastK && bn - best > REACH && (buckets.get(lastK) || []).length) bk = lastK;
     if (bk === null) {                       // only the just-used topic is left
       for (const e of buckets) { if (e[1].length) { bk = e[0]; break; } }
       if (bk === null) break;

@@ -452,7 +452,8 @@ const WallTile = memo(function WallTile({ rec, left, top, width, height, borderC
       entry.kind = res.src.type;
       entry.needsHeal = false;
       setPhaseBoth('playing');
-      setLabel(rec.name.toUpperCase() + ' · ' + (res.src.label || ''));
+      // Country only: stream titles (channel names, video titles) read as noise on a wall.
+      setLabel(rec.name.toUpperCase());
       rememberStream(res.src); // so the next launch varies
     } else {
       // Never remove the box — the wall stays full; the healer retries it in view.
