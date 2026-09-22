@@ -47,6 +47,12 @@ export interface StreamTileProps {
   showLoader?: boolean;
   /** Tile width in layout px: an HLS stream plays at the smallest size that covers it. */
   tileWidth?: number;
+  /**
+   * 'surface' composites the video outside the app's own GL memory (Android
+   * SurfaceView). The wall uses it because 8 tiles decoding into app-side textures is
+   * where its memory goes; everything else keeps the texture surface.
+   */
+  surface?: 'texture' | 'surface';
   onSettled(ok: boolean): void;
   onNeedsHeal?(): void;
 }
@@ -65,11 +71,13 @@ interface PlayerApi {
  * picture is still caught within ~15-30 s without stalling the UI.
  */
 const SIGNAL_CHECK_MS = 15000;
+/** Playing but the clock has not moved for this long: the picture is dead. */
+const STALL_DEAD_MS = 15000;
 
 const EASE = Easing.bezier(0.25, 0.1, 0.25, 1);
 
 export const StreamTile = forwardRef<StreamTileHandle, StreamTileProps>(function StreamTile(props, ref) {
-  const { tileId, source, loaderLabel = '● CONNECTING', parked = false, radius = 6, showLoader = true, tileWidth } = props;
+  const { tileId, source, loaderLabel = '● CONNECTING', parked = false, radius = 6, showLoader = true, tileWidth, surface: surfaceType = 'texture' } = props;
   const audio = useAudioOwner();
   const [playing, setPlaying] = useState(false);
   const done = useRef(false);
@@ -131,7 +139,7 @@ export const StreamTile = forwardRef<StreamTileHandle, StreamTileProps>(function
   let media: React.ReactNode = null;
   switch (source.type) {
     case 'hls':
-      media = <HlsPlayer tileId={tileId} source={source} parked={parked} api={api} tileWidth={tileWidth} />;
+      media = <HlsPlayer tileId={tileId} source={source} parked={parked} api={api} tileWidth={tileWidth} surface={surfaceType} />;
       break;
     case 'youtube':
       media = <YouTubePlayer tileId={tileId} source={source} parked={parked} api={api} />;
@@ -160,7 +168,7 @@ interface PlayerProps {
 }
 
 // ─── HLS / mp4 → expo-video ──────────────────────────────────────────────────
-function HlsPlayer({ tileId, source, parked, api, tileWidth }: PlayerProps & { parked: boolean; tileWidth?: number }) {
+function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture' }: PlayerProps & { parked: boolean; tileWidth?: number; surface?: 'texture' | 'surface' }) {
   const audio = useAudioOwner();
   const raw = source.url || '';
   // Play the smallest variant that covers this tile (see hlsVariant.ts). Already
@@ -269,6 +277,43 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth }: PlayerProps & { p
     };
   }, [player, api, audio, tileId, source]);
 
+  // A DEAD PICTURE WITH NO PIXELS TO READ. The colour-bar check below reads the tile's
+  // own pixels, which only a TextureView can hand back; on a SurfaceView the capture
+  // comes back empty and every verdict is "unknown". So a stream that stops advancing
+  // while still claiming to play is caught by its clock instead: no progress for
+  // STALL_DEAD_MS while unparked and playing means dead, and the wall heals it. This
+  // runs whatever the surface type is - it also catches a frozen TextureView tile.
+  useEffect(() => {
+    if (parked) return;
+    let last = -1;
+    let lastMovedAt = Date.now();
+    const iv = setInterval(() => {
+      if (!api.succeeded() || AppState.currentState !== 'active') return;
+      let t = -1;
+      let playing = false;
+      try {
+        t = player.currentTime;
+        playing = player.playing;
+      } catch {
+        return;
+      }
+      if (!playing) {
+        lastMovedAt = Date.now();
+        return;
+      }
+      if (t !== last) {
+        last = t;
+        lastMovedAt = Date.now();
+        return;
+      }
+      if (Date.now() - lastMovedAt > STALL_DEAD_MS) {
+        lastMovedAt = Date.now();
+        api.needsHeal();
+      }
+    }, 3000);
+    return () => clearInterval(iv);
+  }, [parked, player, api]);
+
   // Mid-stream (web checkTileSignal from the watchdog): only while on screen, the app is
   // in the foreground and the clip is playing. At most one capture per ~15s per tile;
   // bars = dead now, a slate must repeat 3 checks. Dead -> refuse + heal.
@@ -322,7 +367,7 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth }: PlayerProps & { p
         // textureView: respects the tile's rounded clip and overlay z-order while
         // scrolling (a SurfaceView punches through labels/loader on Android), and it is
         // the only surface react-native-view-shot can read pixels from (colour-bar check).
-        surfaceType="textureView"
+        surfaceType={surface === 'surface' ? 'surfaceView' : 'textureView'}
         useExoShutter={false}
         pointerEvents="none"
       />
