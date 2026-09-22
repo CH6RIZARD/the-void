@@ -4243,11 +4243,11 @@ const _evicted=new Set();   // post ids currently in the DOM, in display order
 //  - SETTLE: for the first FEED_SETTLE_MS, while the reader is at the top, a new batch
 //    re-ranks everything instead of stacking under the first one.
 //  - STALE LAST: inside a batch, posts older than FEED_STALE_H follow fresher ones.
-//  - LIVE: after settling, posts newer than anything on screen go to the TOP. At the
-//    top they lead at once; scrolled down they are slotted in above and the scroll
-//    position is corrected, so what the reader is looking at does not move. Void
-//    users' posts are polled while the feed is open (FEED_POLL_MS).
-const FEED_MAX_AGE_H=48, FEED_SETTLE_MS=20000, FEED_STALE_H=24, FEED_POLL_MS=45000;
+//  - REFRESH TO SEE NEW: once settled, a post newer than anything on screen is HELD,
+//    never inserted - the feed only changes under the reader when they pull to
+//    refresh (refreshVoidFeed rebuilds and they lead). Infinite scroll still appends
+//    older posts at the bottom.
+const FEED_MAX_AGE_H=48, FEED_SETTLE_MS=20000, FEED_STALE_H=24;
 let _feedFirstAt=0, _feedNewest=0;
 function feedAtTop(){const sc=document.getElementById('screen-void');return !sc||sc.scrollTop<120;}
 function feedTooOld(p){return (p.time||0)<Date.now()-FEED_MAX_AGE_H*3600000;}
@@ -4256,17 +4256,13 @@ function staleLast(list){
   return list.filter(p=>(p.time||0)>=cut).concat(list.filter(p=>(p.time||0)<cut));
 }
 function noteFeedNewest(list){for(const p of list)if((p.time||0)>_feedNewest&&(p.time||0)<=Date.now()+60000)_feedNewest=p.time;}
-setInterval(()=>{
-  if(document.hidden||typeof activeTab==='undefined'||activeTab!=='void')return;
-  try{pullSupabasePosts(true);}catch(e){}
-},FEED_POLL_MS);
 function renderFeed(){
   const feed=document.getElementById('void-feed');
   if(!feed)return;
   // surfaceFree: anything SEARCH has already shown (by id, same text or same link)
   // never renders here — the two surfaces are mutually exclusive (see SURFACES).
   const pick=()=>allPosts.filter(p=>!_rendered.has(p.id)&&!_evicted.has(p.id)&&!p._offFeed&&!feedTooOld(p)&&laneFree(p,'feed')&&surfaceFree(p,'feed'));
-  let fresh=pick(),liveLift=false;
+  let fresh=pick();
   if(!allPosts.length){
     feed.innerHTML='<div class="post-media-lbl" style="position:relative;padding:48px 18px">SCANNING VERIFIED PUBLIC SOURCES…</div>';
     return;
@@ -4278,31 +4274,13 @@ function renderFeed(){
     if(Date.now()-_feedFirstAt<FEED_SETTLE_MS){
       if(atTop)rebuild();                        // still settling: rank everything together
     }else{
-      const lead=fresh.filter(p=>(p.time||0)>_feedNewest);   // newer than anything on screen
-      if(lead.length){
-        if(atTop){_refreshBoost=new Set(lead.map(p=>p.id));liveLift=true;rebuild();}
-        else{
-          // Scrolled down: slot the new posts in at the very top, then undo the shift
-          // they caused, measured on a post already on screen - correct whether or not
-          // the browser's own scroll anchoring has already compensated.
-          const top=staleLast(orderFeedBatch(lead));
-          const sc=document.getElementById('screen-void');
-          const ref=feed.querySelector('.post');
-          const y0=ref?ref.getBoundingClientRect().top:0;
-          feed.insertAdjacentHTML('afterbegin',top.map((p,k)=>renderPost(p,_rendered.size+k)).join(''));
-          if(sc&&ref){const d=ref.getBoundingClientRect().top-y0;if(d)sc.scrollTop+=d;}
-          top.forEach(p=>{_rendered.add(p.id);laneClaim(p,'feed');surfaceClaim(p,'feed');});
-          noteFeedNewest(top);
-          observeNewPosts();
-          fresh=fresh.filter(p=>!_rendered.has(p.id));
-          if(!fresh.length){ensureFeedSentinel();return;}
-        }
-      }
+      // Settled: anything newer than what is on screen waits for a refresh.
+      fresh=fresh.filter(p=>(p.time||0)<=_feedNewest);
+      if(!fresh.length){ensureFeedSentinel();return;}
     }
   }
   // Rank the posts being placed against each other, then append in that order.
   fresh=staleLast(orderFeedBatch(fresh));   // rank, cap each story's lift, break up the monoculture, stale last
-  if(liveLift)_refreshBoost=null;           // a live lift is for this one render only
   if(!_feedFirstAt)_feedFirstAt=Date.now();
   noteFeedNewest(fresh);
   const startIdx=_rendered.size;
@@ -4383,7 +4361,10 @@ async function refreshVoidFeed(){
     // pulled — so the first thing the reader saw after a refresh was the same top
     // post as before, and anything new landed below the fold. Ranking is
     // deterministic, so re-ranking an unchanged set cannot change the top slot.
-    const had=new Set(allPosts.map(p=>p.id));
+    // Everything the reader has NOT seen leads after a refresh: this pull's arrivals
+    // AND the newer posts held back since the feed settled (they are only ever shown
+    // by refreshing). Seen = what is or was on screen, not merely what was fetched.
+    const had=new Set([..._rendered,..._evicted]);
     try{await pullSupabasePosts(true);}catch(e){}   // Void users' own drops (with media)
     await pullVoidFeed();
     // Whatever arrived in THIS pull leads the feed. That is what "refresh" means

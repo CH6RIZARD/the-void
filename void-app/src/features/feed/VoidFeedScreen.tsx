@@ -10,18 +10,16 @@
 // only new arrivals are ranked (nextFeedBatch) and appended; refresh rebuilds with the
 // new pull leading; the list windows old rows away past FEED_WINDOW (90 + 30 slack).
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, FlatList, Pressable, RefreshControl, StyleSheet, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import { FlatList, Pressable, RefreshControl, StyleSheet, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import {
-  FEED_POLL_MS,
   FEED_SETTLE_MS,
   FEED_WINDOW,
   _rendered,
   allPosts,
-  dealFeedLead,
   markEvicted,
   nextFeedBatch,
   onPostsChanged,
@@ -69,9 +67,8 @@ export default function VoidFeedScreen() {
   // by arrival, so the fastest source - the Void backend, signed in - owned the top
   // for the whole session and a days-old drop sat above everything newer.
   //   settling (first FEED_SETTLE_MS, reader at the top): re-rank everything
-  //   after:   posts newer than anything shown go to the top - re-ranked in when the
-  //            reader is at the top, prepended when scrolled (maintainVisibleContentPosition
-  //            keeps what they are reading where it is)
+  //   after:   posts newer than anything shown are HELD until pull-to-refresh -
+  //            nothing is inserted under the reader
   const firstAt = useRef(dealt.length ? Date.now() - FEED_SETTLE_MS : 0);
   const atTop = useRef(true);
   const newest = useRef(0);
@@ -87,6 +84,7 @@ export default function VoidFeedScreen() {
 
   // renderFeed(): append whatever is fresh, then window the list.
   const append = useCallback(() => {
+    let held: Set<string> | undefined;
     if (dealt.length) {
       if (Date.now() - firstAt.current < FEED_SETTLE_MS) {
         if (atTop.current) {
@@ -94,18 +92,10 @@ export default function VoidFeedScreen() {
           return;
         }
       } else {
-        const lead = peekFeedFresh(hiddenFn).filter((p) => (p.time || 0) > newest.current);
-        if (lead.length) {
-          if (atTop.current) {
-            replaceAll(rebuildFeedBatch(hiddenFn, new Set(lead.map((p) => p.id))));
-            return;
-          }
-          const top = dealFeedLead(lead);
-          if (top.length) setItems((cur) => top.concat(cur));
-        }
+        held = new Set(peekFeedFresh(hiddenFn).filter((p) => (p.time || 0) > newest.current).map((p) => p.id));
       }
     }
-    const fresh = nextFeedBatch(hiddenFn);
+    const fresh = nextFeedBatch(hiddenFn, held);
     if (!fresh.length) return;
     setItems((cur) => {
       let next = cur.concat(fresh);
@@ -120,23 +110,6 @@ export default function VoidFeedScreen() {
     });
     setStatus('idle');
   }, [replaceAll]);
-
-  // Live: while the feed is on screen and the app is in front, poll Void users' posts.
-  const focused = useRef(false);
-  useFocusEffect(
-    useCallback(() => {
-      focused.current = true;
-      return () => {
-        focused.current = false;
-      };
-    }, []),
-  );
-  useEffect(() => {
-    const t = setInterval(() => {
-      if (focused.current && AppState.currentState === 'active') pullSupabasePosts(true).catch(() => {});
-    }, FEED_POLL_MS);
-    return () => clearInterval(t);
-  }, []);
 
   const pull = useCallback(async () => {
     const res = await pullVoidFeed();
