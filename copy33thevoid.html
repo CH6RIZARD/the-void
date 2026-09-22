@@ -5275,6 +5275,22 @@ window.addEventListener('pageshow',(e)=>{
   if(e&&e.persisted)setTimeout(liveWakeVisible,1500);
   setTimeout(()=>{try{wallHealVisible();}catch(e){}},700);
 });
+// A PICTURE CAN FREEZE WHILE THE PLAYER STILL SAYS PLAYING. checkTileSignal reads
+// pixels, so it catches colour bars and slates - a dead feed that is still being
+// served - but not a decoder that simply stopped: the element keeps playing, holds
+// its last frame, raises no error, and the tile sits there frozen for ever. The clock
+// is the honest signal: currentTime must advance while a video is playing. Stalled for
+// WALL_STALL_MS across watchdog ticks -> heal, the same as a dead source.
+const WALL_STALL_MS=15000;
+function wallClockStalled(v,now){
+  if(!v||v.paused||v.ended)return (v&&(v.__clkAt=0)),false;
+  const t=Math.round((v.currentTime||0)*100);
+  if(v.__clkT!==t){v.__clkT=t;v.__clkAt=now;return false;}
+  if(!v.__clkAt){v.__clkAt=now;return false;}
+  if(now-v.__clkAt<WALL_STALL_MS)return false;
+  v.__clkAt=now;                      // one heal per stall window, not every tick
+  return true;
+}
 // Watchdog: near-screen stalled <video> OR YouTube soft-pause → nudge play.
 // #5 only checked <video>, so YT play glyphs survived scroll/background.
 setInterval(()=>{
@@ -5287,6 +5303,7 @@ setInterval(()=>{
     const v=c.querySelector('video');
     const yt=c.querySelector('iframe');
     if(v&&(v.error||v.ended)){c.__needsHeal=true;return;}
+    if(wallClockStalled(v,Date.now())){c.__needsHeal=true;return;}   // playing, but the picture stopped
     checkTileSignal(c);                      // live feed went to test bars / slate
     if(c.__needsHeal)return;
     // YouTube is nudged ONLY when its last reported state is not PLAYING (1). It
