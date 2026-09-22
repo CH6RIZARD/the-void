@@ -61,6 +61,14 @@ export const YT_ORIGIN = 'https://thevoid.app';
 export const PARK_SCREENS = 1;
 export const EVICT_SCREENS = 2;
 export const MAX_MOUNTED_WEBVIEWS = 4;
+/**
+ * Players of ANY kind mounted at once (HLS decoders included). A 2-wide wall shows
+ * about 6 tiles, so everything in view still plays; anything past one screen is let
+ * go once the wall is at the cap. Pausing an off-screen HLS tile does NOT free its
+ * decoder: with only the WebView cap the wall reached 933 MB on the test phone and
+ * Android killed the app (2026-09-22).
+ */
+export const MAX_MOUNTED_PLAYERS = 6;
 
 // ─── One stream, one place on screen (web claimLiveKey/releaseLiveKey) ───────
 const liveClaimed = new Set<string>();

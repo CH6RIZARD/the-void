@@ -25,6 +25,7 @@ import { liveVidFor, rememberStream, wallCascadeFor, wallSlots, streamKey, type 
 import {
   EVICT_SCREENS,
   FIRST_BATCH_DELAY_MS,
+  MAX_MOUNTED_PLAYERS,
   MAX_MOUNTED_WEBVIEWS,
   PARK_SCREENS,
   SLEEP_AFTER_MS,
@@ -331,7 +332,8 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
     }
     const parked = new Set<number>();
     for (const [id, d] of dist) if (d > PARK_SCREENS || !w.activeRef) parked.add(id);
-    const web = [...w.registry.values()].filter((e) => (e.kind === 'youtube' || e.kind === 'iframe') && (e.phase === 'playing' || e.phase === 'connecting'));
+    const live = [...w.registry.values()].filter((e) => e.phase === 'playing' || e.phase === 'connecting');
+    const web = live.filter((e) => e.kind === 'youtube' || e.kind === 'iframe');
     const evicted = new Set<number>(placementRef.current.evicted);
     if (w.asleepRef) {
       // Asleep: every player goes (the tile effect only acts on PLAYING tiles; a tile
@@ -341,16 +343,24 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
       // restore evicted tiles that came back near
       for (const id of [...evicted]) if ((dist.get(id) ?? 0) <= PARK_SCREENS) evicted.delete(id);
     }
-    let over = web.length - MAX_MOUNTED_WEBVIEWS;
-    if (over > 0) {
-      const far = web
-        .filter((e) => (dist.get(e.id) ?? 0) > EVICT_SCREENS && !evicted.has(e.id))
+    // Two budgets, farthest first. A PAUSED player is not a free player: an off-screen
+    // HLS tile still holds its ExoPlayer and decoder, which is how the wall reached
+    // 933 MB and got the app killed (test phone, 2026-09-22). So the cap counts EVERY
+    // mounted player, not only WebViews, and off-screen tiles (beyond PARK_SCREENS)
+    // are the ones let go. Tiles in view always keep playing.
+    const evictFarthest = (pool: WallEntry[], max: number, beyond: number) => {
+      let over = pool.length - max;
+      if (over <= 0) return;
+      const far = pool
+        .filter((e) => (dist.get(e.id) ?? 0) > beyond && !evicted.has(e.id))
         .sort((a, b) => (dist.get(b.id) ?? 0) - (dist.get(a.id) ?? 0));
       for (const e of far) {
         if (over-- <= 0) break;
         evicted.add(e.id);
       }
-    }
+    };
+    evictFarthest(web, MAX_MOUNTED_WEBVIEWS, EVICT_SCREENS);
+    evictFarthest(live, MAX_MOUNTED_PLAYERS, PARK_SCREENS);
     const same = (a: Set<number>, b: Set<number>) => a.size === b.size && [...a].every((x) => b.has(x));
     if (!same(parked, placementRef.current.parked) || !same(evicted, placementRef.current.evicted)) setPlacement({ parked, evicted });
   }, [w]);

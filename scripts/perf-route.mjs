@@ -1,6 +1,6 @@
 // Scripted perf route for The Void on the test phone: same taps, same timing, every run.
 //   node scripts/perf-route.mjs <outdir>
-// Route: feed idle 15 s -> feed scroll (6 swipes) -> GLOBE 40 s -> REELS 20 s -> back to feed 36 s.
+// Route: feed idle 15 s -> feed scroll (6 swipes) -> GLOBE 40 s -> REELS 20 s -> back to feed 60 s (past the wall's 20 s sleep).
 // Taps are for a 720x1560 screen at density 320 (the test phone). Screenshots + perf.log go to <outdir>.
 import { spawn, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -53,7 +53,7 @@ await sleep(20000);
 shot('4-reels');
 tap(...NAV.feed);
 label('away');
-await sleep(36000);
+await sleep(60000);
 shot('5-away');
 sh(`am force-stop ${PKG}`);
 await new Promise((r) => perf.on('exit', r));
