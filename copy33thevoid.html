@@ -190,6 +190,7 @@ html,body{height:100%;background:var(--bg);background-image:var(--bg-radial);col
 .greel-sub{position:absolute;top:44px;left:50%;transform:translateX(-50%);z-index:29;font-family:'Syne Mono',monospace;font-size:7px;letter-spacing:.24em;color:var(--nav-dim);pointer-events:none;white-space:nowrap}
 #greel-container{flex:1;overflow-y:scroll;scroll-snap-type:y mandatory;overscroll-behavior:contain}
 #greel-container .vw-item{min-height:0;height:100%}
+.vw-tail{height:100%;min-height:0;flex-shrink:0;scroll-snap-align:start;position:relative;overflow:hidden;background:#05020e}
 /* Inline reels are shorter than the overlay: leave room for the nav pill. */
 #greel-container .vw-rail{bottom:110px}
 /* (the old display:none swap lived here - replaced by the slide above) */
@@ -3498,6 +3499,25 @@ async function pullPeerTubeSearch(){
   }catch(e){return 0;}
 }
 const _ptCache={};
+// CAN THE PAGE ACTUALLY READ THIS VIDEO? PeerTube instances store media on other
+// hosts, and some of those (kolektiva's OVH S3 bucket is the big one) answer with
+// NO Access-Control-Allow-Origin header. The browser blocks every request, hls.js
+// retries for ~20s before giving up, and the card sits empty the whole time - and
+// that bucket was a large share of the PeerTube results, so runs of 5-14 dead cards
+// in a row. One small GET of the playlist answers it; the verdict is cached per
+// media host, so a blocked host costs one request per session, not one per clip.
+const _vwCors={};
+async function vwCorsOk(url){
+  const h=String(url||'').split('/')[2]||'';if(!h)return false;
+  if(h in _vwCors)return _vwCors[h] instanceof Promise?await _vwCors[h]:_vwCors[h];
+  const ctl=typeof AbortController!=='undefined'?new AbortController():null;
+  const t=setTimeout(()=>{try{ctl&&ctl.abort();}catch(e){}},5000);
+  _vwCors[h]=fetch(url,{method:'GET',mode:'cors',signal:ctl&&ctl.signal})
+    .then(r=>r.ok).catch(()=>false).then(ok=>{clearTimeout(t);_vwCors[h]=ok;
+      if(!ok)try{console.warn('[reels] media host unreadable (CORS/offline), skipping:',h);}catch(e){}
+      return ok;});
+  return await _vwCors[h];
+}
 async function ptDetail(host,uuid){
   if(_ptCache[uuid])return _ptCache[uuid];
   try{
@@ -3507,6 +3527,7 @@ async function ptDetail(host,uuid){
     const hls=(d.streamingPlaylists||[])[0];
     const url=(hls&&hls.playlistUrl)||((d.files||[])[0]||{}).fileUrl||'';
     if(!url)return null;
+    if(!(await vwCorsOk(url)))return null;
     const out={url,thumb:d.previewPath?`https://${host}${d.previewPath}`:'',dur:d.duration||0};
     _ptCache[uuid]=out; return out;
   }catch(e){return null;}
@@ -3562,7 +3583,8 @@ function reelBlocked(item){
 // finished and retry immediately, forever.
 async function pullReelPage(){
   if(_reelPromise)return _reelPromise;
-  _reelPromise=_pullReelPageOnce().finally(()=>{_reelPromise=null;_reelLoading=false;});
+  _reelPromise=_pullReelPageOnce().finally(()=>{_reelPromise=null;_reelLoading=false;})
+    .then(res=>{setTimeout(()=>{try{vwTopUpActive();}catch(e){}},0);return res;});
   return _reelPromise;
 }
 async function _pullReelPageOnce(){
@@ -4990,10 +5012,21 @@ function liveNudgePlay(cell){
     }catch(e){}
   });
   cell.querySelectorAll('video').forEach(v=>{
-    try{v.muted=!audible;if(v.paused&&v.play)v.play().catch(()=>{v.muted=true;v.play().catch(()=>{});});}catch(e){}
+    try{v.muted=!audible;if(v.paused&&v.play)v.play().catch(livePlayFail(cell,v));}catch(e){}
   });
   if(cell.classList)cell.classList.add('playing');
 }
+// A play() that fails on the AUDIBLE tile must not mute it. Every retry used to end
+// in `.catch(()=>{v.muted=true})`, so when a flaky IPTV origin dropped mid-stream
+// (MEDIA_ERR_SRC_NOT_SUPPORTED, reproduced on the live wall) while the user was
+// scrolled away, the stream came back silent and _audioCell still claimed sound.
+// Muting is only the way past an autoplay block, and only for a silent tile. On
+// the audible tile an autoplay block gives the sound slot up honestly; any other
+// failure is a dead stream, which the watchdog heals with the sound kept.
+function livePlayFail(cell,v){return e=>{
+  if(cell===_audioCell){if(e&&e.name==='NotAllowedError')releaseStreamAudio();else cell.__needsHeal=true;return;}
+  try{v.muted=true;v.play().catch(()=>{});}catch(_){}
+};}
 
 // ─── TAP-FOR-SOUND — one audible source in the whole app ─────────────────
 // Every live stream plays muted and NEVER stops. Tapping a playing stream turns
@@ -5240,7 +5273,7 @@ setInterval(()=>{
   liveCells.forEach(c=>{
     if(!c.isConnected||c.__parked)return;       // parked tiles are meant to be still
     const r=c.getBoundingClientRect();c.__rect=r;
-    if(r.bottom<-200||r.top>innerHeight+200)return;
+    if(c!==_audioCell&&(r.bottom<-200||r.top>innerHeight+200))return;   // you can hear it off screen, so it is watched off screen
     const v=c.querySelector('video');
     const yt=c.querySelector('iframe');
     if(v&&(v.error||v.ended)){c.__needsHeal=true;return;}
@@ -5380,7 +5413,7 @@ function attemptSource(cell,source){
           else{cell.__needsHeal=true;}
         });
         // If OS pauses later, nudge — do not show a controls UI.
-        v.addEventListener('pause',()=>{if(!document.hidden&&cell.__live!==false&&!cell.__parked){try{v.muted=cell!==_audioCell;v.play&&v.play().catch(()=>{v.muted=true;v.play().catch(()=>{});});}catch(e){}}});
+        v.addEventListener('pause',()=>{if(!document.hidden&&cell.__live!==false&&!cell.__parked){try{v.muted=cell!==_audioCell;v.play&&v.play().catch(livePlayFail(cell,v));}catch(e){}}});
         cell.insertBefore(v,cell.firstChild);
         if(v.canPlayType('application/vnd.apple.mpegurl')){          // Safari native
           v.src=source.url;if(v.play)v.play().catch(()=>{});
@@ -5388,7 +5421,7 @@ function attemptSource(cell,source){
           v.__nativeRecover=()=>{
             try{
               const u=source.url;
-              v.src=u;v.load();v.muted=cell!==_audioCell;v.play&&v.play().catch(()=>{v.muted=true;v.play().catch(()=>{});});
+              v.src=u;v.load();v.muted=cell!==_audioCell;v.play&&v.play().catch(livePlayFail(cell,v));
             }catch(e){cell.__needsHeal=true;}
           };
           teardown=()=>{try{v.pause();v.removeAttribute('src');v.load();}catch(e){}v.remove();};
@@ -5801,6 +5834,7 @@ async function healWallCell(cell){
   cell.__healing=true;cell.__healAt=now;_wallHealBusy++;
   try{
     const keepName=name,keepSrc=first;
+    const wasAudible=cell===_audioCell;           // disposeCell drops the sound; a heal must hand it back
     try{disposeCell(cell);}catch(e){}
     cell.__wallName=keepName;cell.__wallSrc=keepSrc;
     cell.classList.remove('csg-offline','playing');
@@ -5814,6 +5848,7 @@ async function healWallCell(cell){
       rememberStream(res.src);
       if(typeof liveGate==='function')liveGate(cell);
       cell.__needsHeal=false;
+      if(wasAudible&&!_audioCell){_audioCell=cell;streamSetAudio(cell,true);}   // unless another stream took the sound meanwhile
       return true;
     }
     cell.classList.add('csg-offline');
@@ -5831,7 +5866,7 @@ function wallHealVisible(){
   for(const c of cells){
     if(_wallHealBusy>=WALL_HEAL_MAX)break;
     const r=c.getBoundingClientRect();
-    if(r.bottom<-40||r.top>innerHeight+40)continue;
+    if(c!==_audioCell&&(r.bottom<-40||r.top>innerHeight+40))continue;   // the audible stream is healed wherever it is
     const v=c.querySelector('video');
     const media=c.querySelector('video,iframe');
     const dead=c.classList.contains('csg-offline')||c.__needsHeal||
@@ -6099,9 +6134,9 @@ function openNationReel(nation,postId){
   const pool=allPosts.filter(p=>(want&&p._region===want)||p.country===nation);
   vwQueue=[];vwSeen=new Set();
   const start=allPosts.find(p=>p.id===postId)||pool[0];
-  if(start){const s={...start,_vid:start.id+'~n'};vwQueue.push(s);vwSeen.add(start.id);}
+  if(start){const s={...start,_vid:start.id+'~n'};vwQueue.push(s);vwSeen.add(start.id);vwRemember(start);}
   pool.filter(p=>!vwSeen.has(p.id)).slice(0,5).forEach(p=>{
-    vwSeen.add(p.id);vwQueue.push({...p,_vid:p.id+'~'+Math.random().toString(36).slice(2,6)});
+    if(vwRecentHas(p))return;vwSeen.add(p.id);vwRemember(p);vwQueue.push({...p,_vid:p.id+'~'+Math.random().toString(36).slice(2,6)});
   });
   vwFill(4,true);                                         // blended global tail (any style)
   const ov=document.getElementById('reel-overlay');ov.classList.add('open');
@@ -6109,8 +6144,7 @@ function openNationReel(nation,postId){
   const ct=document.getElementById('reel-container');
   ct.innerHTML=vwQueue.map(vwItemHtml).join('');
   vwObserve(ct);ct.scrollTop=0;
-  ct.onscroll=()=>{if(ct.scrollTop+ct.clientHeight*3>ct.scrollHeight){
-    const add=vwFill(4,true);ct.insertAdjacentHTML('beforeend',add.map(vwItemHtml).join(''));vwObserve(ct);}};
+  ct.onscroll=()=>{vwTopUp(ct);vwSettle(ct);};
 }
 // Closing a country used to tear down every live player in the app and then
 // rebuild the whole world-wall from scratch. The wall was never touched by the
@@ -8382,33 +8416,48 @@ function vwScore(p){
 // it: a live feed is mostly text, so a media-only filter returns nothing and the
 // tab renders blank. vwItemHtml already handles a text post (cover gradient +
 // body), so a text reel is a real card, not a broken one.
+// ─── NO REPEATS ─────────────────────────────────────────────────────────────
+// "I saw the same reel 29 times in 40 scrolls." Two things did that. The recycle
+// branch below fired the moment the unseen pool ran dry: it CLEARED vwSeen and kept
+// only the last 3, so a pool of 4 clips looped every fourth swipe for ever. And
+// vwSeen itself is reset by every fillGlobeReels / openReel, so each refill forgot
+// the whole session. Identity was also the post id, so the same clip reposted by a
+// second account (or served by a second PeerTube host) counted as new.
+//
+// Now: a session-wide window of the last VW_NO_REPEAT clips, keyed by the VIDEO,
+// that no refill resets. A clip inside that window is never offered. When nothing
+// outside it is left, vwFill returns nothing and the rail shows its loading card
+// and pulls more (vwTopUp) - a short wait instead of a loop.
+const VW_NO_REPEAT=40;
+const _vwRecent=[],_vwRecentSet=new Set();
+function vwKey(p){return String((p&&(p._video||p.id))||'').split('?')[0].split('#')[0];}
+function vwRecentHas(p){return _vwRecentSet.has(vwKey(p));}
+function vwRemember(p){
+  const k=vwKey(p);if(!k||_vwRecentSet.has(k))return;
+  _vwRecent.push(k);_vwRecentSet.add(k);
+  while(_vwRecent.length>VW_NO_REPEAT)_vwRecentSet.delete(_vwRecent.shift());
+}
 function vwFill(n=5,any){
   const eligible=p=>(any?true:VW_STYLES.includes(p.style))&&laneFree(p,'reel');
-  // Draw from the dedicated reels pool. It is video-only by construction, so the
-  // reel is real video instead of the text feed replayed. Top up in the background
-  // whenever it runs thin; allPosts is only a last-resort backstop for a cold start
-  // (and still video-first) so the surface is never blank.
-  if(reelPosts.length-vwSeen.size<n+6)pullReelPage().then(()=>{}).catch(()=>{});
-  // VIDEO ONLY. The previous chain ended in `allPosts.filter(eligible)` with
-  // any=true, i.e. "any post at all" — so a cold pool produced a reel made of text
-  // cards. A video surface with no video is worse than an empty one: it looks
-  // broken rather than loading.
-  let pool=reelPosts.filter(p=>p._video&&!vwSeen.has(p.id)&&eligible(p));
-  if(pool.length<n)pool=pool.concat(allPosts.filter(p=>p._video&&!vwSeen.has(p.id)&&!pool.includes(p)&&eligible(p)));
-  // The feed renders first and laneClaims every video it draws, so on a cold start
-  // laneFree(p,'reel') refused ALL of them and reels opened empty. Sharing a clip
-  // with the feed beats showing nothing.
-  if(pool.length<n){
-    const loose=reelPosts.concat(allPosts).filter(p=>p._video&&!vwSeen.has(p.id)&&pool.indexOf(p)<0);
-    pool=pool.concat(loose);
+  // Top the dedicated reel pool up in the background whenever it runs thin.
+  // Throttled so a source that fails instantly cannot spin.
+  const fresh=p=>p._video&&!vwSeen.has(p.id)&&!vwRecentHas(p);
+  if(reelPosts.filter(fresh).length<n+6&&Date.now()-(vwFill._at||0)>1500){
+    vwFill._at=Date.now();pullReelPage().then(()=>{}).catch(()=>{});
   }
-  if(!pool.length){ // genuinely exhausted — recycle, but never repeat what is on screen
-    vwSeen.clear();vwQueue.slice(-3).forEach(p=>vwSeen.add(p.id.split('~')[0]));
-    pool=reelPosts.filter(p=>p._video&&!vwSeen.has(p.id)&&eligible(p));
-    if(!pool.length)pool=allPosts.filter(p=>p._video&&!vwSeen.has(p.id)&&eligible(p));}
-  const picks=diversify(pool.map(p=>[vwScore(p),p]).sort((a,b)=>b[0]-a[0]).map(x=>x[1])).slice(0,n)
-    .map(p=>[0,p])
-    .map(([,p])=>{const c={...p};if(vwSeen.has(p.id)===false)vwSeen.add(p.id);
+  // VIDEO ONLY, and never a clip shown in the recent window.
+  let pool=reelPosts.filter(p=>fresh(p)&&eligible(p));
+  if(pool.length<n)pool=pool.concat(allPosts.filter(p=>fresh(p)&&eligible(p)&&pool.indexOf(p)<0));
+  // The feed laneClaims every video it draws, so on a cold start laneFree(p,'reel')
+  // refused all of them. Sharing a clip with the feed beats an empty rail.
+  if(pool.length<n)pool=pool.concat(reelPosts.concat(allPosts).filter(p=>fresh(p)&&pool.indexOf(p)<0));
+  // One card per clip, even when two posts carry the same video.
+  const byKey=new Set();
+  pool=pool.filter(p=>{const k=vwKey(p);if(byKey.has(k))return false;byKey.add(k);return true;});
+  const ranked=pool.map(p=>[vwScore(p),p]).sort((a,b)=>b[0]-a[0]).map(x=>x[1]);
+  const quick=ranked.filter(p=>!vwHostSlow(p)),slow=ranked.filter(p=>vwHostSlow(p));
+  const picks=diversify(quick.concat(slow)).slice(0,n)
+    .map(p=>{const c={...p};vwSeen.add(p.id);vwRemember(p);
       laneClaim(p,'reel');c._vid=p.id+'~'+Math.random().toString(36).slice(2,6);return c;});
   vwQueue.push(...picks);return picks;
 }
@@ -8497,6 +8546,10 @@ function fillGlobeReels(force){
     // dead after the first time you looked away from it.
     // vwObserve disconnects-then-reobserves, so calling it here is idempotent.
     vwObserve(ct);
+    // Coming back must also re-arm the refill and start whatever card is showing,
+    // or a returning user lands on a rail that can never grow past where it was.
+    ct.onscroll=()=>{vwTopUp(ct);vwSettle(ct);};
+    vwSettle(ct);setTimeout(()=>{vwSettle(ct);vwTopUp(ct);},450);
     return;
   }
   if(force){ct.innerHTML='';vwSeen=new Set();}
@@ -8530,8 +8583,8 @@ function fillGlobeReels(force){
   fillGlobeReels._tries=0;
   ct.innerHTML=picks.map(vwItemHtml).join('');
   vwObserve(ct);ct.scrollTop=0;
-  ct.onscroll=()=>{if(ct.scrollTop+ct.clientHeight*3>ct.scrollHeight){
-    const add=vwFill(4,true);ct.insertAdjacentHTML('beforeend',add.map(vwItemHtml).join(''));vwObserve(ct);}};
+  ct.onscroll=()=>{vwTopUp(ct);vwSettle(ct);};
+  setTimeout(()=>{vwSettle(ct);vwTopUp(ct);},450);   // after the slide-in, start the card on screen
 }
 // Drag-to-switch. The two surfaces track the finger and settle to whichever
 // side you release past the threshold, so REELS <-> GLOBE is a movement you
@@ -8603,7 +8656,7 @@ async function openReel(postId){
   // full network round-trip finished. On a cold start over a slow connection that is
   // several seconds of a completely dead tap, which is why people tapped again.
   // The tapped clip is already in hand, so it can play while the rest loads.
-  if(start&&start._video){const c={...start,_vid:start.id+'~s'};vwQueue.push(c);vwSeen.add(start.id);}
+  if(start&&start._video){const c={...start,_vid:start.id+'~s'};vwQueue.push(c);vwSeen.add(start.id);vwRemember(start);}   // by VIDEO too: a repost of this clip must not be card 2
   const seeded=vwQueue.length>0;
   ov.classList.add('open');
   ct.innerHTML=seeded?vwQueue.map(vwItemHtml).join(''):sparkleMarkup('');   // video surface -> original sparkle/float
@@ -8620,8 +8673,7 @@ async function openReel(postId){
   if(seeded){ if(added.length)ct.insertAdjacentHTML('beforeend',added.map(vwItemHtml).join('')); }
   else { ct.innerHTML=vwQueue.map(vwItemHtml).join(''); ct.scrollTop=0; }
   vwObserve();          // NOT followed by scrollTop=0 — that would yank a seeded reel
-  ct.onscroll=()=>{if(ct.scrollTop+ct.clientHeight*3>ct.scrollHeight){ // near end → append
-    const add=vwFill(4,true);ct.insertAdjacentHTML('beforeend',add.map(vwItemHtml).join(''));vwObserve();}};
+  ct.onscroll=()=>{vwTopUp(ct);vwSettle(ct);};
 }
 function vwAudioPill(p,i){
   const dur=97+(i*53)%140;
@@ -8688,9 +8740,17 @@ function vwObserve(ctEl){
       (function(cur){
         const items=[...ct.querySelectorAll('.vw-item')],at=items.indexOf(cur);
         if(at<0)return;
-        vwWarm(items[at+1]); vwWarm(items[at+2]);
+        // The card on screen gets the connection FIRST. Warming the next two at the
+        // same moment split a phone link three ways, so the visible reel - the only
+        // one anybody is waiting on - took three times as long to show a frame.
+        // Buffer ahead once it is actually playing (or after 2.5s regardless).
+        const nowV=cur.querySelector('.vw-vid');
+        const warmAhead=()=>{if(nowV)nowV.__warmT=0;const its=[...ct.querySelectorAll('.vw-item')],k=its.indexOf(cur);if(k<0)return;vwWarm(its[k+1]);vwWarm(its[k+2]);};
+        if(!nowV||nowV.readyState>2)warmAhead();
+        else if(!nowV.__warmT){nowV.addEventListener('playing',warmAhead,{once:true});nowV.__warmT=setTimeout(warmAhead,2500);}
         items.forEach((el,k)=>{ if(Math.abs(k-at)>2) vwRelease(el); });
       })(e.target);
+      vwTopUp(ct);                     // landing near the end refills - no scroll event needed
     }else vwPause(e.target);}),{threshold:.5});
   if(ct.id==='reel-container')window._vwObs=ct.__obs;
   ct.querySelectorAll('.vw-item').forEach(el=>ct.__obs.observe(el));
@@ -8783,15 +8843,21 @@ function vwAttach(v){
     const native=()=>{try{v.src=src;}catch(e){vwClearLoad(v);vwDrop(v);}};
     loadLib('hls').then(()=>{                      // lazy: see __LIB in the head
       // The reel may have been scrolled past and torn down while hls.js loaded.
-      // Bailing here must also UNDO the ready flag, or this card can never
-      // attach again (see the dead-card note in vwPlay).
-      if(v.__gone||!v.isConnected){delete v.dataset.ready;vwClearLoad(v);return;}
+      // Bail ONLY if the card was really released (vwRelease deletes the ready flag)
+      // or has left the document. It used to bail on __gone - but vwPause sets __gone
+      // on every card that is merely off screen, and vwObserve's first callback (which
+      // runs on every append) pauses every such card. So the two cards vwWarm had just
+      // started buffering were cancelled almost every time: each reel started from
+      // nothing when you landed on it (readyState 0 after a 5s dwell, measured) -
+      // the opposite of seamless. __gone still stops PLAYBACK; it no longer stops the
+      // buffering that makes the next swipe instant.
+      if(!v.isConnected||!v.dataset.ready){delete v.dataset.ready;vwClearLoad(v);return;}
       if(!(window.Hls&&window.Hls.isSupported())){
         if(v.canPlayType('application/vnd.apple.mpegurl'))native();
         else{vwClearLoad(v);vwDrop(v);}
         return;
       }
-      const h=new window.Hls(liveHlsConfig({startLevel:-1,maxBufferLength:10,backBufferLength:5,liveDurationInfinity:false}));
+      const h=new window.Hls(liveHlsConfig({startLevel:0,maxBufferLength:10,backBufferLength:5,liveDurationInfinity:false,manifestLoadingTimeOut:6000,manifestLoadingMaxRetry:1,levelLoadingTimeOut:6000,levelLoadingMaxRetry:1,fragLoadingTimeOut:8000,fragLoadingMaxRetry:2}));
       h.on(window.Hls.Events.MANIFEST_PARSED,()=>{if(v.__want)vwTryPlay(v);});
       h.on(window.Hls.Events.ERROR,(_,d)=>{
         if(!d||!d.fatal)return;
@@ -8811,15 +8877,101 @@ function vwAttach(v){
     });
   }else v.src=src;
 }
+// ─── NEVER RUN OUT OF RAIL ──────────────────────────────────────────────────
+// "Reels stop at 2." The rail appended ONLY from an onscroll handler, and only if
+// vwFill had something in hand at that instant. On a phone the first fill lands
+// before the reel pull has finished, so it holds 2-3 cards; the thumb reaches the
+// last one, onscroll runs, the pool is still empty, nothing is appended - and with
+// scroll-snap mandatory there is no further scroll to fire onscroll ever again.
+// The pull finished seconds later into a pool nobody read. Reproduced on a
+// throttled connection: stuck at card 2 with 5 clips sitting unused in the pool.
+//
+// Now the rail is topped up from three places - scroll, every card that becomes
+// current, and every reel pull that completes - and when the pool is genuinely dry
+// it shows a loading card at the end and keeps retrying, instead of a hard stop.
+function vwRailLive(ct){
+  if(!ct||!ct.isConnected)return false;
+  if(ct.id==='greel-container')return typeof activeTab!=='undefined'&&activeTab==='globe'&&typeof globeMode!=='undefined'&&globeMode==='reels';
+  const ov=document.getElementById('reel-overlay');
+  return !!(ov&&ov.classList.contains('open'));
+}
+function vwTail(ct,on){
+  let t=ct.querySelector(':scope > .vw-tail');
+  if(on&&!t){t=document.createElement('div');t.className='vw-tail';t.innerHTML=sparkleMarkup('');ct.appendChild(t);}
+  else if(!on&&t)t.remove();
+}
+function vwAppend(ct,add){
+  if(!add||!add.length)return false;
+  vwTail(ct,false);
+  ct.insertAdjacentHTML('beforeend',add.map(vwItemHtml).join(''));
+  vwObserve(ct);
+  return true;
+}
+function vwTopUp(ct){
+  if(!vwRailLive(ct))return;
+  const items=ct.querySelectorAll('.vw-item').length;
+  const at=Math.round(ct.scrollTop/Math.max(1,ct.clientHeight));
+  if(items-at>3)return;                       // plenty ahead already
+  if(vwAppend(ct,vwFill(4,true)))return;
+  if(ct.__topping)return;
+  ct.__topping=true;vwTail(ct,true);
+  Promise.resolve(pullReelPage()).catch(()=>{})
+    .then(()=>new Promise(r=>setTimeout(r,400)))
+    .then(()=>{
+      ct.__topping=false;
+      if(!vwRailLive(ct))return;
+      if(!vwAppend(ct,vwFill(4,true)))setTimeout(()=>vwTopUp(ct),2500);   // still dry: keep trying
+    });
+}
+// Once a scroll comes to rest, the card on screen IS the current card - start it.
+// The IntersectionObserver is rebuilt on every append, and a rebuild that lands
+// mid-scroll can see no card past its .5 threshold, so the card you stop on was
+// sometimes never told to play (measured: current card, __want false, nothing
+// loading). This does not depend on the observer at all.
+function vwSettle(ct){
+  clearTimeout(ct.__settleT);
+  ct.__settleT=setTimeout(()=>{
+    if(!vwRailLive(ct))return;
+    const items=[...ct.querySelectorAll('.vw-item')];
+    const cur=items[Math.round(ct.scrollTop/Math.max(1,ct.clientHeight))];
+    const v=cur&&cur.querySelector('.vw-vid');
+    if(v&&(!v.__want||v.__gone))vwPlay(cur);
+  },180);
+}
+// HOST SPEED. The reel sources are a handful of hosts with very different speeds:
+// spook.tube and the Bluesky video CDN start in well under a second, one PeerTube
+// S3 bucket routinely took 5s+ to hand over a first frame. The rail learns each
+// host's time-to-first-frame (and its failures) as you watch, and vwFill ranks
+// clips from slow hosts behind everything else, so a slow host stops setting the
+// pace of the whole rail.
+const _vwHost={};
+function vwHostOf(p){return String((p&&p._video)||'').split('/')[2]||'';}
+function vwHostNote(src,ms,failed){
+  const h=String(src||'').split('/')[2]||'';if(!h)return;
+  const st=_vwHost[h]||(_vwHost[h]={ttff:0,n:0,fail:0});
+  if(failed){st.fail++;return;}
+  st.ttff=st.n?st.ttff*0.7+ms*0.3:ms;st.n++;
+}
+function vwHostSlow(p){
+  const st=_vwHost[vwHostOf(p)];if(!st)return false;
+  return st.fail>=2||(st.n>=2&&st.ttff>3500);
+}
+function vwTopUpActive(){
+  ['greel-container','reel-container'].forEach(id=>{const ct=document.getElementById(id);if(ct)vwTopUp(ct);});
+}
 // A card whose video is genuinely dead leaves the rail instead of sitting there as
 // a black panel the user has to swipe past. If it empties the inline surface, refill.
 function vwDrop(v){
   const el=v&&v.closest&&v.closest('.vw-item');if(!el)return;
   const ct=el.parentNode;
   try{console.warn('[reels] dead card dropped',v.dataset.src||'');}catch(e){}
+  vwHostNote(v.dataset.src,0,true);
   if(ct&&ct.__obs){try{ct.__obs.unobserve(el);}catch(e){}}
   el.remove();
   if(ct&&ct.id==='greel-container'&&!ct.querySelector('.vw-item')&&typeof fillGlobeReels==='function')fillGlobeReels(true);
+  // The next card has slid into the slot without any scroll event: start it, and
+  // keep the rail from running short.
+  if(ct&&ct.isConnected){vwSettle(ct);vwTopUp(ct);}
 }
 // Buffer ahead. __want stays false so a warmed item downloads but never plays.
 function vwWarm(el){
@@ -8839,6 +8991,21 @@ function vwRelease(el){
 function vwPlay(el){
   const v=el.querySelector('.vw-vid');if(!v)return;
   v.__gone=0; v.__want=true;
+  if(!v.__played&&!v.__t0){
+    v.__t0=performance.now();
+    // Nothing on screen 6s after this card became current = a dead or unusably slow
+    // source. Count it against the host and take the card out; the next one slides
+    // into place and starts. A reel that never shows a picture is worse than a skip.
+    clearTimeout(v.__stallT);
+    v.__stallT=setTimeout(()=>{
+      if(v.__played||!v.isConnected||v.__gone||v.readyState>1)return;
+      try{console.warn('[reels] no picture after 6s, skipping',v.dataset.src||'');}catch(e){}
+      vwHostNote(v.dataset.src,0,true);
+      if(v.__hls){try{v.__hls.destroy();}catch(e){}v.__hls=null;}
+      vwClearLoad(v);vwDrop(v);
+    },6000);
+    v.addEventListener('playing',()=>{vwHostNote(v.dataset.src,performance.now()-v.__t0);},{once:true});
+  }
   // Belt and braces for the same dead-card case: a card flagged ready that ended up
   // with no source at all gets its flag cleared so vwAttach really runs.
   if(v.dataset.ready&&!v.__hls&&!v.src&&!v.currentSrc)delete v.dataset.ready;
