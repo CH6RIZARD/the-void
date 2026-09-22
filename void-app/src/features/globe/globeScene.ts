@@ -120,12 +120,7 @@ export function createGlobeScene(gl: any, countries: Country[], viewW: number, v
   const sun = new THREE.DirectionalLight(0xd4a84c, 1.8 * LI);
   sun.position.set(5, 2, 4);
   sc.add(sun);
-  // The rim light is NOT scaled by LI. LI (PI) converts ambient/directional intensity
-  // to the r155+ lighting units; a point light with decay 0 has no falloff at all, so
-  // the same factor made it PI times too bright - on the phone it washed the globe out
-  // as a magenta blob and buried the night-lights map. The web (three r128, legacy)
-  // lands at 2 * (1 - d/100) ~= 1.87 at this camera distance, so match that.
-  const rim = LEGACY ? new THREE.PointLight(0x5b21d4, 2, 100) : new THREE.PointLight(0x5b21d4, 2 * 0.933, 100, 0);
+  const rim = LEGACY ? new THREE.PointLight(0x5b21d4, 2, 100) : new THREE.PointLight(0x5b21d4, 2 * LI * 0.933, 100, 0);
   rim.position.set(-4, -2, -5);
   sc.add(rim);
 
@@ -152,7 +147,13 @@ export function createGlobeScene(gl: any, countries: Country[], viewW: number, v
   const buildGlobe = (tex: THREE.Texture) => {
     // 72 segments on mobile: 48 left a faceted limb, 80 is invisible extra cost.
     const seg = 72;
-    earthMat = new THREE.MeshPhongMaterial({ map: tex, emissive: 0x020010, emissiveIntensity: 0.7, specular: 0x3a1e90, shininess: 18 });
+    // SPECULAR IS NOT SCALED THE WAY DIFFUSE IS. Every light here is multiplied by LI
+    // (PI) because r155+ divides the DIFFUSE term by PI; the specular term keeps the
+    // full irradiance, so the same web specular colour comes out PI times hotter. On
+    // the phone that was a white-magenta blob over a quarter of the sphere with the
+    // night lights buried under it. Scale the specular colour by 1/PI to put the
+    // highlight back where the web (three r128, legacy lighting) has it.
+    earthMat = new THREE.MeshPhongMaterial({ map: tex, emissive: 0x020010, emissiveIntensity: 0.7, specular: LEGACY ? 0x3a1e90 : 0x12092e, shininess: 18 });
     globe = new THREE.Mesh(new THREE.SphereGeometry(1, seg, seg), earthMat);
     sc.add(globe);
     sc.add(
