@@ -4248,6 +4248,10 @@ const _evicted=new Set();   // post ids currently in the DOM, in display order
 //    refresh (refreshVoidFeed rebuilds and they lead). Infinite scroll still appends
 //    older posts at the bottom.
 const FEED_MAX_AGE_H=48, FEED_SETTLE_MS=20000, FEED_STALE_H=24;
+// Refresh depth: pull up to FEED_REFRESH_PULLS pages until FEED_REFRESH_MIN unseen
+// posts are held; with at least FEED_REFRESH_REPLACE unseen, the refreshed feed shows
+// ONLY unseen posts.
+const FEED_REFRESH_MIN=20, FEED_REFRESH_PULLS=3, FEED_REFRESH_REPLACE=8;
 let _feedFirstAt=0, _feedNewest=0;
 function feedAtTop(){const sc=document.getElementById('screen-void');return !sc||sc.scrollTop<120;}
 function feedTooOld(p){return (p.time||0)<Date.now()-FEED_MAX_AGE_H*3600000;}
@@ -4366,12 +4370,22 @@ async function refreshVoidFeed(){
     // by refreshing). Seen = what is or was on screen, not merely what was fetched.
     const had=new Set([..._rendered,..._evicted]);
     try{await pullSupabasePosts(true);}catch(e){}   // Void users' own drops (with media)
-    await pullVoidFeed();
-    // Whatever arrived in THIS pull leads the feed. That is what "refresh" means
-    // to a reader: show me what I have not seen. Rank still orders within the new
-    // batch, and previously-held posts follow underneath in their own rank order.
+    // DEPTH. One pull is one page - measured, ~12 posts survive the age and dedupe
+    // gates - so a refresh used to give a dozen new posts on top of everything the
+    // reader had already scrolled past. Keep pulling (bounded) until there is a
+    // screenful-and-more of UNSEEN posts, then REPLACE the feed with only those.
+    const unseen=()=>allPosts.filter(p=>!had.has(p.id)&&!p._offFeed&&!feedTooOld(p)&&laneFree(p,'feed')&&surfaceFree(p,'feed')).length;
+    for(let i=0;i<FEED_REFRESH_PULLS&&unseen()<FEED_REFRESH_MIN;i++){
+      const before=unseen();
+      await pullVoidFeed();
+      if(unseen()===before&&i)break;                 // sources are dry right now
+    }
+    // Whatever the reader has not seen leads; rank orders within it.
     _refreshBoost=new Set(allPosts.filter(p=>!had.has(p.id)).map(p=>p.id));
     _rendered.clear();_evicted.clear();                 // rebuild rather than append
+    // Enough new to fill the feed: what they already saw is gone, not reshuffled.
+    // Too little (sources dry): keep it underneath rather than show a near-empty feed.
+    if(unseen()>=FEED_REFRESH_REPLACE)had.forEach(id=>_evicted.add(id));
     const feed=document.getElementById('void-feed');
     if(feed)feed.innerHTML='';
     renderFeed();
