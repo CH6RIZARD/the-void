@@ -120,7 +120,12 @@ export function createGlobeScene(gl: any, countries: Country[], viewW: number, v
   const sun = new THREE.DirectionalLight(0xd4a84c, 1.8 * LI);
   sun.position.set(5, 2, 4);
   sc.add(sun);
-  const rim = LEGACY ? new THREE.PointLight(0x5b21d4, 2, 100) : new THREE.PointLight(0x5b21d4, 2 * LI * 0.933, 100, 0);
+  // The rim light is NOT scaled by LI. LI (PI) converts ambient/directional intensity
+  // to the r155+ lighting units; a point light with decay 0 has no falloff at all, so
+  // the same factor made it PI times too bright - on the phone it washed the globe out
+  // as a magenta blob and buried the night-lights map. The web (three r128, legacy)
+  // lands at 2 * (1 - d/100) ~= 1.87 at this camera distance, so match that.
+  const rim = LEGACY ? new THREE.PointLight(0x5b21d4, 2, 100) : new THREE.PointLight(0x5b21d4, 2 * 0.933, 100, 0);
   rim.position.set(-4, -2, -5);
   sc.add(rim);
 
