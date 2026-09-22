@@ -13,6 +13,8 @@
 //                        version-0 texture).
 import * as THREE from 'three';
 import { Asset } from 'expo-asset';
+import { b64ToBytes, decodePngRGBA } from '../live/frameSample';
+import { EARTH_PNG_B64 } from './earthTexture';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const EARTH = require('../../../assets/globe/earth-night.jpg');
@@ -137,6 +139,34 @@ export function fallbackEarthTexture(): THREE.DataTexture {
  * Download earth-night.jpg and upload it from file. Resolves a three.js Texture bound to
  * a raw GL texture, or rejects (caller uses the fallback, exactly like the web's onError).
  */
+/**
+ * The map as raw RGBA, decoded in JS from the bundled PNG.
+ *
+ * Why this exists: expo-gl's { localUri } upload is a driver path, and on the MT6762
+ * test phone it fails - measured on device, texImage2D leaves GL error 1282
+ * (INVALID_OPERATION) and the globe kept the flat purple fallback for every session.
+ * Decoding here uses only fflate + the app's own PNG reader (the same one the live
+ * wall samples frames with), so it cannot be refused by a driver. It is the FALLBACK:
+ * the direct upload still runs first and is free where it works.
+ */
+/** DataTexture has no flipY, and the map decodes top-row-first. */
+function flipRowsInPlace(data: Uint8Array, w: number, h: number): void {
+  const stride = w * 4;
+  const tmp = new Uint8Array(stride);
+  for (let y = 0; y < (h >> 1); y++) {
+    const top = y * stride, bot = (h - 1 - y) * stride;
+    tmp.set(data.subarray(top, top + stride));
+    data.copyWithin(top, bot, bot + stride);
+    data.set(tmp, bot);
+  }
+}
+function earthPixels(): { w: number; h: number; data: Uint8Array } | null {
+  try {
+    return decodePngRGBA(b64ToBytes(EARTH_PNG_B64));
+  } catch {
+    return null;
+  }
+}
 export async function loadEarthTexture(gl: any, renderer: THREE.WebGLRenderer, rawPixelStorei: (p: number, v: any) => void): Promise<THREE.Texture> {
   const asset = Asset.fromModule(EARTH);
   await asset.downloadAsync();
@@ -146,6 +176,30 @@ export async function loadEarthTexture(gl: any, renderer: THREE.WebGLRenderer, r
   gl.bindTexture(gl.TEXTURE_2D, glTex);
   rawPixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true); // TextureLoader textures have flipY = true
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, { localUri: asset.localUri });
+  // Driver refused the file upload (1282 on the MT6762 test phone: expo-gl's
+  // { localUri } upload is a native path and this driver rejects it). Hand the pixels
+  // to three instead - it does its own upload, mipmaps and filtering, so nothing here
+  // has to be right about raw GL state. console.warn, not log: release builds strip log.
+  const direct = gl.getError();
+  if (direct !== gl.NO_ERROR) {
+    rawPixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    gl.deleteTexture(glTex);
+    renderer.resetState();
+    const px = earthPixels();
+    if (!px) throw new Error('earth texture: GL ' + direct + ' and the PNG decode failed too');
+    flipRowsInPlace(px.data, px.w, px.h);   // DataTexture ignores flipY
+    const dt = new THREE.DataTexture(px.data, px.w, px.h, THREE.RGBAFormat);
+    dt.colorSpace = THREE.SRGBColorSpace;
+    dt.magFilter = THREE.LinearFilter;
+    dt.minFilter = THREE.LinearMipmapLinearFilter;
+    dt.wrapS = THREE.ClampToEdgeWrapping;
+    dt.wrapT = THREE.ClampToEdgeWrapping;
+    dt.generateMipmaps = true;
+    dt.needsUpdate = true;
+    try { console.warn('[globe] earth texture: JS PNG decode path ' + px.w + 'x' + px.h + ' (direct upload gave GL ' + direct + ')'); } catch {}
+    return dt;
+  }
   rawPixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
   gl.generateMipmap(gl.TEXTURE_2D);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);

@@ -22,6 +22,8 @@ import {
   vwBump,
   vwFill,
   vwQueue,
+  vwRecentHas,
+  vwRemember,
   vwReset,
   vwSeen,
 } from '../../core';
@@ -179,12 +181,14 @@ export function seedNation(nation: string, postId?: string | null): Post[] {
   if (start) {
     vwQueue.push({ ...start, _vid: start.id + '~n' });
     vwSeen.add(start.id);
+    vwRemember(start);
   }
   pool
-    .filter((p) => !vwSeen.has(p.id))
+    .filter((p) => !vwSeen.has(p.id) && !vwRecentHas(p))
     .slice(0, 5)
     .forEach((p) => {
       vwSeen.add(p.id);
+      vwRemember(p);
       vwQueue.push({ ...p, _vid: p.id + '~' + env.random().toString(36).slice(2, 6) });
     });
   vwFill(4, true);
@@ -201,6 +205,7 @@ export function seedOpenReel(postId: string): Post[] {
   if (start && start._video) {
     vwQueue.push({ ...start, _vid: start.id + '~s' });
     vwSeen.add(start.id);
+    vwRemember(start); // by VIDEO too: a repost of this clip must not come back as card 2
   }
   return vwQueue.slice().filter(reelVisible);
 }

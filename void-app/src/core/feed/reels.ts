@@ -172,19 +172,44 @@ export const vwSeen = new Set<string>();
  * genuinely exhausted and never what is on screen. Tops the pool up in the
  * background when thin. Each card is a copy with a unique `_vid`.
  */
+// ─── NO REPEATS (web vwFill, same rules) ────────────────────────────────
+// "The first two reels were the same video and the third was the first again." The
+// recycle branch fired the moment the unseen pool ran dry: it CLEARED vwSeen and kept
+// only the last 3, so a pool of a few clips looped. vwReset clears vwSeen on every
+// reel open, so each open forgot the session. And identity was the post id, so the
+// same clip reposted by a second account, or served by a second host, counted as new.
+// Now a session-wide window of the last VW_NO_REPEAT clips, keyed by the VIDEO, that
+// vwReset does not clear. Nothing inside it is offered; when nothing outside it is
+// left, vwFill returns nothing and the view waits for the next pull instead of looping.
+export const VW_NO_REPEAT = 40;
+const _vwRecent: string[] = [];
+const _vwRecentSet = new Set<string>();
+export function vwKey(p: Post | null | undefined): string {
+  return String((p && (p._video || p.id)) || '').split('?')[0].split('#')[0];
+}
+export function vwRecentHas(p: Post): boolean { return _vwRecentSet.has(vwKey(p)); }
+export function vwRemember(p: Post): void {
+  const k = vwKey(p); if (!k || _vwRecentSet.has(k)) return;
+  _vwRecent.push(k); _vwRecentSet.add(k);
+  while (_vwRecent.length > VW_NO_REPEAT) _vwRecentSet.delete(_vwRecent.shift() as string);
+}
+let _vwPullAt = 0;
 export function vwFill(n = 5, any = false): Post[] {
   const eligible = (p: Post) => (any ? true : VW_STYLES.includes(p.style)) && laneFree(p, 'reel');
-  if (reelPosts.length - vwSeen.size < n + 6) pullReelPage().catch(() => { /* */ });
-  let pool = reelPosts.filter(p => p._video && !vwSeen.has(p.id) && eligible(p));
-  if (pool.length < n) pool = pool.concat(allPosts.filter(p => p._video && !vwSeen.has(p.id) && !pool.includes(p) && eligible(p)));
-  if (!pool.length) {
-    vwSeen.clear(); vwQueue.slice(-3).forEach(p => vwSeen.add(p.id.split('~')[0]));
-    pool = reelPosts.filter(p => p._video && !vwSeen.has(p.id) && eligible(p));
-    if (!pool.length) pool = allPosts.filter(p => p._video && !vwSeen.has(p.id) && eligible(p));
+  const fresh = (p: Post) => !!p._video && !vwSeen.has(p.id) && !vwRecentHas(p);
+  // Top the reel pool up in the background when thin (throttled: a source that fails
+  // instantly must not spin).
+  if (reelPosts.filter(fresh).length < n + 6 && env.now() - _vwPullAt > 1500) {
+    _vwPullAt = env.now(); pullReelPage().catch(() => { /* */ });
   }
+  let pool = reelPosts.filter(p => fresh(p) && eligible(p));
+  if (pool.length < n) pool = pool.concat(allPosts.filter(p => fresh(p) && eligible(p) && !pool.includes(p)));
+  // One card per clip, even when two posts carry the same video.
+  const byKey = new Set<string>();
+  pool = pool.filter(p => { const k = vwKey(p); if (byKey.has(k)) return false; byKey.add(k); return true; });
   const picks = diversify(pool.map(p => [vwScore(p), p] as [number, Post]).sort((a, b) => b[0] - a[0]).map(x => x[1])).slice(0, n)
     .map(p => {
-      const c = { ...p }; if (!vwSeen.has(p.id)) vwSeen.add(p.id);
+      const c = { ...p }; vwSeen.add(p.id); vwRemember(p);
       laneClaim(p, 'reel'); c._vid = p.id + '~' + env.random().toString(36).slice(2, 6); return c;
     });
   vwQueue.push(...picks); return picks;
