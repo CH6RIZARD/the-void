@@ -86,7 +86,20 @@ export function AudioRing({ radius = 6 }: { radius?: number }) {
  * screen or has settled on NO SIGNAL, where a moving loader is work nobody sees or
  * waits on. The particles also stop while the loader fades out.
  */
-export function TileLoader({ label, visible, zIndex = 3, animate = true }: { label?: string; visible: boolean; zIndex?: number; animate?: boolean }) {
+export function TileLoader({
+  label,
+  visible,
+  zIndex = 3,
+  animate = true,
+  over = false,
+}: {
+  label?: string;
+  visible: boolean;
+  zIndex?: number;
+  animate?: boolean;
+  /** true when a poster sits under the loader: the panel turns see-through so it shows. */
+  over?: boolean;
+}) {
   const o = useRef(new Animated.Value(visible ? 1 : 0)).current;
   const [mounted, setMounted] = React.useState(visible);
   useEffect(() => {
@@ -101,11 +114,16 @@ export function TileLoader({ label, visible, zIndex = 3, animate = true }: { lab
   }, [visible, o]);
   if (!mounted) return null;
   return (
-    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { zIndex, opacity: o, backgroundColor: 'rgba(3,1,10,0.97)', overflow: 'hidden' }]}>
-      {SparkleLoader ? <SparkleLoader label={label} animate={visible && animate} style={StyleSheet.absoluteFill as ViewStyle} /> : null}
+    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { zIndex, opacity: o, backgroundColor: over ? OVER_BG : 'rgba(3,1,10,0.97)', overflow: 'hidden' }]}>
+      {SparkleLoader ? (
+        <SparkleLoader label={label} animate={visible && animate} style={[StyleSheet.absoluteFill, over ? { backgroundColor: 'transparent' } : null] as unknown as ViewStyle} />
+      ) : null}
     </Animated.View>
   );
 }
+
+/** Loader panel over a poster: dark enough for the particles and label, light enough to see the picture. */
+const OVER_BG = 'rgba(3,1,10,0.5)';
 
 const styles = StyleSheet.create({
   label: { position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 4, paddingTop: 4, paddingHorizontal: 6, paddingBottom: 5 },

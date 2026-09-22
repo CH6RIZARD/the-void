@@ -14,6 +14,7 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Animated, AppState, Easing, Image, StyleSheet, View } from 'react-native';
 import { VideoView } from 'expo-video';
+import { Image as ExpoImage } from 'expo-image';
 import { usePacedPlayer } from './pacedPlayer';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { AudioRing, TileLoader } from './TileChrome';
@@ -315,6 +316,11 @@ function YouTubePlayer({ tileId, source, parked, api }: PlayerProps & { parked: 
   const audio = useAudioOwner();
   const wv = useRef<WebView>(null);
   const [src] = useState(() => youtubeEmbedSrc(source, liveVidFor(source)));
+  // The veil shows the stream's thumbnail (the wall's poster) instead of a dark panel.
+  const [poster] = useState(() => {
+    const vid = liveVidFor(source);
+    return vid ? `https://i.ytimg.com/vi/${vid}/hqdefault.jpg` : null;
+  });
   const [html] = useState(() => ytPlayerHtml(src));
   const frameO = useRef(new Animated.Value(0)).current; // iframe opacity:0 until revealed
   const holdO = useRef(new Animated.Value(0)).current;
@@ -461,7 +467,10 @@ function YouTubePlayer({ tileId, source, parked, api }: PlayerProps & { parked: 
 
   return (
     <>
-      <Animated.View style={[StyleSheet.absoluteFill, { opacity: frameO, zIndex: 1 }]} pointerEvents="none" renderToHardwareTextureAndroid>
+      {/* No renderToHardwareTextureAndroid: the WebView is already a hardware layer, and a
+          cached layer over content that changes every frame is re-rendered offscreen
+          every frame. */}
+      <Animated.View style={[StyleSheet.absoluteFill, { opacity: frameO, zIndex: 1 }]} pointerEvents="none">
         <WebView
           ref={wv}
           {...PLAYER_WEBVIEW_PROPS}
@@ -474,7 +483,8 @@ function YouTubePlayer({ tileId, source, parked, api }: PlayerProps & { parked: 
       {hold ? (
         // .yt-hold{inset:0;z-index:3;background:rgba(3,1,10,.97)} + label-less sparkle
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { zIndex: 3, opacity: holdO }]}>
-          <TileLoader visible label="" animate={!parked} />
+          {poster ? <ExpoImage source={{ uri: poster }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} /> : null}
+          <TileLoader visible label="" animate={!parked} over={!!poster} />
         </Animated.View>
       ) : null}
     </>

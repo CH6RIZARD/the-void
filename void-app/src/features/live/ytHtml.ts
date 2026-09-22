@@ -8,7 +8,8 @@
 // Page → RN   (window.ReactNativeWebView.postMessage JSON)
 //   {e:'ready'}
 //   {e:'state', s:<playerState>, t:<currentTime>, d:<duration>}   onStateChange
-//   {e:'info',  s:<playerState>, t:<currentTime>, d:<duration>}   every 1s (web infoDelivery)
+//   {e:'info',  s:<playerState>, t:<currentTime>, d:<duration>}   web infoDelivery: every 1s
+//        until the first PLAYING, then on a state change or every 5s; once while paused
 //   {e:'error', c:<code>}
 // RN → page   injectJavaScript(`window.__cmd({f:'playVideo',a:[]})`)
 import { YT_ORIGIN, YT_SHADOW_KICK_MS } from './constants';
@@ -44,9 +45,17 @@ export function ytPlayerHtml(src: string, opts: { shadow?: boolean } = {}): stri
   // playVideo, every ${YT_SHADOW_KICK_MS}ms until PLAYING.
   function kick(){if(!P||playing)return;try{P.unMute();P.setVolume(100);P.playVideo();}catch(e){}}
   if(SHADOW)setInterval(kick,${YT_SHADOW_KICK_MS});
+  // Every message lands on the app's JS thread, which also draws the globe. With a
+  // wall of players at 1/s each, that was a steady stream of work for nothing: after
+  // the first PLAYING only a state change matters (time is extrapolated app-side), so
+  // it reports on change or every 5s, and a paused player reports once.
+  var lastS=null, lastAt=0;
   setInterval(function(){
     if(!P||typeof P.getPlayerState!=='function')return;
-    var s=num('getPlayerState');
+    var s=num('getPlayerState'), now=Date.now();
+    var changed=s!==lastS;
+    if(!changed&&(s===2||(playing&&now-lastAt<5000)))return;
+    lastS=s;lastAt=now;
     send({e:'info',s:s,t:num('getCurrentTime'),d:num('getDuration')});
   },1000);
   var tag=document.createElement('script');tag.src='https://www.youtube.com/iframe_api';

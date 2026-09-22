@@ -17,10 +17,11 @@
 import React, { memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, forwardRef } from 'react';
 import { AppState, Pressable, StyleSheet, Text, View, useWindowDimensions, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
+import { Image } from 'expo-image';
 import { LiveDot, TileLabel, TileLoader } from './TileChrome';
 import { StreamTile, type StreamTileHandle } from './StreamTile';
 import { useStreamCascade, type CascadeResult } from './useStreamCascade';
-import { rememberStream, wallCascadeFor, wallSlots, streamKey, type StreamSource, type StreamType, type WallSlot } from './core';
+import { liveVidFor, rememberStream, wallCascadeFor, wallSlots, streamKey, type StreamSource, type StreamType, type WallSlot } from './core';
 import {
   EVICT_SCREENS,
   FIRST_BATCH_DELAY_MS,
@@ -572,6 +573,12 @@ const WallTile = memo(function WallTile({ rec, left, top, width, height, borderC
 
   const a = cascade.attempt;
   const loaderLabel = phase === 'offline' ? '● NO SIGNAL' : a ? a.label : '● CONNECTING';
+  // POSTER FIRST: a YouTube tile shows the stream's thumbnail at once, under the loader,
+  // while its player connects - and again whenever it sleeps or is evicted - instead of
+  // a black box. The live picture replaces it the moment it plays.
+  const posterSrc = a ? a.src : s.lastSrc;
+  const vid = phase !== 'playing' && phase !== 'offline' && posterSrc?.type === 'youtube' ? liveVidFor(posterSrc) : null;
+  const poster = vid ? `https://i.ytimg.com/vi/${vid}/hqdefault.jpg` : null;
 
   return (
     <Pressable
@@ -580,6 +587,7 @@ const WallTile = memo(function WallTile({ rec, left, top, width, height, borderC
       }}
       style={({ pressed }) => [styles.tile, { left, top, width, height, borderColor, opacity: pressed ? 0.72 : 1 }]}
     >
+      {poster ? <Image source={{ uri: poster }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} recyclingKey={poster} /> : null}
       {a ? (
         <StreamTile
           key={a.key}
@@ -596,7 +604,7 @@ const WallTile = memo(function WallTile({ rec, left, top, width, height, borderC
         />
       ) : null}
       {/* Still while off screen or settled on NO SIGNAL: nothing to watch, nothing to wait for. */}
-      <TileLoader label={loaderLabel} visible={phase !== 'playing'} animate={!parked && phase !== 'offline'} />
+      <TileLoader label={loaderLabel} visible={phase !== 'playing'} animate={!parked && phase !== 'offline'} over={!!poster} />
       {phase === 'playing' && label ? <TileLabel text={label} /> : null}
     </Pressable>
   );
