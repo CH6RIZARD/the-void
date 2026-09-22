@@ -5,6 +5,7 @@ import { Animated, AppState, Easing, Pressable, StyleSheet, Text, View, useWindo
 import { GLView, type ExpoWebGLRenderingContext } from 'expo-gl';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { BlurView } from 'expo-blur';
+import { Image } from 'expo-image';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { createGlobeScene, type GlobeScene } from './globeScene';
 import { GlobeSearch } from './GlobeSearch';
@@ -54,9 +55,18 @@ export function GlobeCanvas({ running, onOpenCountry }: GlobeCanvasProps) {
   // every frame on every tab for the rest of the session.
   const rafId = useRef<number | null>(null);
   const [sceneReady, setSceneReady] = useState(false);
+  // A GL context or shader that fails on some GPU must never leave a black panel: the
+  // globe falls back to the static night map, and search still opens every nation.
+  const [glFailed, setGlFailed] = useState(false);
   const onContextCreate = useCallback((gl: ExpoWebGLRenderingContext) => {
-    scene.current = createGlobeScene(gl, countries(), size.current.w, size.current.h);
-    setSceneReady(true);
+    try {
+      scene.current = createGlobeScene(gl, countries(), size.current.w, size.current.h);
+      setSceneReady(true);
+    } catch (e) {
+      if (__DEV__) console.warn('[globe] scene failed, showing the static map', e);
+      scene.current = null;
+      setGlFailed(true);
+    }
   }, []);
   useEffect(() => {
     const s = scene.current;
@@ -65,7 +75,16 @@ export function GlobeCanvas({ running, onOpenCountry }: GlobeCanvasProps) {
     const loop = (ts: number) => {
       if (!alive) return;
       rafId.current = requestAnimationFrame(loop);
-      if (s.frame(ts || Date.now()) && !markedRef.current) {
+      let drew = false;
+      try {
+        drew = s.frame(ts || Date.now());
+      } catch (e) {
+        if (__DEV__) console.warn('[globe] frame failed, showing the static map', e);
+        alive = false;
+        setGlFailed(true);
+        return;
+      }
+      if (drew && !markedRef.current) {
         markedRef.current = true;
         interactiveRef.current({ params: { surface: 'globe' } });
       }
@@ -171,7 +190,16 @@ export function GlobeCanvas({ running, onOpenCountry }: GlobeCanvasProps) {
     <View style={[styles.wrap, { height }]}>
       <GestureDetector gesture={gesture}>
         <View style={StyleSheet.absoluteFill} collapsable={false}>
-          <GLView style={StyleSheet.absoluteFill} onContextCreate={onContextCreate} msaaSamples={4} />
+          {glFailed ? (
+            <View style={StyleSheet.absoluteFill}>
+              <Image source={EARTH_MAP} style={[StyleSheet.absoluteFill, { opacity: 0.55 }]} contentFit="cover" transition={0} />
+              <View style={styles.fallbackMsg}>
+                <Text style={{ fontFamily: t.mono, fontSize: 7, letterSpacing: em(7, 0.2), color: t.dim }}>GLOBE UNAVAILABLE ON THIS DEVICE · SEARCH A NATION</Text>
+              </View>
+            </View>
+          ) : (
+            <GLView style={StyleSheet.absoluteFill} onContextCreate={onContextCreate} msaaSamples={4} />
+          )}
         </View>
       </GestureDetector>
 
@@ -209,7 +237,11 @@ export function GlobeCanvas({ running, onOpenCountry }: GlobeCanvasProps) {
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const EARTH_MAP = require('../../../assets/globe/earth-night.jpg');
+
 const styles = StyleSheet.create({
+  fallbackMsg: { position: 'absolute', left: 0, right: 0, bottom: 14, alignItems: 'center' },
   wrap: { position: 'relative', width: '100%', flexShrink: 0, overflow: 'hidden', backgroundColor: '#04020c' },
   // #gtip{background:rgba(13,8,32,.95);border:1px solid var(--glow);padding:3px 9px;border-radius:2px}
   tip: { position: 'absolute', zIndex: 10, backgroundColor: 'rgba(13,8,32,0.95)', borderWidth: 1, paddingVertical: 3, paddingHorizontal: 9, borderRadius: 2 },
