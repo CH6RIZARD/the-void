@@ -4293,6 +4293,16 @@ function renderFeed(){
     feed.innerHTML='<div class="post-media-lbl" style="position:relative;padding:48px 18px">SCANNING VERIFIED PUBLIC SOURCES…</div>';
     return;
   }
+  // Posts arrived, but every one of them is older than the feed's window. Say that,
+  // and offer the retry - the screen used to sit on SCANNING for ever, which reads as
+  // a hung app rather than "the sources have nothing recent".
+  if(!fresh.length&&!_rendered.size){
+    const anyFresh=allPosts.some(p=>!feedTooOld(p));
+    if(!anyFresh){
+      feed.innerHTML='<button class="post-media-lbl" style="position:relative;width:100%;padding:48px 18px;background:none;border:0" onclick="refreshVoidFeed()">NOTHING IN THE LAST '+FEED_MAX_AGE_H+'H · TAP TO RETRY</button>';
+      return;
+    }
+  }
   if(!fresh.length){ensureFeedSentinel();return;}
   if(_rendered.size){
     const rebuild=()=>{_rendered.clear();_evicted.clear();feed.innerHTML='';fresh=pick();};

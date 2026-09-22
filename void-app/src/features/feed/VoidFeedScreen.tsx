@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import {
+  FEED_MAX_AGE_H,
   FEED_SETTLE_MS,
   FEED_WINDOW,
   _rendered,
@@ -43,7 +44,7 @@ import { usePostViewability } from './viewability';
 
 const EASE = Easing.bezier(0.25, 0.1, 0.25, 1);
 const hiddenFn = (p: Post) => isPostHidden(p);
-type Status = 'idle' | 'scanning' | 'error';
+type Status = 'idle' | 'scanning' | 'error' | 'stale';
 // The list outlives a remount of the tab (the web's #void-feed DOM did): nextFeedBatch
 // only ever hands a post out once, so what was already dealt is kept here.
 let dealt: Post[] = [];
@@ -96,7 +97,15 @@ export default function VoidFeedScreen() {
       }
     }
     const fresh = nextFeedBatch(hiddenFn, held);
-    if (!fresh.length) return;
+    if (!fresh.length) {
+      // Posts arrived, but every one is older than the feed's window. Say that instead
+      // of sitting on SCANNING, which reads as a hung app.
+      if (!dealt.length && allPosts.length) {
+        const oldest = Date.now() - FEED_MAX_AGE_H * 3600000;
+        if (!allPosts.some((p) => (p.time || 0) >= oldest)) setStatus('stale');
+      }
+      return;
+    }
     setItems((cur) => {
       let next = cur.concat(fresh);
       if (next.length > FEED_WINDOW.max + FEED_WINDOW.trim) {
@@ -187,7 +196,11 @@ export default function VoidFeedScreen() {
   const renderItem = useCallback(({ item, index }: { item: Post; index: number }) => <PostCard post={item} index={index} surface="feed" />, []);
 
   const empty =
-    status === 'error' ? (
+    status === 'stale' ? (
+      <Pressable onPress={onRefresh} style={styles.lblBox}>
+        <VText style={[styles.lbl, { color: colors.muted }]}>{'NOTHING IN THE LAST ' + FEED_MAX_AGE_H + 'H · TAP TO RETRY'}</VText>
+      </Pressable>
+    ) : status === 'error' ? (
       <Pressable onPress={retry} style={styles.lblBox}>
         <VText style={[styles.lbl, { color: colors.muted }]}>NO VERIFIED SIGNAL — CHECK CONNECTION AND RETRY · TAP TO RETRY</VText>
       </Pressable>
