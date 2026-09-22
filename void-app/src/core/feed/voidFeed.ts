@@ -48,12 +48,36 @@ export const _evicted = new Set<string>();   // windowed out of the list; must n
  * free, ordered by orderFeedBatch. Marks them rendered and claims the feed surface.
  * `hidden` = moderation predicate (blocked author / hidden post).
  */
-export function nextFeedBatch(hidden?: (p: Post) => boolean): Post[] {
-  let fresh = allPosts.filter(p => !_rendered.has(p.id) && !_evicted.has(p.id) && !p._offFeed && laneFree(p, 'feed') && surfaceFree(p, 'feed', hidden));
+export function nextFeedBatch(hidden?: (p: Post) => boolean, exclude?: Set<string>): Post[] {
+  let fresh = peekFeedFresh(hidden, exclude);
   if (!fresh.length) return [];
-  fresh = orderFeedBatch(fresh);
+  fresh = staleLast(orderFeedBatch(fresh));
   fresh.forEach(p => { _rendered.add(p.id); laneClaim(p, 'feed'); surfaceClaim(p, 'feed'); });
   return fresh;
+}
+// ─── SETTLE FIRST, THEN STAY LIVE (web renderFeed, same rules) ───────────
+// Append-by-arrival let whichever source answered FIRST own the top of the feed for
+// the session: signed in, that is the Void backend, so a user's days-old drop sat
+// above every newer post. The screen now re-ranks everything while it settles,
+// sorts stale posts after fresh ones, and puts anything newer than what is shown at
+// the top (or behind a NEW pill when the reader has scrolled). See VoidFeedScreen.
+export const FEED_SETTLE_MS = 20000;
+export const FEED_STALE_H = 24;
+export const FEED_POLL_MS = 45000;
+/** Fresh posts that would be dealt next, WITHOUT dealing them. */
+export function peekFeedFresh(hidden?: (p: Post) => boolean, exclude?: Set<string>): Post[] {
+  return allPosts.filter(p => !_rendered.has(p.id) && !_evicted.has(p.id) && !(exclude && exclude.has(p.id)) && !p._offFeed && laneFree(p, 'feed') && surfaceFree(p, 'feed', hidden));
+}
+/** Posts older than FEED_STALE_H follow the fresh ones; rank order kept inside each group. */
+export function staleLast(list: Post[]): Post[] {
+  const cut = env.now() - FEED_STALE_H * 3600000;
+  return list.filter(p => (p.time || 0) >= cut).concat(list.filter(p => (p.time || 0) < cut));
+}
+/** Re-deal the whole feed, ranked together; `lead` ids (if any) go first for this one pass. */
+export function rebuildFeedBatch(hidden?: (p: Post) => boolean, lead?: Set<string> | null, exclude?: Set<string>): Post[] {
+  _rendered.clear(); _evicted.clear();
+  if (lead && lead.size) setRefreshBoost(lead);
+  try { return nextFeedBatch(hidden, exclude); } finally { if (lead && lead.size) setRefreshBoost(null); }
 }
 /** A list that windows old rows away reports them here (FEED_DOM_MAX=90, trim 30). */
 export const FEED_WINDOW = { max: 90, trim: 30 };
