@@ -149,6 +149,17 @@ export function fallbackEarthTexture(): THREE.DataTexture {
  * wall samples frames with), so it cannot be refused by a driver. It is the FALLBACK:
  * the direct upload still runs first and is free where it works.
  */
+/** DataTexture has no flipY, and the map decodes top-row-first. */
+function flipRowsInPlace(data: Uint8Array, w: number, h: number): void {
+  const stride = w * 4;
+  const tmp = new Uint8Array(stride);
+  for (let y = 0; y < (h >> 1); y++) {
+    const top = y * stride, bot = (h - 1 - y) * stride;
+    tmp.set(data.subarray(top, top + stride));
+    data.copyWithin(top, bot, bot + stride);
+    data.set(tmp, bot);
+  }
+}
 function earthPixels(): { w: number; h: number; data: Uint8Array } | null {
   try {
     return decodePngRGBA(b64ToBytes(EARTH_PNG_B64));
@@ -161,37 +172,38 @@ export async function loadEarthTexture(gl: any, renderer: THREE.WebGLRenderer, r
   await asset.downloadAsync();
   if (!asset.localUri) throw new Error('earth texture: no localUri');
   for (let i = 0; i < 16 && gl.getError() !== gl.NO_ERROR; i++);
-  const potSize = { w: 0, h: 0 };   // set when the JS decode path uploads bytes
   const glTex = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, glTex);
   rawPixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true); // TextureLoader textures have flipY = true
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, { localUri: asset.localUri });
-  // Driver refused the file upload (1282 on the MT6762): decode the PNG in JS and
-  // upload plain bytes, which every driver accepts.
-  let direct = gl.getError();
+  // Driver refused the file upload (1282 on the MT6762 test phone: expo-gl's
+  // { localUri } upload is a native path and this driver rejects it). Hand the pixels
+  // to three instead - it does its own upload, mipmaps and filtering, so nothing here
+  // has to be right about raw GL state. console.warn, not log: release builds strip log.
+  const direct = gl.getError();
   if (direct !== gl.NO_ERROR) {
+    rawPixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    gl.deleteTexture(glTex);
+    renderer.resetState();
     const px = earthPixels();
-    try { console.log('[globe] direct upload refused (GL ' + direct + '); decoded PNG: ' + (px ? px.w + 'x' + px.h : 'FAILED')); } catch {}
-    if (px) {
-      gl.bindTexture(gl.TEXTURE_2D, glTex);
-      // The PNG is top-row-first like the JPEG, so the same flip applies.
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, px.w, px.h, 0, gl.RGBA, gl.UNSIGNED_BYTE, px.data);
-      potSize.w = px.w; potSize.h = px.h;
-      direct = gl.getError();
-      try { console.log('[globe] byte upload GL error: ' + direct); } catch {}
-      if (direct === gl.NO_ERROR) {
-        try {
-          console.log('[globe] earth texture: JS PNG decode path (' + px.w + 'x' + px.h + ')');
-        } catch {}
-      }
-    }
+    if (!px) throw new Error('earth texture: GL ' + direct + ' and the PNG decode failed too');
+    flipRowsInPlace(px.data, px.w, px.h);   // DataTexture ignores flipY
+    const dt = new THREE.DataTexture(px.data, px.w, px.h, THREE.RGBAFormat);
+    dt.colorSpace = THREE.SRGBColorSpace;
+    dt.magFilter = THREE.LinearFilter;
+    dt.minFilter = THREE.LinearMipmapLinearFilter;
+    dt.wrapS = THREE.ClampToEdgeWrapping;
+    dt.wrapT = THREE.ClampToEdgeWrapping;
+    dt.generateMipmaps = true;
+    dt.needsUpdate = true;
+    try { console.warn('[globe] earth texture: JS PNG decode path ' + px.w + 'x' + px.h + ' (direct upload gave GL ' + direct + ')'); } catch {}
+    return dt;
   }
   rawPixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-  const pot = (n: number) => (n & (n - 1)) === 0;
-  const mipped = potSize.w > 0 ? pot(potSize.w) && pot(potSize.h) : true;
-  if (mipped) gl.generateMipmap(gl.TEXTURE_2D);   // NPOT + mipmaps = GL 1282
+  gl.generateMipmap(gl.TEXTURE_2D);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, mipped ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   // tex.anisotropy = Math.min(4, maxAnisotropy)
@@ -202,7 +214,7 @@ export async function loadEarthTexture(gl: any, renderer: THREE.WebGLRenderer, r
       gl.texParameterf(gl.TEXTURE_2D, ext.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(4, max));
     }
   } catch {}
-  const err = direct !== gl.NO_ERROR ? direct : gl.getError();
+  const err = gl.getError();
   gl.bindTexture(gl.TEXTURE_2D, null);
   if (err !== gl.NO_ERROR) {
     gl.deleteTexture(glTex);
