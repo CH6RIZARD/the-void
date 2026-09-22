@@ -13,6 +13,8 @@
 //                        version-0 texture).
 import * as THREE from 'three';
 import { Asset } from 'expo-asset';
+import { b64ToBytes, decodePngRGBA } from '../live/frameSample';
+import { EARTH_PNG_B64 } from './earthTexture';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const EARTH = require('../../../assets/globe/earth-night.jpg');
@@ -137,6 +139,23 @@ export function fallbackEarthTexture(): THREE.DataTexture {
  * Download earth-night.jpg and upload it from file. Resolves a three.js Texture bound to
  * a raw GL texture, or rejects (caller uses the fallback, exactly like the web's onError).
  */
+/**
+ * The map as raw RGBA, decoded in JS from the bundled PNG.
+ *
+ * Why this exists: expo-gl's { localUri } upload is a driver path, and on the MT6762
+ * test phone it fails - measured on device, texImage2D leaves GL error 1282
+ * (INVALID_OPERATION) and the globe kept the flat purple fallback for every session.
+ * Decoding here uses only fflate + the app's own PNG reader (the same one the live
+ * wall samples frames with), so it cannot be refused by a driver. It is the FALLBACK:
+ * the direct upload still runs first and is free where it works.
+ */
+function earthPixels(): { w: number; h: number; data: Uint8Array } | null {
+  try {
+    return decodePngRGBA(b64ToBytes(EARTH_PNG_B64));
+  } catch {
+    return null;
+  }
+}
 export async function loadEarthTexture(gl: any, renderer: THREE.WebGLRenderer, rawPixelStorei: (p: number, v: any) => void): Promise<THREE.Texture> {
   const asset = Asset.fromModule(EARTH);
   await asset.downloadAsync();
@@ -146,6 +165,23 @@ export async function loadEarthTexture(gl: any, renderer: THREE.WebGLRenderer, r
   gl.bindTexture(gl.TEXTURE_2D, glTex);
   rawPixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true); // TextureLoader textures have flipY = true
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, { localUri: asset.localUri });
+  // Driver refused the file upload (1282 on the MT6762): decode the PNG in JS and
+  // upload plain bytes, which every driver accepts.
+  let direct = gl.getError();
+  if (direct !== gl.NO_ERROR) {
+    const px = earthPixels();
+    if (px) {
+      gl.bindTexture(gl.TEXTURE_2D, glTex);
+      // The PNG is top-row-first like the JPEG, so the same flip applies.
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, px.w, px.h, 0, gl.RGBA, gl.UNSIGNED_BYTE, px.data);
+      direct = gl.getError();
+      if (direct === gl.NO_ERROR) {
+        try {
+          console.log('[globe] earth texture: JS PNG decode path (' + px.w + 'x' + px.h + ')');
+        } catch {}
+      }
+    }
+  }
   rawPixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
   gl.generateMipmap(gl.TEXTURE_2D);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
@@ -160,7 +196,7 @@ export async function loadEarthTexture(gl: any, renderer: THREE.WebGLRenderer, r
       gl.texParameterf(gl.TEXTURE_2D, ext.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(4, max));
     }
   } catch {}
-  const err = gl.getError();
+  const err = direct !== gl.NO_ERROR ? direct : gl.getError();
   gl.bindTexture(gl.TEXTURE_2D, null);
   if (err !== gl.NO_ERROR) {
     gl.deleteTexture(glTex);
