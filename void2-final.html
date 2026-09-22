@@ -251,7 +251,6 @@ html,body{height:100%;background:var(--bg);background-image:var(--bg-radial);col
 .gl-tile:has(video.playing-media) .sparkle-fallback{display:none!important}
 .gl-tile-label{position:absolute;bottom:0;left:0;right:0;z-index:4;background:linear-gradient(transparent,rgba(0,0,0,.9));padding:4px 6px 5px;font-family:'Syne Mono',monospace;font-size:7px;color:var(--gold);letter-spacing:.1em;pointer-events:none}
 #screen-void{padding-top:0}
-#feed-new-pill{position:fixed;top:calc(env(safe-area-inset-top,0px) + 70px);left:50%;transform:translateX(-50%);z-index:60;border:1px solid rgba(201,168,76,.55);background:rgba(13,8,32,.92);color:#c9a84c;font-family:'Syne Mono',monospace;font-size:10px;letter-spacing:.2em;padding:9px 16px;border-radius:20px;box-shadow:0 6px 20px rgba(0,0,0,.45);cursor:pointer}
 .bio-hud{position:fixed;top:0;left:0;z-index:60;padding:14px 18px 10px;display:flex;align-items:center;pointer-events:none;transition:opacity .22s ease,transform .22s ease}
 .bio-logo{font-weight:800;font-size:15px;letter-spacing:.14em}
 .bio-logo span{color:var(--gold)}
@@ -4227,63 +4226,45 @@ const _rendered=new Set();
 // Ids removed from the DOM by trimFeedDOM. They must NOT count as fresh or the
 // next pull re-appends them at the bottom as duplicates.
 const _evicted=new Set();   // post ids currently in the DOM, in display order
-// ─── SETTLE FIRST, THEN STAY LIVE ─────────────────────────────────────────────
-// "Why is my 5-day-old post first?" The feed is append-only by ARRIVAL: each batch is
-// ranked only against itself and added below what is on screen. Signed in, the Void
-// backend (Void users' own drops) answers well before Bluesky and the other outside
-// sources, so its batch painted first and alone - and whatever topped THAT batch sat
-// at the top of the feed for the whole session, however old. Every newer post that
-// arrived after it went underneath. The same rule is why the feed never looked live:
-// anything a background pull brought in landed below the fold.
+// ─── A LIVE FEED: FRESH ONLY, SETTLE FIRST, NEW AT THE TOP ────────────────────
+// "Why is my post from days ago in the feed at all?" Two things put it there.
+//  1. Nothing was ever too old for the feed: a 5-day-old Void drop was as eligible
+//     as a post from a minute ago.
+//  2. The feed was append-only by ARRIVAL. Each batch was ranked only against itself
+//     and added below what was on screen. Signed in, the Void backend answers before
+//     Bluesky and the other outside sources, so its batch painted first and alone -
+//     and whatever topped THAT batch owned the top of the feed for the session.
+//     Background pulls only ever added to the bottom, so it never looked live.
 //
 // Now:
-//  - SETTLE: for the first FEED_SETTLE_MS, while the reader is still at the top, a
-//    new batch re-ranks EVERYTHING instead of stacking under the first one. The
-//    first screen reflects every source, not just the fastest.
-//  - STALE LAST: inside any batch, posts older than FEED_STALE_H follow the fresh
-//    ones. Rank still orders within each group.
-//  - LIVE: after settling, posts newer than anything on screen go to the TOP -
-//    straight in when the reader is at the top, otherwise behind a "N NEW" pill so
-//    nothing moves under their thumb. Void users' posts are polled while the feed
-//    is open (FEED_POLL_MS).
-const FEED_SETTLE_MS=20000, FEED_STALE_H=24, FEED_POLL_MS=45000;
+//  - FRESH ONLY: posts older than FEED_MAX_AGE_H never enter the feed.
+//  - SETTLE: for the first FEED_SETTLE_MS, while the reader is at the top, a new batch
+//    re-ranks everything instead of stacking under the first one.
+//  - STALE LAST: inside a batch, posts older than FEED_STALE_H follow fresher ones.
+//  - REFRESH TO SEE NEW: once settled, a post newer than anything on screen is HELD,
+//    never inserted - the feed only changes under the reader when they pull to
+//    refresh (refreshVoidFeed rebuilds and they lead). Infinite scroll still appends
+//    older posts at the bottom.
+const FEED_MAX_AGE_H=48, FEED_SETTLE_MS=20000, FEED_STALE_H=24;
+// Refresh depth: pull up to FEED_REFRESH_PULLS pages until FEED_REFRESH_MIN unseen
+// posts are held; with at least FEED_REFRESH_REPLACE unseen, the refreshed feed shows
+// ONLY unseen posts.
+const FEED_REFRESH_MIN=20, FEED_REFRESH_PULLS=3, FEED_REFRESH_REPLACE=8;
 let _feedFirstAt=0, _feedNewest=0;
-const _feedPending=new Set();
 function feedAtTop(){const sc=document.getElementById('screen-void');return !sc||sc.scrollTop<120;}
+function feedTooOld(p){return (p.time||0)<Date.now()-FEED_MAX_AGE_H*3600000;}
 function staleLast(list){
   const cut=Date.now()-FEED_STALE_H*3600000;
   return list.filter(p=>(p.time||0)>=cut).concat(list.filter(p=>(p.time||0)<cut));
 }
-function feedNewPill(){
-  let b=document.getElementById('feed-new-pill');
-  const n=_feedPending.size;
-  if(!n){if(b)b.remove();return;}
-  if(!b){
-    b=document.createElement('button');b.id='feed-new-pill';b.type='button';
-    b.onclick=acceptFeedPending;
-    const sc=document.getElementById('screen-void');(sc||document.body).appendChild(b);
-  }
-  b.textContent='▲ '+n+' NEW';
-}
-function acceptFeedPending(){
-  const feed=document.getElementById('void-feed');if(!feed)return;
-  _refreshBoost=new Set(_feedPending);_feedPending.clear();feedNewPill();
-  const sc=document.getElementById('screen-void');if(sc)sc.scrollTop=0;
-  _rendered.clear();_evicted.clear();feed.innerHTML='';
-  renderFeed();
-  _refreshBoost=null;
-}
-setInterval(()=>{
-  if(document.hidden||typeof activeTab==='undefined'||activeTab!=='void')return;
-  try{pullSupabasePosts(true);}catch(e){}
-},FEED_POLL_MS);
+function noteFeedNewest(list){for(const p of list)if((p.time||0)>_feedNewest&&(p.time||0)<=Date.now()+60000)_feedNewest=p.time;}
 function renderFeed(){
   const feed=document.getElementById('void-feed');
   if(!feed)return;
   // surfaceFree: anything SEARCH has already shown (by id, same text or same link)
   // never renders here — the two surfaces are mutually exclusive (see SURFACES).
-  const pick=()=>allPosts.filter(p=>!_rendered.has(p.id)&&!_evicted.has(p.id)&&!_feedPending.has(p.id)&&!p._offFeed&&laneFree(p,'feed')&&surfaceFree(p,'feed'));
-  let fresh=pick(),liveLift=false;
+  const pick=()=>allPosts.filter(p=>!_rendered.has(p.id)&&!_evicted.has(p.id)&&!p._offFeed&&!feedTooOld(p)&&laneFree(p,'feed')&&surfaceFree(p,'feed'));
+  let fresh=pick();
   if(!allPosts.length){
     feed.innerHTML='<div class="post-media-lbl" style="position:relative;padding:48px 18px">SCANNING VERIFIED PUBLIC SOURCES…</div>';
     return;
@@ -4295,22 +4276,15 @@ function renderFeed(){
     if(Date.now()-_feedFirstAt<FEED_SETTLE_MS){
       if(atTop)rebuild();                        // still settling: rank everything together
     }else{
-      const lead=fresh.filter(p=>(p.time||0)>_feedNewest);   // newer than anything on screen
-      if(lead.length){
-        if(atTop){_refreshBoost=new Set(lead.map(p=>p.id));liveLift=true;rebuild();}
-        else{
-          lead.forEach(p=>_feedPending.add(p.id));feedNewPill();
-          fresh=fresh.filter(p=>!_feedPending.has(p.id));
-          if(!fresh.length){ensureFeedSentinel();return;}
-        }
-      }
+      // Settled: anything newer than what is on screen waits for a refresh.
+      fresh=fresh.filter(p=>(p.time||0)<=_feedNewest);
+      if(!fresh.length){ensureFeedSentinel();return;}
     }
   }
   // Rank the posts being placed against each other, then append in that order.
   fresh=staleLast(orderFeedBatch(fresh));   // rank, cap each story's lift, break up the monoculture, stale last
-  if(liveLift)_refreshBoost=null;           // a live lift is for this one render only
   if(!_feedFirstAt)_feedFirstAt=Date.now();
-  for(const p of fresh)if((p.time||0)>_feedNewest&&(p.time||0)<=Date.now()+60000)_feedNewest=p.time;
+  noteFeedNewest(fresh);
   const startIdx=_rendered.size;
   const html=fresh.map((p,i)=>renderPost(p,startIdx+i)).join('');
   const sentinel=document.getElementById('feed-sentinel');
@@ -4389,14 +4363,27 @@ async function refreshVoidFeed(){
     // pulled — so the first thing the reader saw after a refresh was the same top
     // post as before, and anything new landed below the fold. Ranking is
     // deterministic, so re-ranking an unchanged set cannot change the top slot.
-    const had=new Set(allPosts.map(p=>p.id));
+    // Everything the reader has NOT seen leads after a refresh: this pull's arrivals
+    // AND the newer posts held back since the feed settled (they are only ever shown
+    // by refreshing). Seen = what is or was on screen, not merely what was fetched.
+    const had=new Set([..._rendered,..._evicted]);
     try{await pullSupabasePosts(true);}catch(e){}   // Void users' own drops (with media)
-    await pullVoidFeed();
-    // Whatever arrived in THIS pull leads the feed. That is what "refresh" means
-    // to a reader: show me what I have not seen. Rank still orders within the new
-    // batch, and previously-held posts follow underneath in their own rank order.
+    // DEPTH. One pull is one page - measured, ~12 posts survive the age and dedupe
+    // gates - so a refresh used to give a dozen new posts on top of everything the
+    // reader had already scrolled past. Keep pulling (bounded) until there is a
+    // screenful-and-more of UNSEEN posts, then REPLACE the feed with only those.
+    const unseen=()=>allPosts.filter(p=>!had.has(p.id)&&!p._offFeed&&!feedTooOld(p)&&laneFree(p,'feed')&&surfaceFree(p,'feed')).length;
+    for(let i=0;i<FEED_REFRESH_PULLS&&unseen()<FEED_REFRESH_MIN;i++){
+      const before=unseen();
+      await pullVoidFeed();
+      if(unseen()===before&&i)break;                 // sources are dry right now
+    }
+    // Whatever the reader has not seen leads; rank orders within it.
     _refreshBoost=new Set(allPosts.filter(p=>!had.has(p.id)).map(p=>p.id));
     _rendered.clear();_evicted.clear();                 // rebuild rather than append
+    // Enough new to fill the feed: what they already saw is gone, not reshuffled.
+    // Too little (sources dry): keep it underneath rather than show a near-empty feed.
+    if(unseen()>=FEED_REFRESH_REPLACE)had.forEach(id=>_evicted.add(id));
     const feed=document.getElementById('void-feed');
     if(feed)feed.innerHTML='';
     renderFeed();

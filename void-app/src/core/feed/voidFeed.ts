@@ -58,15 +58,21 @@ export function nextFeedBatch(hidden?: (p: Post) => boolean, exclude?: Set<strin
 // ─── SETTLE FIRST, THEN STAY LIVE (web renderFeed, same rules) ───────────
 // Append-by-arrival let whichever source answered FIRST own the top of the feed for
 // the session: signed in, that is the Void backend, so a user's days-old drop sat
-// above every newer post. The screen now re-ranks everything while it settles,
-// sorts stale posts after fresh ones, and puts anything newer than what is shown at
-// the top (or behind a NEW pill when the reader has scrolled). See VoidFeedScreen.
+// above every newer post. Posts older than FEED_MAX_AGE_H never enter the feed; the
+// screen re-ranks everything while it settles and sorts stale posts after fresh
+// ones; once settled, anything newer than what is shown waits for a pull-to-refresh.
+// See VoidFeedScreen.
+export const FEED_MAX_AGE_H = 48;
 export const FEED_SETTLE_MS = 20000;
 export const FEED_STALE_H = 24;
-export const FEED_POLL_MS = 45000;
+/** Refresh depth (web refreshVoidFeed): pull up to PULLS pages for MIN unseen; replace with only unseen at REPLACE+. */
+export const FEED_REFRESH_MIN = 20;
+export const FEED_REFRESH_PULLS = 3;
+export const FEED_REFRESH_REPLACE = 8;
 /** Fresh posts that would be dealt next, WITHOUT dealing them. */
 export function peekFeedFresh(hidden?: (p: Post) => boolean, exclude?: Set<string>): Post[] {
-  return allPosts.filter(p => !_rendered.has(p.id) && !_evicted.has(p.id) && !(exclude && exclude.has(p.id)) && !p._offFeed && laneFree(p, 'feed') && surfaceFree(p, 'feed', hidden));
+  const oldest = env.now() - FEED_MAX_AGE_H * 3600000;
+  return allPosts.filter(p => !_rendered.has(p.id) && !_evicted.has(p.id) && !(exclude && exclude.has(p.id)) && !p._offFeed && (p.time || 0) >= oldest && laneFree(p, 'feed') && surfaceFree(p, 'feed', hidden));
 }
 /** Posts older than FEED_STALE_H follow the fresh ones; rank order kept inside each group. */
 export function staleLast(list: Post[]): Post[] {
@@ -93,11 +99,22 @@ export async function refreshVoidFeed(hidden?: (p: Post) => boolean): Promise<Po
   if (_refreshing) return null; _refreshing = true;
   try {
     resetProxyOffset();
-    const had = new Set(allPosts.map(p => p.id));
+    // Everything not yet seen leads: this pull's arrivals AND posts held back since the
+    // feed settled (only a refresh shows them). Seen = on screen now or windowed out.
+    const had = new Set([..._rendered, ..._evicted]);
     try { await pullSupabasePosts(true); } catch { /* */ }   // Void users' own drops (with media)
-    await pullVoidFeed();
+    // Depth: one pull is ~12 usable posts. Pull (bounded) until a screenful-and-more is
+    // unseen, then show ONLY unseen posts - what was already read is gone, not reshuffled.
+    const oldest = env.now() - FEED_MAX_AGE_H * 3600000;
+    const unseen = () => allPosts.filter(p => !had.has(p.id) && !p._offFeed && (p.time || 0) >= oldest && laneFree(p, 'feed') && surfaceFree(p, 'feed', hidden)).length;
+    for (let i = 0; i < FEED_REFRESH_PULLS && unseen() < FEED_REFRESH_MIN; i++) {
+      const before = unseen();
+      await pullVoidFeed();
+      if (unseen() === before && i) break;   // sources are dry right now
+    }
     setRefreshBoost(new Set(allPosts.filter(p => !had.has(p.id)).map(p => p.id)));
     _rendered.clear(); _evicted.clear();
+    if (unseen() >= FEED_REFRESH_REPLACE) had.forEach(id => _evicted.add(id));
     return nextFeedBatch(hidden);
   } finally { setRefreshBoost(null); _refreshing = false; }
 }

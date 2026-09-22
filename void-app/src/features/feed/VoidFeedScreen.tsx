@@ -10,13 +10,12 @@
 // only new arrivals are ranked (nextFeedBatch) and appended; refresh rebuilds with the
 // new pull leading; the list windows old rows away past FEED_WINDOW (90 + 30 slack).
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, FlatList, Pressable, RefreshControl, StyleSheet, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import { FlatList, Pressable, RefreshControl, StyleSheet, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import {
-  FEED_POLL_MS,
   FEED_SETTLE_MS,
   FEED_WINDOW,
   _rendered,
@@ -68,13 +67,11 @@ export default function VoidFeedScreen() {
   // by arrival, so the fastest source - the Void backend, signed in - owned the top
   // for the whole session and a days-old drop sat above everything newer.
   //   settling (first FEED_SETTLE_MS, reader at the top): re-rank everything
-  //   after:   posts newer than anything shown go to the top when the reader is at
-  //            the top, otherwise wait behind the "N NEW" pill
+  //   after:   posts newer than anything shown are HELD until pull-to-refresh -
+  //            nothing is inserted under the reader
   const firstAt = useRef(dealt.length ? Date.now() - FEED_SETTLE_MS : 0);
   const atTop = useRef(true);
   const newest = useRef(0);
-  const pending = useRef(new Set<string>());
-  const [pendingN, setPendingN] = useState(0);
   useEffect(() => {
     const cap = Date.now() + 60000;
     for (const p of items) if ((p.time || 0) > newest.current && (p.time || 0) <= cap) newest.current = p.time || 0;
@@ -84,35 +81,21 @@ export default function VoidFeedScreen() {
     setItems(batch);
     setStatus(batch.length || allPosts.length ? 'idle' : 'error');
   }, []);
-  const acceptPending = useCallback(() => {
-    const lead = new Set(pending.current);
-    pending.current.clear();
-    setPendingN(0);
-    listRef.current?.scrollToOffset({ offset: 0, animated: false });
-    replaceAll(rebuildFeedBatch(hiddenFn, lead));
-  }, [replaceAll]);
 
   // renderFeed(): append whatever is fresh, then window the list.
   const append = useCallback(() => {
+    let held: Set<string> | undefined;
     if (dealt.length) {
       if (Date.now() - firstAt.current < FEED_SETTLE_MS) {
         if (atTop.current) {
-          replaceAll(rebuildFeedBatch(hiddenFn, null, pending.current));
+          replaceAll(rebuildFeedBatch(hiddenFn));
           return;
         }
       } else {
-        const lead = peekFeedFresh(hiddenFn, pending.current).filter((p) => (p.time || 0) > newest.current);
-        if (lead.length) {
-          if (atTop.current) {
-            replaceAll(rebuildFeedBatch(hiddenFn, new Set(lead.map((p) => p.id)), pending.current));
-            return;
-          }
-          lead.forEach((p) => pending.current.add(p.id));
-          setPendingN(pending.current.size);
-        }
+        held = new Set(peekFeedFresh(hiddenFn).filter((p) => (p.time || 0) > newest.current).map((p) => p.id));
       }
     }
-    const fresh = nextFeedBatch(hiddenFn, pending.current);
+    const fresh = nextFeedBatch(hiddenFn, held);
     if (!fresh.length) return;
     setItems((cur) => {
       let next = cur.concat(fresh);
@@ -127,23 +110,6 @@ export default function VoidFeedScreen() {
     });
     setStatus('idle');
   }, [replaceAll]);
-
-  // Live: while the feed is on screen and the app is in front, poll Void users' posts.
-  const focused = useRef(false);
-  useFocusEffect(
-    useCallback(() => {
-      focused.current = true;
-      return () => {
-        focused.current = false;
-      };
-    }, []),
-  );
-  useEffect(() => {
-    const t = setInterval(() => {
-      if (focused.current && AppState.currentState === 'active') pullSupabasePosts(true).catch(() => {});
-    }, FEED_POLL_MS);
-    return () => clearInterval(t);
-  }, []);
 
   const pull = useCallback(async () => {
     const res = await pullVoidFeed();
@@ -200,8 +166,6 @@ export default function VoidFeedScreen() {
     setRefreshing(true);
     listRef.current?.scrollToOffset({ offset: 0, animated: false });
     try {
-      pending.current.clear();
-      setPendingN(0);
       const batch = await refreshVoidFeed(hiddenFn);
       if (batch && alive.current) {
         setItems(batch);
@@ -280,16 +244,6 @@ export default function VoidFeedScreen() {
         </VText>
       </Animated.View>
 
-      {/* #feed-new-pill: newer posts arrived while the reader was scrolled away */}
-      {pendingN ? (
-        <Pressable
-          onPress={acceptPending}
-          accessibilityLabel={pendingN + ' new posts'}
-          style={({ pressed }) => [styles.pill, { top: 70 + insets.top, borderColor: colors.gold }, pressed && { opacity: 0.8 }]}
-        >
-          <VText style={[styles.pillT, { color: colors.gold }]}>{'▲ ' + pendingN + ' NEW'}</VText>
-        </Pressable>
-      ) : null}
 
       {/* #compose-fab */}
       <Pressable
@@ -320,8 +274,6 @@ const styles = StyleSheet.create({
   logo: { fontFamily: FONTS.sansExtraBold, fontSize: 15, letterSpacing: em(15, 0.14) },
   lblBox: { paddingVertical: 48, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center' },
   lbl: { fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.15), textAlign: 'center' },
-  pill: { position: 'absolute', alignSelf: 'center', zIndex: 70, borderWidth: 1, borderRadius: 20, paddingVertical: 9, paddingHorizontal: 16, backgroundColor: 'rgba(13,8,32,0.92)' },
-  pillT: { fontFamily: FONTS.mono, fontSize: 10, letterSpacing: em(10, 0.2) },
   fab: { position: 'absolute', right: 18, zIndex: 60, width: 52, height: 52, borderRadius: 26, boxShadow: '0px 8px 24px rgba(124,58,237,0.45)' },
   fabFill: { flex: 1, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
   fabT: { fontFamily: FONTS.sans, fontSize: 24, lineHeight: 26, color: '#fff' },
