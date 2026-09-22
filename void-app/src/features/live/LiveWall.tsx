@@ -23,6 +23,7 @@ import { StreamTile, type StreamTileHandle } from './StreamTile';
 import { useStreamCascade, type CascadeResult } from './useStreamCascade';
 import { liveVidFor, rememberStream, wallCascadeFor, wallSlots, streamKey, type StreamSource, type StreamType, type WallSlot } from './core';
 import {
+  EVICT_MARGIN_SCREENS,
   EVICT_SCREENS,
   FIRST_BATCH_DELAY_MS,
   MAX_MOUNTED_PLAYERS,
@@ -360,7 +361,7 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
       }
     };
     evictFarthest(web, MAX_MOUNTED_WEBVIEWS, EVICT_SCREENS);
-    evictFarthest(live, MAX_MOUNTED_PLAYERS, PARK_SCREENS);
+    evictFarthest(live, MAX_MOUNTED_PLAYERS, EVICT_MARGIN_SCREENS);
     const same = (a: Set<number>, b: Set<number>) => a.size === b.size && [...a].every((x) => b.has(x));
     if (!same(parked, placementRef.current.parked) || !same(evicted, placementRef.current.evicted)) setPlacement({ parked, evicted });
   }, [w]);

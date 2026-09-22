@@ -69,6 +69,17 @@ export const MAX_MOUNTED_WEBVIEWS = 4;
  * Android killed the app (2026-09-22).
  */
 export const MAX_MOUNTED_PLAYERS = 6;
+/**
+ * How far off screen a tile must be to be given up when the wall is over budget.
+ * 0 = anything not fully in view. A tile you can see always keeps playing.
+ */
+export const EVICT_MARGIN_SCREENS = 0;
+/**
+ * Per-player buffers for wall tiles. Measured on the test phone: graphics surfaces
+ * (EGL 302 MB + GL 49 MB) and decoder buffers dominate the app's memory, so each tile
+ * holds the least that still plays smoothly.
+ */
+export const WALL_BUFFER = { preferredForwardBufferDuration: 4, minBufferForPlayback: 1.5, maxBufferBytes: 4 << 20 };
 
 // ─── One stream, one place on screen (web claimLiveKey/releaseLiveKey) ───────
 const liveClaimed = new Set<string>();

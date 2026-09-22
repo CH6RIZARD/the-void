@@ -22,7 +22,7 @@ import { useAudioOwner, type AudioTarget } from './AudioOwner';
 import { liveVidFor, markBadStream, type StreamSource } from './core';
 import { createSignalChecker, frameVerdict, FRAME_H, FRAME_JUDGE_DELAY, FRAME_W } from '../../core';
 import { sampleFrame, sampleFramePaced } from './frameSample';
-import { CONNECT_TIMEOUT, YT_DEAD_CODES, YT_NUDGE_MS, YT_VEIL_MS, youtubeEmbedSrc } from './constants';
+import { CONNECT_TIMEOUT, WALL_BUFFER, YT_DEAD_CODES, YT_NUDGE_MS, YT_VEIL_MS, youtubeEmbedSrc } from './constants';
 import { PLAYER_WEBVIEW_PROPS, YT_BASE_URL, parseYtMsg, ytCmd, ytPlayerHtml } from './ytHtml';
 
 export interface StreamTileHandle {
@@ -167,8 +167,9 @@ function HlsPlayer({ tileId, source, parked, api }: PlayerProps & { parked: bool
       (p as any).audioMixingMode = 'mixWithOthers';
     } catch {}
     try {
-      // web hls.js maxBufferLength:8
-      (p as any).bufferOptions = { ...((p as any).bufferOptions || {}), preferredForwardBufferDuration: 8 };
+      // web hls.js maxBufferLength:8 - tighter here: a wall of tiles buffering 8s each
+      // was a large share of the app's memory on the test phone.
+      (p as any).bufferOptions = { ...((p as any).bufferOptions || {}), ...WALL_BUFFER };
     } catch {}
     try {
       (p as any).showNowPlayingNotification = false;

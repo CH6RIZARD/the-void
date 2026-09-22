@@ -15,6 +15,25 @@ const sh = (cmd) => execFileSync(ADB, ['shell', cmd], { encoding: 'utf8' });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const shot = (name) => fs.writeFileSync(path.join(out, name + '.png'), execFileSync(ADB, ['exec-out', 'screencap', '-p']));
 const tap = (x, y) => sh(`input tap ${x} ${y}`);
+/** The screen's own text, from the accessibility tree - taps get dropped while the app is busy. */
+function screenText() {
+  try {
+    sh('uiautomator dump /data/local/tmp/ui.xml');
+    return sh('cat /data/local/tmp/ui.xml');
+  } catch {
+    return '';
+  }
+}
+/** Tap until the screen shows `want`, so a dropped tap can never mislabel a run. */
+async function tapUntil(xy, want, tries = 5) {
+  for (let i = 0; i < tries; i++) {
+    tap(...xy);
+    await sleep(2500);
+    if (screenText().includes(want)) return true;
+  }
+  console.error(`!! never reached ${want}`);
+  return false;
+}
 
 const NAV = { feed: [125, 1378], globe: [242, 1378] };
 const TOGGLE = { reels: [297, 120], globe: [424, 120] };
@@ -39,19 +58,19 @@ for (let i = 0; i < 6; i++) {
   sh('input swipe 360 1100 360 450 280');
   await sleep(3000);
 }
-tap(...NAV.globe);
-await sleep(500);
-tap(...TOGGLE.globe); // make sure GLOBE is showing, whatever mode was stored
+await tapUntil(NAV.globe, 'LIVE FEEDS');
+await tapUntil(TOGGLE.globe, 'DRAG'); // GLOBE side, whatever mode was stored
 label('globe');
 await sleep(12000);
 shot('2-globe-12s');
 await sleep(28000);
 shot('3-globe-40s');
-tap(...TOGGLE.reels);
+await tapUntil(TOGGLE.reels, 'FOR YOU');
 label('reels');
 await sleep(20000);
 shot('4-reels');
 tap(...NAV.feed);
+await sleep(1500);
 label('away');
 await sleep(60000);
 shot('5-away');
