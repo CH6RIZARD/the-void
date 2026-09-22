@@ -12,7 +12,7 @@
 // The caller (useStreamCascade / WallTile) does the instant refusals and the
 // one-stream-one-place claim before mounting this, and releases the claim on unmount.
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { Animated, AppState, Easing, Image, StyleSheet, View } from 'react-native';
+import { Animated, AppState, Easing, Image, PixelRatio, StyleSheet, View } from 'react-native';
 import { VideoView } from 'expo-video';
 import { Image as ExpoImage } from 'expo-image';
 import { usePacedPlayer } from './pacedPlayer';
@@ -22,6 +22,7 @@ import { useAudioOwner, type AudioTarget } from './AudioOwner';
 import { liveVidFor, markBadStream, type StreamSource } from './core';
 import { createSignalChecker, frameVerdict, FRAME_H, FRAME_JUDGE_DELAY, FRAME_W } from '../../core';
 import { sampleFrame, sampleFramePaced } from './frameSample';
+import { variantCached, variantFor } from './hlsVariant';
 import { CONNECT_TIMEOUT, WALL_BUFFER, YT_DEAD_CODES, YT_NUDGE_MS, YT_VEIL_MS, youtubeEmbedSrc } from './constants';
 import { PLAYER_WEBVIEW_PROPS, YT_BASE_URL, parseYtMsg, ytCmd, ytPlayerHtml } from './ytHtml';
 
@@ -44,6 +45,8 @@ export interface StreamTileProps {
   radius?: number;
   /** false when the host keeps its own persistent loader across attempts (the wall does). */
   showLoader?: boolean;
+  /** Tile width in layout px: an HLS stream plays at the smallest size that covers it. */
+  tileWidth?: number;
   onSettled(ok: boolean): void;
   onNeedsHeal?(): void;
 }
@@ -66,7 +69,7 @@ const SIGNAL_CHECK_MS = 15000;
 const EASE = Easing.bezier(0.25, 0.1, 0.25, 1);
 
 export const StreamTile = forwardRef<StreamTileHandle, StreamTileProps>(function StreamTile(props, ref) {
-  const { tileId, source, loaderLabel = '● CONNECTING', parked = false, radius = 6, showLoader = true } = props;
+  const { tileId, source, loaderLabel = '● CONNECTING', parked = false, radius = 6, showLoader = true, tileWidth } = props;
   const audio = useAudioOwner();
   const [playing, setPlaying] = useState(false);
   const done = useRef(false);
@@ -128,7 +131,7 @@ export const StreamTile = forwardRef<StreamTileHandle, StreamTileProps>(function
   let media: React.ReactNode = null;
   switch (source.type) {
     case 'hls':
-      media = <HlsPlayer tileId={tileId} source={source} parked={parked} api={api} />;
+      media = <HlsPlayer tileId={tileId} source={source} parked={parked} api={api} tileWidth={tileWidth} />;
       break;
     case 'youtube':
       media = <YouTubePlayer tileId={tileId} source={source} parked={parked} api={api} />;
@@ -157,9 +160,24 @@ interface PlayerProps {
 }
 
 // ─── HLS / mp4 → expo-video ──────────────────────────────────────────────────
-function HlsPlayer({ tileId, source, parked, api }: PlayerProps & { parked: boolean }) {
+function HlsPlayer({ tileId, source, parked, api, tileWidth }: PlayerProps & { parked: boolean; tileWidth?: number }) {
   const audio = useAudioOwner();
-  const url = source.url || '';
+  const raw = source.url || '';
+  // Play the smallest variant that covers this tile (see hlsVariant.ts). Already
+  // resolved streams start on it; the rest connect on the master playlist as before
+  // and switch once it is read, which is also what a failed read leaves in place.
+  const targetW = PixelRatio.getPixelSizeForLayoutSize(tileWidth || 180);
+  const [url, setUrl] = useState(() => variantCached(raw, targetW) || raw);
+  useEffect(() => {
+    let alive = true;
+    variantFor(raw, targetW).then((u) => {
+      if (alive && u !== url) setUrl(u);
+    });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [raw, targetW]);
   const player = usePacedPlayer({ uri: url, contentType: /\.m3u8(\?|$)/i.test(url) ? 'hls' : 'auto' } as any, (p) => {
     p.muted = true;
     p.loop = true;

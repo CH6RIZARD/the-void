@@ -66,6 +66,9 @@ export interface ReelsViewProps {
 
 /** Near the end when fewer than three screens remain below (ct.scrollTop + clientHeight*3 > scrollHeight). */
 const nearEnd = (idx: number, len: number) => len - idx < 3;
+/** Nothing to show after this long: say NO SIGNAL and offer a retry (never a spinner forever). */
+const STALL_MS = 12000;
+const STALL_RETRY_MS = 15000;
 
 export function ReelsView({ active, nation, postId, overlay: overlayProp, onClose }: ReelsViewProps) {
   const { colors } = useTheme();
@@ -164,6 +167,35 @@ export function ReelsView({ active, nation, postId, overlay: overlayProp, onClos
       if (nearEnd(curRef.current, itemsRef.current.length)) append(appendMore());
     });
   }, [mode, live, append]);
+
+  // NEVER A PERMANENT SPINNER. Every source can fail (offline, a blocked media host,
+  // a dry pool) and pullReelPage then returns without emitting anything, so the surface
+  // used to sit on "PULLING SIGNAL…" for the rest of the session with nothing to tap.
+  // After STALL_MS with nothing, it says so, retries by itself, and takes a tap.
+  const [stalled, setStalled] = useState(false);
+  const retry = useCallback(() => {
+    const picks = seedInline();
+    if (picks.length) {
+      setItems(picks);
+      setPulling(false);
+      setStalled(false);
+    }
+    return picks.length > 0;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (mode !== 'inline' || !live || items.length) {
+      setStalled(false);
+      return;
+    }
+    const t = setTimeout(() => setStalled(true), STALL_MS);
+    return () => clearTimeout(t);
+  }, [mode, live, items.length]);
+  useEffect(() => {
+    if (!stalled) return;
+    const iv = setInterval(retry, STALL_RETRY_MS);
+    return () => clearInterval(iv);
+  }, [stalled, retry]);
 
   // ── moderation sweep (hidden posts leave every surface) ────────────
   const sweep = useCallback(() => {
@@ -316,6 +348,12 @@ export function ReelsView({ active, nation, postId, overlay: overlayProp, onClos
         overlay ? (
           // openReel with nothing seeded: the video surface shows the original sparkle/float
           <SparkleLoader surface="media" label="" />
+        ) : stalled ? (
+          <Pressable onPress={retry} hitSlop={16}>
+            <Text allowFontScaling={false} style={[styles.empty, { color: colors.muted }]}>
+              NO SIGNAL · TAP TO RETRY
+            </Text>
+          </Pressable>
         ) : (
           <Text allowFontScaling={false} style={[styles.empty, { color: colors.muted }]}>
             PULLING SIGNAL{'…'}

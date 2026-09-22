@@ -19,6 +19,7 @@ import { configureCore, createMemoryStorage, initAuth, moderation, BIO, persistS
 import { ensureCore } from '../features/auth/coreBridge';
 import { continueAnonymously } from '../features/auth/authActions';
 import { AUTH_REDIRECT_URL } from '../nav/routes';
+import { fetchWithDeadline } from './net';
 
 let booted: Promise<void> | null = null;
 let storageRef: KVStorage | null = null;
@@ -114,7 +115,10 @@ export function bootCore(): Promise<void> {
     configureCore({
       storage,
       session: createMemoryStorage(),
-      fetch: (u, i) => (globalThis as any).fetch(u, i),
+      // Every core request (proxy, Bluesky, Reddit, PeerTube, Supabase REST, uploads)
+      // gets a deadline: a stalled connection must never hold a surface's lock for the
+      // rest of the session. See lib/net.ts.
+      fetch: (u, i) => fetchWithDeadline(u, i),
       now: () => Date.now(),
       random: () => Math.random(),
       oauthRedirect: AUTH_REDIRECT_URL,
