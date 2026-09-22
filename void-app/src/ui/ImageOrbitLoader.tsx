@@ -10,13 +10,12 @@
 //                                 (1) top:-1 left:50% ml:-1 opacity .7   (2) bottom:1 left:50% ml:-1 opacity .35
 //   .img-load-lbl{Syne Mono 7px; letter-spacing .3em; color var(--nav-dim)}  "LOADING IMAGE"
 //   Always animates, even with reduce motion on.
-import React, { memo } from 'react';
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import Animated, { useAnimatedStyle } from 'react-native-reanimated';
+import React, { memo, useMemo } from 'react';
+import { Animated, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
 import { FONTS, em } from '../theme/palettes';
 import { VText } from './Text';
-import { useLoaderClock } from './loaders/useLoaderClock';
+import { useLoaderLoop, useLoaderShown } from './loaders/useLoaderClock';
 
 const OUT_MS = 3400;
 const IN_MS = 2200;
@@ -33,14 +32,17 @@ export interface ImageOrbitLoaderProps {
 
 export const ImageOrbitLoader = memo(function ImageOrbitLoader({ label = 'LOADING IMAGE', radius, surface = 'media', absolute = true, style }: ImageOrbitLoaderProps) {
   const theme = useTheme();
-  const clock = useLoaderClock(true);
+  // Two native-driver rotations (no per-frame JS or commits); paused while unseen.
+  const running = useLoaderShown(true);
+  const outT = useLoaderLoop(OUT_MS, 0, running);
+  const inT = useLoaderLoop(IN_MS, 0, running);
   const lightFeed = surface === 'feed' && theme.isLight;
   const bg = lightFeed ? '#f7f3ea' : 'rgba(3,1,10,0.97)';
   const inner = theme.name === 'void' ? '#a78bfa' : theme.colors.dim;
   const labelColor = lightFeed ? theme.colors.dim : theme.colors.navDim;
 
-  const outStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${((clock.value % OUT_MS) / OUT_MS) * 360}deg` }] }));
-  const inStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${-((clock.value % IN_MS) / IN_MS) * 360}deg` }] }));
+  const outStyle = useMemo(() => ({ transform: [{ rotate: outT.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }] }), [outT]);
+  const inStyle = useMemo(() => ({ transform: [{ rotate: inT.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-360deg'] }) }] }), [inT]);
 
   return (
     <View pointerEvents="none" style={[absolute ? StyleSheet.absoluteFill : null, styles.box, { backgroundColor: bg }, radius != null ? { borderRadius: radius } : null, style]}>

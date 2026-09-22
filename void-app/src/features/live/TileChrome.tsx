@@ -7,7 +7,7 @@ import Svg, { Path } from 'react-native-svg';
 import * as SparkleModule from '../../ui/SparkleLoader';
 import { em, useLiveTheme } from './liveTheme';
 
-const SparkleLoader: React.ComponentType<{ label?: string; style?: ViewStyle }> =
+const SparkleLoader: React.ComponentType<{ label?: string; style?: ViewStyle; animate?: boolean }> =
   (SparkleModule as any).SparkleLoader ?? (SparkleModule as any).default;
 
 /** .strip-live-dot{width:5px;height:5px;border-radius:50%;background:var(--red);animation:blink 1.3s infinite} */
@@ -81,8 +81,12 @@ export function AudioRing({ radius = 6 }: { radius?: number }) {
  * sparkleTile(cell,label) — .sparkle-fallback{inset:0;z-index:3;background:rgba(3,1,10,.97)}
  * The hard-locked SparkleLoader from src/ui owns the particles; this only positions it
  * and fades it out (.45s) once the tile is PLAYING, like finish(true) does.
+ *
+ * `animate` (default true): false holds the particles still - for a tile that is off
+ * screen or has settled on NO SIGNAL, where a moving loader is work nobody sees or
+ * waits on. The particles also stop while the loader fades out.
  */
-export function TileLoader({ label, visible, zIndex = 3 }: { label?: string; visible: boolean; zIndex?: number }) {
+export function TileLoader({ label, visible, zIndex = 3, animate = true }: { label?: string; visible: boolean; zIndex?: number; animate?: boolean }) {
   const o = useRef(new Animated.Value(visible ? 1 : 0)).current;
   const [mounted, setMounted] = React.useState(visible);
   useEffect(() => {
@@ -98,7 +102,7 @@ export function TileLoader({ label, visible, zIndex = 3 }: { label?: string; vis
   if (!mounted) return null;
   return (
     <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { zIndex, opacity: o, backgroundColor: 'rgba(3,1,10,0.97)', overflow: 'hidden' }]}>
-      {SparkleLoader ? <SparkleLoader label={label} style={StyleSheet.absoluteFill as ViewStyle} /> : null}
+      {SparkleLoader ? <SparkleLoader label={label} animate={visible && animate} style={StyleSheet.absoluteFill as ViewStyle} /> : null}
     </Animated.View>
   );
 }

@@ -568,7 +568,8 @@ const WallTile = memo(function WallTile({ rec, left, top, width, height, borderC
           }}
         />
       ) : null}
-      <TileLoader label={loaderLabel} visible={phase !== 'playing'} />
+      {/* Still while off screen or settled on NO SIGNAL: nothing to watch, nothing to wait for. */}
+      <TileLoader label={loaderLabel} visible={phase !== 'playing'} animate={!parked && phase !== 'offline'} />
       {phase === 'playing' && label ? <TileLabel text={label} /> : null}
     </Pressable>
   );

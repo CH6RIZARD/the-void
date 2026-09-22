@@ -10,6 +10,7 @@
 // card -> thread hand-off (unmount + mount in the same frame) never recreates one.
 import { useEffect, useState } from 'react';
 import { createVideoPlayer, type VideoPlayer } from 'expo-video';
+import { releasePaced } from '../live/pacedPlayer';
 
 interface Entry {
   player: VideoPlayer;
@@ -46,12 +47,9 @@ function release(postId: string, now = false): void {
   if (!e) return;
   const kill = () => {
     entries.delete(postId);
-    try {
-      e.player.pause();
-    } catch {}
-    try {
-      e.player.release();
-    } catch {}
+    // Stopped now, released on the paced queue: the feed trims cards in batches, and a
+    // burst of synchronous ExoPlayer releases blocks the main thread (ANR 2026-09-21).
+    releasePaced(e.player);
   };
   if (now) return kill();
   e.refs = Math.max(0, e.refs - 1);

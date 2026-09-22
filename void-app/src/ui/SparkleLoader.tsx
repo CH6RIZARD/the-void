@@ -11,12 +11,11 @@
 //   14 particles: left random 0-100%, bottom random 0-40px, duration 2.5-6.5s,
 //   delay -(0-6)s (always mid-flight), animation ignores prefers-reduced-motion.
 import React, { memo, useMemo } from 'react';
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import Animated, { useAnimatedStyle, type SharedValue } from 'react-native-reanimated';
+import { Animated, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
 import { FONTS, em } from '../theme/palettes';
 import { VText } from './Text';
-import { useLoaderClock } from './loaders/useLoaderClock';
+import { useLoaderLoop, useLoaderShown } from './loaders/useLoaderClock';
 
 const COUNT = 14;
 
@@ -42,15 +41,20 @@ function makeParticles(): Particle[] {
   return out;
 }
 
-const Dot = memo(function Dot({ p, clock, color }: { p: Particle; clock: SharedValue<number>; color: string }) {
-  const style = useAnimatedStyle(() => {
-    // Negative delay: the animation is already `lead` ms in when it mounts.
-    const t = ((clock.value + p.lead) % p.duration) / p.duration; // linear
-    return {
-      opacity: 0.4 * (1 - t),
-      transform: [{ translateY: -70 * t }, { translateX: 15 * t }],
-    };
-  });
+// Each particle is its own linear ramp on the native driver (see useLoaderLoop):
+// t = ((now + lead) % duration) / duration; opacity .4 -> 0, translate (0,0) -> (15,-70).
+const Dot = memo(function Dot({ p, running, color }: { p: Particle; running: boolean; color: string }) {
+  const t = useLoaderLoop(p.duration, p.lead, running);
+  const style = useMemo(
+    () => ({
+      opacity: t.interpolate({ inputRange: [0, 1], outputRange: [0.4, 0] }),
+      transform: [
+        { translateY: t.interpolate({ inputRange: [0, 1], outputRange: [0, -70] }) },
+        { translateX: t.interpolate({ inputRange: [0, 1], outputRange: [0, 15] }) },
+      ],
+    }),
+    [t],
+  );
   return <Animated.View pointerEvents="none" style={[styles.particle, { left: p.left, bottom: p.bottom, backgroundColor: color }, style]} />;
 });
 
@@ -68,20 +72,25 @@ export interface SparkleLoaderProps {
   surface?: 'media' | 'feed';
   /** Fill the parent absolutely (default true, like position:absolute;inset:0). */
   absolute?: boolean;
+  /**
+   * false holds the particles still (default true). The loader also stops by itself
+   * whenever it can't be seen (blurred screen, hidden surface, app in background).
+   */
+  animate?: boolean;
   style?: StyleProp<ViewStyle>;
 }
 
-export const SparkleLoader = memo(function SparkleLoader({ label, onPress, radius, surface = 'media', absolute = true, style }: SparkleLoaderProps) {
+export const SparkleLoader = memo(function SparkleLoader({ label, onPress, radius, surface = 'media', absolute = true, animate = true, style }: SparkleLoaderProps) {
   const theme = useTheme();
   const particles = useMemo(makeParticles, []);
-  const clock = useLoaderClock(true);
+  const running = useLoaderShown(animate);
   const lightFeed = surface === 'feed' && theme.isLight;
   const bg = lightFeed ? '#f7f3ea' : 'rgba(3,1,10,0.97)';
   const labelColor = lightFeed ? theme.colors.dim : theme.colors.muted;
   const body = (
     <>
       {particles.map((p, i) => (
-        <Dot key={i} p={p} clock={clock} color={theme.colors.gold} />
+        <Dot key={i} p={p} running={running} color={theme.colors.gold} />
       ))}
       {label ? (
         <VText style={[styles.label, { color: labelColor }]} numberOfLines={1}>

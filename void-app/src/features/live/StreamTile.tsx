@@ -20,7 +20,7 @@ import { AudioRing, TileLoader } from './TileChrome';
 import { useAudioOwner, type AudioTarget } from './AudioOwner';
 import { liveVidFor, markBadStream, type StreamSource } from './core';
 import { createSignalChecker, frameVerdict, FRAME_H, FRAME_JUDGE_DELAY, FRAME_W } from '../../core';
-import { sampleFrame } from './frameSample';
+import { sampleFrame, sampleFramePaced } from './frameSample';
 import { CONNECT_TIMEOUT, YT_DEAD_CODES, YT_NUDGE_MS, YT_VEIL_MS, youtubeEmbedSrc } from './constants';
 import { PLAYER_WEBVIEW_PROPS, YT_BASE_URL, parseYtMsg, ytCmd, ytPlayerHtml } from './ytHtml';
 
@@ -55,8 +55,12 @@ interface PlayerApi {
   register(h: { nudge(force?: boolean): void; isPlaying(): boolean; target: AudioTarget }): void;
 }
 
-/** Mid-stream frame check cadence; createSignalChecker itself enforces >= 6s between verdicts. */
-const SIGNAL_CHECK_MS = 6100;
+/**
+ * Mid-stream frame check cadence per tile (was 6.1 s). Each capture costs a main-thread
+ * bitmap read, and checks also share an app-wide gate (sampleFramePaced), so a dead
+ * picture is still caught within ~15-30 s without stalling the UI.
+ */
+const SIGNAL_CHECK_MS = 15000;
 
 const EASE = Easing.bezier(0.25, 0.1, 0.25, 1);
 
@@ -246,7 +250,7 @@ function HlsPlayer({ tileId, source, parked, api }: PlayerProps & { parked: bool
   }, [player, api, audio, tileId, source]);
 
   // Mid-stream (web checkTileSignal from the watchdog): only while on screen, the app is
-  // in the foreground and the clip is playing. At most one capture per ~6s per tile;
+  // in the foreground and the clip is playing. At most one capture per ~15s per tile;
   // bars = dead now, a slate must repeat 3 checks. Dead -> refuse + heal.
   useEffect(() => {
     if (parked) return;
@@ -262,7 +266,7 @@ function HlsPlayer({ tileId, source, parked, api }: PlayerProps & { parked: bool
       }
       busy = true;
       try {
-        const px = await sampleFrame(shotRef.current);
+        const px = await sampleFramePaced(shotRef.current);
         if (px && check(px, Date.now())) {
           dead = true;
           markBadStream(source);
@@ -470,7 +474,7 @@ function YouTubePlayer({ tileId, source, parked, api }: PlayerProps & { parked: 
       {hold ? (
         // .yt-hold{inset:0;z-index:3;background:rgba(3,1,10,.97)} + label-less sparkle
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { zIndex: 3, opacity: holdO }]}>
-          <TileLoader visible label="" />
+          <TileLoader visible label="" animate={!parked} />
         </Animated.View>
       ) : null}
     </>

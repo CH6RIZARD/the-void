@@ -1,8 +1,7 @@
-// A UI-thread millisecond clock for the loaders.
-// The web CSS animations are continuous time functions; driving them from a frame
-// clock reproduces them exactly (including negative animation-delay) and, unlike
-// withTiming/withRepeat, is never shortened or skipped by the OS reduce-motion
-// setting. The user rule: loaders ALWAYS animate — while they can be seen.
+// Loader timing: when a loader may animate, and the native-driver loops that animate it.
+// The web CSS animations are linear loops with negative animation-delay; useLoaderLoop
+// reproduces them exactly and, like the web, ignores the OS reduce-motion setting.
+// The user rule: loaders ALWAYS animate — while they can be seen.
 //
 // A loader that can't be seen does not tick. Every loader used to run a frame
 // callback for as long as it was mounted, including on screens covered by a modal,
@@ -10,11 +9,10 @@
 // Android detaches those views, so each frame's prop update failed with
 // RetryableMountingLayerException and Reanimated logged a full Java stack trace for
 // it — on the main thread, per loader, per frame. On the Helio P35 test phone that
-// jammed input for 5 s+ (ANRs 2026-09-21 11:04 and 11:07). The clock now runs only
-// while its screen is focused, its surface is shown, and the app is foregrounded.
-import { createContext, useContext, useEffect, useState } from 'react';
-import { AppState } from 'react-native';
-import { useFrameCallback, useSharedValue, type SharedValue } from 'react-native-reanimated';
+// jammed input for 5 s+ (ANRs 2026-09-21 11:04 and 11:07). Loaders now run only
+// while their screen is focused, their surface is shown, and the app is foregrounded.
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { Animated, AppState, Easing } from 'react-native';
 import { NavigationContext } from 'expo-router/build/react-navigation/core';
 
 /** For a surface that stays mounted while hidden (the globe tab's off-side view):
@@ -43,16 +41,53 @@ function useScreenShown(): boolean {
   return focused && appActive;
 }
 
-export function useLoaderClock(active = true): SharedValue<number> {
+/** True while a loader can be seen: its screen focused, its surface shown, the app
+ *  foregrounded, and the caller's own flag (e.g. not fading out) set. */
+export function useLoaderShown(active = true): boolean {
   const surfaceShown = useContext(LoaderActiveContext);
   const screenShown = useScreenShown();
-  const clock = useSharedValue(0);
-  useFrameCallback(
-    (frame) => {
-      'worklet';
-      clock.value = frame.timeSinceFirstFrame;
-    },
-    active && surfaceShown && screenShown,
-  );
-  return clock;
+  return active && surfaceShown && screenShown;
+}
+
+// ── Native-driver loops ─────────────────────────────────────────────────────
+// The loaders used to drive every particle from a Reanimated frame callback: one
+// useAnimatedStyle per dot, 14 dots per SparkleLoader, re-evaluated every frame.
+// With Reanimated's synchronous-props flag off (the default), each of those updates
+// is a ShadowTree commit + layout on the UI thread, so a wall of 24 loading tiles
+// was ~670 commits per frame - the "view layout" 85-91% on the test phone. A
+// native-driver Animated.loop runs the same linear 0->1 ramp entirely on the UI
+// thread: no JS, no commit, no layout. The curves are identical (linear, same
+// duration, same negative-delay phase), so the loaders look exactly the same.
+
+/**
+ * A 0->1 linear ramp repeating every `duration` ms, `lead` ms ahead (a CSS negative
+ * animation-delay), on the native driver. Runs only while `running`; when it resumes,
+ * it picks the phase up from the wall clock, so it looks continuous.
+ */
+export function useLoaderLoop(duration: number, lead: number, running: boolean): Animated.Value {
+  const v = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const from = ((Date.now() + lead) % duration) / duration;
+    v.setValue(from);
+    if (!running) return;
+    let alive = true;
+    let anim: Animated.CompositeAnimation = Animated.timing(v, {
+      toValue: 1,
+      duration: Math.max(1, duration * (1 - from)),
+      easing: Easing.linear,
+      useNativeDriver: true,
+      isInteraction: false,
+    });
+    anim.start(({ finished }) => {
+      if (!finished || !alive) return;
+      v.setValue(0);
+      anim = Animated.loop(Animated.timing(v, { toValue: 1, duration, easing: Easing.linear, useNativeDriver: true, isInteraction: false }));
+      anim.start();
+    });
+    return () => {
+      alive = false;
+      anim.stop();
+    };
+  }, [v, duration, lead, running]);
+  return v;
 }

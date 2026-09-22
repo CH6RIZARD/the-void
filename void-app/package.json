@@ -9,6 +9,7 @@
     "ios": "expo run:ios",
     "native:prebuild": "expo prebuild --clean",
     "typecheck": "tsc --noEmit",
+    "test": "node --test src/core/__tests__/golden.test.ts src/core/__tests__/more.test.ts",
     "build:android": "eas build -p android --profile production",
     "build:android:preview": "eas build -p android --profile preview",
     "build:ios": "eas build -p ios --profile production",

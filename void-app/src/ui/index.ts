@@ -9,4 +9,4 @@ export { SparkleLoader, type SparkleLoaderProps } from './SparkleLoader';
 export { ImageOrbitLoader, type ImageOrbitLoaderProps } from './ImageOrbitLoader';
 export { VoidImage, type VoidImageProps } from './VoidImage';
 export { ScreenPlaceholder } from './ScreenPlaceholder';
-export { useLoaderClock } from './loaders/useLoaderClock';
+export { useLoaderLoop, useLoaderShown, LoaderActiveContext } from './loaders/useLoaderClock';
