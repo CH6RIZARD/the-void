@@ -290,4 +290,14 @@ Test phone: Helio P35 (MT6765), Android 11, 4 GB class, announces as SM-S938B. T
 | Build | feed jank / p90 | scroll jank / p90 | GLOBE jank / p90 / WebView CPU | REELS | back on feed (WebView CPU) | Notes |
 |---|---|---|---|---|---|---|
 | Before (installed 09-22 01:03, pre steps 1–4) | 100% / 550 ms | 100% / 154 ms | 100% / 1,650 ms / 54% | — | — | Globe drew nothing (black), all tiles CONNECTING; the app was killed by the system (`signal 9`) during GLOBE, so REELS/back were not reached |
+| Steps 1–4 + player cap + buffer caps (09-22 16:18) | — (fresh install: feed never loads, see below) | 99% / **27–38 ms**, p50 21–27 ms | 100% / 150–450 ms; globe renders | — | **WebView CPU 0%, PSS flat ~318 MB** over 70 s | Off the wall the app is finally quiet: no decoders, no WebView CPU, no memory growth. ON the wall with 8 tiles in view it is still ~765 MB: `dumpsys meminfo` attributes 288 MB to EGL + 60 MB GL, i.e. the simultaneous decoders themselves, not the WebView count. |
 | Steps 1–4 (09-22 14:28) | 75% / 450 ms | 99% / **41 ms** | 100% / **800 ms** / 82% | 100% / 667 ms | not reached | **The globe renders** (was black) and the wall fills with live video. But PSS climbed to 933 MB and Android killed the app ~5 s after leaving the wall, before the 20 s sleep could run: only WebView players were capped, and a paused off-screen HLS tile still holds its decoder. Fixed by MAX_MOUNTED_PLAYERS (next build). Cold start unchanged at 3.55 s median (startup is step 6). |
+
+
+### Open after steps 1–4
+
+1. **The wall's memory is the number of tiles decoding at once.** With 8 tiles in view: EGL 288 MB + GL 60 MB of ~765 MB total. Capping mounted players helps only off-screen ones, because every tile in view keeps playing by design. Options, in order of preference: cap the tiles that *play* at once (say 4) and rotate them, with the rest holding their poster or last frame; or move wall tiles to a `SurfaceView` (video composited outside the app's EGL memory, but it breaks rounded corners, overlay z-order and the colour-bar check); expo-video exposes no way to force a lower-resolution track (`videoTrack` is read-only).
+2. **Fresh install has no feed.** After `adb uninstall`, the app sits on "SCANNING VERIFIED PUBLIC SOURCES…" indefinitely with the network fine — the failure mode P0-8 predicts (no request has a deadline). Step 5.
+3. **The body-signals consent sheet reappears on every launch** once app data is cleared, and it renders over everything while the screens behind it stay in the accessibility tree.
+4. **The earth texture fails on this device** (GL 1282, seen by the session on `fix/globe-wall-only`), so the globe draws with the flat fallback map. The globe itself now renders, where it was black before.
+5. **Cold start unchanged** (3.55 s median): step 6.
