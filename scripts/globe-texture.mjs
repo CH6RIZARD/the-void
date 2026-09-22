@@ -33,8 +33,7 @@ const head = [
   'export const EARTH_PNG_B64 =',
   "  '" + b64 + "';",
   '',
-].join('
-');
+].join(String.fromCharCode(10));
 fs.writeFileSync(OUT, head);
 console.log('wrote', OUT, Math.round(head.length / 1024) + 'KB', W + 'x' + H);
 try { spawn('taskkill', ['/pid', String(ch.pid), '/T', '/F'], { stdio: 'ignore' }); } catch {} srv.close(); process.exit(0);

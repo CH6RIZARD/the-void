@@ -161,6 +161,7 @@ export async function loadEarthTexture(gl: any, renderer: THREE.WebGLRenderer, r
   await asset.downloadAsync();
   if (!asset.localUri) throw new Error('earth texture: no localUri');
   for (let i = 0; i < 16 && gl.getError() !== gl.NO_ERROR; i++);
+  const potSize = { w: 0, h: 0 };   // set when the JS decode path uploads bytes
   const glTex = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, glTex);
   rawPixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true); // TextureLoader textures have flipY = true
@@ -170,11 +171,14 @@ export async function loadEarthTexture(gl: any, renderer: THREE.WebGLRenderer, r
   let direct = gl.getError();
   if (direct !== gl.NO_ERROR) {
     const px = earthPixels();
+    try { console.log('[globe] direct upload refused (GL ' + direct + '); decoded PNG: ' + (px ? px.w + 'x' + px.h : 'FAILED')); } catch {}
     if (px) {
       gl.bindTexture(gl.TEXTURE_2D, glTex);
       // The PNG is top-row-first like the JPEG, so the same flip applies.
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, px.w, px.h, 0, gl.RGBA, gl.UNSIGNED_BYTE, px.data);
+      potSize.w = px.w; potSize.h = px.h;
       direct = gl.getError();
+      try { console.log('[globe] byte upload GL error: ' + direct); } catch {}
       if (direct === gl.NO_ERROR) {
         try {
           console.log('[globe] earth texture: JS PNG decode path (' + px.w + 'x' + px.h + ')');
@@ -183,9 +187,11 @@ export async function loadEarthTexture(gl: any, renderer: THREE.WebGLRenderer, r
     }
   }
   rawPixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-  gl.generateMipmap(gl.TEXTURE_2D);
+  const pot = (n: number) => (n & (n - 1)) === 0;
+  const mipped = potSize.w > 0 ? pot(potSize.w) && pot(potSize.h) : true;
+  if (mipped) gl.generateMipmap(gl.TEXTURE_2D);   // NPOT + mipmaps = GL 1282
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, mipped ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   // tex.anisotropy = Math.min(4, maxAnisotropy)
