@@ -284,3 +284,9 @@ Test phone: Helio P35 (MT6765), Android 11, 4 GB class, announces as SM-S938B. T
 | Step | Build | Cold start median (ms) | Feed janky % / p90 | Globe+wall janky % / p90 | PSS after soak (MB) | WebView CPU off-wall | ANRs | APK (MB) |
 |---|---|---|---|---|---|---|---|---|
 | Baseline (09-20/21 perf-android.mjs; cold start 09-22) | installed v9 (1.0.0), installed 09-22 00:26 | 3,637 (runs: 6,404 / 3,637 / 3,296 / 3,347 / timeout >10,000); first frame only, time to feed content is later | 100% / 250 ms–5 s | 100% / globe never rendered | 650–826 | ~107% on globe tab | 5 (09-20 → 09-21) | 100.8 |
+
+**Scripted route** (same taps and timing every run, driven over adb): feed idle 15 s → feed scroll 6 swipes → GLOBE 40 s → REELS 20 s → back to feed 36 s. Averages from `perf-android.mjs --every=3`.
+
+| Build | feed jank / p90 | scroll jank / p90 | GLOBE jank / p90 / WebView CPU | REELS | back on feed (WebView CPU) | Notes |
+|---|---|---|---|---|---|---|
+| Before (installed 09-22 01:03, pre steps 1–4) | 100% / 550 ms | 100% / 154 ms | 100% / 1,650 ms / 54% | — | — | Globe drew nothing (black), all tiles CONNECTING; the app was killed by the system (`signal 9`) during GLOBE, so REELS/back were not reached |
