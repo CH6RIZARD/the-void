@@ -6,6 +6,7 @@ import { AppState, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { router, useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ToastModule from '../../ui/Toast';
 import { GlobeModeToggle } from './GlobeModeToggle';
 import { GlobeCanvas } from './GlobeCanvas';
@@ -62,23 +63,67 @@ export function GlobeScreen({ bottomInset = 58 }: GlobeScreenProps) {
     }, []),
   );
 
+  return (
+    <View style={[styles.screen, { backgroundColor: t.bg }]}>
+      {mode ? (
+        <GlobeSurfaces
+          initialMode={mode}
+          width={width}
+          grid3={grid3}
+          focused={focused}
+          appActive={appActive}
+          bottomInset={bottomInset}
+        />
+      ) : null}
+    </View>
+  );
+}
+
+// THE WALL NEVER SHOWED (2026-09-21, test phone). The screen mounted before the stored
+// mode had loaded, so the slide's shared values were created at REELS (0). When
+// 'globe' arrived, an effect wrote modeSV = 1 in the same commit that mounted the two
+// Animated.Views - and on Fabric that write can land before the views exist on the UI
+// side, where Reanimated drops it. The surfaces stayed parked on REELS while every
+// piece of state said GLOBE: the toggle lit GLOBE, the wall mounted and its players
+// ran (visible in the thread dump), and the screen showed "PULLING SIGNAL...". Tapping
+// GLOBE did nothing because it was already the mode, and the swipe only travels
+// toward the OTHER mode, so there was no way out.
+//
+// Now the surfaces mount only once the mode is known, with their shared values BORN
+// at that mode - there is no post-mount write to lose. Tapping the active mode
+// re-snaps the slide, and the position is re-asserted a frame after mount.
+function GlobeSurfaces({
+  initialMode,
+  width,
+  grid3,
+  focused,
+  appActive,
+  bottomInset,
+}: {
+  initialMode: GlobeMode;
+  width: number;
+  grid3: boolean;
+  focused: boolean;
+  appActive: boolean;
+  bottomInset: number;
+}) {
+  const insets = useSafeAreaInsets();
+  const [mode, setModeState] = useState<GlobeMode>(initialMode);
   // modeSV: 0 = REELS, 1 = GLOBE. drag: finger offset as a fraction of the width.
-  const modeSV = useSharedValue(mode === 'globe' ? 1 : 0);
-  const modeNum = useSharedValue(mode === 'globe' ? 1 : 0);
+  const modeSV = useSharedValue(initialMode === 'globe' ? 1 : 0);
+  const modeNum = useSharedValue(initialMode === 'globe' ? 1 : 0);
   const drag = useSharedValue(0);
   const W = useSharedValue(width);
   useEffect(() => {
     W.value = width;
   }, [W, width]);
-  const inited = useRef(mode != null);
   useEffect(() => {
-    if (!mode) return;
-    modeNum.value = mode === 'globe' ? 1 : 0;
-    if (!inited.current) {
-      inited.current = true;
-      modeSV.value = modeNum.value; // first paint after the stored mode loads: no slide
-    }
-  }, [mode, modeSV, modeNum]);
+    // Belt and braces: once the views surely exist, pin the slide to the mode.
+    const id = requestAnimationFrame(() => {
+      if (drag.value === 0) modeSV.value = modeNum.value;
+    });
+    return () => cancelAnimationFrame(id);
+  }, [modeSV, modeNum, drag]);
 
   const setMode = useCallback(
     (m: GlobeMode, announce: boolean) => {
@@ -125,17 +170,16 @@ export function GlobeScreen({ bottomInset = 58 }: GlobeScreenProps) {
   const reelsVisible = focused && appActive && mode === 'reels';
 
   return (
-    <View style={[styles.screen, { backgroundColor: t.bg }]}>
-      {mode ? (
+    <>
         <GestureDetector gesture={swipe}>
           <View style={styles.fill} collapsable={false}>
-            <Animated.View style={[styles.view, reelsStyle]} pointerEvents={mode === 'reels' ? 'auto' : 'none'}>
+            <Animated.View style={[styles.view, { top: insets.top }, reelsStyle]} pointerEvents={mode === 'reels' ? 'auto' : 'none'}>
               {/* The hidden side of the slide stays mounted; its loaders must not tick. */}
               <LoaderActiveContext.Provider value={reelsVisible}>
                 <ReelsView active={reelsVisible} />
               </LoaderActiveContext.Provider>
             </Animated.View>
-            <Animated.View style={[styles.view, mapStyle]} pointerEvents={mode === 'globe' ? 'auto' : 'none'}>
+            <Animated.View style={[styles.view, { top: insets.top }, mapStyle]} pointerEvents={mode === 'globe' ? 'auto' : 'none'}>
               <LoaderActiveContext.Provider value={globeVisible}>
                 <GlobeCanvas running={globeVisible} onOpenCountry={openCountry} />
                 {/* Built the first time GLOBE is shown (web: buildGlobeGrid inside setGlobeMode). */}
@@ -144,9 +188,10 @@ export function GlobeScreen({ bottomInset = 58 }: GlobeScreenProps) {
             </Animated.View>
           </View>
         </GestureDetector>
-      ) : null}
-      {mode ? <GlobeModeToggle mode={mode} onChange={(m) => m !== mode && setMode(m, true)} /> : null}
-    </View>
+      {/* Tapping the mode you are already in re-snaps the slide instead of doing
+          nothing, so a surface that ever drifts out of sync is one tap from fixed. */}
+      <GlobeModeToggle mode={mode} topInset={insets.top} onChange={(m) => setMode(m, m !== mode)} />
+    </>
   );
 }
 

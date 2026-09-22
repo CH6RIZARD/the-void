@@ -5,7 +5,10 @@ import { BlurView } from 'expo-blur';
 import { em, useLiveTheme } from '../live/liveTheme';
 import type { GlobeMode } from './persist';
 
-export function GlobeModeToggle({ mode, onChange }: { mode: GlobeMode; onChange(m: GlobeMode): void }) {
+// topInset: the status bar. The capsule sat at a flat top:10 inside a screen that is
+// drawn edge-to-edge, i.e. UNDER the status bar - a tap on GLOBE opened the phone's
+// notification shade instead (seen on the test phone, 2026-09-21).
+export function GlobeModeToggle({ mode, onChange, topInset = 0 }: { mode: GlobeMode; onChange(m: GlobeMode): void; topInset?: number }) {
   const t = useLiveTheme();
   const btn = (m: GlobeMode, label: string) => {
     const on = mode === m;
@@ -22,7 +25,7 @@ export function GlobeModeToggle({ mode, onChange }: { mode: GlobeMode; onChange(
     );
   };
   return (
-    <View style={styles.anchor} pointerEvents="box-none">
+    <View style={[styles.anchor, { top: 10 + topInset }]} pointerEvents="box-none">
       <View style={styles.capsule}>
         {/* background:rgba(13,8,32,.72);backdrop-filter:blur(14px) */}
         <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />

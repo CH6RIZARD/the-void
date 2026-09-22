@@ -1,0 +1,69 @@
+// A video player whose release is PACED, never burst.
+//
+// Why this exists (ANR, 2026-09-21, MT6762 test phone): the main thread sat 5s+ inside
+//   ExoPlayerImplInternal.release  ←  ExoPlayerImpl.release  ←  expo VideoPlayer.close
+// expo-video releases every player on the main thread (it has to: ExoPlayer lives on
+// the main looper), and each release blocks until the playback thread finishes
+// or ExoPlayer's release timeout (~500ms) runs out. On a loaded CPU it hits the
+// timeout. `useVideoPlayer` releases on unmount, and the wall unmounts players in
+// bursts: every failed source attempt in the cascade, every heal, every eviction,
+// and a whole screen of tiles when the surface changes. Ten at once is 5s of frozen
+// UI, and Android kills the input: "not responding".
+//
+// So a player that leaves the screen is STOPPED at once (pause + empty source: the
+// playback thread starts winding down in the background, the decoder is freed) and
+// only RELEASED later, one at a time, RELEASE_GAP_MS apart. By the time its turn
+// comes the playback thread has nothing left to do, so the release returns quickly,
+// and no single frame ever pays for more than one of them.
+import { useEffect, useMemo } from 'react';
+import { createVideoPlayer, type VideoPlayer, type VideoSource } from 'expo-video';
+
+const RELEASE_GAP_MS = 350;
+const queue: VideoPlayer[] = [];
+let timer: ReturnType<typeof setTimeout> | null = null;
+
+function step() {
+  const p = queue.shift();
+  if (p) {
+    try {
+      p.release();
+    } catch {}
+  }
+  timer = queue.length ? setTimeout(step, RELEASE_GAP_MS) : null;
+}
+
+/** Stop a player now; free it on the paced queue. */
+export function releasePaced(p: VideoPlayer) {
+  try {
+    p.pause();
+  } catch {}
+  try {
+    p.muted = true;
+  } catch {}
+  try {
+    // An empty source stops loading and frees the decoder without a release.
+    // (The iOS main-thread warning on replace() does not apply to Android.)
+    (p as any).replace(null, true);
+  } catch {}
+  queue.push(p);
+  if (!timer) timer = setTimeout(step, RELEASE_GAP_MS);
+}
+
+/**
+ * Drop-in for expo-video's `useVideoPlayer(source, setup)`: same creation, same
+ * re-creation when the source changes, but the old player goes through releasePaced
+ * instead of being released synchronously on unmount.
+ */
+export function usePacedPlayer(source: VideoSource, setup?: (p: VideoPlayer) => void): VideoPlayer {
+  const key = JSON.stringify(source);
+  const player = useMemo(() => {
+    const p = createVideoPlayer(source);
+    try {
+      setup?.(p);
+    } catch {}
+    return p;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  useEffect(() => () => releasePaced(player), [player]);
+  return player;
+}

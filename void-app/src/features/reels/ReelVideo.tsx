@@ -12,7 +12,8 @@
 // loader spinning forever).
 import React, { memo, useEffect } from 'react';
 import { StyleSheet } from 'react-native';
-import { VideoView, useVideoPlayer } from 'expo-video';
+import { VideoView } from 'expo-video';
+import { usePacedPlayer } from '../live/pacedPlayer';
 
 export interface ReelVideoProps {
   uri: string;
@@ -22,7 +23,7 @@ export interface ReelVideoProps {
 }
 
 export const ReelVideo = memo(function ReelVideo({ uri, want, muted, onMediaReady }: ReelVideoProps) {
-  const player = useVideoPlayer({ uri, contentType: /\.m3u8(\?|$)/i.test(uri) ? 'hls' : 'auto' } as any, (p) => {
+  const player = usePacedPlayer({ uri, contentType: /\.m3u8(\?|$)/i.test(uri) ? 'hls' : 'auto' } as any, (p) => {
     p.muted = true; // v.muted = v.defaultMuted = true
     p.loop = true;
     try {
