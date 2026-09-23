@@ -160,9 +160,18 @@ function flipRowsInPlace(data: Uint8Array, w: number, h: number): void {
     data.set(tmp, bot);
   }
 }
+// Decoded once per launch and kept: this is ~0.5 M pixels of PNG filtering in JS, and
+// it blocks the thread everything else is waiting on. The device log showed it running
+// twice in a session, which is the kind of stall that shows up as a 10 s tab switch.
+let earthCache: { w: number; h: number; data: Uint8Array } | null = null;
 function earthPixels(): { w: number; h: number; data: Uint8Array } | null {
+  if (earthCache) return earthCache;
   try {
-    return decodePngRGBA(b64ToBytes(EARTH_PNG_B64));
+    const px = decodePngRGBA(b64ToBytes(EARTH_PNG_B64));
+    if (!px) return null;
+    flipRowsInPlace(px.data, px.w, px.h);   // once: DataTexture has no flipY
+    earthCache = px;
+    return earthCache;
   } catch {
     return null;
   }
@@ -213,7 +222,6 @@ export async function loadEarthTexture(gl: any, renderer: THREE.WebGLRenderer, r
     renderer.resetState();
     const px = earthPixels();
     if (!px) throw new Error('earth texture: GL ' + err + ' and the PNG decode failed too');
-    flipRowsInPlace(px.data, px.w, px.h);   // DataTexture has no flipY
     const dt = new THREE.DataTexture(px.data, px.w, px.h, THREE.RGBAFormat);
     // The WEB renders this map under three r128, whose default is LinearEncoding: the
     // sRGB bytes are used as-is. Tagging it SRGBColorSpace here converts to linear and

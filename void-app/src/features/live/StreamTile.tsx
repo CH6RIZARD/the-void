@@ -325,6 +325,10 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
   // bars = dead now, a slate must repeat 3 checks. Dead -> refuse + heal.
   useEffect(() => {
     if (parked) return;
+    // SurfaceView hands nothing back to captureRef, so this check can only ever say
+    // "unknown" there - all cost, no verdict. The clock check above catches a dead
+    // picture on any surface type, so only a TextureView still samples pixels.
+    if (surface === 'surface') return;
     const check = createSignalChecker();
     let busy = false;
     let dead = false;
