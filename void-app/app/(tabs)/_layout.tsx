@@ -13,6 +13,14 @@ export default function TabsLayout() {
     <Tabs
       initialRouteName="void"
       backBehavior="history"
+      // Inactive screens stay ATTACHED. Detaching them tears down their native views
+      // on every tab switch, and for the globe that destroys the GL surface: coming
+      // back creates a new one, expo-gl looks the context up in global.__EXGLContexts,
+      // gets undefined and throws inside its own onSurfaceCreate - a JS crash that
+      // takes the app down (seen on device 09-23 12:24, configureLogging/_onSurfaceCreate).
+      // It is also why switching tabs rebuilt whole view trees instead of showing one
+      // that was already there.
+      detachInactiveScreens={false}
       tabBar={(props) => <BottomNav {...props} />}
       // freezeOnBlur: a hidden tab stops re-rendering on store pushes (feed, reactions,
       // audio ticks) until it is shown again. Its native views stay as they were.

@@ -59,6 +59,12 @@ export function GlobeCanvas({ running, onOpenCountry }: GlobeCanvasProps) {
   // globe falls back to the static night map, and search still opens every nation.
   const [glFailed, setGlFailed] = useState(false);
   const onContextCreate = useCallback((gl: ExpoWebGLRenderingContext) => {
+    // See the guard in app/_layout.tsx: a re-created surface can hand back a context
+    // that is not real. Building a renderer on it would fail in a dozen places.
+    if (!gl || typeof (gl as any).createTexture !== 'function' || (gl as any).__voidMissingContext) {
+      setGlFailed(true);
+      return;
+    }
     try {
       scene.current = createGlobeScene(gl, countries(), size.current.w, size.current.h);
       setSceneReady(true);

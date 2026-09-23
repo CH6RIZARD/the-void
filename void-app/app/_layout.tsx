@@ -4,6 +4,34 @@ import '../src/lib/polyfills';
 import 'react-native-reanimated';
 import React, { useEffect, useState } from 'react';
 import { AppState, StyleSheet, View } from 'react-native';
+
+// A GL SURFACE THAT COMES BACK EMPTY MUST NOT KILL THE APP. expo-gl's own
+// onSurfaceCreate does getGl(id) -> global.__EXGLContexts[id] -> configureLogging(gl)
+// with no check, so when the surface is re-created and the id is no longer registered
+// it sets a property on undefined and throws on the JS thread. In a release build that
+// is a hard crash, and it is what killed the app on tab switches (device log 09-23
+// 12:24: "Cannot set property '__expoSetLogging' of undefined" from _onSurfaceCreate).
+// Handing back an inert object instead turns that into a globe that reports it cannot
+// start - GlobeCanvas checks the context it is given and shows its fallback.
+(() => {
+  const g = globalThis as any;
+  if (g.__voidExglGuard) return;
+  g.__voidExglGuard = true;
+  let store: Record<string, any> = g.__EXGLContexts || {};
+  Object.defineProperty(g, '__EXGLContexts', {
+    configurable: true,
+    get() {
+      return new Proxy(store, {
+        get(t, k: string) {
+          const v = (t as any)[k];
+          if (v !== undefined || typeof k === 'symbol') return v;
+          return { __voidMissingContext: true };   // inert: GlobeCanvas refuses it
+        },
+      });
+    },
+    set(v) { store = v || {}; },
+  });
+})();
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';

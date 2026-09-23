@@ -27,6 +27,16 @@ const NavItem = memo(function NavItem({ name, focused, onPress, onLongPress, bad
   useEffect(() => {
     on.value = withTiming(focused ? 1 : 0, { duration: 200, easing: EASE, reduceMotion: ReduceMotion.Never });
   }, [focused, on]);
+  // WHICH TAB IS LIT MUST NOT DEPEND ON AN ANIMATION LANDING. The gold/dim state was
+  // only an animated opacity, written from the JS thread in the effect above - and a
+  // tab switch is exactly when that thread is busy, so the write lands late or not at
+  // all and the pill keeps pointing at the tab you just left ("nav tab showing home
+  // when I am on the globe screen"). The plain style below is the truth, straight from
+  // the focused prop and rendered by React; the animated one fades on top of it
+  // between the same two end states, so if it never runs nothing is wrong.
+  const goldFallback = { opacity: focused ? 1 : 0 };
+  const dimFallback = { opacity: focused ? 0 : 1 };
+  const barFallback = { opacity: focused ? 0.7 : 0 };
   const goldStyle = useAnimatedStyle(() => ({ opacity: on.value }));
   const dimStyle = useAnimatedStyle(() => ({ opacity: 1 - on.value }));
   const barStyle = useAnimatedStyle(() => ({ opacity: 0.7 * on.value }));
@@ -42,15 +52,15 @@ const NavItem = memo(function NavItem({ name, focused, onPress, onLongPress, bad
       hitSlop={{ top: 13, bottom: 10 }}
     >
       <View style={styles.icon}>
-        <Animated.View style={[StyleSheet.absoluteFill, dimStyle]}>
+        <Animated.View style={[StyleSheet.absoluteFill, dimFallback, dimStyle]}>
           <Icon name={icon} size={19} color={colors.navDim} />
         </Animated.View>
-        <Animated.View style={[StyleSheet.absoluteFill, goldStyle]}>
+        <Animated.View style={[StyleSheet.absoluteFill, goldFallback, goldStyle]}>
           <Icon name={icon} size={19} color={colors.gold} />
         </Animated.View>
         {badge ? <View style={[styles.badge, { backgroundColor: colors.gold }]} /> : null}
       </View>
-      <Animated.View style={[styles.bar, { backgroundColor: colors.gold }, barStyle]} />
+      <Animated.View style={[styles.bar, { backgroundColor: colors.gold }, barFallback, barStyle]} />
     </Pressable>
   );
 });
