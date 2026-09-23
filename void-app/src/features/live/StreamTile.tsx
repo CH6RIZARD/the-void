@@ -23,7 +23,7 @@ import { liveVidFor, markBadStream, type StreamSource } from './core';
 import { createSignalChecker, frameVerdict, FRAME_H, FRAME_JUDGE_DELAY, FRAME_W } from '../../core';
 import { sampleFrame, sampleFramePaced } from './frameSample';
 import { variantCached, variantFor } from './hlsVariant';
-import { CONNECT_TIMEOUT, WALL_BUFFER, YT_DEAD_CODES, YT_NUDGE_MS, YT_VEIL_MS, youtubeEmbedSrc } from './constants';
+import { CONNECT_TIMEOUT, WALL_BUFFER, YT_DEAD_CODES, YT_NUDGE_MS, YT_VEIL_MS, noteDecoderFailure, youtubeEmbedSrc } from './constants';
 import { PLAYER_WEBVIEW_PROPS, YT_BASE_URL, parseYtMsg, ytCmd, ytPlayerHtml } from './ytHtml';
 
 export interface StreamTileHandle {
@@ -241,6 +241,12 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
     });
     const subStatus = player.addListener('statusChange', (e: any) => {
       if (e && e.status === 'error') {
+        // Codec failures are how this device says "no more decoders". Tell the budget
+        // before healing, so the wall asks for one fewer from here on.
+        try {
+          const msg = String((e && (e.error?.message || e.message)) || '');
+          if (/codec|decoder|MediaCodec/i.test(msg) || !msg) noteDecoderFailure();
+        } catch {}
         if (!api.isDone()) api.finish(false);
         else api.needsHeal();
       }

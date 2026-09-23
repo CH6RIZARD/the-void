@@ -60,7 +60,7 @@ export const YT_ORIGIN = 'https://thevoid.app';
  */
 export const PARK_SCREENS = 1;
 export const EVICT_SCREENS = 2;
-export const MAX_MOUNTED_WEBVIEWS = 4;
+export const MAX_MOUNTED_WEBVIEWS = 2;
 /**
  * Players of ANY kind mounted at once (HLS decoders included). A 2-wide wall shows
  * about 6 tiles, so everything in view still plays; anything past one screen is let
@@ -68,7 +68,33 @@ export const MAX_MOUNTED_WEBVIEWS = 4;
  * decoder: with only the WebView cap the wall reached 933 MB on the test phone and
  * Android killed the app (2026-09-22).
  */
-export const MAX_MOUNTED_PLAYERS = 6;
+export const MAX_MOUNTED_PLAYERS = 4;
+// ─── THE BUDGET LEARNS THE DEVICE ────────────────────────────────────────
+// A phone has a fixed number of hardware video decoders (commonly 4-8). Past that
+// Android hands out the SOFTWARE decoder, and on the test phone that one dies:
+//
+//   Decoder failed: c2.android.avc.decoder   (MediaCodec error 0x80000000)
+//   Fatal signal 11 (SIGSEGV) in tid ... (ExoPlayer:Playb)
+//
+// A native segfault on the playback thread takes the whole app down - it cannot be
+// caught in JS - so the only defence is not to ask for more decoders than the device
+// can serve. The caps above are the opening bid (4 players + 2 web players sits
+// inside the usual hardware limit); this budget then drops by one every time a
+// decoder actually fails, and stays down for the session. A device with plenty keeps
+// the full budget; one like the test phone settles where it can cope.
+let playerBudget = MAX_MOUNTED_PLAYERS;
+let decoderFailures = 0;
+export const PLAYER_BUDGET_FLOOR = 2;
+export function playerBudgetNow(): number { return playerBudget; }
+export function decoderFailureCount(): number { return decoderFailures; }
+/** A player reported a codec failure: ask for one fewer from now on. */
+export function noteDecoderFailure(): number {
+  decoderFailures++;
+  playerBudget = Math.max(PLAYER_BUDGET_FLOOR, playerBudget - 1);
+  return playerBudget;
+}
+/** Test seam. */
+export function _resetPlayerBudget(): void { playerBudget = MAX_MOUNTED_PLAYERS; decoderFailures = 0; }
 /**
  * How far off screen a tile must be to be given up when the wall is over budget.
  * 0 = anything not fully in view. A tile you can see always keeps playing.
