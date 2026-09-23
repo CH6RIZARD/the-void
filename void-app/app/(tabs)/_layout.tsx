@@ -22,9 +22,12 @@ export default function TabsLayout() {
       // that was already there.
       detachInactiveScreens={false}
       tabBar={(props) => <BottomNav {...props} />}
-      // freezeOnBlur: a hidden tab stops re-rendering on store pushes (feed, reactions,
-      // audio ticks) until it is shown again. Its native views stay as they were.
-      screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.bg }, lazy: true, animation: 'none', freezeOnBlur: true }}
+      // freezeOnBlur OFF (09-23). Freezing a hidden tab means RETURNING to it re-renders
+      // the whole screen - on this phone that was seconds of blocked input per switch,
+      // and the feed was the worst of them. The screens already stop their own work when
+      // they lose focus (GlobeScreen parks the wall, loaders stop ticking, players are
+      // released), so freezing bought little and cost the switch.
+      screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.bg }, lazy: true, animation: 'none', freezeOnBlur: false }}
     >
       <Tabs.Screen name="void" />
       {/* The globe stays dark in every theme (media surface). It is NOT frozen: its
