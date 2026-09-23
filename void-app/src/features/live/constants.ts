@@ -82,18 +82,42 @@ export const EVICT_MARGIN_SCREENS = 0;
 export const WALL_BUFFER = { preferredForwardBufferDuration: 4, minBufferForPlayback: 1.5, maxBufferBytes: 4 << 20 };
 
 // ─── One stream, one place on screen (web claimLiveKey/releaseLiveKey) ───────
+// Claimed by URL *and* by channel, because the same feed reaches the wall under more
+// than one URL: the generated pool carries a channel in several nations' lists, with
+// query strings that differ, http vs https, or simply two entries for one broadcaster.
+// A URL-only claim let all of those through, which is why one channel could sit in
+// several tiles at once (reported 09-23: Sky News AU repeating while scrolling).
 const liveClaimed = new Set<string>();
-export function claimLiveKey(source: StreamSource): boolean {
+/** Same stream, different address: strip query, fragment and case. */
+function urlKey(k: string): string {
+  return k.split('?')[0].split('#')[0].toLowerCase();
+}
+/** Same broadcaster, different entry. Ignores labels too generic to be an identity. */
+function labelKey(source: StreamSource): string {
+  const raw = String((source as any).label || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+  if (raw.length < 4 || /^d+$/.test(raw)) return '';
+  return 'label:' + raw;
+}
+function claimKeys(source: StreamSource): string[] {
+  const out: string[] = [];
   const k = streamKey(source);
-  if (!k) return true;
-  if (liveClaimed.has(k)) return false;
-  liveClaimed.add(k);
+  if (k) out.push(urlKey(k));
+  const l = labelKey(source);
+  if (l) out.push(l);
+  return out;
+}
+export function claimLiveKey(source: StreamSource): boolean {
+  const keys = claimKeys(source);
+  if (!keys.length) return true;
+  if (keys.some(k => liveClaimed.has(k))) return false;
+  keys.forEach(k => liveClaimed.add(k));
   return true;
 }
 export function releaseLiveKey(source: StreamSource): void {
-  const k = streamKey(source);
-  if (k) liveClaimed.delete(k);
+  claimKeys(source).forEach(k => liveClaimed.delete(k));
 }
+/** Test seam: what a source would claim. */
+export function _claimKeysFor(source: StreamSource): string[] { return claimKeys(source); }
 
 /** web liveUrl(): the channel/live-vid embed URL, exact param order. */
 export function liveUrl(ch: string | { id: string; vid?: string | null }, mute = 1): string {
