@@ -168,6 +168,14 @@ function earthPixels(): { w: number; h: number; data: Uint8Array } | null {
   }
 }
 export async function loadEarthTexture(gl: any, renderer: THREE.WebGLRenderer, rawPixelStorei: (p: number, v: any) => void): Promise<THREE.Texture> {
+  // three's state reset reads gl.canvas.width; expo-gl's context has no canvas, so
+  // renderer.resetState() throws "Cannot read property 'width' of undefined" - which
+  // is what the device reported once the decode path finally ran, and what the
+  // original code would have hit too had it ever got past the upload. The scene builds
+  // a fake canvas for the RENDERER; the context needs one as well.
+  if (!(gl as any).canvas) {
+    (gl as any).canvas = { width: gl.drawingBufferWidth, height: gl.drawingBufferHeight };
+  }
   const asset = Asset.fromModule(EARTH);
   await asset.downloadAsync();
   if (!asset.localUri) throw new Error('earth texture: no localUri');
@@ -176,30 +184,6 @@ export async function loadEarthTexture(gl: any, renderer: THREE.WebGLRenderer, r
   gl.bindTexture(gl.TEXTURE_2D, glTex);
   rawPixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true); // TextureLoader textures have flipY = true
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, { localUri: asset.localUri });
-  // Driver refused the file upload (1282 on the MT6762 test phone: expo-gl's
-  // { localUri } upload is a native path and this driver rejects it). Hand the pixels
-  // to three instead - it does its own upload, mipmaps and filtering, so nothing here
-  // has to be right about raw GL state. console.warn, not log: release builds strip log.
-  const direct = gl.getError();
-  if (direct !== gl.NO_ERROR) {
-    rawPixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-    gl.bindTexture(gl.TEXTURE_2D, null);
-    gl.deleteTexture(glTex);
-    renderer.resetState();
-    const px = earthPixels();
-    if (!px) throw new Error('earth texture: GL ' + direct + ' and the PNG decode failed too');
-    flipRowsInPlace(px.data, px.w, px.h);   // DataTexture ignores flipY
-    const dt = new THREE.DataTexture(px.data, px.w, px.h, THREE.RGBAFormat);
-    dt.colorSpace = THREE.SRGBColorSpace;
-    dt.magFilter = THREE.LinearFilter;
-    dt.minFilter = THREE.LinearMipmapLinearFilter;
-    dt.wrapS = THREE.ClampToEdgeWrapping;
-    dt.wrapT = THREE.ClampToEdgeWrapping;
-    dt.generateMipmaps = true;
-    dt.needsUpdate = true;
-    try { console.warn('[globe] earth texture: JS PNG decode path ' + px.w + 'x' + px.h + ' (direct upload gave GL ' + direct + ')'); } catch {}
-    return dt;
-  }
   rawPixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
   gl.generateMipmap(gl.TEXTURE_2D);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
@@ -217,9 +201,42 @@ export async function loadEarthTexture(gl: any, renderer: THREE.WebGLRenderer, r
   const err = gl.getError();
   gl.bindTexture(gl.TEXTURE_2D, null);
   if (err !== gl.NO_ERROR) {
+    // The driver would not take the file. Measured on the MT6762 test phone: the
+    // { localUri } texImage2D reports NO error of its own, and 1282 (INVALID_OPERATION)
+    // only surfaces here, at generateMipmap of a texture that was never filled - which
+    // is why checking straight after the upload saw a clean state and this path was
+    // never reached. Decode the map in JS instead (fflate + the app's own PNG reader)
+    // and hand three the pixels: three does the upload, mipmaps and filtering, so
+    // nothing here has to be right about raw GL state.
+    // console.warn, not log: release builds strip console.log.
     gl.deleteTexture(glTex);
-    throw new Error('earth texture upload failed: GL error ' + err);
+    renderer.resetState();
+    const px = earthPixels();
+    if (!px) throw new Error('earth texture: GL ' + err + ' and the PNG decode failed too');
+    flipRowsInPlace(px.data, px.w, px.h);   // DataTexture has no flipY
+    const dt = new THREE.DataTexture(px.data, px.w, px.h, THREE.RGBAFormat);
+    // The WEB renders this map under three r128, whose default is LinearEncoding: the
+    // sRGB bytes are used as-is. Tagging it SRGBColorSpace here converts to linear and
+    // crushes exactly the dark tones a night-lights map is made of - measured on device,
+    // the globe came out ~2.5x darker than the web and read as black with a glow on it.
+    // Match the reference: treat the bytes as linear, like r128 does.
+    dt.colorSpace = THREE.LinearSRGBColorSpace;
+    dt.magFilter = THREE.LinearFilter;
+    dt.minFilter = THREE.LinearMipmapLinearFilter;
+    dt.wrapS = THREE.ClampToEdgeWrapping;
+    dt.wrapT = THREE.ClampToEdgeWrapping;
+    dt.generateMipmaps = true;
+    // Match the direct path: anisotropic filtering keeps the map from smearing where
+    // the sphere turns away from the camera, which is most of what you actually see.
+    try {
+      const maxAniso = (renderer.capabilities as any)?.getMaxAnisotropy?.() || 1;
+      dt.anisotropy = Math.min(4, maxAniso);
+    } catch {}
+    dt.needsUpdate = true;
+    try { console.warn('[globe] earth texture: JS PNG decode path ' + px.w + 'x' + px.h + ' (direct upload gave GL ' + err + ')'); } catch {}
+    return dt;
   }
+  try { console.warn('[globe] earth texture: direct upload'); } catch {}
   const tex = new THREE.Texture();
   const props = renderer.properties.get(tex) as any;
   props.__webglTexture = glTex;
