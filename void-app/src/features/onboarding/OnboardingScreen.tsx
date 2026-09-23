@@ -6,7 +6,6 @@ import { BackHandler, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth';
-import { useSensing } from '../../lib/sensing';
 import { ROUTES } from '../../nav/routes';
 import { t, type Topic } from './copy';
 import { markOnboarded } from './flag';
@@ -51,19 +50,16 @@ export default function OnboardingScreen() {
   // Back from an email confirmation link: the card is issued, pick up at Ignite.
   const resumeIgnite = params.resume === 'ignite';
   const auth = useAuth();
-  const sensing = useSensing();
   const [step, setStep] = useState<Step>(resumeIgnite ? 3 : loginFirst ? 2 : 0);
   const [cardMode, setCardMode] = useState<'create' | 'login'>(loginFirst ? 'login' : 'create');
   const [via, setVia] = useState<Via | null>(resumeIgnite ? 'email' : null);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [places, setPlaces] = useState<LivePlace[]>([]);
   const leaving = useRef(false);
-  // Read at exit time only: both objects are rebuilt on unrelated renders (sensing
-  // re-memos on every affect sample), which would keep restarting the Lit timer.
+  // Read at exit time only: auth is rebuilt on unrelated renders, which would keep
+  // restarting the Lit timer.
   const authRef = useRef(auth);
   authRef.current = auth;
-  const sensingRef = useRef(sensing);
-  sensingRef.current = sensing;
 
   // Android back walks the flow backwards; once past the card it stays put, since
   // the account already exists and there's nothing to undo.
@@ -88,8 +84,8 @@ export default function OnboardingScreen() {
     setStep(4);
   };
 
-  // Lit: 1.6 s, then the app. Consent for body signals follows the flow instead of
-  // covering it (SensingProvider holds it back until the install is onboarded).
+  // Lit: 1.6 s, then the app. No consent screen follows: body signals are opt-in per
+  // signal in Settings (see lib/sensing.tsx).
   useEffect(() => {
     if (step !== 4 || leaving.current) return;
     const id = setTimeout(async () => {
@@ -100,8 +96,6 @@ export default function OnboardingScreen() {
       } catch {}
       await authRef.current.refreshSignedIn().catch(() => {});
       router.replace(ROUTES.void as any);
-      const sn = sensingRef.current;
-      if (!sn.consent.hasChosen) setTimeout(() => sn.openConsent(), 400);
     }, 1600);
     return () => clearTimeout(id);
   }, [step]);

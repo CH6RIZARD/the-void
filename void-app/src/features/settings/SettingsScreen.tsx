@@ -16,6 +16,7 @@ import { voidToast } from '../../ui/Toast';
 import { useAuth } from '../../lib/auth';
 import { clearUserData } from '../../lib/storage';
 import { useSensing } from '../../lib/sensing';
+import { BodySignalsSection } from './BodySignals';
 import { ROUTES } from '../../nav/routes';
 import { signOutEverywhere } from '../auth/authActions';
 import { ensureCore, useIdentity } from '../auth/coreBridge';
@@ -320,13 +321,9 @@ export default function SettingsScreen({ onClose }: { onClose?: () => void }) {
             </Section>
 
             <Section label="Body signals">
-              <Row
-                label="Body signals"
-                sub={sensing ? (sensing.sensingOn ? 'On · consent and sensors' : 'Off · consent and sensors') : 'Consent and sensors'}
-                onPress={() => (sensing ? sensing.openConsent() : voidToast('BODY SIGNALS UNAVAILABLE'))}
-              >
-                <MiniIcon name="chev" size={15} color={colors.dim} />
-              </Row>
+              {/* One switch per signal; the camera / fingertip / Bluetooth ones ask with a
+                  single consent box when switched on (BodySignals.tsx). */}
+              <BodySignalsSection sensing={sensing} Row={Row} />
             </Section>
 
             <Section label="About">
