@@ -1,25 +1,27 @@
 // Body-signal sensing lifecycle (was the WebView bridge in the old App.tsx).
-// The native module is modules/expo-void-sensing; the consent UI is src/ConsentScreen.tsx.
+// The native module is modules/expo-void-sensing; consent lives in Settings → Body signals
+// (src/features/settings/BodySignals.tsx). There is no first-launch consent screen: the
+// non-biometric tier (how you hold and scroll — no OS permission) is on by default and
+// can be switched off; camera / fingertip / Bluetooth tiers stay off until the person
+// switches one on and ticks its consent box.
 //
 //   const s = useSensing();
 //   s.affect            latest quantized AffectState (or null)
 //   s.setFeedVisible(v) front-camera sensing only runs while the feed is visible + foreground
 //   s.markImpression(impressionId, itemId)
-//   s.openConsent()     show the consent screen again (Settings)
+//   s.setTiers(tiers)   record consent for exactly these tiers (asks OS permissions)
 //   s.setKillSwitch(on) body signals on/off (persisted natively)
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, StyleSheet, View } from 'react-native';
+import { AppState } from 'react-native';
 import * as Sensing from '../../modules/expo-void-sensing';
-import { ConsentScreen } from '../ConsentScreen';
-import { isOnboarded } from '../features/onboarding/flag';
 
 export interface SensingApi {
   native: boolean;
   consent: Sensing.ConsentState;
   sensingOn: boolean;
   affect: Sensing.AffectState | null;
-  consentOpen: boolean;
-  openConsent: () => void;
+  /** Record consent for EXACTLY these tiers; resolves to the resulting state. */
+  setTiers: (tiers: Sensing.SensorTier[]) => Promise<Sensing.ConsentState>;
   setKillSwitch: (on: boolean) => void;
   setFeedVisible: (visible: boolean) => void;
   markImpression: (impressionId: string, itemId: string) => void;
@@ -30,9 +32,6 @@ const SensingContext = createContext<SensingApi | null>(null);
 
 export function SensingProvider({ children }: { children: React.ReactNode }) {
   const [consent, setConsent] = useState<Sensing.ConsentState>(() => Sensing.getConsent());
-  // A fresh install goes through Jump In first; the flow opens this sheet itself on
-  // the way into the app, so it no longer covers the first screen.
-  const [consentOpen, setConsentOpen] = useState<boolean>(() => !Sensing.getConsent().hasChosen && isOnboarded());
   const [sensingOn, setSensingOn] = useState<boolean>(() => Sensing.isKillSwitchEnabled());
   const [affect, setAffect] = useState<Sensing.AffectState | null>(null);
   const feedVisibleRef = useRef(false);
@@ -61,9 +60,24 @@ export function SensingProvider({ children }: { children: React.ReactNode }) {
     return () => sub.remove();
   }, []);
 
-  const onConsentDone = useCallback((state: Sensing.ConsentState) => {
+  // First run: the behavioural tier (motion + touch — no permission, nothing biometric)
+  // starts on, disclosed in Settings and the privacy policy. Nothing else is granted.
+  useEffect(() => {
+    if (Sensing.getConsent().hasChosen) return;
+    Sensing.requestConsent(['motion', 'touch'])
+      .then(setConsent)
+      .catch(() => {});
+  }, []);
+
+  const setTiers = useCallback(async (tiers: Sensing.SensorTier[]) => {
+    let state: Sensing.ConsentState;
+    try {
+      state = await Sensing.requestConsent(tiers);
+    } catch {
+      state = Sensing.getConsent();
+    }
     setConsent(state);
-    setConsentOpen(false);
+    return state;
   }, []);
 
   const api = useMemo<SensingApi>(
@@ -72,8 +86,7 @@ export function SensingProvider({ children }: { children: React.ReactNode }) {
       consent,
       sensingOn,
       affect,
-      consentOpen,
-      openConsent: () => setConsentOpen(true),
+      setTiers,
       setKillSwitch: (on) => {
         Sensing.setKillSwitch(on);
         setSensingOn(on);
@@ -86,17 +99,12 @@ export function SensingProvider({ children }: { children: React.ReactNode }) {
       markImpression: (impressionId, itemId) => Sensing.markImpression(impressionId, itemId),
       recordTouch: (samples) => Sensing.recordTouch(samples),
     }),
-    [consent, sensingOn, affect, consentOpen],
+    [consent, sensingOn, affect, setTiers],
   );
 
   return (
     <SensingContext.Provider value={api}>
       {children}
-      {consentOpen ? (
-        <View style={[StyleSheet.absoluteFill, styles.overlay]}>
-          <ConsentScreen onDone={onConsentDone} />
-        </View>
-      ) : null}
     </SensingContext.Provider>
   );
 }
@@ -109,6 +117,3 @@ export function useSensing(): SensingApi {
 
 export { Sensing };
 
-const styles = StyleSheet.create({
-  overlay: { backgroundColor: '#04020c', zIndex: 400 },
-});
