@@ -226,6 +226,12 @@ export async function loadEarthTexture(gl: any, renderer: THREE.WebGLRenderer, r
     dt.wrapS = THREE.ClampToEdgeWrapping;
     dt.wrapT = THREE.ClampToEdgeWrapping;
     dt.generateMipmaps = true;
+    // Match the direct path: anisotropic filtering keeps the map from smearing where
+    // the sphere turns away from the camera, which is most of what you actually see.
+    try {
+      const maxAniso = (renderer.capabilities as any)?.getMaxAnisotropy?.() || 1;
+      dt.anisotropy = Math.min(4, maxAniso);
+    } catch {}
     dt.needsUpdate = true;
     try { console.warn('[globe] earth texture: JS PNG decode path ' + px.w + 'x' + px.h + ' (direct upload gave GL ' + err + ')'); } catch {}
     return dt;
