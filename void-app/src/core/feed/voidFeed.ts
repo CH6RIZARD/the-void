@@ -11,7 +11,7 @@ import { pullBlueskyPage } from './bluesky.ts';
 import { pullProxyPage, resetProxyOffset } from './proxy.ts';
 import { pullRedditPage } from './reddit.ts';
 import { laneClaim, laneFree, surfaceClaim, surfaceFree } from './search.ts';
-import { allPosts, emitPostsChanged } from './store.ts';
+import { allPosts, emitPostsChanged, trimStore } from './store.ts';
 
 let feedLoading = false;
 export type FeedPullResult = 'ok' | 'empty' | 'busy' | 'error';
@@ -32,6 +32,7 @@ export async function pullVoidFeed(): Promise<FeedPullResult> {
     }
     let ok = (await pullBlueskyPage()).length > 0;
     if (!ok) ok = (await pullRedditPage()).length > 0;
+    trimStore(new Set(_rendered));   // keep the store bounded; on-screen rows are safe
     return ok ? 'ok' : 'empty';
   } catch { return 'error'; } finally { feedLoading = false; }
 }
