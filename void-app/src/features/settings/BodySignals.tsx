@@ -79,12 +79,11 @@ function SignalRow({ signal, on, busy, onToggle }: { signal: Signal; on: boolean
     <View style={[st.item, { borderColor: colors.hairline }]}>
       <View style={st.itemTop}>
         <View style={{ flex: 1 }}>
-          <VText style={{ fontFamily: FONTS.sansSemiBold, fontSize: 13.5, color: colors.white }}>
-            {signal.label}
-            {signal.permission ? (
-              <VText style={{ fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.14), color: colors.purple }}>{`   ASKS FOR ${signal.permission.toUpperCase()}`}</VText>
-            ) : null}
-          </VText>
+          <VText style={{ fontFamily: FONTS.sansSemiBold, fontSize: 13.5, color: colors.white }}>{signal.label}</VText>
+          {/* Its own line: inline, the tag wrapped mid-phrase ("ASKS" / "FOR BLUETOOTH"). */}
+          {signal.permission ? (
+            <VText style={{ fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.14), color: colors.purple, marginTop: 3 }}>{`ASKS FOR ${signal.permission.toUpperCase()}`}</VText>
+          ) : null}
           <VText style={{ fontFamily: FONTS.sans, fontSize: 11.5, lineHeight: 11.5 * 1.45, color: colors.dim, marginTop: 4 }}>{signal.line}</VText>
         </View>
         <Toggle on={on} onPress={busy ? () => {} : onToggle} />
