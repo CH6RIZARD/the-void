@@ -16,6 +16,7 @@
 // itself: which build is on the phone is the caller's business, and silently
 // reinstalling would make a measurement mean something different than it says.
 import { execFileSync, execSync } from 'node:child_process';
+import { sh as adbSh, serial } from './lib/screen.mjs';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -36,15 +37,10 @@ const BUDGET = {
   maxP95FrameMs: 20,
 };
 
-const adb = (() => {
-  const local = process.env.LOCALAPPDATA;
-  const guess = local ? join(local, 'Android/Sdk/platform-tools/adb.exe') : null;
-  if (guess && existsSync(guess)) return guess;
-  return 'adb';
-})();
-
-const sh = (args, opts = {}) =>
-  execFileSync(adb, args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, ...opts });
+// The serial lives in lib/screen.mjs. Two phones are attached and they are not
+// interchangeable - one is a Galaxy S22, the other a much weaker Helio P35 that
+// another session is driving - so nothing here resolves a device of its own.
+const sh = (args, opts = {}) => adbSh(args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, ...opts });
 const shell = (cmd) => sh(['shell', cmd]);
 const sleep = (ms) => execSync(`node -e "setTimeout(()=>{},${ms})"`, { stdio: 'ignore' });
 

@@ -12,17 +12,57 @@ export const adb = (() => {
   return g && existsSync(g) ? g : 'adb';
 })();
 
+// ─── WHICH PHONE ─────────────────────────────────────────────────────────
+// There are two phones on this desk and they are not interchangeable: one is a
+// Galaxy S22, the other a Helio P35 that is far weaker, and another session is
+// driving the second one. With both attached adb answers "more than one
+// device/emulator" and every script here stops working - which is how the whole
+// harness went quiet without anything saying why.
+//
+// So the serial is resolved once, explicitly, and never guessed. If two devices
+// are attached and nothing has said which to use, that is an error, not a coin
+// toss: a measurement attributed to the wrong phone is worse than no measurement.
+const SERIAL = (() => {
+  const flag = process.argv.find((a) => a.startsWith('--serial='));
+  if (flag) return flag.split('=').slice(1).join('=');
+  if (process.env.ANDROID_SERIAL) return process.env.ANDROID_SERIAL;
+  let out = '';
+  try {
+    out = execFileSync(adb, ['devices'], { encoding: 'utf8' });
+  } catch {
+    return null;
+  }
+  const attached = out
+    .split(/\r?\n/)
+    .filter((l) => /\tdevice\b/.test(l))
+    .map((l) => l.split(/\s+/)[0]);
+  if (attached.length === 1) return attached[0];
+  if (attached.length > 1) {
+    console.error(
+      `more than one device attached (${attached.join(', ')}) - say which with ` +
+        `ANDROID_SERIAL=<serial> or --serial=<serial>`,
+    );
+    process.exit(2);
+  }
+  return null;
+})();
+
+export const serial = SERIAL;
+/** Every adb call in this harness goes through here, so the serial is applied once. */
+const withSerial = (args) => (SERIAL ? ['-s', SERIAL, ...args] : args);
+
 // A dropped cable is not a measurement. adb exits non-zero when the device goes
 // away mid-run, and letting that throw lost every number the run had already
 // collected - which happened twice. One retry covers a momentary drop; a real
 // disconnection still throws, and the caller decides what that means.
 export const sh = (args, opts = {}) => {
+  const full = withSerial(args);
   try {
-    return execFileSync(adb, args, { maxBuffer: 256 * 1024 * 1024, ...opts });
+    return execFileSync(adb, full, { maxBuffer: 256 * 1024 * 1024, ...opts });
   } catch (e) {
     try {
-      execFileSync(adb, ["wait-for-device"], { timeout: 8000 });
-      return execFileSync(adb, args, { maxBuffer: 256 * 1024 * 1024, ...opts });
+      execFileSync(adb, withSerial(['wait-for-device']), { timeout: 8000 });
+      return execFileSync(adb, full, { maxBuffer: 256 * 1024 * 1024, ...opts });
     } catch {
       throw e;
     }

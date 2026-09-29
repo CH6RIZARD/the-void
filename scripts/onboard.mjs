@@ -13,14 +13,14 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { sh as adbSh } from './lib/screen.mjs';
 import { dumpUi, screenText, tapText } from './lib/ui.mjs';
 
 const PKG = 'com.thevoid.app';
-const adb = (() => {
-  const g = process.env.LOCALAPPDATA ? join(process.env.LOCALAPPDATA, 'Android/Sdk/platform-tools/adb.exe') : null;
-  return g && existsSync(g) ? g : 'adb';
-})();
-const sh = (args) => execFileSync(adb, args, { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
+// The serial lives in lib/screen.mjs. Two phones are attached and they are not
+// interchangeable - one is a Galaxy S22, the other a much weaker Helio P35 that
+// another session is driving - so nothing here resolves a device of its own.
+const sh = (args) => adbSh(args, { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
 const sleep = (ms) => execFileSync(process.execPath, ['-e', `setTimeout(()=>{},${ms})`], { stdio: 'ignore' });
 
 // The flow's own words, in the order it says them. Matching on what is on screen

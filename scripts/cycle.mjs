@@ -25,6 +25,7 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { adb, sh as adbSh, serial } from './lib/screen.mjs';
 
 const PKG = 'com.thevoid.app';
 const ACT = `${PKG}/.MainActivity`;
@@ -45,11 +46,10 @@ const BRANCH = arg('branch', 'fix/tab-switch');
 const GH = process.platform === 'win32' ? 'gh.exe' : 'gh';
 const ONCE = process.argv.includes('--once');
 
-const adb = (() => {
-  const g = process.env.LOCALAPPDATA ? join(process.env.LOCALAPPDATA, 'Android/Sdk/platform-tools/adb.exe') : null;
-  return g && existsSync(g) ? g : 'adb';
-})();
-const sh = (args, opts = {}) => execFileSync(adb, args, { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, ...opts });
+// The serial lives in lib/screen.mjs. Two phones are attached and they are not
+// interchangeable - one is a Galaxy S22, the other a much weaker Helio P35 that
+// another session is driving - so nothing here resolves a device of its own.
+const sh = (args, opts = {}) => adbSh(args, { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, ...opts });
 const shell = (cmd) => sh(['shell', cmd]);
 const sleep = (ms) => spawnSync(process.execPath, ['-e', `setTimeout(()=>{},${ms})`]);
 
@@ -213,6 +213,49 @@ function pastOnboarding() {
   return false;
 }
 
+/** The rows transitions.mjs wrote, so a sweep can be compared with the last one. */
+function readTransitions() {
+  try {
+    return JSON.parse(readFileSync('D:/void-phone/transitions.json', 'utf8')).results || [];
+  } catch {
+    return [];
+  }
+}
+
+// ─── THE REPORT IS THE POINT ─────────────────────────────────────────────
+// A loop that measures and measures and never says anything is just a phone
+// being poked. A sweep ends with a ranked answer: what is worst, what moved
+// since last time, and what broke - which is the cue to read it, patch, build
+// and install, rather than letting another forty identical rounds go by.
+function report(now, before) {
+  const prev = new Map((before || []).map((r) => [r.move + '/' + r.variant, r.ms]));
+  const rows = [...now].sort((a, b) => b.ms - a.ms);
+  if (!rows.length) {
+    say('no transition data this sweep');
+    return;
+  }
+  say('');
+  say('  worst moves this sweep:');
+  for (const r of rows.slice(0, 6)) {
+    const was = prev.get(r.move + '/' + r.variant);
+    const delta =
+      was == null ? '' : was === r.ms ? '  (unchanged)' : `  (was ${was}ms, ${r.ms < was ? '-' : '+'}${Math.abs(r.ms - was)})`;
+    say(`    ${(r.move + '/' + r.variant).padEnd(26)} ${String(r.ms + 'ms').padStart(8)}${delta}`);
+  }
+  const worse = rows.filter((r) => {
+    const was = prev.get(r.move + '/' + r.variant);
+    return was != null && r.ms > was * 1.25 && r.ms - was > 200;
+  });
+  if (worse.length) {
+    say('  REGRESSED since the last sweep:');
+    for (const r of worse) say(`    ${r.move}/${r.variant} ${prev.get(r.move + '/' + r.variant)}ms -> ${r.ms}ms`);
+  }
+  const blank = rows.filter((r) => r.globeBlank);
+  if (blank.length) say(`  globe drew nothing on: ${blank.map((r) => r.variant).join(', ')}`);
+  const crashed = rows.filter((r) => r.crashed);
+  if (crashed.length) say(`  app crashed during: ${crashed.map((r) => r.move + '/' + r.variant).join(', ')}`);
+}
+
 function summarise(out, re) {
   return out.split('\n').map((l) => l.trim()).filter((l) => re.test(l));
 }
@@ -266,8 +309,11 @@ function pass(n) {
   say(`      smoke: ${smokeTally}`);
   for (const l of summarise(smoke.out, /FAIL/)) say(`        ${l}`);
 
-  const jr = node('journey.mjs', []);
-  for (const l of summarise(jr.out, /SLOW|NO STREAMS|CRASHED|\bok\b/)) if (!/^move /.test(l)) say(`        ${l}`);
+  // transitions, not journey: the moves that are reported as broken, each driven
+  // cold, warm, rapid, returning and resumed. journey only ever timed one path
+  // through each, which is the case that was already understood.
+  const jr = node('transitions.mjs', []);
+  for (const l of summarise(jr.out, /SLOW|NEVER SETTLED|CRASHED|aborted|drew nothing|within/)) say(`        ${l}`);
 
   const jank = node('jank-loop.mjs', ['--rounds=1', '--passes=1']);
   const jankLine = summarise(jank.out, /^round \d+/)[0] || '';
@@ -284,8 +330,8 @@ function pass(n) {
         md5,
         smoke: smokeTally,
         smokeExit: smoke.code,
-        journey: summarise(jr.out, /SLOW|NO STREAMS|\bok\b/),
-        journeyExit: jr.code,
+        transitions: readTransitions(),
+        transitionsExit: jr.code,
         jank: jankLine,
         jankExit: jank.code,
       }) + '\n',
@@ -293,7 +339,11 @@ function pass(n) {
   } catch {
     /* ignore */
   }
-  return { sha: build.sha, ok: smoke.code === 0 && jr.code === 0 && jank.code === 0 };
+  return {
+    sha: build.sha,
+    ok: smoke.code === 0 && jr.code === 0 && jank.code === 0,
+    transitions: readTransitions(),
+  };
 }
 
 function main() {
@@ -302,7 +352,10 @@ function main() {
     console.error('no device on adb');
     process.exit(2);
   }
-  say(`cycle started on ${devices[0].split(/\s+/)[0]}, branch ${BRANCH}`);
+  const watch = process.argv.includes('--watch');
+  say(`cycle started on ${devices[0].split(/\s+/)[0]}, branch ${BRANCH}${watch ? ' (watching)' : ''}`);
+  // What the previous sweep measured, read before this one overwrites it.
+  let before = readTransitions();
   for (let n = 1; ; n++) {
     let r;
     try {
@@ -311,11 +364,21 @@ function main() {
       say(`#${n} pass threw: ${String(e).split('\n')[0]}`);
       r = { waited: true };
     }
+    if (r.transitions && r.transitions.length) {
+      report(r.transitions, before);
+      before = r.transitions;
+    }
     if (r.ok) {
       say('every budget met - stopping');
       return;
     }
-    if (ONCE) return;
+    // A sweep ends by saying what it found. Only --watch keeps going on its own;
+    // otherwise this is the moment to read the report, patch, build and install.
+    if (ONCE || !watch) {
+      say('');
+      say('sweep done - review, patch, build with -f profile=preview, then run again');
+      return;
+    }
     // Nothing new to install means waiting for a build, not hammering the phone.
     if (r.waited) sleep(120000);
   }

@@ -305,6 +305,25 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
   const wakeAll = useCallback(() => {
     for (const e of w.registry.values()) if (e.phase === 'playing') e.nudge(true);
   }, [w]);
+
+  // LEAVING THE WALL IS ONE LOOP, NOT ONE COMMIT.
+  // The mirror of wakeAll, and the reason recomputePlacement can stay out of it:
+  // every player is stopped by walking the registry, which React never sees. The
+  // tiles keep their props, keep their state, and keep their players - so coming
+  // back is wakeAll() and a single placement pass, not a rebuild.
+  const stopAll = useCallback(() => {
+    for (const e of w.registry.values()) {
+      try {
+        e.nudge(false);
+      } catch {
+        /* a tile mid-teardown is not a reason to abandon the rest */
+      }
+    }
+  }, [w]);
+  useEffect(() => {
+    if (active || !built.current) return;
+    stopAll();
+  }, [active, stopAll]);
   useEffect(() => {
     if (!active || !built.current) return;
     wakeAll();
@@ -323,6 +342,22 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
 
   // Park / evict (native memory guard, see constants.ts).
   const recomputePlacement = useCallback(() => {
+    // ─── AN INVISIBLE WALL HAS NO PLACEMENT ────────────────────────────
+    // This used to run when the wall lost focus, and its park rule
+    // (d > PARK_SCREENS || !w.activeRef) then marked EVERY tile parked at once.
+    // That handed a new Set to setPlacement, which changed the `parked` prop on
+    // every mounted WallTile - defeating their memo - so one commit became: N
+    // re-renders, N ExoPlayer pauses across the JNI bridge, and N loaders each
+    // stopping fourteen native animations. Tiles only ever accumulate, so after
+    // scrolling the wall N is well past a hundred. Measured on the phone:
+    // leaving the globe took 5630ms, and coming back through reels 5231ms.
+    //
+    // None of it was needed. The ScrollView is display:'none' when inactive, so
+    // nothing in it is visible or composited, and the players are stopped
+    // imperatively through the registry by the effect below - no React state, no
+    // commit proportional to the number of tiles. Placement is recomputed when
+    // the wall comes back, where it means something again.
+    if (!w.activeRef) return;
     const g = geo.current;
     const vh = Math.max(1, g.viewportH);
     const dist = new Map<number, number>();
@@ -332,7 +367,8 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
       dist.set(id, d);
     }
     const parked = new Set<number>();
-    for (const [id, d] of dist) if (d > PARK_SCREENS || !w.activeRef) parked.add(id);
+    // Distance only. The inactive case returned above.
+    for (const [id, d] of dist) if (d > PARK_SCREENS) parked.add(id);
     const live = [...w.registry.values()].filter((e) => e.phase === 'playing' || e.phase === 'connecting');
     const web = live.filter((e) => e.kind === 'youtube' || e.kind === 'iframe');
     const evicted = new Set<number>(placementRef.current.evicted);

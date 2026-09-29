@@ -6,15 +6,13 @@
 // landed in a completely different app on the phone. uiautomator gives the real
 // tree: the text on screen, where each node is, and - the part that matters -
 // which package it belongs to, so nothing here can drive someone else's UI.
-import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
 
-const adb = (() => {
-  const g = process.env.LOCALAPPDATA ? join(process.env.LOCALAPPDATA, 'Android/Sdk/platform-tools/adb.exe') : null;
-  return g && existsSync(g) ? g : 'adb';
-})();
-const sh = (args) => execFileSync(adb, args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+// One place knows which phone this harness talks to; see lib/screen.mjs. Two are
+// attached and they are not interchangeable, so nothing here resolves a device of
+// its own.
+import { sh as adbSh } from './screen.mjs';
+
+const sh = (args) => adbSh(args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
 
 /** Every node with text or a content description, with its centre point. */
 export function dumpUi() {

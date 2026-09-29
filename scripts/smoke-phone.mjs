@@ -13,6 +13,7 @@
 //
 // Exit 0 = every check passed. Exit 1 = a feature regressed. Exit 2 = could not test.
 import { execFileSync } from 'node:child_process';
+import { sh as adbSh } from './lib/screen.mjs';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { inflateSync } from 'node:zlib';
@@ -21,11 +22,10 @@ const PKG = 'com.thevoid.app';
 const ACT = `${PKG}/.MainActivity`;
 const OUT = 'D:/void-phone/smoke';
 
-const adb = (() => {
-  const g = process.env.LOCALAPPDATA ? join(process.env.LOCALAPPDATA, 'Android/Sdk/platform-tools/adb.exe') : null;
-  return g && existsSync(g) ? g : 'adb';
-})();
-const sh = (args, opts = {}) => execFileSync(adb, args, { maxBuffer: 256 * 1024 * 1024, ...opts });
+// The serial lives in lib/screen.mjs. Two phones are attached and they are not
+// interchangeable - one is a Galaxy S22, the other a much weaker Helio P35 that
+// another session is driving - so nothing here resolves a device of its own.
+const sh = (args, opts = {}) => adbSh(args, { maxBuffer: 256 * 1024 * 1024, ...opts });
 const text = (args) => sh(args, { encoding: 'utf8' });
 const shell = (cmd) => text(['shell', cmd]);
 const sleep = (ms) => execFileSync(process.execPath, ['-e', `setTimeout(()=>{},${ms})`], { stdio: 'ignore' });
