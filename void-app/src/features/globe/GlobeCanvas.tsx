@@ -57,21 +57,32 @@ export function GlobeCanvas({ running, onOpenCountry }: GlobeCanvasProps) {
   const [sceneReady, setSceneReady] = useState(false);
   // A GL context or shader that fails on some GPU must never leave a black panel: the
   // globe falls back to the static night map, and search still opens every nation.
-  const [glFailed, setGlFailed] = useState(false);
+  // Each value mounts a fresh GLView. A context that comes back unusable bumps it
+  // rather than leaving the screen empty for the session.
+  const [glAttempt, setGlAttempt] = useState(0);
+  const glRetries = useRef(0);
+  const retryGl = useCallback(() => {
+    if (glRetries.current >= 3) return;
+    glRetries.current += 1;
+    setTimeout(() => setGlAttempt(a => a + 1), 400 * glRetries.current);
+  }, []);
   const onContextCreate = useCallback((gl: ExpoWebGLRenderingContext) => {
     // See the guard in app/_layout.tsx: a re-created surface can hand back a context
     // that is not real. Building a renderer on it would fail in a dozen places.
     if (!gl || typeof (gl as any).createTexture !== 'function' || (gl as any).__voidMissingContext) {
-      setGlFailed(true);
+      try {
+        console.warn('[globe] context unusable - rebuilding the canvas');
+      } catch {}
+      retryGl();
       return;
     }
     try {
       scene.current = createGlobeScene(gl, countries(), size.current.w, size.current.h);
       setSceneReady(true);
     } catch (e) {
-      if (__DEV__) console.warn('[globe] scene failed, showing the static map', e);
+      console.warn('[globe] scene failed - rebuilding the canvas', e);
       scene.current = null;
-      setGlFailed(true);
+      retryGl();
     }
   }, []);
   useEffect(() => {
@@ -85,9 +96,9 @@ export function GlobeCanvas({ running, onOpenCountry }: GlobeCanvasProps) {
       try {
         drew = s.frame(ts || Date.now());
       } catch (e) {
-        if (__DEV__) console.warn('[globe] frame failed, showing the static map', e);
+        console.warn('[globe] frame failed - rebuilding the canvas', e);
         alive = false;
-        setGlFailed(true);
+        retryGl();
         return;
       }
       if (drew && !markedRef.current) {
@@ -196,16 +207,13 @@ export function GlobeCanvas({ running, onOpenCountry }: GlobeCanvasProps) {
     <View style={[styles.wrap, { height }]}>
       <GestureDetector gesture={gesture}>
         <View style={StyleSheet.absoluteFill} collapsable={false}>
-          {glFailed ? (
-            <View style={StyleSheet.absoluteFill}>
-              <Image source={EARTH_MAP} style={[StyleSheet.absoluteFill, { opacity: 0.55 }]} contentFit="cover" transition={0} />
-              <View style={styles.fallbackMsg}>
-                <Text style={{ fontFamily: t.mono, fontSize: 7, letterSpacing: em(7, 0.2), color: t.dim }}>GLOBE UNAVAILABLE ON THIS DEVICE · SEARCH A NATION</Text>
-              </View>
-            </View>
-          ) : (
-            <GLView style={StyleSheet.absoluteFill} onContextCreate={onContextCreate} msaaSamples={4} />
-          )}
+          {/* The globe screen shows the GLOBE. There is no flat-map stand-in: a still
+              picture of the world is not this screen, and it was on show every time the
+              first canvas failed - which is why the globe only appeared after leaving
+              and coming back, since that rebuilt the canvas and usually worked. A failed
+              context now just rebuilds itself (glAttempt), and while that happens the
+              screen stays dark rather than pretending to be a map. */}
+          <GLView key={glAttempt} style={StyleSheet.absoluteFill} onContextCreate={onContextCreate} msaaSamples={4} />
         </View>
       </GestureDetector>
 
@@ -244,10 +252,8 @@ export function GlobeCanvas({ running, onOpenCountry }: GlobeCanvasProps) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const EARTH_MAP = require('../../../assets/globe/earth-night.jpg');
 
 const styles = StyleSheet.create({
-  fallbackMsg: { position: 'absolute', left: 0, right: 0, bottom: 14, alignItems: 'center' },
   wrap: { position: 'relative', width: '100%', flexShrink: 0, overflow: 'hidden', backgroundColor: '#04020c' },
   // #gtip{background:rgba(13,8,32,.95);border:1px solid var(--glow);padding:3px 9px;border-radius:2px}
   tip: { position: 'absolute', zIndex: 10, backgroundColor: 'rgba(13,8,32,0.95)', borderWidth: 1, paddingVertical: 3, paddingHorizontal: 9, borderRadius: 2 },
