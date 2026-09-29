@@ -13,7 +13,7 @@
 //
 // Exit 0 = every check passed. Exit 1 = a feature regressed. Exit 2 = could not test.
 import { execFileSync } from 'node:child_process';
-import { sh as adbSh } from './lib/screen.mjs';
+import { sh as adbSh, serial } from './lib/screen.mjs';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { inflateSync } from 'node:zlib';
@@ -159,7 +159,7 @@ function main() {
     console.error('no device on adb - cannot smoke test');
     process.exit(2);
   }
-  console.log(`smoke test on ${devices[0].split(/\s+/)[0]}\n`);
+  console.log(`smoke test on ${(serial || devices[0].split(/\s+/)[0])}\n`);
 
   sh(['logcat', '-c']);
   try {

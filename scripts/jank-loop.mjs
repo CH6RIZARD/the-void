@@ -167,7 +167,7 @@ function main() {
     console.error('no device on adb - plug the phone in');
     process.exit(2);
   }
-  console.log(`device: ${devices[0].split(/\s+/)[0]}`);
+  console.log(`device: ${(serial || devices[0].split(/\s+/)[0])}`);
   console.log(
     `budget: stall<=${BUDGET.maxStallMs}ms, <=${BUDGET.maxSmallStalls} stalls>50ms, jank<=${BUDGET.maxJankPct}%, p95<=${BUDGET.maxP95FrameMs}ms\n`,
   );

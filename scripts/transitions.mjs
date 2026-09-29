@@ -22,7 +22,7 @@
 // first-frame measurement would wave through.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { text, shell, sleep, grab, fingerprint, changedFraction, navPoints } from './lib/screen.mjs';
+import { text, shell, sleep, grab, fingerprint, changedFraction, navPoints, serial } from './lib/screen.mjs';
 import { dumpUi, screenText } from './lib/ui.mjs';
 
 const PKG = 'com.thevoid.app';
@@ -118,7 +118,7 @@ function main() {
     console.error('no device on adb');
     process.exit(2);
   }
-  console.log(`transitions on ${devices[0].split(/\s+/)[0]}  (budget ${BUDGET_MS}ms)\n`);
+  console.log(`transitions on ${(serial || devices[0].split(/\s+/)[0])}  (budget ${BUDGET_MS}ms)\n`);
 
   shell(`am force-stop ${PKG}`);
   text(['shell', 'am', 'start', '-W', '-n', ACT]);

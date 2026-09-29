@@ -161,7 +161,28 @@ export function createGlobeScene(gl: any, countries: Country[], viewW: number, v
   const buildGlobe = (tex: THREE.Texture) => {
     // 72 segments on mobile: 48 left a faceted limb, 80 is invisible extra cost.
     const seg = 72;
-    earthMat = new THREE.MeshPhongMaterial({ map: tex, emissive: 0x020010, emissiveIntensity: 0.7, specular: 0x3a1e90, shininess: 18 });
+    // A NIGHT MAP IS NOT A DIFFUSE TEXTURE.
+    // The device confirms the map is uploaded and applied - "[globe] earth upload:
+    // direct GL path, error 0 (accepted)", "earth texture applied to the sphere" -
+    // and the globe still came out a dark disc with a magenta blob and no
+    // continents. The texture was never the problem. On a Phong material `map` is
+    // the DIFFUSE colour, visible only where a light falls on it, and the lights
+    // here are a dim ambient, a gold directional and a purple point. The point
+    // light made the blob; everywhere else a picture that is almost entirely black
+    // was multiplied by almost no light, which is black.
+    //
+    // Earth at night is lit from the ground up. The same texture drives emission
+    // now, so cities and coastlines carry their own brightness as they do in the
+    // reference, and the three lights add shape on top of a planet that is already
+    // visible rather than being the only reason anything can be seen at all.
+    earthMat = new THREE.MeshPhongMaterial({
+      map: tex,
+      emissiveMap: tex,
+      emissive: 0xffffff,
+      emissiveIntensity: 0.85,
+      specular: 0x3a1e90,
+      shininess: 18,
+    });
     globe = new THREE.Mesh(new THREE.SphereGeometry(1, seg, seg), earthMat);
     globe.renderOrder = 1;
     sc.add(globe);
@@ -255,6 +276,9 @@ void main(){
         return;
       }
       earthMat.map = tex;
+      // Both, always: the emissive map is what makes the night side visible, so a
+      // swap that updated only `map` would put the globe straight back in the dark.
+      earthMat.emissiveMap = tex;
       earthMat.needsUpdate = true;
       fallback.dispose();
       try {

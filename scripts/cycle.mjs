@@ -353,7 +353,7 @@ function main() {
     process.exit(2);
   }
   const watch = process.argv.includes('--watch');
-  say(`cycle started on ${devices[0].split(/\s+/)[0]}, branch ${BRANCH}${watch ? ' (watching)' : ''}`);
+  say(`cycle started on ${(serial || devices[0].split(/\s+/)[0])}, branch ${BRANCH}${watch ? ' (watching)' : ''}`);
   // What the previous sweep measured, read before this one overwrites it.
   let before = readTransitions();
   for (let n = 1; ; n++) {
