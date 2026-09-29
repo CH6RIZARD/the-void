@@ -22,33 +22,101 @@ import { useStreamCascade, type CascadeResult } from '../live/useStreamCascade';
 import type { StreamSource } from '../live/core';
 import { useTheme } from '../../theme/tokens';
 import { FONTS, em } from '../../theme/palettes';
+import { MAX_MOUNTED_WEBVIEWS, playerBudgetNow } from '../live/constants';
 import type { LiveChannelRef } from './searchModel';
 
-type Phase = 'connecting' | 'playing' | 'offline';
+type Phase = 'connecting' | 'playing' | 'offline' | 'waiting';
+
+// ─── NINE LIVE STREAMS AT ONCE IS NOT A SEARCH SCREEN ────────────────────
+// buildSearch emits one feature tile, one row, and another row after every fourth
+// post: nine live slots on the default view. Each one started its own cascade the
+// instant the tab took focus, so opening search meant nine YouTube WebViews and
+// nine connection attempts in the same breath - while the globe wall's own tiles
+// were still alive, because no tab ever unmounts. That is the ratchet behind
+// "open search, five seconds of nothing".
+//
+// The wall solved this years of code ago with a budget. Search gets the same:
+// a slot has to be admitted before it may connect, and only so many are admitted
+// at once. The rest sit on the loader and take their turn as slots settle, which
+// is what the loader was always for.
+//
+// Admission is held while a slot is playing, not just while it is connecting -
+// a playing YouTube tile is a live WebView, and that is the resource being
+// rationed. Slots release on blur and on unmount.
+const MAX_LIVE_SEARCH = Math.max(2, Math.min(3, MAX_MOUNTED_WEBVIEWS + playerBudgetNow() - 3));
+/** Slots currently allowed to hold a player, and slots waiting for a turn. */
+const admitted = new Set<object>();
+const waiting: { token: object; go: () => void }[] = [];
+
+function pump(): void {
+  while (admitted.size < MAX_LIVE_SEARCH && waiting.length) {
+    const next = waiting.shift();
+    if (!next) break;
+    admitted.add(next.token);
+    next.go();
+  }
+}
+
+/** Ask for a turn. Calls `go` now if there is room, or later when there is. */
+function admit(token: object, go: () => void): void {
+  if (admitted.has(token)) return;
+  if (admitted.size < MAX_LIVE_SEARCH) {
+    admitted.add(token);
+    go();
+    return;
+  }
+  if (!waiting.some((w) => w.token === token)) waiting.push({ token, go });
+}
+
+/** Give the turn back, and hand it straight to whoever is next. */
+function unadmit(token: object): void {
+  admitted.delete(token);
+  const i = waiting.findIndex((w) => w.token === token);
+  if (i >= 0) waiting.splice(i, 1);
+  pump();
+}
 
 const gradient = (g: string): any => ({ experimental_backgroundImage: g });
 
 function useLiveSlot(ch: LiveChannelRef, active: boolean) {
-  const [phase, setPhase] = useState<Phase>('connecting');
+  const [phase, setPhase] = useState<Phase>('waiting');
   const player = useRef<StreamTileHandle>(null);
-  const onResult = useCallback((r: CascadeResult) => setPhase(r.ok ? 'playing' : 'offline'), []);
+  // One identity per slot, for the admission set. A ref, so it survives renders.
+  const token = useRef<object>({});
+  const onResult = useCallback((r: CascadeResult) => {
+    setPhase(r.ok ? 'playing' : 'offline');
+    // A slot that found nothing is holding a turn it cannot use. Hand it on.
+    if (!r.ok) unadmit(token.current);
+  }, []);
   const cascade = useStreamCascade(onResult);
   useEffect(() => {
+    const me = token.current;
     if (!active) {
       cascade.cancel();
-      setPhase('connecting');
+      unadmit(me);
+      setPhase('waiting');
       return;
     }
-    setPhase('connecting');
-    cascade.start([{ type: 'youtube', id: ch.id, label: 'LIVE' } as StreamSource, ...((GLOBAL_POOL as unknown as StreamSource[]) || [])]);
-    return () => cascade.cancel();
+    setPhase('waiting');
+    admit(me, () => {
+      setPhase('connecting');
+      cascade.start([{ type: 'youtube', id: ch.id, label: 'LIVE' } as StreamSource, ...((GLOBAL_POOL as unknown as StreamSource[]) || [])]);
+    });
+    return () => {
+      cascade.cancel();
+      unadmit(me);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ch.id, active]);
   // A playing HLS tile that went to colour bars / slate mid-stream (StreamTile frame
   // check) is already refused by markBadStream: re-walk the chain so the slot refills.
+  // Healing needs a turn like anything else; it already holds one if it is playing.
   const heal = useCallback(() => {
-    setPhase('connecting');
-    cascade.start([{ type: 'youtube', id: ch.id, label: 'LIVE' } as StreamSource, ...((GLOBAL_POOL as unknown as StreamSource[]) || [])]);
+    setPhase('waiting');
+    admit(token.current, () => {
+      setPhase('connecting');
+      cascade.start([{ type: 'youtube', id: ch.id, label: 'LIVE' } as StreamSource, ...((GLOBAL_POOL as unknown as StreamSource[]) || [])]);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ch.id]);
   return { phase, player, cascade, heal };
@@ -58,7 +126,7 @@ function SlotBody({ tileId, radius, slot }: { tileId: string; radius: number; sl
   const a = slot.cascade.attempt;
   return (
     <>
-      {a ? (
+      {a && slot.phase !== 'waiting' ? (
         <StreamTile
           key={a.key}
           ref={slot.player}

@@ -91,6 +91,25 @@ function Shell() {
   // Backgrounding is the one safe moment to hand the decoded-image cache back: the
   // disk cache still has every file, so returning re-decodes at the size now needed
   // instead of holding the old bitmaps. Measured 2026-09-20: ~162 MB of graphics memory.
+  // THE GLOBE TAB SHOULD NOT PAY FOR THREE.JS ON THE FRAME IT IS PRESSED.
+  // The globe screen's module graph pulls in the whole of three, and the tab is
+  // lazy, so the first press paid to evaluate it - several hundred milliseconds of
+  // JS before anything to do with the globe had even started. Evaluating it at
+  // startup would only move that cost onto the splash screen, so it happens a few
+  // seconds after first paint instead, while the feed is being read: by the time
+  // the tab is pressed the module is already in the registry and the press does
+  // nothing but build the scene.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try {
+        require('../src/features/globe/globeScene');
+      } catch {
+        /* the tab still works, it just pays for itself again */
+      }
+    }, 4000);
+    return () => clearTimeout(t);
+  }, []);
+
   useEffect(() => {
     const stopHeartbeat = startHeartbeat();
     const sub = AppState.addEventListener('change', (st) => {

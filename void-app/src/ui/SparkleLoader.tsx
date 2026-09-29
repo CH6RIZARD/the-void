@@ -82,8 +82,22 @@ export interface SparkleLoaderProps {
 
 export const SparkleLoader = memo(function SparkleLoader({ label, onPress, radius, surface = 'media', absolute = true, animate = true, style }: SparkleLoaderProps) {
   const theme = useTheme();
-  const particles = useMemo(makeParticles, []);
-  const running = useLoaderShown(animate);
+  // OFF-SCREEN LOADERS BUILD NOTHING; ON-SCREEN ONES ARE UNTOUCHED.
+  // Every instance mounted its full set of Animated.Views regardless, each one
+  // carrying an Animated.Value and three interpolations, and the globe wall mounts
+  // a loader per tile that is not yet playing - two dozen at once.
+  //
+  // The two conditions are kept apart deliberately. `onScreen` is whether anyone
+  // could see this loader at all: its screen focused, its surface shown, the app
+  // foregrounded. `running` additionally asks whether it should be moving. A tile
+  // that has given up shows the same still particles under '● NO SIGNAL' as it
+  // always did - that is a look, not a spare frame - so particles are built
+  // whenever the loader is on screen, animating or not, at full count.
+  // Only a loader nobody can see builds none, and by definition that changes
+  // nothing anyone sees.
+  const onScreen = useLoaderShown(true);
+  const running = onScreen && animate;
+  const particles = useMemo(() => (onScreen ? makeParticles() : []), [onScreen]);
   const lightFeed = surface === 'feed' && theme.isLight;
   const bg = lightFeed ? '#f7f3ea' : 'rgba(3,1,10,0.97)';
   const labelColor = lightFeed ? theme.colors.dim : theme.colors.muted;

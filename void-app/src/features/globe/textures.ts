@@ -176,9 +176,17 @@ export function markerTexture(hot: boolean): THREE.DataTexture {
 }
 
 /** web _fallbackEarth(): 512×256 vertical gradient + 900 faint landmass-ish rects. */
+// Cached for the same reason the markers are: this is ~400k float writes plus 900
+// alpha-blended rectangles, it is drawn from constants and a seeded pattern, and it
+// sits on the frame that enters the globe tab - which is rebuilt on every GL retry.
+// The bytes are cached, never the texture: a DataTexture belongs to the context
+// that uploaded it.
+let fallbackPixels: Uint8Array | null = null;
+
 export function fallbackEarthTexture(): THREE.DataTexture {
   const W = 512,
     H = 256;
+  if (fallbackPixels) return canvasLikeTexture(fallbackPixels, W, H);
   const px = new Float32Array(W * H * 3);
   const c0 = [0x0a, 0x07, 0x33],
     c1 = [0x14, 0x0b, 0x3a];
@@ -216,6 +224,7 @@ export function fallbackEarthTexture(): THREE.DataTexture {
     data[i * 4 + 2] = Math.round(px[i * 3 + 2]);
     data[i * 4 + 3] = 255;
   }
+  fallbackPixels = data;
   const tex = canvasLikeTexture(data, W, H);
   // (CanvasTexture flips on upload; this pattern is random/vertically symmetric, so the
   // flip is skipped — expo-gl's UNPACK_FLIP_Y support for typed arrays is not relied on.)
