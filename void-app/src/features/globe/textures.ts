@@ -306,6 +306,51 @@ export async function loadEarthTexture(gl: any, renderer: THREE.WebGLRenderer, r
   if (!(gl as any).canvas) {
     (gl as any).canvas = { width: gl.drawingBufferWidth, height: gl.drawingBufferHeight };
   }
+
+  // ─── THE MAP THREE CAN ACTUALLY SEE, FIRST ───────────────────────────────
+  // The direct GL upload below is not a real success on this device, and it took
+  // a screenshot to notice. It reports no error, and the code then hands three a
+  // new THREE.Texture() with NO IMAGE and injects the raw GL handle into
+  // renderer.properties behind three's back. The device duly logs
+  //
+  //   [globe] earth upload: direct GL path, error 0 (accepted)
+  //   [globe] earth texture applied to the sphere
+  //
+  // and the sphere renders black. Every texture change before this one - the
+  // colour space, the resolution, the anisotropy, making the night map emissive -
+  // was aimed at a texture that was never sampled at all. GL said yes, three said
+  // yes, nothing drew, and the dark disc with a magenta blob was the procedural
+  // fallback with a point light on it the whole time.
+  //
+  // The pre-decoded map is a plain DataTexture with real pixels, which three owns
+  // end to end: it uploads it, mipmaps it, and binds it for the diffuse and
+  // emissive slots alike. It is also no longer expensive - scripts/globe-raw.mjs
+  // does the decoding at author time - so there is nothing left for the direct
+  // path to be faster than. That path stays below as a fallback rather than being
+  // deleted, since on a device whose driver takes it AND whose three binds it, it
+  // is one fewer copy; but the globe no longer depends on it.
+  const pre = await earthRawPixels();
+  if (pre) {
+    const dt = new THREE.DataTexture(pre, RAW_W, RAW_H, THREE.RGBAFormat);
+    // Linear, like the r128 reference the web uses: tagging a night-lights map
+    // sRGB converts it to linear and crushes exactly the dark tones it is made of.
+    dt.colorSpace = THREE.LinearSRGBColorSpace;
+    dt.magFilter = THREE.LinearFilter;
+    dt.minFilter = THREE.LinearMipmapLinearFilter;
+    dt.wrapS = THREE.ClampToEdgeWrapping;
+    dt.wrapT = THREE.ClampToEdgeWrapping;
+    dt.generateMipmaps = true;
+    try {
+      const maxAniso = (renderer.capabilities as any)?.getMaxAnisotropy?.() || 1;
+      dt.anisotropy = maxAniso;
+    } catch {}
+    dt.needsUpdate = true;
+    try {
+      console.warn("[globe] earth texture: pre-decoded " + RAW_W + "x" + RAW_H + " DataTexture");
+    } catch {}
+    return dt;
+  }
+
   const asset = Asset.fromModule(EARTH);
   await asset.downloadAsync();
   if (!asset.localUri) throw new Error('earth texture: no localUri');

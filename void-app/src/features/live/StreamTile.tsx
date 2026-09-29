@@ -29,6 +29,16 @@ import { PLAYER_WEBVIEW_PROPS, YT_BASE_URL, parseYtMsg, ytCmd, ytPlayerHtml } fr
 export interface StreamTileHandle {
   /** Watchdog / resume nudge. force=true is liveNudgePlay (always), false = only when not PLAYING. */
   nudge(force?: boolean): void;
+  /**
+   * Stop playing, now, without going through the `parked` prop.
+   *
+   * The only way to pause a tile used to be a prop change, which means a React
+   * commit - and when the whole wall leaves the screen that is a commit touching
+   * every mounted tile at once. There was no imperative counterpart: `nudge`
+   * only ever plays, so a caller reaching for "stop everything" and finding
+   * nudge(false) would start the paused ones instead. This is the missing half.
+   */
+  stop(): void;
   /** Tap-for-sound; no-op until PLAYING. Returns true if the tap was consumed. */
   tap(): boolean;
   isPlaying(): boolean;
@@ -62,7 +72,7 @@ interface PlayerApi {
   isDone(): boolean;
   succeeded(): boolean;
   needsHeal(): void;
-  register(h: { nudge(force?: boolean): void; isPlaying(): boolean; target: AudioTarget }): void;
+  register(h: { nudge(force?: boolean): void; stop(): void; isPlaying(): boolean; target: AudioTarget }): void;
 }
 
 /**
@@ -83,7 +93,7 @@ export const StreamTile = forwardRef<StreamTileHandle, StreamTileProps>(function
   const done = useRef(false);
   const ok = useRef(false);
   const mounted = useRef(true);
-  const handles = useRef<{ nudge(force?: boolean): void; isPlaying(): boolean; target: AudioTarget } | null>(null);
+  const handles = useRef<{ nudge(force?: boolean): void; stop(): void; isPlaying(): boolean; target: AudioTarget } | null>(null);
   const cb = useRef(props);
   cb.current = props;
 
@@ -124,6 +134,9 @@ export const StreamTile = forwardRef<StreamTileHandle, StreamTileProps>(function
       nudge: (force) => {
         if (!ok.current) return;
         handles.current?.nudge(force);
+      },
+      stop: () => {
+        handles.current?.stop();
       },
       tap: () => {
         if (!ok.current || !handles.current) return false;
@@ -256,6 +269,13 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
       nudge: () => {
         if (parkedRef.current) return;
         resume();
+      },
+      // What the parked branch does, without the prop change: see the effect above.
+      stop: () => {
+        if (isReleasedPlayer(player)) return;
+        try {
+          player.pause();
+        } catch {}
       },
       isPlaying: () => {
         if (isReleasedPlayer(player)) return false;
@@ -480,6 +500,12 @@ function YouTubePlayer({ tileId, source, parked, api }: PlayerProps & { parked: 
         post(audio.isAudible(tileId) && audio.isFallback(tileId) ? 'unMute' : 'mute');
         post('playVideo');
       },
+      // Exactly what parking a YouTube tile does, without the prop change. The
+      // bootstrap interval has to go too, or it nudges the tile straight back.
+      stop: () => {
+        clearInterval(s.nudge);
+        post('pauseVideo');
+      },
       isPlaying: () => s.state === 1,
       target: {
         id: tileId,
@@ -605,7 +631,7 @@ function MjpegPlayer({ tileId, source, parked, api }: PlayerProps & { parked: bo
     }
   }, [parked, schedule]);
   useEffect(() => {
-    api.register({ nudge: () => {}, isPlaying: () => true, target: { id: tileId, setMuted: () => {} } });
+    api.register({ nudge: () => {}, stop: () => {}, isPlaying: () => true, target: { id: tileId, setMuted: () => {} } });
     return () => {
       if (t.current) clearTimeout(t.current);
     };
@@ -635,7 +661,7 @@ function MjpegPlayer({ tileId, source, parked, api }: PlayerProps & { parked: bo
 // ─── iframe cam → WebView (caller already enforced EMBEDDABLE_IFRAME && IFRAME_PLAYER_URL) ─
 function IframePlayer({ tileId, source, api }: PlayerProps) {
   useEffect(() => {
-    api.register({ nudge: () => {}, isPlaying: () => api.succeeded(), target: { id: tileId, setMuted: () => {} } });
+    api.register({ nudge: () => {}, stop: () => {}, isPlaying: () => api.succeeded(), target: { id: tileId, setMuted: () => {} } });
   }, [api, tileId]);
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">

@@ -49,6 +49,8 @@ interface WallEntry {
   healAt: number;
   heal(): Promise<boolean>;
   nudge(force: boolean): void;
+  /** Stop playing without a prop change - see StreamTileHandle.stop. */
+  stop(): void;
 }
 
 interface TileRec {
@@ -314,7 +316,7 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
   const stopAll = useCallback(() => {
     for (const e of w.registry.values()) {
       try {
-        e.nudge(false);
+        e.stop();
       } catch {
         /* a tile mid-teardown is not a reason to abandon the rest */
       }
@@ -531,6 +533,7 @@ const WallTile = memo(function WallTile({ rec, left, top, width, height, borderC
     healAt: 0,
     heal: async () => false,
     nudge: () => {},
+    stop: () => {},
   }).current;
   const setPhaseBoth = (p: Phase) => {
     entry.phase = p;
@@ -599,6 +602,7 @@ const WallTile = memo(function WallTile({ rec, left, top, width, height, borderC
       connect(false);
     });
     entry.nudge = (force) => player.current?.nudge(force);
+    entry.stop = () => player.current?.stop();
     entry.heal = () => {
       if (entry.healing) return Promise.resolve(false);
       entry.healing = true;
