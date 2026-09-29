@@ -10,7 +10,7 @@
 //                     100%{opacity:0;transform:translateY(-70px) translateX(15px)}}
 //   14 particles: left random 0-100%, bottom random 0-40px, duration 2.5-6.5s,
 //   delay -(0-6)s (always mid-flight), animation ignores prefers-reduced-motion.
-import React, { memo, useMemo } from 'react';
+import React, { memo, useMemo, useRef } from 'react';
 import { Animated, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
 import { FONTS, em } from '../theme/palettes';
@@ -82,22 +82,30 @@ export interface SparkleLoaderProps {
 
 export const SparkleLoader = memo(function SparkleLoader({ label, onPress, radius, surface = 'media', absolute = true, animate = true, style }: SparkleLoaderProps) {
   const theme = useTheme();
-  // OFF-SCREEN LOADERS BUILD NOTHING; ON-SCREEN ONES ARE UNTOUCHED.
-  // Every instance mounted its full set of Animated.Views regardless, each one
-  // carrying an Animated.Value and three interpolations, and the globe wall mounts
-  // a loader per tile that is not yet playing - two dozen at once.
+  // BUILT ONCE, ON FIRST SIGHT, AND KEPT.
+  // Every instance mounted its full set of Animated.Views whether or not anyone
+  // could ever see it, each particle carrying an Animated.Value and three
+  // interpolations - and the globe wall mounts a loader per tile that is not yet
+  // playing, two dozen at once.
   //
   // The two conditions are kept apart deliberately. `onScreen` is whether anyone
   // could see this loader at all: its screen focused, its surface shown, the app
   // foregrounded. `running` additionally asks whether it should be moving. A tile
   // that has given up shows the same still particles under '● NO SIGNAL' as it
-  // always did - that is a look, not a spare frame - so particles are built
-  // whenever the loader is on screen, animating or not, at full count.
-  // Only a loader nobody can see builds none, and by definition that changes
-  // nothing anyone sees.
+  // always did - that is a look, not a spare frame - so the count is never touched.
+  //
+  // The latch matters as much as the condition. Tying the particles to `onScreen`
+  // directly would tear them down on every blur and build fresh ones on every
+  // focus: the random layout would change each time you came back, and the mount
+  // would land on the tab-switch frame, which is the frame this is meant to make
+  // cheaper. So first sight builds them and nothing takes them away. A loader that
+  // is never seen builds none, which by definition nobody can see; one that has
+  // been seen keeps the arrangement it was born with, exactly as before.
   const onScreen = useLoaderShown(true);
+  const seen = useRef(false);
+  if (onScreen) seen.current = true;
   const running = onScreen && animate;
-  const particles = useMemo(() => (onScreen ? makeParticles() : []), [onScreen]);
+  const particles = useMemo(() => (seen.current ? makeParticles() : []), [seen.current]);
   const lightFeed = surface === 'feed' && theme.isLight;
   const bg = lightFeed ? '#f7f3ea' : 'rgba(3,1,10,0.97)';
   const labelColor = lightFeed ? theme.colors.dim : theme.colors.muted;
