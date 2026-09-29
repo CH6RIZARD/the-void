@@ -13,7 +13,7 @@
 import React, { memo, useEffect } from 'react';
 import { StyleSheet } from 'react-native';
 import { VideoView } from 'expo-video';
-import { usePacedPlayer } from '../live/pacedPlayer';
+import { isReleasedPlayer, usePacedPlayer } from '../live/pacedPlayer';
 
 export interface ReelVideoProps {
   uri: string;
@@ -68,6 +68,8 @@ export const ReelVideo = memo(function ReelVideo({ uri, want, muted, onMediaRead
   // vwPlay / vwPause
   useEffect(() => {
     try {
+      // A released player aborts the process if touched (see pacedPlayer).
+      if (isReleasedPlayer(player)) return;
       if (want) player.play();
       else player.pause();
     } catch {}

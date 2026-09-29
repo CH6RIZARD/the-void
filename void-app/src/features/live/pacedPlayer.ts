@@ -19,6 +19,17 @@ import { useEffect, useMemo } from 'react';
 import { createVideoPlayer, type VideoPlayer, type VideoSource } from 'expo-video';
 
 const RELEASE_GAP_MS = 350;
+// TOUCHING A RELEASED PLAYER ABORTS THE PROCESS. expo's shared objects are backed by
+// a Java object; once released, the next call through the bridge hits
+// "JNI DETECTED ERROR IN APPLICATION: obj == null" inside expo::convertSharedObject
+// and Android aborts (device log 09-28 22:42, tid mqt_v_js). A JS try/catch cannot
+// save it, so the only defence is never to call one. A player is marked released as
+// soon as it is handed to this queue - the actual release is up to a second later -
+// and every caller asks first.
+const released = new WeakSet<object>();
+export function isReleasedPlayer(p: VideoPlayer | null | undefined): boolean {
+  return !p || released.has(p as unknown as object);
+}
 const queue: VideoPlayer[] = [];
 let timer: ReturnType<typeof setTimeout> | null = null;
 
@@ -34,6 +45,7 @@ function step() {
 
 /** Stop a player now; free it on the paced queue. */
 export function releasePaced(p: VideoPlayer) {
+  released.add(p as unknown as object);
   try {
     p.pause();
   } catch {}

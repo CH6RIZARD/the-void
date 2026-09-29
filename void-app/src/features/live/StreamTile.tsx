@@ -15,7 +15,7 @@ import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef,
 import { Animated, AppState, Easing, Image, PixelRatio, StyleSheet, View } from 'react-native';
 import { VideoView } from 'expo-video';
 import { Image as ExpoImage } from 'expo-image';
-import { usePacedPlayer } from './pacedPlayer';
+import { isReleasedPlayer, usePacedPlayer } from './pacedPlayer';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { AudioRing, TileLoader } from './TileChrome';
 import { useAudioOwner, type AudioTarget } from './AudioOwner';
@@ -209,6 +209,7 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
   useEffect(() => {
     let judgeT: ReturnType<typeof setTimeout> | null = null;
     const resume = () => {
+      if (isReleasedPlayer(player)) return;   // a released player aborts the process
       try {
         player.muted = !audio.isAudible(tileId);
         if (!player.playing) player.play();
@@ -257,6 +258,7 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
         resume();
       },
       isPlaying: () => {
+        if (isReleasedPlayer(player)) return false;
         try {
           return player.playing;
         } catch {
@@ -266,6 +268,8 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
       target: {
         id: tileId,
         setMuted: (m) => {
+          // The audio owner can still hold this tile's handle after it unmounts.
+          if (isReleasedPlayer(player)) return;
           try {
             player.muted = m;
             if (!m) {
@@ -298,6 +302,7 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
       let t = -1;
       let playing = false;
       try {
+        if (isReleasedPlayer(player)) return;
         t = player.currentTime;
         playing = player.playing;
       } catch {
@@ -335,7 +340,7 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
     const t = setInterval(async () => {
       if (busy || dead || !api.succeeded() || AppState.currentState !== 'active') return;
       try {
-        if (!player.playing) return;
+        if (isReleasedPlayer(player) || !player.playing) return;
       } catch {
         return;
       }
@@ -357,6 +362,7 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
   useEffect(() => {
     if (!api.succeeded()) return;
     try {
+      if (isReleasedPlayer(player)) return;
       if (parked) player.pause();
       else {
         player.muted = !audio.isAudible(tileId);
