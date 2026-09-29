@@ -12,7 +12,22 @@ export const adb = (() => {
   return g && existsSync(g) ? g : 'adb';
 })();
 
-export const sh = (args, opts = {}) => execFileSync(adb, args, { maxBuffer: 256 * 1024 * 1024, ...opts });
+// A dropped cable is not a measurement. adb exits non-zero when the device goes
+// away mid-run, and letting that throw lost every number the run had already
+// collected - which happened twice. One retry covers a momentary drop; a real
+// disconnection still throws, and the caller decides what that means.
+export const sh = (args, opts = {}) => {
+  try {
+    return execFileSync(adb, args, { maxBuffer: 256 * 1024 * 1024, ...opts });
+  } catch (e) {
+    try {
+      execFileSync(adb, ["wait-for-device"], { timeout: 8000 });
+      return execFileSync(adb, args, { maxBuffer: 256 * 1024 * 1024, ...opts });
+    } catch {
+      throw e;
+    }
+  }
+};
 export const text = (args) => sh(args, { encoding: 'utf8' });
 export const shell = (cmd) => text(['shell', cmd]);
 export const sleep = (ms) => execFileSync(process.execPath, ['-e', `setTimeout(()=>{},${ms})`], { stdio: 'ignore' });
