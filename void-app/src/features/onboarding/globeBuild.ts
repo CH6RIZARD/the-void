@@ -35,6 +35,13 @@ function toXYZ(lat: number, lon: number, r: number): [number, number, number] {
 
 // Facing factor shared by every layer: 1 where the surface looks at the camera,
 // 0 at the limb and beyond. Perspective-correct (uses the real view vector).
+// GLSL needs these on their own lines, so the newlines are escapes in one string
+// rather than a multi-line literal. highp where the device has it, mediump where
+// it does not - the renderer asks for mediump globally, which is not enough for
+// the limb test below.
+const PREC =
+  '#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\nprecision mediump float;\n#endif\n';
+
 const FACING = 'float facing(vec3 objNormal, vec4 mv){vec3 n=normalize(normalMatrix*objNormal);return dot(n,normalize(-mv.xyz));}';
 
 // The mock's own shaders, unchanged, so the picture matches the design exactly:
@@ -59,12 +66,7 @@ const ATMO_VS =
 // smooth on a device with no multisampling to smooth it for us.
 const EDGE_SOFT = 0.02;
 const ATMO_FS =
-  '#ifdef GL_FRAGMENT_PRECISION_HIGH
-precision highp float;
-#else
-precision mediump float;
-#endif
-' +
+  PREC +
   'varying vec3 vN;varying vec3 vPos;varying vec3 vCtr;' +
   'void main(){vec3 d=normalize(vPos);float b=dot(d,vCtr);float c=dot(vCtr,vCtr)-' +
   (BODY_R * BODY_R).toFixed(5) +
@@ -73,12 +75,7 @@ precision mediump float;
   'if(cover<=0.002)discard;' +
   'float i=pow(0.72-dot(vN,vec3(0.0,0.0,1.0)),3.5);i*=cover;' +
   'gl_FragColor=vec4(vec3(0.79,0.66,0.30)*i*0.9+vec3(0.35,0.18,0.7)*i*0.5,i);}';
-const RIM_FS = '#ifdef GL_FRAGMENT_PRECISION_HIGH
-precision highp float;
-#else
-precision mediump float;
-#endif
-varying vec3 vN;void main(){float i=pow(1.0-abs(dot(vN,vec3(0.0,0.0,1.0))),4.0);gl_FragColor=vec4(vec3(0.49,0.36,0.93)*i,i*0.55);}';
+const RIM_FS = PREC + 'varying vec3 vN;void main(){float i=pow(1.0-abs(dot(vN,vec3(0.0,0.0,1.0))),4.0);gl_FragColor=vec4(vec3(0.49,0.36,0.93)*i,i*0.55);}';
 
 const LAND_VS = `uniform float uSize;uniform float uScale;varying float vVis;${FACING}
 void main(){vec4 mv=modelViewMatrix*vec4(position,1.0);vVis=smoothstep(0.0,0.3,facing(position,mv));gl_PointSize=max(1.0,uSize*(uScale/-mv.z));gl_Position=projectionMatrix*mv;}`;
