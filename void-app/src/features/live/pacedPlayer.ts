@@ -66,16 +66,75 @@ export function releasePaced(p: VideoPlayer) {
  * re-creation when the source changes, but the old player goes through releasePaced
  * instead of being released synchronously on unmount.
  */
+// ─── PLAYERS FROM RENDERS THAT NEVER COMMITTED ───────────────────────────
+// createVideoPlayer runs inside useMemo, which is the render phase, while the only
+// release is an effect cleanup, which is the commit phase. React is free to throw a
+// render away - an interrupted or duplicated render under concurrent mode, which is
+// exactly what fast tab switching and reel scrolling produce - and a player created
+// by a render that never commits has no release path at all. It keeps its sockets,
+// its codec handle and its playback thread for the rest of the session.
+//
+// That is a file-descriptor leak with no ceiling, and the process dies when any fd
+// number reaches 1024: "FORTIFY: FD_SET: file descriptor 1124 >= FD_SETSIZE 1024"
+// (SIGABRT on device, 2026-09-29). Reported for days as "crashes on tab switch".
+//
+// Restructuring creation into the commit phase would change when a player exists
+// relative to first paint, which this component tree depends on. So creation stays
+// where it is and a sweeper collects what React abandoned: every player is recorded
+// at birth, the effect marks it adopted, and anything still unadopted well after any
+// real commit would have happened is released. A player that a slow commit has not
+// claimed yet is still within ADOPT_GRACE_MS, so this cannot take a live one.
+const ADOPT_GRACE_MS = 15000;
+const SWEEP_MS = 5000;
+const unadopted = new Map<VideoPlayer, number>();
+let sweeper: ReturnType<typeof setInterval> | null = null;
+
+function sweep() {
+  const cutoff = Date.now() - ADOPT_GRACE_MS;
+  let freed = 0;
+  for (const [p, born] of unadopted) {
+    if (born > cutoff) continue;
+    unadopted.delete(p);
+    if (!isReleasedPlayer(p)) {
+      releasePaced(p);
+      freed++;
+    }
+  }
+  if (freed) {
+    try {
+      console.warn('[fd] released ' + freed + ' player(s) from renders that never committed');
+    } catch {}
+  }
+  if (!unadopted.size && sweeper) {
+    clearInterval(sweeper);
+    sweeper = null;
+  }
+}
+
+function born(p: VideoPlayer) {
+  unadopted.set(p, Date.now());
+  if (!sweeper) sweeper = setInterval(sweep, SWEEP_MS);
+}
+
+/**
+ * Drop-in for expo-video's `useVideoPlayer(source, setup)`: same creation, same
+ * re-creation when the source changes, but the old player goes through releasePaced
+ * instead of being released synchronously on unmount.
+ */
 export function usePacedPlayer(source: VideoSource, setup?: (p: VideoPlayer) => void): VideoPlayer {
   const key = JSON.stringify(source);
   const player = useMemo(() => {
     const p = createVideoPlayer(source);
+    born(p);
     try {
       setup?.(p);
     } catch {}
     return p;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
-  useEffect(() => () => releasePaced(player), [player]);
+  useEffect(() => {
+    unadopted.delete(player); // this render committed; the cleanup below owns it now
+    return () => releasePaced(player);
+  }, [player]);
   return player;
 }

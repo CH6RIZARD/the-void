@@ -46,12 +46,26 @@ function release(postId: string, now = false): void {
   const e = entries.get(postId);
   if (!e) return;
   const kill = () => {
-    entries.delete(postId);
+    // Only ever remove THIS entry. kill() closes over the entry that existed when
+    // release() was called, and a timer from an older entry can still be pending
+    // when a newer one has taken its place in the map (same post, new uri). The
+    // unconditional delete removed the newer entry while leaving its player alive,
+    // so nothing ever released it - one permanently open ExoPlayer, with all its
+    // sockets, per occurrence.
+    if (entries.get(postId) === e) entries.delete(postId);
     // Stopped now, released on the paced queue: the feed trims cards in batches, and a
     // burst of synchronous ExoPlayer releases blocks the main thread (ANR 2026-09-21).
     releasePaced(e.player);
   };
-  if (now) return kill();
+  if (now) {
+    // The immediate path skipped this, leaving the timer armed on an entry that is
+    // already gone. That timer is what did the damage above.
+    if (e.releaseT) {
+      clearTimeout(e.releaseT);
+      e.releaseT = null;
+    }
+    return kill();
+  }
   e.refs = Math.max(0, e.refs - 1);
   if (e.refs > 0) return;
   if (e.releaseT) clearTimeout(e.releaseT);
