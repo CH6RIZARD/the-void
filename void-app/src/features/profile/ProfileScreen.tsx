@@ -222,6 +222,16 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
         style={st.fill}
         data={showDrops && !(isOther && other === null) ? shownDrops : []}
         keyExtractor={(p) => p.id}
+        // The same window the void feed uses (VoidFeedScreen.tsx). Without it this
+        // list keeps every card it has scrolled past mounted, with their decoded
+        // images and their video players, and nothing here ever unmounts.
+        // removeClippedSubviews is deliberately NOT set: on Android it misplaces
+        // cells under a tall ListHeaderComponent, and this header is the whole
+        // profile monument. The window is the part that matters.
+        windowSize={3}
+        initialNumToRender={4}
+        maxToRenderPerBatch={4}
+        updateCellsBatchingPeriod={60}
         renderItem={({ item, index }) => <PostCard post={item} index={index} surface="profile" />}
         viewabilityConfigCallbackPairs={viewability}
         ListHeaderComponent={header}

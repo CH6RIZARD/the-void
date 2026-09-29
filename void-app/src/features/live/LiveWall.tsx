@@ -598,7 +598,15 @@ const WallTile = memo(function WallTile({ rec, left, top, width, height, borderC
       }}
       style={({ pressed }) => [styles.tile, { left, top, width, height, borderColor, opacity: pressed ? 0.72 : 1 }]}
     >
-      {poster ? <Image source={{ uri: poster }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} recyclingKey={poster} /> : null}
+      {/* Only for a tile someone can actually see. Each of these is a decoded
+          bitmap, and on Android a hardware bitmap is itself a file descriptor -
+          so a wall that has been scrolled through holds one per tile it passed,
+          for the whole session, having never unmounted. parked covers the whole
+          wall the moment the globe tab loses focus, which is where most of them
+          were accumulating. */}
+      {poster && !parked && !evicted ? (
+        <Image source={{ uri: poster }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} recyclingKey={poster} />
+      ) : null}
       {a ? (
         <StreamTile
           key={a.key}

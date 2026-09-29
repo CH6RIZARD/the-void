@@ -45,6 +45,11 @@ function step() {
 
 /** Stop a player now; free it on the paced queue. */
 export function releasePaced(p: VideoPlayer) {
+  // Idempotent here rather than at each call site. Several paths can reach the
+  // same player - an effect cleanup, the sweeper, a store eviction - and queueing
+  // one twice would release it twice, which is the JNI abort described above.
+  // Every caller having to remember is how that eventually happens.
+  if (released.has(p as unknown as object)) return;
   released.add(p as unknown as object);
   try {
     p.pause();
