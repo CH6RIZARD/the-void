@@ -389,8 +389,25 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
   const lanes = w.lanes;
 
   return (
+    // A VIDEO SURFACE DOES NOT SLIDE WITH ITS PARENT, BUT IT DOES OBEY GONE.
+    // These tiles render into a SurfaceView: a separate Android window layer
+    // composited by the system rather than drawn into the app's view hierarchy.
+    // That is the point of it, and why it is cheaper than a TextureView. The cost
+    // is that it does not inherit its parent's transform - and the globe/reels
+    // slide moves the inactive side away with translateX, while every tab screen
+    // stays mounted for the session (detachInactiveScreens={false}). So a wall
+    // that had slid away, or been tabbed away from, went on punching its video
+    // through on top of whatever the user was actually looking at.
+    //
+    // display:'none' is View.GONE on Android, and a GONE SurfaceView releases its
+    // surface and stops compositing. Only the surface goes: the player, its
+    // buffers and its socket all survive, so coming back re-attaches a surface and
+    // resumes at the live edge instead of reconnecting the stream. Unmounting the
+    // tiles would also have stopped the overlay, and would have cost a full
+    // reconnect on every return - the surface is the thing that misbehaves, so the
+    // surface is the thing to take away.
     <ScrollView
-      style={styles.scroll}
+      style={[styles.scroll, active ? null : styles.gone]}
       contentContainerStyle={{ paddingTop: PAD, paddingHorizontal: PAD, paddingBottom: 8 + bottomInset }}
       onLayout={(e: LayoutChangeEvent) => {
         setWidth(e.nativeEvent.layout.width);
@@ -425,7 +442,6 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
               borderColor={t.border}
               parked={placement.parked.has(rec.id)}
               evicted={placement.evicted.has(rec.id)}
-              wallShown={active}
               registry={registry}
               lanes={lanes}
               onFirstSettled={onFirstSettled}
@@ -452,14 +468,12 @@ interface WallTileProps {
   borderColor: string;
   parked: boolean;
   evicted: boolean;
-  /** Is the wall's own surface on screen? Not the same as parked - see the render. */
-  wallShown: boolean;
   registry: Map<number, WallEntry>;
   lanes: Lanes;
   onFirstSettled(rec: TileRec, res: CascadeResult): void;
 }
 
-const WallTile = memo(function WallTile({ rec, left, top, width, height, borderColor, parked, evicted, wallShown, registry, lanes, onFirstSettled }: WallTileProps) {
+const WallTile = memo(function WallTile({ rec, left, top, width, height, borderColor, parked, evicted, registry, lanes, onFirstSettled }: WallTileProps) {
   const tileId = `wall:${rec.id}`;
   const [phase, setPhase] = useState<Phase>('queued');
   const [label, setLabel] = useState<string | null>(null);
@@ -610,23 +624,10 @@ const WallTile = memo(function WallTile({ rec, left, top, width, height, borderC
       {poster && !parked && !evicted ? (
         <Image source={{ uri: poster }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} recyclingKey={poster} />
       ) : null}
-      {/* A VIDEO SURFACE DOES NOT SLIDE WITH ITS PARENT.
-          These tiles render into a SurfaceView, which is a separate Android window
-          layer composited by the system rather than drawn into the app's view
-          hierarchy - that is the whole point of it, and why it is cheaper than a
-          TextureView. The cost is that it does not inherit its parent's transform.
-          The globe/reels slide moves the inactive side off screen with translateX
-          (GlobeScreen.tsx), and every tab screen stays mounted for the session
-          (detachInactiveScreens={false}), so a wall that had slid away or been
-          tabbed away from kept punching its video through on top of whatever
-          screen the user was actually looking at - reel content over a stream,
-          feed content over the wall.
-          Hiding it is not enough and parking is not enough: only not having the
-          surface in the tree stops it compositing. So when the wall itself is not
-          on screen, the tile is not rendered. The poster above is not shown in
-          that state either, so the tile reads as a dark cell until the wall comes
-          back, which it does in a single commit. */}
-      {a && wallShown ? (
+      {/* Kept mounted even when the wall is off screen - see the display:'none'
+          on the ScrollView. Unmounting here would destroy the player and force
+          the whole stream to reconnect on every return to the tab. */}
+      {a ? (
         <StreamTile
           key={a.key}
           ref={player}
@@ -651,6 +652,9 @@ const WallTile = memo(function WallTile({ rec, left, top, width, height, borderC
 });
 
 const styles = StyleSheet.create({
+  // View.GONE: no layout, no compositing, and no video punched through whatever
+  // screen is really in front. The tiles stay mounted behind it.
+  gone: { display: 'none' },
   scroll: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   tile: { position: 'absolute', backgroundColor: '#000', borderRadius: 6, overflow: 'hidden', borderWidth: 1 },
