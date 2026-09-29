@@ -78,6 +78,16 @@ for (;;) {
   const summary = summarise(jank.out);
   say(`#${round} ${summary}`);
 
+  // The four moves the user actually names: entering the globe, the wall
+  // coming alive, search loading, and the globe/reels swap. These are the
+  // numbers that decide what gets patched next, so they run every round.
+  const jr = run('journey.mjs', []);
+  for (const l of jr.out.split('\n')) {
+    const t = l.trim();
+    if (!t || /^move /.test(t)) continue;
+    if (/SLOW|NO STREAMS|CRASHED|within budget|\bok\b/.test(t)) say(`      ${t}`);
+  }
+
   let smoke = null;
   if (round % smokeEvery === 0) {
     waitWhilePaused();
@@ -95,6 +105,7 @@ for (;;) {
         at: new Date().toISOString(),
         round,
         jankExit: jank.code,
+        journeyExit: jr.code,
         summary,
         smokeExit: smoke ? smoke.code : null,
       }) + '\n',
