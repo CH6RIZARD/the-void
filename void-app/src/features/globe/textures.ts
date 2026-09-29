@@ -320,12 +320,21 @@ export async function loadEarthTexture(gl: any, renderer: THREE.WebGLRenderer, r
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  // tex.anisotropy = Math.min(4, maxAnisotropy)
+  // ANISOTROPY: TAKE WHAT THE GPU OFFERS.
+  // A sphere shows its texture at a glancing angle over most of its area - the
+  // whole way round towards the limb - and that is exactly where a mipmapped
+  // texture without anisotropic filtering goes to mush. The web reference is
+  // sharp there; this was capped at 4 to be careful on a weak phone, which is
+  // most of why the map reads as soft next to it. GPUs report 16, and the cost
+  // is paid per sampled pixel on one textured sphere, not per triangle.
   try {
     const ext = gl.getExtension('EXT_texture_filter_anisotropic');
     if (ext) {
       const max = gl.getParameter(ext.MAX_TEXTURE_MAX_ANISOTROPY_EXT) || 1;
-      gl.texParameterf(gl.TEXTURE_2D, ext.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(4, max));
+      gl.texParameterf(gl.TEXTURE_2D, ext.TEXTURE_MAX_ANISOTROPY_EXT, max);
+      try {
+        console.warn('[globe] anisotropy ' + max + ' (direct path)');
+      } catch {}
     }
   } catch {}
   const err = gl.getError();
@@ -366,7 +375,10 @@ export async function loadEarthTexture(gl: any, renderer: THREE.WebGLRenderer, r
     // the sphere turns away from the camera, which is most of what you actually see.
     try {
       const maxAniso = (renderer.capabilities as any)?.getMaxAnisotropy?.() || 1;
-      dt.anisotropy = Math.min(4, maxAniso);
+      dt.anisotropy = maxAniso;
+      try {
+        console.warn('[globe] anisotropy ' + dt.anisotropy + ' of ' + maxAniso);
+      } catch {}
     } catch {}
     dt.needsUpdate = true;
     try { console.warn('[globe] earth texture: JS PNG decode path ' + px.w + 'x' + px.h + ' (direct upload gave GL ' + err + ')'); } catch {}

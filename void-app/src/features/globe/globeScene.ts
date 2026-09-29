@@ -99,8 +99,18 @@ export function createGlobeScene(gl: any, countries: Country[], viewW: number, v
   }
   // The drawing buffer IS the device-pixel raster, so pixelRatio is 1 and sizes are in
   // buffer px. PointsMaterial sizes then come out identical in CSS px to the web.
+  // AT WHAT RESOLUTION IS THIS ACTUALLY DRAWN?
+  // setPixelRatio(1) is right only if expo-gl's drawing buffer is already in
+  // device pixels. If it hands back layout pixels instead, the globe is being
+  // drawn at a fraction of the screen's real resolution and then stretched,
+  // which would look exactly like the softness being reported - and no amount
+  // of texture work would fix it. This screen has been diagnosed by guesswork
+  // twice; it can say what it is doing.
   renderer.setPixelRatio(1);
   renderer.setSize(bufW, bufH, false);
+  try {
+    console.warn('[globe] drawing buffer ' + bufW + 'x' + bufH);
+  } catch {}
   renderer.setClearColor(0x04020c, 1);
 
   const sc = new THREE.Scene();

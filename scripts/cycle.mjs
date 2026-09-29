@@ -41,6 +41,8 @@ const arg = (n, d) => {
   return m ? m.split('=').slice(1).join('=') : d;
 };
 const BRANCH = arg('branch', 'fix/tab-switch');
+// Resolved once: spawning without a shell means the name has to be findable.
+const GH = process.platform === 'win32' ? 'gh.exe' : 'gh';
 const ONCE = process.argv.includes('--once');
 
 const adb = (() => {
@@ -63,7 +65,10 @@ function say(line) {
 }
 
 function gh(args) {
-  const r = spawnSync('gh', args, { cwd: REPO, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, shell: true });
+  // shell:true is what broke the JSON query: Windows re-parses the arguments and
+  // strips quoting out of anything with backslashes in it. Spawned directly, the
+  // arguments arrive exactly as written.
+  const r = spawnSync(GH, args, { cwd: REPO, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
   return { code: r.status, out: (r.stdout || '').trim(), err: (r.stderr || '').trim() };
 }
 
@@ -91,16 +96,36 @@ function installedMd5() {
   }
 }
 
+// NO JQ. The first version passed gh a -q expression full of quotes and
+// backslashes through a Windows shell, which ate them: gh then returned nothing
+// and this reported "no successful build" fifty-two times in a row while three
+// builds sat there finished. Ask for plain JSON and pick it apart here, where
+// nothing can rewrite the string on the way.
 /** The newest run of the build workflow that finished successfully on this branch. */
 function newestBuild() {
   const r = gh([
-    'run', 'list', '--workflow=android-aab.yml', '--branch', BRANCH, '-L', '10',
+    'run', 'list',
+    '--workflow=android-aab.yml',
+    '--branch', BRANCH,
+    '-L', '15',
     '--json', 'databaseId,status,conclusion,headSha,createdAt',
-    '-q', '[.[]|select(.conclusion=="success")]|first|"\\(.databaseId) \\(.headSha) \\(.createdAt)"',
   ]);
-  if (r.code !== 0 || !r.out) return null;
-  const [id, sha, at] = r.out.replace(/"/g, '').split(' ');
-  return id ? { id, sha, at } : null;
+  if (r.code !== 0 || !r.out) {
+    say('      gh run list failed: ' + (r.err.split('\n')[0] || 'exit ' + r.code));
+    return null;
+  }
+  let runs;
+  try {
+    runs = JSON.parse(r.out);
+  } catch {
+    say('      could not parse gh output');
+    return null;
+  }
+  const ok = runs.filter((x) => x.conclusion === 'success' && x.headSha);
+  if (!ok.length) return null;
+  ok.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+  const top = ok[0];
+  return { id: String(top.databaseId), sha: top.headSha, at: top.createdAt };
 }
 
 /**
