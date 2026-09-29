@@ -115,7 +115,7 @@ export function OnboardGlobe({ running = true }: { running?: boolean }) {
     <GestureDetector gesture={pan}>
       <View style={StyleSheet.absoluteFill}>
         <Animated.View style={[StyleSheet.absoluteFill, fade]}>
-          <GLView style={StyleSheet.absoluteFill} onContextCreate={onContextCreate} />
+          <GLView style={StyleSheet.absoluteFill} onContextCreate={onContextCreate} msaaSamples={4} />
         </Animated.View>
       </View>
     </GestureDetector>

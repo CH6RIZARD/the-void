@@ -19,7 +19,10 @@ const TILE_W = 164,
 function Tile({ p }: { p: LivePlace }) {
   return (
     <View style={s.tile}>
-      <Image source={{ uri: p.thumb }} style={[StyleSheet.absoluteFill, { opacity: 0.85 }]} contentFit="cover" cachePolicy="memory-disk" recyclingKey={p.thumb} transition={200} />
+      {/* A tile whose thumbnail has not arrived yet sits on this rather than on
+          flat #0d0820, so it reads as a dim window instead of an empty block. */}
+      <LinearGradient colors={['#1a1030', '#0d0820']} style={StyleSheet.absoluteFill} />
+      <Image source={{ uri: p.thumb }} style={[StyleSheet.absoluteFill, { opacity: 0.85 }]} contentFit="cover" cachePolicy="memory-disk" recyclingKey={p.thumb} transition={200} priority="high" />
       <View style={s.liveChip}>
         <View style={s.liveDot} />
         <VText style={{ fontFamily: FONTS.mono, fontSize: 6.5, letterSpacing: em(6.5, 0.12), color: RED }}>{t('s1.tile.live')}</VText>

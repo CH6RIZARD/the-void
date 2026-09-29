@@ -1,6 +1,7 @@
 // The live windows Jump In shows and Ignite offers. Each is one of the app's own
 // city cams (CAM_SOURCES); an id the app drops from its pool drops out here too, so
 // the flow never advertises a window the app itself no longer opens.
+import { Image as ExpoImage } from 'expo-image';
 import { CAM_SOURCES, C } from '../../core';
 
 // [city, ISO, YouTube id] — the mock's list, in the mock's order.
@@ -41,6 +42,22 @@ export const PLACES: LivePlace[] = P.filter(([, , id]) => liveIds.has(id)).map((
   // mqdefault is 320×180: the tiles draw at 164×96, and a low-end phone decodes 42 of them.
   thumb: `https://i.ytimg.com/vi/${id}/mqdefault.jpg`,
 }));
+
+// THE TILES ARRIVE WITH THE SCREEN, NOT AFTER IT.
+// The marquees draw 42 tiles and each one fetched its own thumbnail on mount, so a
+// cold first launch - which is the only launch that shows this screen - opened on a
+// wall of empty purple cards and filled in over the next second or two. That is the
+// first thing a new install sees. The images are warmed here instead, when the module
+// is first imported (before the screen mounts), into the same memory-disk cache the
+// tiles read from; a failure is irrelevant, the tile just loads it the old way.
+try {
+  void ExpoImage.prefetch(
+    PLACES.map((p) => p.thumb),
+    'memory-disk',
+  );
+} catch {
+  /* prefetch is a nicety, never a requirement */
+}
 
 /** Every playable city window the app carries — the "{n} WINDOWS OPEN" count. */
 export const WINDOW_COUNT = liveIds.size;
