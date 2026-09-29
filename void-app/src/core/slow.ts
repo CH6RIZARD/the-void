@@ -41,3 +41,29 @@ export async function timedAsync<T>(label: string, fn: () => Promise<T>): Promis
     }
   }
 }
+
+// ─── IS THE JS THREAD BLOCKED, OR IS IT THE VIEWS? ───────────────────────
+// The wrappers above reported NOTHING while tab switches still took up to 4 s, so the
+// cost is not in our data work. This tells the two remaining suspects apart: a timer
+// that should tick every HEARTBEAT_MS. If it comes back late, the JS thread was busy
+// (rendering, reconciliation); if it stays on time while the screen still takes
+// seconds, the work is on the native side (view creation, layout, images) and no JS
+// fix will touch it.
+const HEARTBEAT_MS = 100;
+const LATE_MS = 300;
+export function startHeartbeat(): () => void {
+  let last = Date.now();
+  const id = setInterval(() => {
+    const now = Date.now();
+    const late = now - last - HEARTBEAT_MS;
+    last = now;
+    if (late >= LATE_MS) {
+      try {
+        console.warn('[block] js thread stalled ' + late + 'ms');
+      } catch {
+        /* */
+      }
+    }
+  }, HEARTBEAT_MS);
+  return () => clearInterval(id);
+}

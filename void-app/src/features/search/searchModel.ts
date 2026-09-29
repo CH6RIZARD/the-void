@@ -1,6 +1,7 @@
 // Data half of renderSearch(q) from void2-final.html. Pure over core state; the
 // screen renders what this returns. The moderation wrapper on surfaceFree (hidden
 // posts are never free anywhere) is folded in via moderation.hidden.
+import { env } from '../../core/env';
 import {
   BIO,
   LIVE_CHANNELS,
@@ -38,6 +39,25 @@ export interface LiveChannelRef {
 
 export const channels = (): LiveChannelRef[] => LIVE_CHANNELS as unknown as LiveChannelRef[];
 
+// ─── LIVE NOW IS NOT THE SAME SEVEN CHANNELS FOR EVER ────────────────────
+// The blocks below took fixed slices - LC[0], LC.slice(1,3), (3,5), (5,7) - so search
+// showed the first seven channels of the list on every open, every launch, while the
+// rest of the pool was never seen. The list is now read through a rotating window:
+// where it starts is chosen once per launch, and advances each time LIVE NOW is built,
+// so the section refreshes as you come back to it and every channel gets its turn.
+let liveCursor = Math.floor(env.random() * 997);
+/** `n` channels from the rotating window, wrapping, without repeats inside one render. */
+function liveWindow(all: LiveChannelRef[], n: number): LiveChannelRef[] {
+  if (all.length <= n) return all.slice();
+  const out: LiveChannelRef[] = [];
+  for (let i = 0; i < n; i++) out.push(all[(liveCursor + i) % all.length]);
+  return out;
+}
+/** Move the window on, so the next visit is a different set. */
+function advanceLive(all: LiveChannelRef[], by: number): void {
+  if (all.length) liveCursor = (liveCursor + by) % all.length;
+}
+
 export type SearchBlock =
   | { kind: 'label'; key: string; text: string; live?: boolean }
   | { kind: 'feat'; key: string; ch: LiveChannelRef }
@@ -64,14 +84,16 @@ export function buildSearch(q: string, filter: SearchFilter): SearchRender {
   const LC = channels();
   const lq = String(q || '').trim().toLowerCase();
   if (filter === 'live') {
+    const win = liveWindow(LC, 7);
+    advanceLive(LC, 7);
     return {
-      sig: 'live|' + q,
+      sig: 'live|' + q + '|' + win[0].id,
       blocks: [
         { kind: 'label', key: 'lbl:live', text: 'LIVE NOW', live: true },
-        { kind: 'feat', key: 'feat:' + LC[0].id, ch: LC[0] },
-        row('a', LC.slice(1, 3)),
-        row('b', LC.slice(3, 5)),
-        row('c', LC.slice(5, 7)),
+        { kind: 'feat', key: 'feat:' + win[0].id, ch: win[0] },
+        row('a', win.slice(1, 3)),
+        row('b', win.slice(3, 5)),
+        row('c', win.slice(5, 7)),
       ],
     };
   }
@@ -114,7 +136,7 @@ export function buildSearch(q: string, filter: SearchFilter): SearchRender {
   const blocks: SearchBlock[] = [
     { kind: 'label', key: 'lbl:live', text: 'LIVE NOW', live: true },
     { kind: 'feat', key: 'feat:' + LC[0].id, ch: LC[0] },
-    row('a', LC.slice(1, 3)),
+    row('a', liveWindow(LC, 3).slice(1, 3)),
   ];
   if (posts.length) {
     blocks.push({ kind: 'label', key: 'lbl:signal', text: 'SIGNAL FEED' });

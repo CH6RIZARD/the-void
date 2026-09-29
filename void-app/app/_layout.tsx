@@ -4,6 +4,7 @@ import '../src/lib/polyfills';
 import 'react-native-reanimated';
 import React, { useEffect, useState } from 'react';
 import { AppState, StyleSheet, View } from 'react-native';
+import { startHeartbeat } from '../src/core/slow';
 
 // A GL SURFACE THAT COMES BACK EMPTY MUST NOT KILL THE APP. expo-gl's own
 // onSurfaceCreate does getGl(id) -> global.__EXGLContexts[id] -> configureLogging(gl)
@@ -91,6 +92,7 @@ function Shell() {
   // disk cache still has every file, so returning re-decodes at the size now needed
   // instead of holding the old bitmaps. Measured 2026-09-20: ~162 MB of graphics memory.
   useEffect(() => {
+    const stopHeartbeat = startHeartbeat();
     const sub = AppState.addEventListener('change', (st) => {
       if (st === 'background') ExpoImage.clearMemoryCache().catch(() => {});
     });
