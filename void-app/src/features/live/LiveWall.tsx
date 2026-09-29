@@ -23,8 +23,6 @@ import { StreamTile, type StreamTileHandle } from './StreamTile';
 import { useStreamCascade, type CascadeResult } from './useStreamCascade';
 import { liveVidFor, rememberStream, wallCascadeFor, wallSlots, streamKey, type StreamSource, type StreamType, type WallSlot } from './core';
 import {
-  EVICT_MARGIN_SCREENS,
-  EVICT_SCREENS,
   FIRST_BATCH_DELAY_MS,
   playerBudgetNow,
   MAX_MOUNTED_WEBVIEWS,
@@ -387,19 +385,31 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
     // 933 MB and got the app killed (test phone, 2026-09-22). So the cap counts EVERY
     // mounted player, not only WebViews, and off-screen tiles (beyond PARK_SCREENS)
     // are the ones let go. Tiles in view always keep playing.
-    const evictFarthest = (pool: WallEntry[], max: number, beyond: number) => {
+    // A CAP THAT ONLY APPLIES FAR AWAY IS NOT A CAP.
+    // This filtered to tiles already `beyond` a distance before evicting any, so
+    // when everything was close - a first fill, or a short wall - the count could
+    // sit far over MAX_MOUNTED_PLAYERS and nothing would be let go. That is how a
+    // budget of four coexisted with twenty-odd live players, and with them the
+    // several hundred file descriptors that abort this ROM at 1024.
+    // Distance is the ORDER to shed in, not a precondition for shedding: farthest
+    // first, and keep going until the count is inside the budget.
+    const evictFarthest = (pool: WallEntry[], max: number) => {
       let over = pool.length - max;
       if (over <= 0) return;
-      const far = pool
-        .filter((e) => (dist.get(e.id) ?? 0) > beyond && !evicted.has(e.id))
-        .sort((a, b) => (dist.get(b.id) ?? 0) - (dist.get(a.id) ?? 0));
-      for (const e of far) {
-        if (over-- <= 0) break;
+      const rank = (e: WallEntry) => dist.get(e.id) ?? 0;
+      // Farthest first. Sorting by distance means the tiles nobody is looking at
+      // go before any tile near the viewport does, and the loop simply stops once
+      // the count is inside the budget - so a nearby tile is only ever taken when
+      // there is nothing further away left to take.
+      const candidates = pool.filter((e) => !evicted.has(e.id)).sort((a, b) => rank(b) - rank(a));
+      for (const e of candidates) {
+        if (over <= 0) break;
         evicted.add(e.id);
+        over--;
       }
     };
-    evictFarthest(web, MAX_MOUNTED_WEBVIEWS, EVICT_SCREENS);
-    evictFarthest(live, playerBudgetNow(), EVICT_MARGIN_SCREENS);   // shrinks if this device fails decoders
+    evictFarthest(web, MAX_MOUNTED_WEBVIEWS);
+    evictFarthest(live, playerBudgetNow());   // shrinks if this device fails decoders
     const same = (a: Set<number>, b: Set<number>) => a.size === b.size && [...a].every((x) => b.has(x));
     if (!same(parked, placementRef.current.parked) || !same(evicted, placementRef.current.evicted)) setPlacement({ parked, evicted });
   }, [w]);
@@ -681,15 +691,21 @@ const WallTile = memo(function WallTile({ rec, left, top, width, height, borderC
           it was measured doing exactly that at fd 1037, sixty seconds after a cold
           start, on a first entry into the globe. So the budget has to apply to
           MOUNTING, not just to eviction.
-          parked already means "further than PARK_SCREENS from the viewport", which
-          is the set nobody is looking at. Those tiles now hold nothing; the poster
-          above carries the picture until one comes near. It costs a reconnect when
-          you scroll back to a tile you had scrolled past - against an app that
-          otherwise dies in a minute.
+          The gate is `evicted`, not `parked`, and the difference matters. parked is
+          one viewport-height away; during a drag, tiles cross that boundary
+          constantly, so gating a MOUNT on it would turn each crossing into a full
+          player create-and-destroy. Measured on device: 28 players created and 52
+          released inside a single ten-second drag. That is the churn, and gating on
+          parked would have multiplied it.
+          evicted is two viewport-heights and is now also where the budget is
+          enforced, so a tile mounts when it comes near, keeps its player while it
+          hovers, and only lets go once it is genuinely far or the wall is over
+          budget. A parked tile still holds its player and is merely paused, which
+          is what parked was always for.
           Still mounted while the wall itself is merely off screen: that is the
           display:'none' case above, where the players are stopped by stopAll and
           kept, so returning to the tab does not reconnect anything. */}
-      {a && !parked && !evicted ? (
+      {a && !evicted ? (
         <StreamTile
           key={a.key}
           ref={player}
