@@ -31,6 +31,7 @@ import {
   refreshVoidFeed,
   type Post,
 } from '../../core';
+import { timed } from '../../core/slow';
 import { useTheme } from '../../theme/ThemeProvider';
 import { FONTS, em } from '../../theme/palettes';
 import { SparkleLoader } from '../../ui/SparkleLoader';
@@ -84,7 +85,7 @@ export default function VoidFeedScreen() {
   }, []);
 
   // renderFeed(): append whatever is fresh, then window the list.
-  const append = useCallback(() => {
+  const append = useCallback(() => timed('feed.append', () => {
     let held: Set<string> | undefined;
     if (dealt.length) {
       if (Date.now() - firstAt.current < FEED_SETTLE_MS) {
@@ -118,7 +119,7 @@ export default function VoidFeedScreen() {
       return next;
     });
     setStatus('idle');
-  }, [replaceAll]);
+  }), [replaceAll]);
 
   const pull = useCallback(async () => {
     const res = await pullVoidFeed();

@@ -12,6 +12,7 @@ import { pullProxyPage, resetProxyOffset } from './proxy.ts';
 import { pullRedditPage } from './reddit.ts';
 import { laneClaim, laneFree, surfaceClaim, surfaceFree } from './search.ts';
 import { allPosts, emitPostsChanged, trimStore } from './store.ts';
+import { timed } from '../slow.ts';
 
 let feedLoading = false;
 export type FeedPullResult = 'ok' | 'empty' | 'busy' | 'error';
@@ -50,6 +51,9 @@ export const _evicted = new Set<string>();   // windowed out of the list; must n
  * `hidden` = moderation predicate (blocked author / hidden post).
  */
 export function nextFeedBatch(hidden?: (p: Post) => boolean, exclude?: Set<string>): Post[] {
+  return timed('nextFeedBatch', () => nextFeedBatchInner(hidden, exclude));
+}
+function nextFeedBatchInner(hidden?: (p: Post) => boolean, exclude?: Set<string>): Post[] {
   let fresh = peekFeedFresh(hidden, exclude);
   if (!fresh.length) return [];
   fresh = staleLast(orderFeedBatch(fresh));
@@ -82,6 +86,9 @@ export function staleLast(list: Post[]): Post[] {
 }
 /** Re-deal the whole feed, ranked together; `lead` ids (if any) go first for this one pass. */
 export function rebuildFeedBatch(hidden?: (p: Post) => boolean, lead?: Set<string> | null, exclude?: Set<string>): Post[] {
+  return timed('rebuildFeedBatch', () => rebuildFeedBatchInner(hidden, lead, exclude));
+}
+function rebuildFeedBatchInner(hidden?: (p: Post) => boolean, lead?: Set<string> | null, exclude?: Set<string>): Post[] {
   _rendered.clear(); _evicted.clear();
   if (lead && lead.size) setRefreshBoost(lead);
   try { return nextFeedBatch(hidden, exclude); } finally { if (lead && lead.size) setRefreshBoost(null); }
