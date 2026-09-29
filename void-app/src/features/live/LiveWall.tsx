@@ -661,13 +661,35 @@ const WallTile = memo(function WallTile({ rec, left, top, width, height, borderC
           for the whole session, having never unmounted. parked covers the whole
           wall the moment the globe tab loses focus, which is where most of them
           were accumulating. */}
-      {poster && !parked && !evicted ? (
+      {/* Shown whenever this tile has no player of its own, which now includes
+          every parked tile - so the wall stays a wall of pictures rather than a
+          grid of empty cells. Evicted tiles are more than EVICT_SCREENS away and
+          draw nothing at all: their bitmap is a file descriptor too, and nobody
+          is two screens ahead of their own thumb. */}
+      {poster && !evicted ? (
         <Image source={{ uri: poster }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} recyclingKey={poster} />
       ) : null}
-      {/* Kept mounted even when the wall is off screen - see the display:'none'
-          on the ScrollView. Unmounting here would destroy the player and force
-          the whole stream to reconnect on every return to the tab. */}
-      {a ? (
+      {/* ─── A PARKED TILE HOLDS NO PLAYER ────────────────────────────────
+          The first fill places 12-24 tiles (fillCount) and each one mounted its
+          player immediately. The budgets - MAX_MOUNTED_PLAYERS 4,
+          MAX_MOUNTED_WEBVIEWS 2 - only ever EVICTED, which happens after a tile
+          has already connected, so the peak was every tile in the batch at once.
+          A YouTube tile is a WebView with its own renderer process and sockets,
+          an HLS tile an ExoPlayer with its own: twenty-odd of either is several
+          hundred file descriptors in the first second of the screen.
+          This ROM aborts the process when any descriptor number reaches 1024, and
+          it was measured doing exactly that at fd 1037, sixty seconds after a cold
+          start, on a first entry into the globe. So the budget has to apply to
+          MOUNTING, not just to eviction.
+          parked already means "further than PARK_SCREENS from the viewport", which
+          is the set nobody is looking at. Those tiles now hold nothing; the poster
+          above carries the picture until one comes near. It costs a reconnect when
+          you scroll back to a tile you had scrolled past - against an app that
+          otherwise dies in a minute.
+          Still mounted while the wall itself is merely off screen: that is the
+          display:'none' case above, where the players are stopped by stopAll and
+          kept, so returning to the tab does not reconnect anything. */}
+      {a && !parked && !evicted ? (
         <StreamTile
           key={a.key}
           ref={player}
