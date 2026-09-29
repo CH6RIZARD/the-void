@@ -238,10 +238,18 @@ void main(){
   // On texture failure the globe simply keeps the fallback, like the web's onError.
   loadEarthTexture(gl, renderer, rawPixelStorei)
     .then((tex) => {
-      if (disposed) return;
+      if (disposed) {
+        try {
+          console.warn('[globe] earth texture arrived after the scene was disposed - dropped');
+        } catch {}
+        return;
+      }
       earthMat.map = tex;
       earthMat.needsUpdate = true;
       fallback.dispose();
+      try {
+        console.warn('[globe] earth texture applied to the sphere');
+      } catch {}
     })
     .catch((e) => {
       console.warn('[globe] earth texture failed — keeping the local fallback', e);

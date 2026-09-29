@@ -18,6 +18,75 @@ import { EARTH_PNG_B64 } from './earthTexture';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const EARTH = require('../../../assets/globe/earth-night.jpg');
+// ─── THE MAP, ALREADY DECODED ────────────────────────────────────────────
+// The JS fallback below inflates a base64 PNG and unfilters it a byte at a time:
+// 2,097,152 iterations plus a 2 MB row flip, synchronously, on the frame that
+// enters the globe tab. Measured on the phone that is a 7271 ms block of the JS
+// thread, which is why the globe takes ten seconds to appear. And the PNG it
+// decodes is 1024x512, half the resolution of the jpg sitting next to it, which
+// is why the globe looks soft once it does appear.
+//
+// None of that work depends on anything only the phone knows - it is the same
+// picture every time - so scripts/globe-raw.mjs does it here and ships the
+// finished pixels: 2048x1024 RGBA, rows already flipped for DataTexture, alpha
+// already filled. The phone reads bytes and hands them to the GPU. No inflate,
+// no unfilter, no flip, and twice the resolution.
+const EARTH_RAW = require('../../../assets/globe/earth-night.rgba.bin');
+const RAW_W = 2048;
+const RAW_H = 1024;
+const RAW_BYTES = RAW_W * RAW_H * 4;
+let rawCache: Uint8Array | null = null;
+
+/** The pre-decoded map, read as bytes. null if it cannot be read on this device. */
+async function earthRawPixels(): Promise<Uint8Array | null> {
+  if (rawCache) return rawCache;
+  const t0 = Date.now();
+  try {
+    const a = Asset.fromModule(EARTH_RAW);
+    await a.downloadAsync();
+    const uri = a.localUri || a.uri;
+    if (!uri) return null;
+    // XHR rather than fetch: fetch on Android returns a Blob whose arrayBuffer()
+    // round-trips through base64, which would put the copying right back.
+    const buf = await new Promise<ArrayBuffer | null>((resolve) => {
+      try {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', uri, true);
+        xhr.responseType = 'arraybuffer';
+        xhr.onload = () => resolve((xhr.response as ArrayBuffer) || null);
+        xhr.onerror = () => resolve(null);
+        xhr.onabort = () => resolve(null);
+        xhr.send();
+      } catch {
+        resolve(null);
+      }
+    });
+    if (!buf) {
+      try {
+        console.warn('[globe] raw map: could not be read');
+      } catch {}
+      return null;
+    }
+    if (buf.byteLength !== RAW_BYTES) {
+      // A short read means the asset was mangled in packaging. Better to fall
+      // through to the slow path than to upload garbage as the planet.
+      try {
+        console.warn('[globe] raw map: wrong size ' + buf.byteLength + ', expected ' + RAW_BYTES);
+      } catch {}
+      return null;
+    }
+    rawCache = new Uint8Array(buf);
+    try {
+      console.warn('[globe] raw map: ' + RAW_W + 'x' + RAW_H + ' in ' + (Date.now() - t0) + 'ms');
+    } catch {}
+    return rawCache;
+  } catch (e) {
+    try {
+      console.warn('[globe] raw map: threw', String(e));
+    } catch {}
+    return null;
+  }
+}
 
 type Stop = [number, number, number, number, number]; // offset, r, g, b, a(0..1)
 
@@ -183,14 +252,39 @@ function flipRowsInPlace(data: Uint8Array, w: number, h: number): void {
 // twice in a session, which is the kind of stall that shows up as a 10 s tab switch.
 let earthCache: { w: number; h: number; data: Uint8Array } | null = null;
 function earthPixels(): { w: number; h: number; data: Uint8Array } | null {
-  if (earthCache) return earthCache;
+  if (earthCache) {
+    try {
+      console.warn('[globe] earth pixels: cached');
+    } catch {}
+    return earthCache;
+  }
+  const t0 = Date.now();
   try {
-    const px = decodePngRGBA(b64ToBytes(EARTH_PNG_B64));
-    if (!px) return null;
+    const bytes = b64ToBytes(EARTH_PNG_B64);
+    const tB64 = Date.now();
+    const px = decodePngRGBA(bytes);
+    const tPng = Date.now();
+    if (!px) {
+      try {
+        console.warn('[globe] earth pixels: PNG decode returned nothing');
+      } catch {}
+      return null;
+    }
+    try {
+      console.warn(
+        '[globe] earth pixels: base64 ' + (tB64 - t0) + 'ms, png ' + (tPng - tB64) + 'ms, ' + px.w + 'x' + px.h,
+      );
+    } catch {}
     flipRowsInPlace(px.data, px.w, px.h);   // once: DataTexture has no flipY
+    try {
+      console.warn('[globe] earth pixels: total ' + (Date.now() - t0) + 'ms');
+    } catch {}
     earthCache = px;
     return earthCache;
-  } catch {
+  } catch (e) {
+    try {
+      console.warn('[globe] earth pixels: threw after ' + (Date.now() - t0) + 'ms', String(e));
+    } catch {}
     return null;
   }
 }
@@ -227,6 +321,9 @@ export async function loadEarthTexture(gl: any, renderer: THREE.WebGLRenderer, r
   } catch {}
   const err = gl.getError();
   gl.bindTexture(gl.TEXTURE_2D, null);
+  try {
+    console.warn('[globe] earth upload: direct GL path, error ' + err + (err === gl.NO_ERROR ? ' (accepted)' : ' (refused)'));
+  } catch {}
   if (err !== gl.NO_ERROR) {
     // The driver would not take the file. Measured on the MT6762 test phone: the
     // { localUri } texImage2D reports NO error of its own, and 1282 (INVALID_OPERATION)
@@ -238,8 +335,12 @@ export async function loadEarthTexture(gl: any, renderer: THREE.WebGLRenderer, r
     // console.warn, not log: release builds strip console.log.
     gl.deleteTexture(glTex);
     renderer.resetState();
-    const px = earthPixels();
-    if (!px) throw new Error('earth texture: GL ' + err + ' and the PNG decode failed too');
+    // The pre-decoded map first: same pixels, twice the resolution, none of the
+    // JS work. The base64 PNG decode stays behind it as the last resort, for a
+    // device where the raw asset cannot be read at all.
+    const raw = await earthRawPixels();
+    const px = raw ? { w: RAW_W, h: RAW_H, data: raw } : earthPixels();
+    if (!px) throw new Error('earth texture: GL ' + err + ' and neither map could be read');
     const dt = new THREE.DataTexture(px.data, px.w, px.h, THREE.RGBAFormat);
     // The WEB renders this map under three r128, whose default is LinearEncoding: the
     // sRGB bytes are used as-is. Tagging it SRGBColorSpace here converts to linear and
