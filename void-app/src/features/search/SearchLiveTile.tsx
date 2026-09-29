@@ -119,7 +119,20 @@ function useLiveSlot(ch: LiveChannelRef, active: boolean) {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ch.id]);
-  return { phase, player, cascade, heal };
+  // WHAT IS THIS TILE ACTUALLY PLAYING?
+  // The cascade starts on the channel's own stream and, if that fails, walks the
+  // global pool until something works. The tile went on showing the channel's
+  // name either way - so a slot labelled AL JAZEERA could be playing a pool
+  // stream that has nothing to do with Al Jazeera, and two differently-named
+  // tiles could be showing the same broadcast from two different feeds. The name
+  // was a claim the tile had no basis for.
+  //
+  // The first source in the list is the channel itself; anything after it is a
+  // substitute, and says so. The label follows the picture.
+  const a = cascade.attempt;
+  const own = !!a && a.src && (a.src as { id?: string }).id === ch.id;
+  const name = !a || own ? ch.n : (a.label && a.label !== 'LIVE' ? a.label : 'LIVE FEED').toUpperCase();
+  return { phase, player, cascade, heal, name };
 }
 
 function SlotBody({ tileId, radius, slot }: { tileId: string; radius: number; slot: ReturnType<typeof useLiveSlot> }) {
@@ -159,7 +172,7 @@ export const SearchLiveFeat = memo(function SearchLiveFeat({ ch, active, slotKey
           </Text>
         </View>
         <Text allowFontScaling={false} numberOfLines={1} style={[styles.featName, { color: colors.white }]}>
-          {ch.n}
+          {slot.name}
         </Text>
       </View>
     </Pressable>
@@ -174,7 +187,7 @@ export const SearchLiveTile = memo(function SearchLiveTile({ ch, active, slotKey
       <SlotBody tileId={'search:' + slotKey} radius={14} slot={slot} />
       <View pointerEvents="none" style={[styles.tileLbl, gradient('linear-gradient(to bottom, transparent, rgba(0,0,0,0.85))')]}>
         <Text allowFontScaling={false} numberOfLines={1} style={[styles.tileLblText, { color: colors.gold }]}>
-          {ch.n}
+          {slot.name}
         </Text>
       </View>
     </Pressable>

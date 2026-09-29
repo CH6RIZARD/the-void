@@ -5,6 +5,7 @@ import { env } from '../../core/env';
 import {
   BIO,
   LIVE_CHANNELS,
+  NEWS_SOURCES,
   _surfKeys,
   allPosts,
   moderation,
@@ -37,7 +38,45 @@ export interface LiveChannelRef {
   vid?: string;
 }
 
-export const channels = (): LiveChannelRef[] => LIVE_CHANNELS as unknown as LiveChannelRef[];
+// ─── TWELVE CHANNELS IS NOT A WORLD ──────────────────────────────────────
+// LIVE NOW drew from LIVE_CHANNELS, which is a hard-coded list of twelve. With
+// nine slots on screen there was barely a pool to draw from: DW NEWS sat at
+// index 0 and so was the featured tile on every single open, and the same
+// handful filled the rows underneath it for ever.
+//
+// The app already carries twenty-eight more live news channels in NEWS_SOURCES,
+// each with its own name, and never showed any of them here. They are the same
+// kind of thing - a live YouTube feed with a label - so the pool is both lists.
+// Forty channels against nine slots is a screen that can actually differ from
+// itself.
+const YT_ID = /^[\w-]{11}$/;
+const CHANNEL_ID = /^UC[\w-]{20,}$/;
+
+/** NEWS_SOURCES, as channels, deduped against the curated twelve and each other. */
+function newsChannels(): LiveChannelRef[] {
+  const seen = new Set<string>((LIVE_CHANNELS as unknown as LiveChannelRef[]).map((c) => c.id));
+  const out: LiveChannelRef[] = [];
+  for (const list of Object.values(NEWS_SOURCES || {})) {
+    for (const src of list || []) {
+      if (src.type !== 'youtube' || !src.id) continue;
+      if (!YT_ID.test(src.id) && !CHANNEL_ID.test(src.id)) continue;
+      if (seen.has(src.id)) continue;
+      seen.add(src.id);
+      // The label is the broadcaster's own name, often with its native-script
+      // name in brackets after it; the tile has one line, so take the first part.
+      const n = (src.label || '').split(/\s+[-–(]/)[0].trim().toUpperCase();
+      if (!n) continue;
+      out.push({ n, id: src.id } as LiveChannelRef);
+    }
+  }
+  return out;
+}
+
+let allChannels: LiveChannelRef[] | null = null;
+export const channels = (): LiveChannelRef[] => {
+  if (!allChannels) allChannels = [...(LIVE_CHANNELS as unknown as LiveChannelRef[]), ...newsChannels()];
+  return allChannels;
+};
 
 // ─── LIVE NOW IS NOT THE SAME SEVEN CHANNELS FOR EVER ────────────────────
 // The blocks below took fixed slices - LC[0], LC.slice(1,3), (3,5), (5,7) - so search
