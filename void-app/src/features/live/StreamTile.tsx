@@ -13,7 +13,7 @@
 // one-stream-one-place claim before mounting this, and releases the claim on unmount.
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Animated, AppState, Easing, Image, PixelRatio, StyleSheet, View } from 'react-native';
-import { VideoView } from 'expo-video';
+import { VideoView, type VideoPlayer } from 'expo-video';
 import { Image as ExpoImage } from 'expo-image';
 import { isReleasedPlayer, usePacedPlayer } from './pacedPlayer';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
@@ -181,6 +181,30 @@ interface PlayerProps {
 }
 
 // ─── HLS / mp4 → expo-video ──────────────────────────────────────────────────
+/**
+ * Drop this player's audio track while it is silent, restore it when it is not.
+ *
+ * expo-video exposes audioTrack as a settable, nullable property; null is no audio
+ * decoder at all, where muted is a decoder producing samples nobody hears.
+ * Wrapped in its own try/catch per call: a player mid-teardown, or a source with
+ * no audio track to begin with, must not take the tile down with it.
+ */
+function detachAudio(player: VideoPlayer, silent: boolean): void {
+  try {
+    const p = player as unknown as { audioTrack: unknown; availableAudioTracks?: unknown[] };
+    if (silent) {
+      p.audioTrack = null;
+      return;
+    }
+    if (p.audioTrack == null) {
+      const first = p.availableAudioTracks?.[0];
+      if (first) p.audioTrack = first;
+    }
+  } catch {
+    /* not every source has one, and not every build of expo-video exposes it */
+  }
+}
+
 function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture' }: PlayerProps & { parked: boolean; tileWidth?: number; surface?: 'texture' | 'surface' }) {
   const audio = useAudioOwner();
   const raw = source.url || '';
@@ -292,6 +316,19 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
           if (isReleasedPlayer(player)) return;
           try {
             player.muted = m;
+            // MUTED IS NOT THE SAME AS NOT DECODING.
+            // A muted player still decodes its audio track: on a wall of a dozen
+            // tiles that is a dozen audio decoders competing for the same hardware,
+            // and every underrun posts an AudioRendererEventListener callback to the
+            // main looper. Measured on device during an ANR: the main thread
+            // saturated by onAudioUnderrun with 52 input events queued behind it,
+            // media.swcodec at 74% because the hardware decoders were exhausted and
+            // playback had fallen back to software.
+            //
+            // Only one tile is ever audible, so the rest need no audio track at all.
+            // Dropping it frees the decoder instead of silencing it, and the track is
+            // put back the moment this tile is the one being listened to.
+            detachAudio(player, m);
             if (!m) {
               player.volume = 1;
               if (!player.playing) player.play();
@@ -385,7 +422,9 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
       if (isReleasedPlayer(player)) return;
       if (parked) player.pause();
       else {
-        player.muted = !audio.isAudible(tileId);
+        const silent = !audio.isAudible(tileId);
+        player.muted = silent;
+        detachAudio(player, silent);
         player.play();
       }
     } catch {}
