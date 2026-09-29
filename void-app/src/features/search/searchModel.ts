@@ -129,14 +129,22 @@ export function buildSearch(q: string, filter: SearchFilter): SearchRender {
     posts.push(p);
   }
   if (!lq && free < 24) pullSearchDiscovery().catch(() => 0); // keep discovery stocked ahead of the exclusions
-  const sig = filter + '|' + q + '|' + posts.map((p) => p.id).join(',');
+  const sig = filter + '|' + q + '|' + liveCursor + '|' + posts.map((p) => p.id).join(',');
   posts.forEach((p) => surfaceClaim(p, 'search'));
   if (filter !== 'all') posts = posts.filter((p) => matchesFilter(p, filter));
 
+  // THIS is the view search opens on, and it was the one still pinned.
+  // The rotating window went in for the 'live' filter only; here the featured
+  // channel stayed hard-coded to LC[0] and the cursor was never advanced, so the
+  // default search screen showed the same channel and the same two tiles on every
+  // open, every launch, for ever - which is exactly what was reported, after this
+  // was called fixed.
+  const win = liveWindow(LC, 3);
+  advanceLive(LC, 3);
   const blocks: SearchBlock[] = [
     { kind: 'label', key: 'lbl:live', text: 'LIVE NOW', live: true },
-    { kind: 'feat', key: 'feat:' + LC[0].id, ch: LC[0] },
-    row('a', liveWindow(LC, 3).slice(1, 3)),
+    { kind: 'feat', key: 'feat:' + win[0].id, ch: win[0] },
+    row('a', win.slice(1, 3)),
   ];
   if (posts.length) {
     blocks.push({ kind: 'label', key: 'lbl:signal', text: 'SIGNAL FEED' });
