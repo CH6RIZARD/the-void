@@ -68,6 +68,18 @@ function canvasLikeTexture(data: Uint8Array, w: number, h: number): THREE.DataTe
   return tex;
 }
 
+// THE SAME TWO PICTURES, EVERY TIME.
+// rasterRadial walks 128x128 pixels computing a hypot and a gradient lookup for
+// each - about 16k iterations per call, twice per scene build - and the inputs are
+// two hard-coded constants, so it produced identical bytes every time. The scene is
+// rebuilt on entering the globe and again on each GL retry, and this sat directly
+// in the path of the first frame. The pixels are computed once per process now.
+//
+// The bytes are cached, not the texture: a THREE.DataTexture belongs to the GL
+// context that uploaded it, and handing a dead context's texture to a new one is
+// how you get a blank globe after a retry.
+const markerPixels: (Uint8Array | null)[] = [null, null];
+
 /** web mkTex(hot) */
 export function markerTexture(hot: boolean): THREE.DataTexture {
   const stops: Stop[] = hot
@@ -85,7 +97,13 @@ export function markerTexture(hot: boolean): THREE.DataTexture {
         [0.6, 0, 0, 0, 0.05],
         [1, 0, 0, 0, 0],
       ];
-  return canvasLikeTexture(rasterRadial(128, stops), 128, 128);
+  const slot = hot ? 1 : 0;
+  let px = markerPixels[slot];
+  if (!px) {
+    px = rasterRadial(128, stops);
+    markerPixels[slot] = px;
+  }
+  return canvasLikeTexture(px, 128, 128);
 }
 
 /** web _fallbackEarth(): 512×256 vertical gradient + 900 faint landmass-ish rects. */

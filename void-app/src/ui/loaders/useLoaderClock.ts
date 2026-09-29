@@ -19,11 +19,38 @@ import { NavigationContext } from 'expo-router/build/react-navigation/core';
  *  wrap it in <LoaderActiveContext.Provider value={visible}>. Default: shown. */
 export const LoaderActiveContext = createContext(true);
 
+// ONE APPSTATE LISTENER FOR THE WHOLE APP.
+// useScreenShown runs once per loader, and the wall mounts one loader per tile that
+// is not yet playing - up to two dozen. Each was adding its own AppState listener
+// and its own piece of state, so every foreground/background transition woke two
+// dozen subscriptions to deliver one identical boolean. The value is global, so it
+// is kept in one place and read from there.
+let appActiveNow = AppState.currentState === 'active';
+const appActiveSubs = new Set<(v: boolean) => void>();
+AppState.addEventListener('change', (st) => {
+  const v = st === 'active';
+  if (v === appActiveNow) return;
+  appActiveNow = v;
+  for (const fn of appActiveSubs) fn(v);
+});
+
+function useAppActive(): boolean {
+  const [v, setV] = useState(appActiveNow);
+  useEffect(() => {
+    setV(appActiveNow); // it may have changed between render and effect
+    appActiveSubs.add(setV);
+    return () => {
+      appActiveSubs.delete(setV);
+    };
+  }, []);
+  return v;
+}
+
 /** Focused screen (null-safe outside a navigator) and foregrounded app. */
 function useScreenShown(): boolean {
   const nav = useContext(NavigationContext);
   const [focused, setFocused] = useState(() => (nav ? nav.isFocused() : true));
-  const [appActive, setAppActive] = useState(() => AppState.currentState === 'active');
+  const appActive = useAppActive();
   useEffect(() => {
     if (!nav) return;
     setFocused(nav.isFocused());
@@ -34,10 +61,6 @@ function useScreenShown(): boolean {
       offBlur();
     };
   }, [nav]);
-  useEffect(() => {
-    const sub = AppState.addEventListener('change', (st) => setAppActive(st === 'active'));
-    return () => sub.remove();
-  }, []);
   return focused && appActive;
 }
 
