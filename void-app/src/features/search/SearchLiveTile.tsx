@@ -23,9 +23,39 @@ import type { StreamSource } from '../live/core';
 import { useTheme } from '../../theme/tokens';
 import { FONTS, em } from '../../theme/palettes';
 import { MAX_MOUNTED_WEBVIEWS, playerBudgetNow } from '../live/constants';
+import { channels } from './searchModel';
 import type { LiveChannelRef } from './searchModel';
 
 type Phase = 'connecting' | 'playing' | 'offline' | 'waiting';
+
+// ─── WHAT A DEAD CHANNEL FALLS BACK TO ───────────────────────────────────
+// Every slot's cascade was [its own channel, ...GLOBAL_POOL], and GLOBAL_POOL is
+// two hard-coded test streams. So any channel that would not start landed on the
+// same test feed - the same picture, again and again, session after session, and
+// with only two of them the rest of the slots just said NO SIGNAL.
+//
+// A live news channel that is down should be replaced by another live news
+// channel. The forty in the pool are exactly that, so the fallback walks them,
+// in a different order for each slot, before it ever reaches the test streams.
+function fallbacksFor(ch: LiveChannelRef): StreamSource[] {
+  const all = channels().filter((c) => c.id !== ch.id);
+  // Shuffled per slot and per call, so two failing tiles do not queue up behind
+  // the same substitute and so a retry is not a repeat of the last attempt.
+  for (let i = all.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [all[i], all[j]] = [all[j], all[i]];
+  }
+  return all.slice(0, 8).map((c) => ({ type: 'youtube', id: c.id, label: c.n }) as StreamSource);
+}
+
+/** The channel itself, then real substitutes, then the test streams as a last resort. */
+function sourcesFor(ch: LiveChannelRef): StreamSource[] {
+  return [
+    { type: 'youtube', id: ch.id, label: ch.n } as StreamSource,
+    ...fallbacksFor(ch),
+    ...((GLOBAL_POOL as unknown as StreamSource[]) || []),
+  ];
+}
 
 // ─── NINE LIVE STREAMS AT ONCE IS NOT A SEARCH SCREEN ────────────────────
 // buildSearch emits one feature tile, one row, and another row after every fourth
@@ -100,7 +130,7 @@ function useLiveSlot(ch: LiveChannelRef, active: boolean) {
     setPhase('waiting');
     admit(me, () => {
       setPhase('connecting');
-      cascade.start([{ type: 'youtube', id: ch.id, label: 'LIVE' } as StreamSource, ...((GLOBAL_POOL as unknown as StreamSource[]) || [])]);
+      cascade.start(sourcesFor(ch));
     });
     return () => {
       cascade.cancel();
@@ -115,7 +145,7 @@ function useLiveSlot(ch: LiveChannelRef, active: boolean) {
     setPhase('waiting');
     admit(token.current, () => {
       setPhase('connecting');
-      cascade.start([{ type: 'youtube', id: ch.id, label: 'LIVE' } as StreamSource, ...((GLOBAL_POOL as unknown as StreamSource[]) || [])]);
+      cascade.start(sourcesFor(ch));
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ch.id]);

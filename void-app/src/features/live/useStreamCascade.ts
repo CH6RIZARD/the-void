@@ -15,7 +15,7 @@ export interface CascadeAttempt {
   key: string;
   src: StreamSource;
   index: number;
-  /** '● CONNECTING' for the first candidate, '● RETRYING' after. */
+  /** '● CONNECTING'. How many sources have been tried is not the viewer's business. */
   label: string;
 }
 
@@ -63,7 +63,11 @@ export function useStreamCascade(onResult: (r: CascadeResult) => void) {
         claimed.current = src;
         const key = `a${++attemptSeq}`;
         curKey.current = key;
-        setAttempt({ key, src, index: i, label: i === 0 ? '● CONNECTING' : '● RETRYING' });
+        // RETRYING was in the original port and nobody asked for it. A tile that is
+        // working through its sources is still loading, and the sparkle already says
+        // so; announcing the attempt number only tells the viewer the app is
+        // struggling. One label, until it plays or gives up.
+        setAttempt({ key, src, index: i, label: '● CONNECTING' });
         return;
       }
       curKey.current = null;

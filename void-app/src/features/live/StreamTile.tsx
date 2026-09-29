@@ -37,7 +37,7 @@ export interface StreamTileHandle {
 export interface StreamTileProps {
   tileId: string;
   source: StreamSource;
-  /** Loader label while connecting ('● CONNECTING' / '● RETRYING'). */
+  /** Loader label while connecting ('● CONNECTING'). */
   loaderLabel?: string;
   /** Far off-screen: pause HLS decode (native memory guard). YouTube keeps running. */
   parked?: boolean;
