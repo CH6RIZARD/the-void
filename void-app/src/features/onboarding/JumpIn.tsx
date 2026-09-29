@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FONTS, em } from '../../theme/palettes';
 import { VText } from '../../ui/Text';
 import { t } from './copy';
-import { PLACES, WINDOW_COUNT, type LivePlace } from './places';
+import { MARQUEE_PLACES, WINDOW_COUNT, type LivePlace } from './places';
 import { BlinkDot, CTA, Enter, GOLD, Logo, Mono, RED, Serif, WHITE } from './parts';
 
 const TILE_W = 164,
@@ -58,8 +58,8 @@ function Row({ places, seconds, reverse }: { places: LivePlace[]; seconds: numbe
 export function JumpIn({ onNext, onSignIn }: { onNext: () => void; onSignIn: () => void }) {
   const insets = useSafeAreaInsets();
   const rows = useMemo(() => {
-    const pick = (idx: number[]) => idx.map((i) => PLACES[i]).filter(Boolean) as LivePlace[];
-    return [PLACES.slice(0, 7), PLACES.slice(7, 14), pick([2, 9, 5, 0, 12, 3, 11])];
+    const M = MARQUEE_PLACES;
+    return [M.slice(0, 7), M.slice(7, 14), M.slice(14, 21)];
   }, []);
   return (
     <Enter style={StyleSheet.absoluteFill}>

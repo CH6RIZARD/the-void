@@ -43,6 +43,38 @@ export const PLACES: LivePlace[] = P.filter(([, , id]) => liveIds.has(id)).map((
   thumb: `https://i.ytimg.com/vi/${id}/mqdefault.jpg`,
 }));
 
+// ─── THE MARQUEES SHOW 21 TILES; THE CURATED LIST HAS 14 ─────────────────
+// Screen 1 draws three rows of seven from PLACES, so seven of them had to be
+// repeats - and because the rows scroll at their own speeds, a city and its twin
+// drift into line with each other, which is when it reads as a bug rather than a
+// wall. The app carries far more city windows than the fourteen named above, so
+// the marquees are filled out from the rest of CAM_SOURCES instead: one extra
+// window per country, so no country is doubled either, keyed by the country name
+// since that is the name the app has for those cams.
+//
+// PLACES itself is untouched - Ignite still offers the curated fourteen.
+const named = new Set(PLACES.map((p) => p.iso));
+const extra: LivePlace[] = [];
+for (const [country, list] of Object.entries(CAM_SOURCES)) {
+  const co = C.find((c) => c.n === country);
+  if (!co || named.has(co.iso)) continue;
+  const src = (list || []).find((s) => s.type === 'youtube' && s.id && YT_ID.test(s.id));
+  if (!src || !src.id) continue;
+  named.add(co.iso);
+  extra.push({ city: country, iso: co.iso, country, thumb: `https://i.ytimg.com/vi/${src.id}/mqdefault.jpg` });
+}
+
+/** Screen 1's three rows of seven, every tile a different place. The pool comes
+ *  to 22 today; should the source data ever shrink below 21 the rows are padded
+ *  rather than left short, since a missing row is worse than a repeated tile. */
+export const MARQUEE_PLACES: LivePlace[] = (() => {
+  const pool = [...PLACES, ...extra];
+  if (!pool.length) return [];
+  const out = pool.slice(0, 21);
+  for (let i = 0; out.length < 21; i++) out.push(pool[i % pool.length]);
+  return out;
+})();
+
 // THE TILES ARRIVE WITH THE SCREEN, NOT AFTER IT.
 // The marquees draw 42 tiles and each one fetched its own thumbnail on mount, so a
 // cold first launch - which is the only launch that shows this screen - opened on a
@@ -52,7 +84,7 @@ export const PLACES: LivePlace[] = P.filter(([, , id]) => liveIds.has(id)).map((
 // tiles read from; a failure is irrelevant, the tile just loads it the old way.
 try {
   void ExpoImage.prefetch(
-    PLACES.map((p) => p.thumb),
+    MARQUEE_PLACES.map((p) => p.thumb),
     'memory-disk',
   );
 } catch {
