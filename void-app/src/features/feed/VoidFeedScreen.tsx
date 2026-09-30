@@ -38,6 +38,7 @@ import { SparkleLoader } from '../../ui/SparkleLoader';
 import { VText } from '../../ui/Text';
 import { voidToast } from '../../ui/Toast';
 import { ROUTES } from '../../nav/routes';
+import { onTabReselect } from '../../nav/reselect';
 import { ModerationHost } from './ModerationSheet';
 import { PostCard } from './PostCard';
 import { isPostHidden, useModerationVersion, useTick } from './stores';
@@ -187,6 +188,9 @@ export default function VoidFeedScreen() {
       if (alive.current) setRefreshing(false);
     }
   }, [refreshing]);
+
+  // Tapping THE VOID while already on it refreshes the feed, the same as a pull.
+  useEffect(() => onTabReselect('void', () => { void onRefresh(); }), [onRefresh]);
 
   const retry = useCallback(() => {
     setStatus('scanning');

@@ -15,6 +15,7 @@ import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import { noteTabPress } from './switchTiming';
 import { useTheme } from '../theme/ThemeProvider';
 import { Icon } from '../ui/icons/Icon';
+import { emitTabReselect } from './reselect';
 import { NAV_ICONS } from '../ui/icons/paths';
 import { useDmUnread } from './badges';
 import { NAV_MARGIN, useBottomNavOffset } from './layout';
@@ -90,6 +91,11 @@ export function BottomNav({ state, descriptors, navigation }: BottomTabBarProps)
           const focused = state.index === index;
           const onPress = () => {
             const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+            if (focused && !event.defaultPrevented) {
+              // Already here: the tap is a request to start this screen over.
+              emitTabReselect(route.name);
+              return;
+            }
             if (!focused && !event.defaultPrevented) {
               // Light the tab NOW: the screen behind it may take a moment, and the
               // pill should never wait for that.

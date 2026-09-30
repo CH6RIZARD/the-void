@@ -66,6 +66,21 @@ export function GlobeCanvas({ running, onOpenCountry }: GlobeCanvasProps) {
     glRetries.current += 1;
     setTimeout(() => setGlAttempt(a => a + 1), 400 * glRetries.current);
   }, []);
+  // THE THREE RETRIES ARE PER OUTAGE, NOT PER SESSION.
+  //
+  // glRetries only ever counted up. Three context losses at any point in the
+  // session - and they happen, because leaving for a nation feed tears down and
+  // rebuilds surfaces while a dozen video decoders fight over the GPU - burned
+  // the budget permanently. After that retryGl was a no-op, so the NEXT loss
+  // left a black panel with the country label still drawn over it, for as long
+  // as the app stayed open. Coming back to the globe from a nation is exactly
+  // the path that spends them.
+  //
+  // A frame that actually draws means the context is healthy, so the budget is
+  // spent and can be given back. Three FAILURES IN A ROW still gives up.
+  const noteGlHealthy = useCallback(() => {
+    glRetries.current = 0;
+  }, []);
   const onContextCreate = useCallback((gl: ExpoWebGLRenderingContext) => {
     // See the guard in app/_layout.tsx: a re-created surface can hand back a context
     // that is not real. Building a renderer on it would fail in a dozen places.
@@ -101,9 +116,12 @@ export function GlobeCanvas({ running, onOpenCountry }: GlobeCanvasProps) {
         retryGl();
         return;
       }
-      if (drew && !markedRef.current) {
-        markedRef.current = true;
-        interactiveRef.current({ params: { surface: 'globe' } });
+      if (drew) {
+        noteGlHealthy();
+        if (!markedRef.current) {
+          markedRef.current = true;
+          interactiveRef.current({ params: { surface: 'globe' } });
+        }
       }
     };
     rafId.current = requestAnimationFrame(loop);
@@ -112,7 +130,7 @@ export function GlobeCanvas({ running, onOpenCountry }: GlobeCanvasProps) {
       if (rafId.current != null) cancelAnimationFrame(rafId.current);
       rafId.current = null;
     };
-  }, [sceneReady, running, appActive]);
+  }, [sceneReady, running, appActive, noteGlHealthy]);
   useEffect(
     () => () => {
       if (rafId.current != null) cancelAnimationFrame(rafId.current);
