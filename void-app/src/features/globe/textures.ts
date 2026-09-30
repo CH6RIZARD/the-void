@@ -32,8 +32,48 @@ const EARTH = require('../../../assets/globe/earth-night.jpg');
 // already filled. The phone reads bytes and hands them to the GPU. No inflate,
 // no unfilter, no flip, and twice the resolution.
 const EARTH_RAW = require('../../../assets/globe/earth-night.rgba.bin');
+import { unzlibSync } from 'fflate';
+import { EARTH_W, EARTH_H, EARTH_Z } from './earthPixels';
+
 const RAW_W = 2048;
 const RAW_H = 1024;
+
+let bundledCache: Uint8Array | null = null;
+/**
+ * The night map's pixels, out of the bundle rather than off the filesystem.
+ *
+ * Every build logs "[globe] raw map: could not be read": XHR will not serve the
+ * bundled .bin on this release build and there is no expo-file-system here to
+ * fall back on, so the file route does not exist on this device. These pixels
+ * ride in the JS bundle instead, deflated - 452 KB, less than the 765 KB base64
+ * PNG the app shipped originally, and without that PNG's 7271 ms unfilter loop.
+ */
+function bundledEarthPixels(): Uint8Array | null {
+  if (bundledCache) return bundledCache;
+  const t0 = Date.now();
+  try {
+    const bin = globalThis.atob(EARTH_Z);
+    const z = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) z[i] = bin.charCodeAt(i);
+    const px = unzlibSync(z);
+    if (px.length !== EARTH_W * EARTH_H * 4) {
+      try {
+        console.warn('[globe] bundled map: wrong size ' + px.length);
+      } catch {}
+      return null;
+    }
+    bundledCache = px;
+    try {
+      console.warn('[globe] bundled map: ' + EARTH_W + 'x' + EARTH_H + ' in ' + (Date.now() - t0) + 'ms');
+    } catch {}
+    return px;
+  } catch (e) {
+    try {
+      console.warn('[globe] bundled map failed: ' + String(e));
+    } catch {}
+    return null;
+  }
+}
 const RAW_BYTES = RAW_W * RAW_H * 4;
 let rawCache: Uint8Array | null = null;
 
@@ -329,9 +369,11 @@ export async function loadEarthTexture(gl: any, renderer: THREE.WebGLRenderer, r
   // path to be faster than. That path stays below as a fallback rather than being
   // deleted, since on a device whose driver takes it AND whose three binds it, it
   // is one fewer copy; but the globe no longer depends on it.
-  const pre = await earthRawPixels();
+  const pre = bundledEarthPixels() ?? (await earthRawPixels());
   if (pre) {
-    const dt = new THREE.DataTexture(pre, RAW_W, RAW_H, THREE.RGBAFormat);
+    const w = pre === bundledCache ? EARTH_W : RAW_W;
+    const h = pre === bundledCache ? EARTH_H : RAW_H;
+    const dt = new THREE.DataTexture(pre, w, h, THREE.RGBAFormat);
     // Linear, like the r128 reference the web uses: tagging a night-lights map
     // sRGB converts it to linear and crushes exactly the dark tones it is made of.
     dt.colorSpace = THREE.LinearSRGBColorSpace;
@@ -346,7 +388,7 @@ export async function loadEarthTexture(gl: any, renderer: THREE.WebGLRenderer, r
     } catch {}
     dt.needsUpdate = true;
     try {
-      console.warn("[globe] earth texture: pre-decoded " + RAW_W + "x" + RAW_H + " DataTexture");
+      console.warn('[globe] earth texture: DataTexture ' + w + 'x' + h);
     } catch {}
     return dt;
   }
