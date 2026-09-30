@@ -107,7 +107,17 @@ const ARM_SLOP = 6;
 export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveWall({ active, grid3 = false, bottomInset = 0, onRefresh: onRefreshOuter }, ref) {
   const t = useLiveTheme();
   const win = useWindowDimensions();
-  const cols = grid3 ? 3 : 2;
+  // TWO COLUMNS, ALWAYS.
+  //
+  // The dense 3-wide option is gone. Note what it did to the fill, because the
+  // fill is worth keeping: fillCount is cols x rows, and rows comes from how
+  // many tile heights fit in a screen and a quarter. Narrower columns are
+  // shorter tiles, so 3-wide fitted more rows AND more per row - it asked for
+  // up to 24 streams where 2-wide asks for about 20. That is why the dense grid
+  // appeared to load more despite each box being smaller. The rule is unchanged
+  // and still screen-relative; only the column count is fixed.
+  void grid3;
+  const cols = 2;
   const [width, setWidth] = useState(win.width);
   const [viewportH, setViewportH] = useState(win.height * 0.5);
   const [gridY, setGridY] = useState(0);

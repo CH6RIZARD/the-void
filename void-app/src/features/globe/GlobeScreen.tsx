@@ -111,9 +111,11 @@ function GlobeSurfaces({
   // Pull-to-refresh on the wall rebuilds the globe above it: they are one screen.
   const [globeNonce, setGlobeNonce] = useState(0);
   const [mode, setModeState] = useState<GlobeMode>(initialMode);
-  // modeSV: 0 = REELS, 1 = GLOBE. drag: finger offset as a fraction of the width.
-  const modeSV = useSharedValue(initialMode === 'globe' ? 1 : 0);
-  const modeNum = useSharedValue(initialMode === 'globe' ? 1 : 0);
+  // modeSV: 0 = the LEFT panel, 1 = the RIGHT one. GLOBE is now the left panel and
+  // REELS the right, so the toggle reads GLOBE | REELS in the order they sit in -
+  // tapping the left label must not slide to the right view.
+  const modeSV = useSharedValue(initialMode === 'reels' ? 1 : 0);
+  const modeNum = useSharedValue(initialMode === 'reels' ? 1 : 0);
   const drag = useSharedValue(0);
   const W = useSharedValue(width);
   useEffect(() => {
@@ -132,8 +134,8 @@ function GlobeSurfaces({
       // Continue from where the finger left the surfaces, then settle.
       modeSV.value = modeSV.value - drag.value;
       drag.value = 0;
-      modeSV.value = withTiming(m === 'globe' ? 1 : 0, SLIDE);
-      modeNum.value = m === 'globe' ? 1 : 0;
+      modeSV.value = withTiming(m === 'reels' ? 1 : 0, SLIDE);
+      modeNum.value = m === 'reels' ? 1 : 0;
       saveGlobeMode(m);
       setModeState(m);
       // Say where you just landed (silent on initial entry).
@@ -156,13 +158,14 @@ function GlobeSurfaces({
     })
     .onEnd(() => {
       'worklet';
-      if (Math.abs(drag.value) > 0.22) runOnJS(setMode)(modeNum.value === 0 ? 'globe' : 'reels', true);
+      if (Math.abs(drag.value) > 0.22) runOnJS(setMode)(modeNum.value === 0 ? 'reels' : 'globe', true);
       else drag.value = withTiming(0, SLIDE);
     });
 
-  // reels: translateX((f - mode)·100%)   map: translateX((1 - mode + f)·100%)
-  const reelsStyle = useAnimatedStyle(() => ({ transform: [{ translateX: (drag.value - modeSV.value) * W.value }] }));
-  const mapStyle = useAnimatedStyle(() => ({ transform: [{ translateX: (1 - modeSV.value + drag.value) * W.value }] }));
+  // The left panel sits at (drag - mode)·100%; the right one a width further on.
+  // Swapping which view is which is the whole change - the geometry is untouched.
+  const mapStyle = useAnimatedStyle(() => ({ transform: [{ translateX: (drag.value - modeSV.value) * W.value }] }));
+  const reelsStyle = useAnimatedStyle(() => ({ transform: [{ translateX: (1 - modeSV.value + drag.value) * W.value }] }));
 
   const openCountry = useCallback((c: Country) => {
     router.push(`/nation/${c.iso}` as any);

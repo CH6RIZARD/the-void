@@ -303,9 +303,7 @@ export default function SettingsScreen({ onClose }: { onClose?: () => void }) {
                   }}
                 />
               </Row>
-              <Row label="Dense grid" sub="3 columns instead of 2">
-                <Toggle on={grid3} onPress={() => setGrid3((v) => !v)} />
-              </Row>
+
             </Section>
 
             <Section label="Safety">

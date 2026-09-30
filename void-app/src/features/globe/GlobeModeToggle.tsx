@@ -30,8 +30,9 @@ export function GlobeModeToggle({ mode, onChange, topInset = 0 }: { mode: GlobeM
         {/* background:rgba(13,8,32,.72);backdrop-filter:blur(14px) */}
         <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
         <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(13,8,32,0.72)' }]} />
-        {btn('reels', 'REELS')}
+        {/* GLOBE first: it is what this tab is for, and it is the left panel. */}
         {btn('globe', 'GLOBE')}
+        {btn('reels', 'REELS')}
       </View>
     </View>
   );
