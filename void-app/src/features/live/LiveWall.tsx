@@ -5,8 +5,9 @@
 //   loadWallBatch()    → loadBatch(): boxes placed first (sliced 6/frame), then connected
 //                        through WALL_LANES lanes; one batch in flight at a time
 //   #gl-sentinel + IO  → onScroll: bottom of grid within 400px of the viewport
-//   CSS `order`        → connOrder: connected tiles rise to the top (absolute layout, so a
-//                        reorder only moves a tile — it never remounts or rebuffers)
+//   CSS `order`        → connOrder: RECORDED, no longer positional. Tiles sit in
+//                        spawn order now (see `positions`); this only marks when each
+//                        one connected, which nudges the placement/eviction pass.
 //   wallHealVisible()  → watchdog: dead tiles within ±40px heal (WALL_HEAL_MAX, cooldown)
 //   watchdog nudge     → tiles within ±200px not PLAYING get nudged every 2.5s
 //   visibilitychange   → AppState 'active': force-nudge at 0/400/1200/2800ms, heal at 900
@@ -155,17 +156,25 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
   const tileH = (tileW * 9) / 16;
   const rowH = tileH + GAP;
 
-  // Sorted positions: connected by connection order, then the rest in spawn order.
+  // POSITION IS SPAWN ORDER. IT DOES NOT MOVE.
+  //
+  // Tiles used to be sorted by CONNECTION order, with anything not yet connected
+  // ranked `999999 + id`. That put every still-loading tile at the END of the
+  // grid - so loading always appeared to happen in the bottom-right, no matter
+  // which tiles were actually working, and a tile that connected jumped from
+  // there up into the first free slot. The wall rearranged itself under the
+  // reader for as long as it was filling.
+  //
+  // Spawn order instead: slot 0 is top-left and stays there. Tiles connect in
+  // the order they mount and they mount in slot order, so filling now reads
+  // top-left downward - which is also the order someone looking at it expects
+  // to see, and the order the lanes hand out turns in.
   const positions = useMemo(() => {
-    const sorted = [...tiles].sort((a, b) => {
-      const oa = order[a.id] ?? 999999 + a.id;
-      const ob = order[b.id] ?? 999999 + b.id;
-      return oa - ob;
-    });
+    const sorted = [...tiles].sort((a, b) => a.id - b.id);
     const pos = new Map<number, { left: number; top: number }>();
     sorted.forEach((r, i) => pos.set(r.id, { left: (i % cols) * (tileW + GAP), top: Math.floor(i / cols) * rowH }));
     return pos;
-  }, [tiles, order, cols, tileW, rowH]);
+  }, [tiles, cols, tileW, rowH]);
   const gridH = Math.max(0, Math.ceil(tiles.length / cols) * rowH - GAP);
   const posRef = useRef(positions);
   posRef.current = positions;
