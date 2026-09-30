@@ -27,8 +27,22 @@ export const FIRST_BATCH_DELAY_MS = 800;
 export const SLEEP_AFTER_MS = 20000;
 /** Watchdog period (web setInterval 2500). */
 export const WATCHDOG_MS = 2500;
-/** YouTube chrome veil hold (web ytVeil default). */
+/**
+ * YouTube chrome veil: the CEILING, not the wait.
+ *
+ * The tile is held at opacity 0 while YouTube's own title/branding chrome is on
+ * screen, then faded in. This used to be a flat 3200ms timer, so a stream that
+ * was up and playing in 300ms still sat behind a black veil for three more
+ * seconds - the video was running the whole time, nobody was allowed to see it.
+ * That is the 'reels take a second or two' everyone notices.
+ *
+ * Now playback lifts it: the state-1 message cuts the remaining hold to
+ * YT_VEIL_MIN_MS, which is just enough for the chrome to fade on its own. This
+ * stays as the cap for a tile that never reports playing.
+ */
 export const YT_VEIL_MS = 3200;
+/** Grace after playback actually starts, before the picture is revealed. */
+export const YT_VEIL_MIN_MS = 260;
 /** Shadow audio fallback (web 5000). */
 export const YT_SHADOW_FALLBACK_MS = 5000;
 /** YouTube bootstrap nudge (web 900ms) and shadow kick (web 600ms). */

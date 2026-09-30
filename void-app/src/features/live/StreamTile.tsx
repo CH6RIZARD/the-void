@@ -23,7 +23,7 @@ import { liveVidFor, markBadStream, type StreamSource } from './core';
 import { createSignalChecker, frameVerdict, FRAME_H, FRAME_JUDGE_DELAY, FRAME_W } from '../../core';
 import { sampleFrame, sampleFramePaced } from './frameSample';
 import { variantCached, variantFor } from './hlsVariant';
-import { CONNECT_TIMEOUT, WALL_BUFFER, YT_DEAD_CODES, YT_NUDGE_MS, YT_VEIL_MS, noteDecoderFailure, youtubeEmbedSrc } from './constants';
+import { CONNECT_TIMEOUT, WALL_BUFFER, YT_DEAD_CODES, YT_NUDGE_MS, YT_VEIL_MIN_MS, YT_VEIL_MS, noteDecoderFailure, youtubeEmbedSrc } from './constants';
 import { PLAYER_WEBVIEW_PROPS, YT_BASE_URL, parseYtMsg, ytCmd, ytPlayerHtml } from './ytHtml';
 
 export interface StreamTileHandle {
@@ -464,7 +464,7 @@ function YouTubePlayer({ tileId, source, parked, api }: PlayerProps & { parked: 
   const frameO = useRef(new Animated.Value(0)).current; // iframe opacity:0 until revealed
   const holdO = useRef(new Animated.Value(0)).current;
   const [hold, setHold] = useState(false);
-  const s = useRef({ state: -1 as number, time: 0, at: 0, dur: 0, alive: false, veilT: null as any, nudge: null as any }).current;
+  const s = useRef({ state: -1 as number, time: 0, at: 0, dur: 0, alive: false, veilT: null as any, veilDueAt: 0, nudge: null as any }).current;
 
   const post = useCallback((f: string, a: unknown[] = []) => wv.current?.injectJavaScript(ytCmd(f, a)), []);
   // Off-screen (> PARK_SCREENS away) a YouTube tile keeps its WebView but stops its
@@ -486,6 +486,17 @@ function YouTubePlayer({ tileId, source, parked, api }: PlayerProps & { parked: 
   // ytVeil(): frame to opacity 0 under the sparkle hold, fade back in after YouTube's
   // chrome has timed out (3.2s). Called on first reveal, on ANY command after that,
   // and on buffering (3) / pause (2).
+  const veilRef = useRef<(ms?: number) => void>(() => {});
+  // Shorten a veil that is still counting down to the ceiling. Only ever
+  // shortens: a tile already about to be revealed is left alone, so a burst of
+  // state messages cannot keep pushing the reveal away.
+  const revealSoon = useCallback(() => {
+    if (!s.veilT) return;
+    if (s.veilDueAt && s.veilDueAt - Date.now() <= YT_VEIL_MIN_MS) return;
+    veilRef.current(YT_VEIL_MIN_MS);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [s]);
+
   const veil = useCallback(
     (ms = YT_VEIL_MS) => {
       clearTimeout(s.veilT);
@@ -494,6 +505,7 @@ function YouTubePlayer({ tileId, source, parked, api }: PlayerProps & { parked: 
       frameO.setValue(0);
       holdO.setValue(1);
       setHold(true);
+      s.veilDueAt = Date.now() + ms;
       s.veilT = setTimeout(() => {
         post('unloadModule', ['captions']);
         post('unloadModule', ['cc']);
@@ -568,6 +580,8 @@ function YouTubePlayer({ tileId, source, parked, api }: PlayerProps & { parked: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  veilRef.current = veil;
+
   const onMessage = useCallback(
     (e: WebViewMessageEvent) => {
       const m = parseYtMsg(e.nativeEvent.data);
@@ -603,6 +617,9 @@ function YouTubePlayer({ tileId, source, parked, api }: PlayerProps & { parked: 
       }
       if (st === 1) {
         markAlive();
+        // Playing: stop waiting out the ceiling. Re-arm the veil for a short
+        // grace instead, which is all the chrome needs to clear.
+        revealSoon();
         return;
       }
       if (m.e === 'info' && typeof m.t === 'number' && m.t > 0 && m.s !== 2) markAlive();

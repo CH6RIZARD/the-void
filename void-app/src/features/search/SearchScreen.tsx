@@ -30,6 +30,7 @@ import { LiveDot } from '../live/TileChrome';
 import { useTheme } from '../../theme/tokens';
 import { FONTS, em } from '../../theme/palettes';
 import { useBottomNavSpace } from '../../nav/layout';
+import { onTabReselect } from '../../nav/reselect';
 import { FILTERS, buildSearch, type SearchBlock, type SearchFilter } from './searchModel';
 import { SEARCH_SURFACE, SearchPostCard } from './SearchPostCard';
 import { setInView } from '../feed/stores';
@@ -55,6 +56,11 @@ export default function SearchScreen() {
   const insets = useSafeAreaInsets();
   const navSpace = useBottomNavSpace();
   const [input, setInput] = useState(''); // #si.value
+  // Tapping SEARCH while already on search puts the cursor in the field - the
+  // tab press is someone asking to type, and they should not have to aim at the
+  // box afterwards.
+  const fieldRef = useRef<TextInput>(null);
+  useEffect(() => onTabReselect('search', () => fieldRef.current?.focus()), []);
   const inputRef = useRef('');
   inputRef.current = input;
   const [query, setQuery] = useState(''); // the value renderSearch last ran with
@@ -263,6 +269,7 @@ export default function SearchScreen() {
         >
           <View style={styles.bar}>
             <TextInput
+                ref={fieldRef}
                 value={input}
                 onChangeText={setInput}
                 onSubmitEditing={doSearch}

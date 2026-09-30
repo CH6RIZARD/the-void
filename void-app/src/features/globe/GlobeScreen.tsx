@@ -108,6 +108,8 @@ function GlobeSurfaces({
   bottomInset: number;
 }) {
   const insets = useSafeAreaInsets();
+  // Pull-to-refresh on the wall rebuilds the globe above it: they are one screen.
+  const [globeNonce, setGlobeNonce] = useState(0);
   const [mode, setModeState] = useState<GlobeMode>(initialMode);
   // modeSV: 0 = REELS, 1 = GLOBE. drag: finger offset as a fraction of the width.
   const modeSV = useSharedValue(initialMode === 'globe' ? 1 : 0);
@@ -191,12 +193,12 @@ function GlobeSurfaces({
             <Animated.View style={[styles.view, { top: insets.top }, mapStyle]} pointerEvents={mode === 'globe' ? 'auto' : 'none'}>
               <LoaderActiveContext.Provider value={globeVisible}>
                 {globeSeen ? (
-                  <GlobeCanvas running={globeVisible} onOpenCountry={openCountry} />
+                  <GlobeCanvas running={globeVisible} onOpenCountry={openCountry} refreshNonce={globeNonce} />
                 ) : (
                   <View style={{ height: globeH, backgroundColor: '#04020c' }} />
                 )}
                 {/* Built the first time GLOBE is shown (web: buildGlobeGrid inside setGlobeMode). */}
-                <LiveWall active={globeVisible} grid3={grid3} bottomInset={bottomInset} />
+                <LiveWall active={globeVisible} grid3={grid3} bottomInset={bottomInset} onRefresh={() => setGlobeNonce((n) => n + 1)} />
               </LoaderActiveContext.Provider>
             </Animated.View>
           </View>

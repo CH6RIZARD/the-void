@@ -84,6 +84,8 @@ class Lanes {
 }
 
 export interface LiveWallProps {
+  /** Pull-to-refresh also ran: refresh whatever else shares this screen. */
+  onRefresh?: () => void;
   /** Globe tab focused AND mode === 'globe' AND nothing covering it. */
   active: boolean;
   /** v_grid3 dense layout (3-wide). Mobile build default: 2-wide. */
@@ -101,7 +103,7 @@ const PAD = 10;
 // How far off the top a finger may land and still count as a pull from rest.
 const ARM_SLOP = 6;
 
-export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveWall({ active, grid3 = false, bottomInset = 0 }, ref) {
+export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveWall({ active, grid3 = false, bottomInset = 0, onRefresh: onRefreshOuter }, ref) {
   const t = useLiveTheme();
   const win = useWindowDimensions();
   const cols = grid3 ? 3 : 2;
@@ -450,8 +452,14 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
       setTiles([]);
       loadBatchRef.current(fillCount());
     } catch {}
+    // The pull refreshes the SCREEN, not just the list on it: the globe above
+    // the wall is the other half of this tab, and someone pulling down at the
+    // top is looking straight at it.
+    try {
+      onRefreshOuter?.();
+    } catch {}
     setTimeout(() => setRefreshing(false), 600);
-  }, [refreshing, w]);
+  }, [refreshing, w, onRefreshOuter]);
 
   const lastPlaceAt = useRef(0);
   const onScroll = useCallback(

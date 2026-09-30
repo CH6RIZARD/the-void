@@ -14,6 +14,8 @@ import { em, useLiveTheme } from '../live/liveTheme';
 import { useObserve } from 'expo-observe';
 
 export interface GlobeCanvasProps {
+  /** Bumped by pull-to-refresh: rebuild the canvas from scratch. */
+  refreshNonce?: number;
   /** Render loop runs only while true (tab focused, GLOBE mode, app foregrounded). */
   running: boolean;
   onOpenCountry(c: Country): void;
@@ -25,7 +27,7 @@ export function useGlobeHeight() {
   return Math.max(240, Math.min(height * 0.42, 320));
 }
 
-export function GlobeCanvas({ running, onOpenCountry }: GlobeCanvasProps) {
+export function GlobeCanvas({ running, onOpenCountry, refreshNonce = 0 }: GlobeCanvasProps) {
   const t = useLiveTheme();
   const { width } = useWindowDimensions();
   const height = useGlobeHeight();
@@ -81,6 +83,15 @@ export function GlobeCanvas({ running, onOpenCountry }: GlobeCanvasProps) {
   const noteGlHealthy = useCallback(() => {
     glRetries.current = 0;
   }, []);
+  // A pull-to-refresh rebuilds the canvas, and gives back the retry budget with
+  // it: an explicit refresh is exactly when someone is telling us the picture is
+  // wrong, so it should never be refused for failures that happened earlier.
+  const firstNonce = useRef(refreshNonce);
+  useEffect(() => {
+    if (refreshNonce === firstNonce.current) return;
+    glRetries.current = 0;
+    setGlAttempt((a) => a + 1);
+  }, [refreshNonce]);
   const onContextCreate = useCallback((gl: ExpoWebGLRenderingContext) => {
     // See the guard in app/_layout.tsx: a re-created surface can hand back a context
     // that is not real. Building a renderer on it would fail in a dozen places.
