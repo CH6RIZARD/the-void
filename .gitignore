@@ -45,3 +45,8 @@ scripts/railway/.cache/
 
 # Stream-patches review site (regenerated in CI by build-review-site.js)
 /public/
+
+# Native build output from local Android builds (expo module Gradle projects).
+void-app/modules/*/android/build/
+void-app/android/build/
+void-app/android/app/build/

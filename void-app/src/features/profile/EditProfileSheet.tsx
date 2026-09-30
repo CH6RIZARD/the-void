@@ -15,6 +15,7 @@ import { HANDLE_MAX, stripHandle } from '../auth/handles';
 import { pickMedia, type PickedMedia } from '../composer/media';
 import { VHeader } from '../settings/vmod';
 import { ProfileAvatar } from './ProfileAvatar';
+import { PfpChoices, readPfpChoice, writePfpChoice } from '../../ui/Pfp';
 import { saveProfile } from './profileApi';
 
 function Field(props: React.ComponentProps<typeof TextInput> & { label: string }) {
@@ -45,6 +46,9 @@ export function EditProfileSheet({ visible, onClose, avatarUrl, onSaved }: { vis
   const [handle, setHandle] = useState('');
   const [bio, setBio] = useState('');
   const [avatar, setAvatar] = useState<PickedMedia | null>(null);
+  // The figure set: what someone uses when they are not using a photo.
+  const [fig, setFig] = useState<number | null>(() => readPfpChoice());
+  const [pickingFig, setPickingFig] = useState(false);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -54,6 +58,8 @@ export function EditProfileSheet({ visible, onClose, avatarUrl, onSaved }: { vis
     setHandle(stripHandle(user.handle));
     setBio(user.bio || '');
     setAvatar(null);
+    setFig(readPfpChoice());
+    setPickingFig(false);
     setErr('');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
@@ -71,6 +77,7 @@ export function EditProfileSheet({ visible, onClose, avatarUrl, onSaved }: { vis
     if (busy) return;
     setBusy(true);
     setErr('');
+    writePfpChoice(fig);
     const e = await saveProfile({ name, handle, bio, avatar });
     setBusy(false);
     if (e) {
@@ -96,6 +103,12 @@ export function EditProfileSheet({ visible, onClose, avatarUrl, onSaved }: { vis
         )}
         <VText style={{ fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.2), color: colors.gold }}>CHANGE AVATAR</VText>
       </Pressable>
+      <Pressable onPress={() => setPickingFig((v) => !v)} accessibilityRole="button" style={{ paddingVertical: 12 }}>
+        <VText style={{ fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.2), color: colors.gold }}>
+          {pickingFig ? 'CLOSE THE SET' : 'OR CHOOSE A FIGURE'}
+        </VText>
+      </Pressable>
+      {pickingFig ? <PfpChoices value={fig} onPick={setFig} /> : null}
       <Field label="DISPLAY NAME" value={name} onChangeText={setName} placeholder="Your name" maxLength={32} />
       <Field label="HANDLE" value={handle} onChangeText={setHandle} placeholder="handle" autoCapitalize="none" maxLength={HANDLE_MAX} />
       <Field label="BIO" value={bio} onChangeText={setBio} placeholder="what you stand for…" maxLength={80} />
