@@ -5,10 +5,10 @@
 // DROPS render as <PostCard surface="profile"> in a FlatList with usePostViewability('profile')
 // and one <ModerationHost/> for the ⋯ sheets.
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, Share, StyleSheet, View } from 'react-native';
+import { FlatList, Image, Pressable, RefreshControl, Share, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { moderation, VoidAPI, type Post } from '../../core';
+import { moderation, readJSON, VoidAPI, writeJSON, type Post } from '../../core';
 import { useTheme } from '../../theme';
 import { FONTS, em, type RadialSpec } from '../../theme/palettes';
 import { RadialFill } from '../../ui/Surface';
@@ -40,6 +40,63 @@ function Empty({ text, pad = 30 }: { text: string; pad?: number }) {
   return <VText align="center" style={{ fontFamily: FONTS.mono, fontSize: 9, letterSpacing: em(9, 0.12), color: colors.muted, padding: pad }}>{text}</VText>;
 }
 
+const TILE_KEY = 'void.profile.layout';
+type ProfLayout = 'scroll' | 'tiles';
+
+/**
+ * One square of the tile grid.
+ *
+ * Every drop kind has to read at a third of the screen width, where there is no
+ * room for a card. Media fills the square; a clip and a gallery say which they
+ * are with a corner glyph rather than a label; a voice drop draws its waveform,
+ * because a voice post with its media hidden is otherwise indistinguishable from
+ * an empty one; and a text drop shows its first lines, which is all it has.
+ */
+const ProfileTile = React.memo(function ProfileTile({ post, size, onPress }: { post: Post; size: number; onPress: () => void }) {
+  const { colors } = useTheme();
+  const img = post._img || (post._imgs && post._imgs[0]) || null;
+  const isVoice = post.style === 'audio' || !!post._audio;
+  const isClip = post.style === 'video' || !!post._video;
+  const isGallery = post.style === 'carousel' || (post._imgs ? post._imgs.length > 1 : false);
+  const isLive = post.style === 'link_live';
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={post.body ? post.body.slice(0, 60) : 'Drop'}
+      style={[st.tile, { width: size, height: size, borderColor: colors.hairline }]}
+    >
+      {img ? (
+        <Image source={{ uri: img }} style={st.tileImg} resizeMode="cover" />
+      ) : isVoice ? (
+        <View style={st.tileVoice}>
+          {/* Deterministic per post, so a drop keeps the same waveform between
+              renders and between the two layouts. */}
+          {Array.from({ length: 13 }, (_, i) => {
+            const seed = (post.id.charCodeAt(i % post.id.length) * 31 + i * 17) % 100;
+            return <View key={i} style={[st.tileBar, { height: 6 + (seed / 100) * 26 }]} />;
+          })}
+        </View>
+      ) : (
+        <View style={st.tileText}>
+          <VText numberOfLines={3} style={{ fontFamily: FONTS.sans, fontSize: 11, lineHeight: 15, color: colors.muted }}>
+            {(post.body || '').trim() || '—'}
+          </VText>
+        </View>
+      )}
+      {isLive ? (
+        <View style={st.tilePill}>
+          <VText style={{ fontFamily: FONTS.mono, fontSize: 7, letterSpacing: em(7, 0.16), color: '#fff' }}>LIVE</VText>
+        </View>
+      ) : isClip ? (
+        <View style={st.tileGlyph}><Icon name="play" size={13} color="#fff" /></View>
+      ) : isGallery ? (
+        <View style={st.tileGlyph}><Icon name="shapes" size={12} color="#fff" /></View>
+      ) : null}
+    </Pressable>
+  );
+});
+
 export default function ProfileScreen({ handle: handleProp }: { handle?: string }) {
   const params = useLocalSearchParams<{ handle?: string }>();
   const { colors, name: themeName, isLight } = useTheme();
@@ -55,6 +112,10 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
   const [drops, setDrops] = useState<Post[] | null>(null);
   const [counts, setCounts] = useState<{ following: number; followers: number } | null>(null);
   const [tab, setTab] = useState<'drops' | 'messages'>('drops');
+  // Per-user and persisted, as the patch notes ask: whichever way you last chose
+  // to look at a profile is how it opens next time.
+  const [layout, setLayout] = useState<ProfLayout>(() => (readJSON<ProfLayout>(TILE_KEY, 'scroll') === 'tiles' ? 'tiles' : 'scroll'));
+  const win = useWindowDimensions();
   const [editing, setEditing] = useState(false);
   const [acct, setAcct] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -126,6 +187,9 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
   const dim = themeName === 'void' ? '#8d7cc0' : colors.dim;
   const statDivider = isLight ? colors.hairline : 'rgba(255,255,255,0.08)';
   const showDrops = tab === 'drops' || isOther;
+  const tiles = showDrops && layout === 'tiles';
+  // Three across, inside the same 10px gutter the cards sit in.
+  const tileSize = Math.floor((win.width - 20 - 6) / 3);
 
   const header =
     isOther && other === null ? (
@@ -184,6 +248,20 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
               </Pressable>
             );
           })}
+          <View style={{ flex: 1 }} />
+          <Pressable
+            onPress={() => {
+              const next: ProfLayout = layout === 'tiles' ? 'scroll' : 'tiles';
+              setLayout(next);
+              writeJSON(TILE_KEY, next);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={layout === 'tiles' ? 'Show drops as a list' : 'Show drops as a grid'}
+            hitSlop={10}
+            style={st.layoutBtn}
+          >
+            <Icon name={layout === 'tiles' ? 'dms' : 'shapes'} size={14} color={colors.navDim} />
+          </Pressable>
         </View>
         <View style={{ height: 20 }} />
       </View>
@@ -220,6 +298,10 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
 
       <FlatList
         style={st.fill}
+        // numColumns cannot change on a live FlatList, so the layout is part of
+        // the key: switching rebuilds the list rather than throwing.
+        key={tiles ? 'tiles' : 'scroll'}
+        numColumns={tiles ? 3 : 1}
         data={showDrops && !(isOther && other === null) ? shownDrops : []}
         keyExtractor={(p) => p.id}
         // The same window the void feed uses (VoidFeedScreen.tsx). Without it this
@@ -232,7 +314,13 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
         initialNumToRender={4}
         maxToRenderPerBatch={4}
         updateCellsBatchingPeriod={60}
-        renderItem={({ item, index }) => <PostCard post={item} index={index} surface="profile" />}
+        renderItem={({ item, index }) =>
+          tiles ? (
+            <ProfileTile post={item} size={tileSize} onPress={() => router.push(ROUTES.thread(item.id) as any)} />
+          ) : (
+            <PostCard post={item} index={index} surface="profile" />
+          )
+        }
         viewabilityConfigCallbackPairs={viewability}
         ListHeaderComponent={header}
         ListFooterComponent={footer}
@@ -270,6 +358,14 @@ const st = StyleSheet.create({
   actions: { flexDirection: 'row', alignItems: 'stretch', gap: 10, marginTop: 20 },
   edit: { flex: 1, padding: 11, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   share: { width: 46, minHeight: 36, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  tile: { margin: 1, overflow: 'hidden', borderRadius: 3, borderWidth: StyleSheet.hairlineWidth, backgroundColor: 'rgba(255,255,255,0.03)' },
+  tileImg: { width: '100%', height: '100%' },
+  tileText: { flex: 1, padding: 8, justifyContent: 'center' },
+  tileVoice: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3 },
+  tileBar: { width: 3, borderRadius: 2, backgroundColor: '#7a5cc4' },
+  tileGlyph: { position: 'absolute', top: 5, right: 5 },
+  tilePill: { position: 'absolute', top: 5, left: 5, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 3, backgroundColor: 'rgba(210,60,60,0.9)' },
+  layoutBtn: { paddingHorizontal: 8, paddingVertical: 6 },
   tabs: { flexDirection: 'row', gap: 26, paddingTop: 26 },
   tab: { paddingBottom: 9, borderBottomWidth: 1 },
   pane: { paddingTop: 0, paddingHorizontal: 24 },

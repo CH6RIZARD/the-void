@@ -19,6 +19,7 @@ export const ICONS = {
   bolt: { shapes: [p('M13 2 4 14h6l-1 8 9-12h-6l1-8z')] },
   boltFill: { filled: true, shapes: [p('M13 2 4 14h6l-1 8 9-12h-6l1-8z')] },
   reply: { shapes: [p('M21 12a8 8 0 0 1-8 8H4l2.2-2.6A8 8 0 1 1 21 12z')] },
+  pen: { shapes: [p('M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17v3z'), p('M14.5 6.5l3 3')] },
   share: { shapes: [p('M12 16V4M7 9l5-5 5 5M4 20h16')] },
   less: { shapes: [p('M12 5v14M6 13l6 6 6-6')] },
   play: { filled: true, shapes: [p('M7 4.5v15l13-7.5-13-7.5z')] },
