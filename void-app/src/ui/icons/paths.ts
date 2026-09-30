@@ -19,6 +19,18 @@ export const ICONS = {
   bolt: { shapes: [p('M13 2 4 14h6l-1 8 9-12h-6l1-8z')] },
   // The reaction is a heart now. The bolt glyphs stay defined: the bolt is still
   // the mark of the app itself, and deleting it would take the logo with it.
+  // The profile's layout toggle and its gallery marker.
+  grid: { shapes: [
+    { t: 'rect', x: 3.5, y: 3.5, width: 7, height: 7, rx: 1.5 },
+    { t: 'rect', x: 13.5, y: 3.5, width: 7, height: 7, rx: 1.5 },
+    { t: 'rect', x: 3.5, y: 13.5, width: 7, height: 7, rx: 1.5 },
+    { t: 'rect', x: 13.5, y: 13.5, width: 7, height: 7, rx: 1.5 },
+  ] },
+  rows: { shapes: [p('M4 7h16M4 12h16M4 17h16')] },
+  stack: { shapes: [
+    { t: 'rect', x: 7.5, y: 3.5, width: 13, height: 13, rx: 2 },
+    p('M16.5 20.5h-11a2 2 0 0 1-2-2v-11'),
+  ] },
   heart: { shapes: [p('M12 20.4 4.2 12.6a4.8 4.8 0 0 1 6.8-6.8l1 1 1-1a4.8 4.8 0 0 1 6.8 6.8z')] },
   heartFill: { filled: true, shapes: [p('M12 20.4 4.2 12.6a4.8 4.8 0 0 1 6.8-6.8l1 1 1-1a4.8 4.8 0 0 1 6.8 6.8z')] },
   boltFill: { filled: true, shapes: [p('M13 2 4 14h6l-1 8 9-12h-6l1-8z')] },

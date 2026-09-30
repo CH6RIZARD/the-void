@@ -90,7 +90,7 @@ const ProfileTile = React.memo(function ProfileTile({ post, size, onPress }: { p
       ) : isClip ? (
         <View style={st.tileGlyph}><Icon name="play" size={13} color="#fff" /></View>
       ) : isGallery ? (
-        <View style={st.tileGlyph}><Icon name="shapes" size={12} color="#fff" /></View>
+        <View style={st.tileGlyph}><Icon name="stack" size={12} color="#fff" /></View>
       ) : null}
     </Pressable>
   );
@@ -190,7 +190,7 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
   const statDivider = isLight ? colors.hairline : 'rgba(255,255,255,0.08)';
   // Each list is fetched the first time its tab is opened, not on mount: most
   // visits never leave DROPS, and these are two more round trips.
-  const authorId = isOther ? (other && other.id) || null : user.id || null;
+  const authorId = isOther ? (other && other.id) || null : VoidAPI._uid();
   useEffect(() => {
     let live = true;
     if (tab === 'hearted' && hearted === null) {
@@ -201,7 +201,6 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
     return () => { live = false; };
   }, [tab, authorId, hearted, replies]);
 
-  const showDrops = tab === 'drops';
   const listFor = (t: ProfTab): Post[] | null => (t === 'drops' ? shownDrops : t === 'hearted' ? hearted : replies);
   const current = listFor(tab);
   const tiles = layout === 'tiles';
@@ -274,7 +273,7 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
             hitSlop={10}
             style={st.layoutBtn}
           >
-            <Icon name={layout === 'tiles' ? 'dms' : 'shapes'} size={14} color={colors.navDim} />
+            <Icon name={layout === 'tiles' ? 'rows' : 'grid'} size={14} color={colors.navDim} />
           </Pressable>
         </View>
         <View style={{ height: 20 }} />
