@@ -17,6 +17,7 @@
 import React, { memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, forwardRef } from 'react';
 import { AppState, Pressable, StyleSheet, Text, View, useWindowDimensions, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
+import { RefreshControl } from 'react-native';
 import { Image } from 'expo-image';
 import { LiveDot, TileLabel, TileLoader } from './TileChrome';
 import { StreamTile, type StreamTileHandle } from './StreamTile';
@@ -97,6 +98,8 @@ export interface LiveWallHandle {
 
 const GAP = 6;
 const PAD = 10;
+// How far off the top a finger may land and still count as a pull from rest.
+const ARM_SLOP = 6;
 
 export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveWall({ active, grid3 = false, bottomInset = 0 }, ref) {
   const t = useLiveTheme();
@@ -419,6 +422,37 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
     recomputePlacement();
   }, [active, asleep, tiles, order, recomputePlacement]);
 
+  // ─── PULL TO REFRESH, BUT ONLY A PULL THAT MEANS IT ──────────────────
+  //
+  // A refresh may only be armed by a gesture that BEGINS at the top. Scroll
+  // down the wall, flick back up and overshoot, and nothing happens: that
+  // drag started at 900px, so it can never refresh, however far past zero it
+  // carries. To refresh you lift your finger and pull again from rest.
+  //
+  // This is the difference between a control you can trust and one that fires
+  // while you are just getting back to the top - which on this screen would
+  // tear down every playing stream on the way past.
+  const [refreshing, setRefreshing] = useState(false);
+  const [pullArmed, setPullArmed] = useState(true);
+  const onScrollBeginDrag = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    // ARM_SLOP, not zero: the wall rests a hair off the top while the first
+    // batch settles, and a finger that lands there is still a finger at the top.
+    setPullArmed(e.nativeEvent.contentOffset.y <= ARM_SLOP);
+  }, []);
+  const onRefresh = useCallback(() => {
+    if (refreshing) return;
+    setRefreshing(true);
+    // Start the wall over: drop the tiles, rewind the slot cursor, refill. The
+    // same path the first load takes, so nothing needs a second way to work.
+    try {
+      w.slotIdx = 0;
+      w.scrollY = 0;
+      setTiles([]);
+      loadBatchRef.current(fillCount());
+    } catch {}
+    setTimeout(() => setRefreshing(false), 600);
+  }, [refreshing, w]);
+
   const lastPlaceAt = useRef(0);
   const onScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -462,7 +496,9 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
         setViewportH(e.nativeEvent.layout.height);
       }}
       onScroll={onScroll}
+      onScrollBeginDrag={onScrollBeginDrag}
       onMomentumScrollEnd={recomputePlacement}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} enabled={pullArmed} tintColor="#c9a84c" colors={['#c9a84c']} progressBackgroundColor="#120830" />}
       scrollEventThrottle={16}
       overScrollMode="never"
       bounces={false}
