@@ -7,6 +7,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Image, Pressable, RefreshControl, Share, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { moderation, readJSON, VoidAPI, writeJSON, type Post } from '../../core';
 import { useTheme } from '../../theme';
@@ -107,6 +108,9 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
   const viewability = usePostViewability('profile');
 
   const [other, setOther] = useState<ProfileRow | null | undefined>(undefined);
+  // My own row. It was fetched and thrown away except for the avatar; the banner
+  // and the join date are on it too.
+  const [me, setMe] = useState<ProfileRow | null>(null);
   const [avatar, setAvatar] = useState<string | null>(null);
   const [drops, setDrops] = useState<Post[] | null>(null);
   const [counts, setCounts] = useState<{ following: number; followers: number } | null>(null);
@@ -141,6 +145,7 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
       } else setDrops([]);
     } else {
       const [p, local] = await Promise.all([fetchMyProfile(), getLocalAvatar()]);
+      setMe(p);
       setAvatar((p && p.avatar_url) || local);
       setDrops(await fetchDrops(VoidAPI._uid()));
     }
@@ -201,6 +206,17 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
     return () => { live = false; };
   }, [tab, authorId, hearted, replies]);
 
+  // JOINED and N NATIONS, from what the row already carries.
+  const bannerUrl = (isOther ? (other as any)?.banner_url : (me as any)?.banner_url) || null;
+  const joinedLabel = (() => {
+    const raw = isOther ? (other as any)?.created_at : (me as any)?.created_at;
+    const d = raw ? new Date(raw) : null;
+    if (!d || isNaN(d.getTime())) return 'JOINED';
+    return 'JOINED ' + d.toLocaleString('en', { month: 'short' }).toUpperCase() + ' ' + d.getFullYear();
+  })();
+  // How many nations this account has actually dropped from.
+  const nationCount = useMemo(() => new Set((drops || []).map((p) => p.iso || p.country).filter(Boolean)).size, [drops]);
+
   const listFor = (t: ProfTab): Post[] | null => (t === 'drops' ? shownDrops : t === 'hearted' ? hearted : replies);
   const current = listFor(tab);
   const tiles = layout === 'tiles';
@@ -214,37 +230,63 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
       </View>
     ) : (
       <View style={st.monument}>
-        <View style={st.id}>
-          <ProfileAvatar name={name} url={isOther ? other?.avatar_url : avatar} />
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <VText style={{ fontFamily: FONTS.serif, fontSize: 25, lineHeight: 25 * 1.1, color: colors.white }}>{name}</VText>
-            <VText style={{ fontFamily: FONTS.mono, fontSize: 9.5, letterSpacing: em(9.5, 0.14), color: colors.gold, marginTop: 4 }}>
-              {handle}
-              {otherBlocked ? ' · BLOCKED' : ''}
-            </VText>
-            {bio ? <VText style={{ fontFamily: FONTS.serifItalic, fontSize: 13.5, color: dim, marginTop: 7 }}>{bio}</VText> : null}
+        {/* THE BANNER SITS BEHIND THE HEADER AND THE AVATAR ROW.
+            Absolutely positioned so nothing above it has to move or change:
+            it is a backdrop, not a row in the stack. The gradient over it is
+            what keeps the handle and the stats readable on any photo. */}
+        <View pointerEvents="none" style={st.banner}>
+          {bannerUrl ? <Image source={{ uri: bannerUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
+          <LinearGradient
+            colors={['rgba(4,2,12,0.78)', 'rgba(4,2,12,0.68)', 'rgba(4,2,12,0.85)']}
+            style={StyleSheet.absoluteFill}
+          />
+        </View>
+
+        {/* Header row: the handle, and settings. The ME/ANON pill is gone. */}
+        <View style={st.headRow}>
+          <VText style={{ flex: 1, fontFamily: FONTS.mono, fontSize: 10, letterSpacing: em(10, 0.14), color: colors.gold }}>
+            {handle}
+            {otherBlocked ? ' · BLOCKED' : ''}
+          </VText>
+          {!isOther ? (
+            <Pressable onPress={() => setAcct(true)} accessibilityLabel="Settings" hitSlop={8} style={st.gearBtn}>
+              <Icon name="gear" size={15} color={colors.white} />
+            </Pressable>
+          ) : null}
+        </View>
+
+        <View style={st.idRow}>
+          <View style={st.avRing}>
+            <ProfileAvatar name={name} url={isOther ? other?.avatar_url : avatar} size={108} />
+          </View>
+          <View style={st.statsRow}>
+            {(['DROPS', 'FOLLOWERS', 'FOLLOWING'] as const).map((lbl, i) => (
+              <View key={lbl} style={st.stat}>
+                <VText style={{ fontFamily: FONTS.sansExtraBold, fontSize: 22, color: colors.white }}>{stats[i]}</VText>
+                <VText style={{ fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.14), color: '#8d7cc0', marginTop: 3 }}>{lbl}</VText>
+              </View>
+            ))}
           </View>
         </View>
 
-        <View style={st.stats}>
-          {(['DROPS', 'FOLLOWING', 'VOICES'] as const).map((lbl, i) => (
-            <View key={lbl} style={st.stat}>
-              {i > 0 ? <View style={[st.divider, { backgroundColor: statDivider }]} /> : null}
-              <VText style={{ fontFamily: FONTS.sansBold, fontSize: 15, color: colors.white }}>{stats[i]}</VText>
-              <VText style={{ fontFamily: FONTS.mono, fontSize: 7, letterSpacing: em(7, 0.18), color: colors.navDim, marginTop: 3 }}>{lbl}</VText>
-            </View>
-          ))}
-        </View>
+        {/* Name, bio, and the two lines that say how long and how far. */}
+        <VText style={{ fontFamily: FONTS.sansBold, fontSize: 19, color: colors.white, marginTop: 14 }}>{name}</VText>
+        {bio ? <VText style={{ fontFamily: FONTS.sans, fontSize: 13.5, color: '#c9bfe8', marginTop: 5 }}>{bio}</VText> : null}
+        <VText style={{ fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.16), color: '#6a58a0', marginTop: 8 }}>
+          {joinedLabel}
+          {nationCount ? '  ·  ' + nationCount + ' NATIONS' : ''}
+        </VText>
 
+        {/* Two equal buttons, as the notes have them - not one wide and one square. */}
         <View style={st.actions}>
           <Pressable
             onPress={isOther ? message : () => setEditing(true)}
-            style={({ pressed }) => [st.edit, { backgroundColor: isLight ? colors.white : 'rgba(244,240,255,0.94)', opacity: pressed ? 0.9 : 1 }]}
+            style={({ pressed }) => [st.act, { opacity: pressed ? 0.8 : 1 }]}
           >
-            <VText style={{ fontFamily: FONTS.sansBold, fontSize: 11, letterSpacing: em(11, 0.08), color: isLight ? colors.card : '#04020c' }}>{isOther ? 'MESSAGE' : 'EDIT PROFILE'}</VText>
+            <VText style={{ fontFamily: FONTS.sansBold, fontSize: 12.5, color: colors.white }}>{isOther ? 'Message' : 'Edit profile'}</VText>
           </Pressable>
-          <Pressable accessibilityLabel="Share profile" onPress={share} style={[st.share, { boxShadow: `inset 0px 0px 0px 1px ${isLight ? colors.hairline : 'rgba(255,255,255,0.12)'}` }]}>
-            <Icon name="share" size={14} color={dim} />
+          <Pressable accessibilityLabel="Share profile" onPress={share} style={({ pressed }) => [st.act, { opacity: pressed ? 0.8 : 1 }]}>
+            <VText style={{ fontFamily: FONTS.sansBold, fontSize: 12.5, color: colors.white }}>Share profile</VText>
           </Pressable>
         </View>
 
@@ -380,6 +422,14 @@ const st = StyleSheet.create({
   actions: { flexDirection: 'row', alignItems: 'stretch', gap: 10, marginTop: 20 },
   edit: { flex: 1, padding: 11, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   share: { width: 46, minHeight: 36, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  banner: { position: 'absolute', top: 0, left: 12, right: 12, height: 190, borderRadius: 18, overflow: 'hidden', backgroundColor: '#120830' },
+  headRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 2, paddingBottom: 16 },
+  gearBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },
+  idRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  // 0 0 0 2px bg then 0 0 0 4px gold: a dark gap, then the ring.
+  avRing: { borderRadius: 60, boxShadow: '0px 0px 0px 2px #04020c, 0px 0px 0px 4px #c9a84c' },
+  statsRow: { flex: 1, flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' },
+  act: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.08)' },
   tile: { margin: 1, overflow: 'hidden', borderRadius: 3, borderWidth: StyleSheet.hairlineWidth, backgroundColor: 'rgba(255,255,255,0.03)' },
   tileImg: { width: '100%', height: '100%' },
   tileText: { flex: 1, padding: 8, justifyContent: 'center' },
