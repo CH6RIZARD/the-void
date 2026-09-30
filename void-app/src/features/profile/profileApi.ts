@@ -37,6 +37,56 @@ export async function fetchDrops(authorId: string | null): Promise<Post[]> {
   }
 }
 
+/**
+ * The posts this user has hearted.
+ *
+ * The relation was already there - `reactions` carries (post_id, user_id, kind)
+ * and every heart has written a row to it since the feature existed. Nothing
+ * read it back, which is the only reason this tab could not be built before.
+ *
+ * Two queries rather than an embed: the ids first, then the posts, because the
+ * posts come back through the same POST_SELECT and sbPostToApp mapping as every
+ * other list in the app, and a PostgREST embed would return a different shape
+ * that the card would then have to special-case.
+ */
+export async function fetchHearted(userId: string | null): Promise<Post[]> {
+  await ensureCore();
+  if (!userId) return [];
+  try {
+    const refs = await publicGet(
+      '/rest/v1/reactions?user_id=eq.' + encodeURIComponent(userId) + '&select=post_id,created_at&order=created_at.desc&limit=60',
+    );
+    const ids = (Array.isArray(refs) ? refs : []).map((r: any) => r && r.post_id).filter(Boolean);
+    if (!ids.length) return [];
+    const rows = await publicGet('/rest/v1/posts?id=in.(' + ids.join(',') + ')&select=' + POST_SELECT + '&limit=60');
+    if (!Array.isArray(rows)) return [];
+    // Newest heart first, not newest post: this list is a record of what you did,
+    // so it is ordered by when you did it.
+    const order = new Map<string, number>(ids.map((id: string, i: number) => [id, i]));
+    return toPosts(rows).sort((a, b) => (order.get(a.id) ?? 1e9) - (order.get(b.id) ?? 1e9));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * The replies this user has written.
+ *
+ * A reply IS a post with reply_to set - the same row, the same table - so this is
+ * fetchDrops with the null check inverted.
+ */
+export async function fetchReplies(authorId: string | null): Promise<Post[]> {
+  await ensureCore();
+  if (!authorId) return [];
+  try {
+    const rows = await publicGet(
+      '/rest/v1/posts?author_id=eq.' + encodeURIComponent(authorId) + '&reply_to=not.is.null&select=' + POST_SELECT + '&order=created_at.desc&limit=40',
+    );
+    if (Array.isArray(rows)) return toPosts(rows);
+  } catch {}
+  return [];
+}
+
 export async function fetchMyProfile(): Promise<ProfileRow | null> {
   await ensureCore();
   const uid = VoidAPI._uid();

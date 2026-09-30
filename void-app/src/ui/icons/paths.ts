@@ -17,6 +17,10 @@ const p = (d: string): IconShape => ({ t: 'path', d });
 
 export const ICONS = {
   bolt: { shapes: [p('M13 2 4 14h6l-1 8 9-12h-6l1-8z')] },
+  // The reaction is a heart now. The bolt glyphs stay defined: the bolt is still
+  // the mark of the app itself, and deleting it would take the logo with it.
+  heart: { shapes: [p('M12 20.4 4.2 12.6a4.8 4.8 0 0 1 6.8-6.8l1 1 1-1a4.8 4.8 0 0 1 6.8 6.8z')] },
+  heartFill: { filled: true, shapes: [p('M12 20.4 4.2 12.6a4.8 4.8 0 0 1 6.8-6.8l1 1 1-1a4.8 4.8 0 0 1 6.8 6.8z')] },
   boltFill: { filled: true, shapes: [p('M13 2 4 14h6l-1 8 9-12h-6l1-8z')] },
   reply: { shapes: [p('M21 12a8 8 0 0 1-8 8H4l2.2-2.6A8 8 0 1 1 21 12z')] },
   pen: { shapes: [p('M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17v3z'), p('M14.5 6.5l3 3')] },

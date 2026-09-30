@@ -414,7 +414,7 @@ function Thread({ post: p }: { post: Post }) {
                 {/* .thread-acts */}
                 <View style={styles.acts}>
                   <Pressable onPress={() => fireBolt(p.id)} style={styles.act} hitSlop={8}>
-                    <Icon name={r.mf ? 'boltFill' : 'bolt'} size={13} color={r.mf ? colors.gold : colors.navDim} />
+                    <Icon name={r.mf ? 'heartFill' : 'heart'} size={13} color={r.mf ? colors.gold : colors.navDim} />
                     <VText style={[styles.actT, { color: r.mf ? colors.gold : colors.navDim }]}>{fmt(boltCount(p.score, r))}</VText>
                   </Pressable>
                   <View style={styles.act}>

@@ -120,7 +120,7 @@ export const CommentCard = memo(function CommentCard({ c, opAuthor, kidsN, paren
       ) : null}
       <View style={[styles.acts, { marginTop: nested ? 8 : 9 }]}>
         <Pressable onPress={() => onBolt(c)} hitSlop={8} style={styles.act}>
-          <Icon name={c.mine ? 'boltFill' : 'bolt'} size={11} color={c.mine ? colors.gold : colors.navDim} />
+          <Icon name={c.mine ? 'heartFill' : 'heart'} size={11} color={c.mine ? colors.gold : colors.navDim} />
           <VText style={[styles.actT, { color: c.mine ? colors.gold : colors.navDim }]}>{fmt(c.bolts || 0)}</VText>
         </Pressable>
         <Pressable onPress={() => onReply?.(c)} hitSlop={8} style={styles.act}>

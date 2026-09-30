@@ -22,14 +22,12 @@ import { ensureCore, useIdentity } from '../auth/coreBridge';
 import { stripHandle } from '../auth/handles';
 import { onDropPosted } from '../composer/drop';
 import { usePendingDrops } from '../composer/dropStore';
-import { ConvRow } from '../messages/ConvRow';
-import { chatRoute, openDmWith } from '../messages/MessagesScreen';
-import { loadConversations, useDmStore } from '../messages/dmStore';
+import { openDmWith } from '../messages/MessagesScreen';
 import { MiniIcon } from '../settings/vmod';
 import { AccountSheet, voidAuthor } from './AccountSheet';
 import { EditProfileSheet } from './EditProfileSheet';
 import { ProfileAvatar } from './ProfileAvatar';
-import { fetchDrops, fetchMyProfile, fetchProfileByHandle, getLocalAvatar, type ProfileRow } from './profileApi';
+import { fetchDrops, fetchHearted, fetchMyProfile, fetchProfileByHandle, fetchReplies, getLocalAvatar, type ProfileRow } from './profileApi';
 
 /** --prof-glow (VOID): radial-gradient(110% 45% at 50% 0%,#120830 0%,#04020c 58%) */
 const PROF_GLOW: RadialSpec = { rx: 110, ry: 45, cx: 50, cy: 0, stops: [{ color: '#120830', offset: 0 }, { color: '#04020c', offset: 0.58 }] };
@@ -41,6 +39,7 @@ function Empty({ text, pad = 30 }: { text: string; pad?: number }) {
 }
 
 const TILE_KEY = 'void.profile.layout';
+type ProfTab = 'drops' | 'hearted' | 'replies';
 type ProfLayout = 'scroll' | 'tiles';
 
 /**
@@ -111,7 +110,12 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
   const [avatar, setAvatar] = useState<string | null>(null);
   const [drops, setDrops] = useState<Post[] | null>(null);
   const [counts, setCounts] = useState<{ following: number; followers: number } | null>(null);
-  const [tab, setTab] = useState<'drops' | 'messages'>('drops');
+  // DROPS / HEARTED / REPLIES, per the handoff notes. Messages moved off the
+  // profile: it is a tab of its own in the nav, and the notes' tab row has no
+  // room for it.
+  const [tab, setTab] = useState<ProfTab>('drops');
+  const [hearted, setHearted] = useState<Post[] | null>(null);
+  const [replies, setReplies] = useState<Post[] | null>(null);
   // Per-user and persisted, as the patch notes ask: whichever way you last chose
   // to look at a profile is how it opens next time.
   const [layout, setLayout] = useState<ProfLayout>(() => (readJSON<ProfLayout>(TILE_KEY, 'scroll') === 'tiles' ? 'tiles' : 'scroll'));
@@ -121,7 +125,6 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
   const [refreshing, setRefreshing] = useState(false);
   const [, bump] = useState(0);
   const pending = usePendingDrops();
-  const { convs } = useDmStore();
 
   const load = useCallback(async () => {
     await ensureCore();
@@ -146,7 +149,6 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
   useFocusEffect(
     useCallback(() => {
       load();
-      if (!isOther) loadConversations();
     }, [load, isOther]),
   );
   useEffect(() => onDropPosted(() => load()), [load]);
@@ -186,8 +188,23 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
 
   const dim = themeName === 'void' ? '#8d7cc0' : colors.dim;
   const statDivider = isLight ? colors.hairline : 'rgba(255,255,255,0.08)';
-  const showDrops = tab === 'drops' || isOther;
-  const tiles = showDrops && layout === 'tiles';
+  // Each list is fetched the first time its tab is opened, not on mount: most
+  // visits never leave DROPS, and these are two more round trips.
+  const authorId = isOther ? (other && other.id) || null : user.id || null;
+  useEffect(() => {
+    let live = true;
+    if (tab === 'hearted' && hearted === null) {
+      fetchHearted(authorId).then((r) => { if (live) setHearted(r); });
+    } else if (tab === 'replies' && replies === null) {
+      fetchReplies(authorId).then((r) => { if (live) setReplies(r); });
+    }
+    return () => { live = false; };
+  }, [tab, authorId, hearted, replies]);
+
+  const showDrops = tab === 'drops';
+  const listFor = (t: ProfTab): Post[] | null => (t === 'drops' ? shownDrops : t === 'hearted' ? hearted : replies);
+  const current = listFor(tab);
+  const tiles = layout === 'tiles';
   // Three across, inside the same 10px gutter the cards sit in.
   const tileSize = Math.floor((win.width - 20 - 6) / 3);
 
@@ -233,15 +250,12 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
         </View>
 
         <View style={st.tabs}>
-          {(isOther ? (['drops'] as const) : (['drops', 'messages'] as const)).map((t) => {
+          {(['drops', 'hearted', 'replies'] as const).map((t) => {
             const on = tab === t;
             return (
               <Pressable
                 key={t}
-                onPress={() => {
-                  setTab(t);
-                  if (t === 'messages') loadConversations();
-                }}
+                onPress={() => setTab(t)}
                 style={[st.tab, { borderBottomColor: on ? 'rgba(201,168,76,0.6)' : 'transparent' }]}
               >
                 <VText style={{ fontFamily: FONTS.mono, fontSize: 8.5, letterSpacing: em(8.5, 0.18), color: on ? colors.white : colors.navDim }}>{t.toUpperCase()}</VText>
@@ -267,9 +281,7 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
       </View>
     );
 
-  const footer = showDrops ? null : (
-    <View style={st.pane}>{convs.length ? convs.map((c) => <ConvRow key={c.id} c={c} onPress={() => router.push(chatRoute(c.id) as any)} />) : <Empty text="NO CONVERSATIONS" pad={26} />}</View>
-  );
+
 
   return (
     <View style={[st.fill, { backgroundColor: colors.bg }]}>
@@ -302,7 +314,7 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
         // the key: switching rebuilds the list rather than throwing.
         key={tiles ? 'tiles' : 'scroll'}
         numColumns={tiles ? 3 : 1}
-        data={showDrops && !(isOther && other === null) ? shownDrops : []}
+        data={!(isOther && other === null) && current ? current : []}
         keyExtractor={(p) => p.id}
         // The same window the void feed uses (VoidFeedScreen.tsx). Without it this
         // list keeps every card it has scrolled past mounted, with their decoded
@@ -323,8 +335,19 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
         }
         viewabilityConfigCallbackPairs={viewability}
         ListHeaderComponent={header}
-        ListFooterComponent={footer}
-        ListEmptyComponent={showDrops && drops !== null && !(isOther && other === null) ? <Empty text="NO DROPS YET · JOIN THE THREAD" /> : null}
+        ListEmptyComponent={
+          (isOther && other === null) || current === null ? null : (
+            <Empty
+              text={
+                tab === 'drops'
+                  ? 'NO DROPS YET · JOIN THE THREAD'
+                  : tab === 'hearted'
+                    ? 'NOTHING HEARTED YET'
+                    : 'NO REPLIES YET'
+              }
+            />
+          )
+        }
         contentContainerStyle={{ paddingBottom: isOther ? 24 + insets.bottom : navSpace + 24 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.gold} />}
       />
