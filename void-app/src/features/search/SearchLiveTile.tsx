@@ -1,5 +1,5 @@
 // Search LIVE-NOW tiles — liveFeatSlot / liveTileSlot / liveRow + hydrateLiveTiles:
-//   connectTile(el, [{type:'youtube', id:<channel>, label:'LIVE'}, ...GLOBAL_POOL])
+//   connectTile(el, [{type:'youtube', id:<channel>, label:'LIVE'}, ...real substitutes])
 // with data-nolabel (no stream label strip on connect). Sequential cascade through the
 // shared live engine (useStreamCascade + StreamTile); tap a PLAYING tile for sound.
 //
@@ -15,7 +15,6 @@
 //   padding:3px 7px 4px;font:'Syne Mono' 7px;color:var(--gold);letter-spacing:.08em}
 import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { GLOBAL_POOL } from '../../core';
 import { StreamTile, type StreamTileHandle } from '../live/StreamTile';
 import { LiveDot, TileLoader } from '../live/TileChrome';
 import { useStreamCascade, type CascadeResult } from '../live/useStreamCascade';
@@ -48,13 +47,20 @@ function fallbacksFor(ch: LiveChannelRef): StreamSource[] {
   return all.slice(0, 8).map((c) => ({ type: 'youtube', id: c.id, label: c.n }) as StreamSource);
 }
 
-/** The channel itself, then real substitutes, then the test streams as a last resort. */
+/**
+ * The channel itself, then real substitutes. Nothing else.
+ *
+ * GLOBAL_POOL USED TO BE ON THE END OF THIS, and GLOBAL_POOL is two TEST
+ * STREAMS - mux.dev's x36xhzz (Big Buck Bunny) and an Akamai test master -
+ * labelled 'GLOBAL FEED' as though they were channels. So a tile that could not
+ * reach Al Jazeera or Sky News AU quietly dropped to a cartoon and kept the
+ * newsroom's name over it. It was the most-watched thing in the app.
+ *
+ * A tile with nothing real to show says NO SIGNAL. That is a true statement,
+ * and the viewer can act on it; a rabbit in a tree is neither.
+ */
 function sourcesFor(ch: LiveChannelRef): StreamSource[] {
-  return [
-    { type: 'youtube', id: ch.id, label: ch.n } as StreamSource,
-    ...fallbacksFor(ch),
-    ...((GLOBAL_POOL as unknown as StreamSource[]) || []),
-  ];
+  return [{ type: 'youtube', id: ch.id, label: ch.n } as StreamSource, ...fallbacksFor(ch)];
 }
 
 // ─── NINE LIVE STREAMS AT ONCE IS NOT A SEARCH SCREEN ────────────────────
@@ -181,8 +187,13 @@ function SlotBody({ tileId, radius, slot }: { tileId: string; radius: number; sl
           onNeedsHeal={slot.heal}
         />
       ) : null}
-      {/* connectTile: sparkleTile('● CONNECTING') for every attempt; '● NO SIGNAL' when exhausted. */}
-      <TileLoader label={slot.phase === 'offline' ? '● NO SIGNAL' : '● CONNECTING'} visible={slot.phase !== 'playing'} />
+      {/* NO CONNECTING LABEL.
+          It was never in the design, and it lied: the loader was tied to
+          `phase !== 'playing'`, so a stream that was already showing a picture
+          still had CONNECTING written across it whenever the cascade had not
+          settled. A tile that is working should look like it is working.
+          Only the exhausted case says anything now - that one is real news. */}
+      <TileLoader label="● NO SIGNAL" visible={slot.phase === 'offline'} />
     </>
   );
 }

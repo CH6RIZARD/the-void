@@ -46,11 +46,14 @@ export function buildYtTail(name: string): StreamSource[] {
 }
 // Country-section chain: LIVE cams -> RECENT raw -> nation news -> generic news tail -> global pool.
 export function getCountrySources(name: string): StreamSource[] {
-  return [...(CAM_SOURCES[name] || []), ...(RAW_FOOTAGE[name] || []), ...(NEWS_SOURCES[name] || []), ...buildYtTail(name), ...GLOBAL_POOL];
+  // No GLOBAL_POOL tail: it is two test streams (Big Buck Bunny and an Akamai
+  // test master) labelled 'GLOBAL FEED', and a country with no live source is
+  // better described as having none than as showing a cartoon under its name.
+  return [...(CAM_SOURCES[name] || []), ...(RAW_FOOTAGE[name] || []), ...(NEWS_SOURCES[name] || []), ...buildYtTail(name)];
 }
 // World wall tile chain: LIVE cams -> RECENT raw ONLY. No news, ever.
 export function wallChain(name: string): StreamSource[] {
-  return [...(CAM_SOURCES[name] || []), ...(RAW_FOOTAGE[name] || []), ...GLOBAL_POOL];
+  return [...(CAM_SOURCES[name] || []), ...(RAW_FOOTAGE[name] || [])];
 }
 // Countries that actually have live/raw (non-news) content, tension-ordered.
 export function tensionCountries(): string[] {
