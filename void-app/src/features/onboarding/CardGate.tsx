@@ -3,8 +3,9 @@
 // for: the success state (⬡ + gold bar) plays only after the server has approved
 // the credential. Until then the pressed control shows pending and errors print in
 // the red mono line with the card left on screen.
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import Svg, { ClipPath, Defs, G, LinearGradient as SvgGrad, Path, Rect, Stop } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import Svg, { Circle, Defs, Ellipse, G, Line, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
@@ -32,6 +33,64 @@ import { CTA, DIM, Enter, GOLD, LAV, Mono, RED, WHITE } from './parts';
 /** radial-gradient(70% 45% at 50% 40%, #1a0c44 0%, #0a0620 65%) */
 const BG: RadialSpec = { rx: 70, ry: 45, cx: 50, cy: 40, stops: [{ color: '#1a0c44', offset: 0 }, { color: '#0a0620', offset: 0.65 }] };
 const OK_EMAIL = /^\S+@\S+\.\S+$/;
+
+// ─── THE LANYARD ────────────────────────────────────────────────────────
+// Six straps, drawn in the mock's 402x874 screen space and scaled to whatever
+// this phone actually is. The path is a function of the slot's position because
+// the strap has to END IN THE HOLE: the slot is measured at runtime rather than
+// assumed, so it stays in the hole at any screen size, with any font scale, and
+// with the keyboard open.
+//
+// Each strap is drawn twice. Once behind everything, and once more clipped to
+// the band between the tag's top edge and the slot's lower lip, painted over the
+// tag - which is what makes it read as passing THROUGH the hole rather than
+// stopping at it. Nothing interactive sits above either copy.
+const LANYARD_W = 402;
+const LANYARD_H = 874;
+const LANYARDS: { d: (x: number, y: number) => string; gold?: boolean }[] = [
+  { d: (x, y) => `M-20 -20 C 110 40, ${x - 90} ${y - 120}, ${x} ${y - 40} L ${x} ${y}` },
+  { d: (x, y) => `M60 -20 C 90 110, ${x - 40} ${y - 110}, ${x} ${y - 40} L ${x} ${y} M340 -20 C 310 110, ${x + 40} ${y - 110}, ${x} ${y - 40} L ${x} ${y}` },
+  { d: (x, y) => `M230 -20 C 330 60, 370 150, ${x + 90} ${y - 130} C ${x + 40} ${y - 100}, ${x} ${y - 90}, ${x} ${y - 40} L ${x} ${y}` },
+  { d: (x, y) => `M120 -20 C 260 80, ${x - 70} ${y - 160}, ${x} ${y - 40} L ${x} ${y} M120 -20 C 40 110, ${x + 50} ${y - 140}, ${x} ${y - 40} L ${x} ${y}` },
+  { d: (x, y) => `M-20 -20 C 110 40, ${x - 90} ${y - 120}, ${x} ${y - 40} L ${x} ${y}`, gold: true },
+  { d: (x, y) => `M-10 -20 L ${x} ${y - 40} L ${x} ${y} M412 -20 L ${x} ${y - 40} L ${x} ${y}` },
+];
+
+/** Where the slot sits, in the lanyard's coordinate space. */
+interface SlotGeom { x: number; y: number; tagTop: number }
+
+function Lanyard({ idx, slot, over }: { idx: number; slot: SlotGeom; over?: boolean }) {
+  const v = LANYARDS[idx] || LANYARDS[0];
+  const d = v.d(slot.x, slot.y);
+  const stroke = v.gold ? '#c9a84c' : 'url(#strapGrad)';
+  return (
+    <Svg
+      pointerEvents="none"
+      style={StyleSheet.absoluteFill}
+      viewBox={`0 0 ${LANYARD_W} ${LANYARD_H}`}
+      preserveAspectRatio="none"
+    >
+      <Defs>
+        <SvgGrad id="strapGrad" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor="#1a1030" />
+          <Stop offset="0.5" stopColor="#2a1a52" />
+          <Stop offset="1" stopColor="#1a1030" />
+        </SvgGrad>
+        {over ? (
+          <ClipPath id="slotBand">
+            {/* Only the tag's top-to-slot band, so the strap appears over the
+                tag exactly as far as the hole and no further. */}
+            <Rect x={0} y={slot.tagTop} width={LANYARD_W} height={Math.max(0, slot.y - slot.tagTop)} />
+          </ClipPath>
+        ) : null}
+      </Defs>
+      <G clipPath={over ? 'url(#slotBand)' : undefined}>
+        <Path d={d} stroke={stroke} strokeWidth={15} fill="none" strokeLinecap="butt" />
+        <Path d={d} stroke="#c9a84c" strokeWidth={1} strokeDasharray="4 5" fill="none" opacity={0.55} strokeLinecap="butt" />
+      </G>
+    </Svg>
+  );
+}
 
 type Mode = 'create' | 'login';
 type Stage = 'providers' | 'email' | 'password';
@@ -174,6 +233,11 @@ export function CardGate({ stepLabel, initialMode = 'create', onEnter }: { stepL
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<{ via: Via; handle: string } | null>(null);
   const [cardW, setCardW] = useState(0);
+  // Rolled once per mount, as the notes require - there is no default variant.
+  const [lanyardIdx] = useState(() => Math.floor(Math.random() * LANYARDS.length));
+  const [slot, setSlot] = useState<SlotGeom | null>(null);
+  const zoneRef = useRef<View>(null);
+  const slotRef = useRef<View>(null);
 
   const login = mode === 'login';
   const h = handle.replace(/^@/, '');
@@ -194,6 +258,26 @@ export function CardGate({ stepLabel, initialMode = 'create', onEnter }: { stepL
   }, [armed, lift]);
   const liftAnim = useAnimatedStyle(() => ({ transform: [{ translateY: -7 * lift.value }, { scale: 1 + 0.12 * lift.value }] }));
   const glowAnim = useAnimatedStyle(() => ({ opacity: 0.35 + 0.65 * lift.value }));
+
+  // The strap is hidden until this has run, so it can never paint misaligned.
+  const measureSlot = useCallback(() => {
+    const z = zoneRef.current as any;
+    const sl = slotRef.current as any;
+    if (!z || !sl || !z.measure || !sl.measure) return;
+    z.measure((_x: number, _y: number, zw: number, zh: number, zpx: number, zpy: number) => {
+      if (!zw || !zh) return;
+      sl.measure((_a: number, _b: number, sw: number, sh: number, spx: number, spy: number) => {
+        const kx = LANYARD_W / zw;
+        const ky = LANYARD_H / zh;
+        const next = {
+          x: (spx - zpx + sw / 2) * kx,
+          y: (spy - zpy + sh) * ky,
+          tagTop: (spy - zpy - 22) * ky, // the tag's own top edge, one pad above the slot
+        };
+        setSlot((p) => (p && Math.abs(p.x - next.x) < 0.5 && Math.abs(p.y - next.y) < 0.5 ? p : next));
+      });
+    });
+  }, []);
 
   const reset = (m: Mode) => {
     setMode(m);
@@ -306,16 +390,26 @@ export function CardGate({ stepLabel, initialMode = 'create', onEnter }: { stepL
           </VText>
 
           {/* CARD */}
-          <View style={s.cardZone}>
-            <Animated.View style={[s.card, cardAnim]} onLayout={(e) => setCardW(e.nativeEvent.layout.width)}>
+          <View style={s.cardZone} ref={zoneRef} onLayout={measureSlot}>
+            {slot ? <Lanyard idx={lanyardIdx} slot={slot} /> : null}
+            <Animated.View
+              style={[s.card, cardAnim]}
+              onLayout={(e) => {
+                setCardW(e.nativeEvent.layout.width);
+                measureSlot();
+              }}
+            >
               <LinearGradient colors={['#0d0820', '#04020c', '#0f0a26']} locations={[0, 0.6, 1]} start={{ x: 0.3, y: 0 }} end={{ x: 0.7, y: 1 }} style={[StyleSheet.absoluteFill, { borderRadius: 18 }]} />
               <Shimmer width={cardW} />
+              {/* The slot the strap goes through. Measured, not assumed. */}
+              <View ref={slotRef} onLayout={measureSlot} style={s.slot} />
               <View style={s.cardTop}>
                 <VText style={{ fontFamily: FONTS.sansExtraBold, fontSize: 13, letterSpacing: em(13, 0.14), color: WHITE }}>
                   THE<VText style={{ fontFamily: FONTS.sansExtraBold, fontSize: 13, color: GOLD }}>⬡</VText>VOID
                 </VText>
+                {/* Empty for a new tag; a returning one says so. */}
                 <Mono size={7} tracking={0.2} color={GOLD}>
-                  {flipped ? t('s3.login.card.passLabel', { handle: h || '—' }) : ''}
+                  {login ? t('s3.tag.returning') : ''}
                 </Mono>
               </View>
               {flipped ? (
@@ -358,17 +452,26 @@ export function CardGate({ stepLabel, initialMode = 'create', onEnter }: { stepL
                 </View>
               )}
               <View style={s.cardBottom}>
-                <Mono size={7.5} tracking={0.22} color={LAV}>
-                  {today()}
-                </Mono>
+                {/* Barcode and globe are ONE button, and it is the way in. */}
                 <Pressable onPress={() => flipped && cardEnter()} disabled={!armed || busy} accessibilityLabel="Enter" hitSlop={10}>
-                  <Animated.View style={liftAnim}>
+                  <Animated.View style={[s.stamp, liftAnim]}>
                     <Animated.View style={[s.globeGlow, armed ? glowAnim : { opacity: 0 }]} pointerEvents="none" />
+                    <View style={s.barcode}>
+                      {/* Eleven bars, fixed - a barcode that changes is a barcode
+                          nobody believes. */}
+                      {[3, 1, 2, 1, 1, 3, 1, 2, 2, 1, 3].map((w, i) => (
+                        <View key={i} style={[s.bar, { width: w }]} />
+                      ))}
+                    </View>
                     <GlobeIcon />
                   </Animated.View>
                 </Pressable>
+                <Mono size={7.5} tracking={0.22} color={LAV}>
+                  {today()}
+                </Mono>
               </View>
             </Animated.View>
+            {slot ? <Lanyard idx={lanyardIdx} slot={slot} over /> : null}
 
             <View style={s.underCard}>
               {login ? (
@@ -515,11 +618,17 @@ const s = StyleSheet.create({
     overflow: 'hidden',
     boxShadow: '0px 40px 80px rgba(0,0,0,0.7), 0px 0px 0px 1px rgba(201,168,76,0.35), inset 0px 1px 0px rgba(255,255,255,0.08)',
   },
+  slot: { alignSelf: 'center', width: 34, height: 9, borderRadius: 5, backgroundColor: '#04020c', marginBottom: 10, boxShadow: 'inset 0px 1px 2px rgba(0,0,0,0.9), 0px 1px 0px rgba(201,168,76,0.22)' },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   fieldRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   fieldMark: { fontFamily: FONTS.serifItalic, fontSize: 30, color: GOLD },
   cardInput: { flex: 1, fontFamily: FONTS.serifItalic, fontSize: 30, color: WHITE, padding: 0, backgroundColor: 'transparent', minWidth: 0 },
   cardBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  stamp: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  barcode: { flexDirection: 'row', alignItems: 'flex-end', gap: 2, height: 22 },
+  bar: { height: 22, backgroundColor: 'rgba(233,230,245,0.85)' },
+  // transform-origin is the left edge, so the globe lifts away from the barcode
+  // rather than the pair scaling about its middle.
   globeGlow: { position: 'absolute', left: -4, top: -4, right: -4, bottom: -4, borderRadius: 30, backgroundColor: 'rgba(201,168,76,0.25)' },
   underCard: { height: 34, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 14 },
   flipBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, paddingHorizontal: 10 },
