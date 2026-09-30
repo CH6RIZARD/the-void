@@ -431,9 +431,33 @@ export async function loadEarthTexture(gl: any, renderer: THREE.WebGLRenderer, r
   }
   try { console.warn('[globe] earth texture: direct upload'); } catch {}
   const tex = new THREE.Texture();
+  // ─── WHY THIS TEXTURE WAS NEVER SAMPLED ─────────────────────────────────
+  // Injecting __webglTexture is only half of the handshake. three's
+  // WebGLTextures.setTexture2D decides between uploading and binding like this:
+  //
+  //   if (texture.version > 0 && props.__version !== texture.version) uploadTexture()
+  //   else bindTexture(props.__webglTexture)
+  //
+  // __version was never set here, so the moment anything marked this texture
+  // needing an update three took the UPLOAD branch - on a THREE.Texture with no
+  // image at all - and the carefully injected handle was never bound. GL logged
+  // "accepted", three logged "applied", and the sphere rendered black in every
+  // build this code has ever shipped in.
+  //
+  // Two things close it: an image object, because three reads width and height
+  // from it for mipmapping and for the texture size it caches; and __version
+  // agreeing with the texture's version, which is what tells three this texture
+  // is already resident and must be bound rather than re-uploaded.
+  tex.image = { width: RAW_W, height: RAW_H } as any;
+  tex.flipY = false; // already flipped during the upload, via UNPACK_FLIP_Y_WEBGL
+  tex.colorSpace = THREE.LinearSRGBColorSpace;
+  tex.magFilter = THREE.LinearFilter;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.generateMipmaps = false; // the mipmaps were generated on the raw handle above
   const props = renderer.properties.get(tex) as any;
   props.__webglTexture = glTex;
   props.__webglInit = true;
+  props.__version = tex.version; // resident: bind it, do not try to upload it
   renderer.resetState(); // three's GL state cache no longer matches after raw calls
   return tex;
 }
