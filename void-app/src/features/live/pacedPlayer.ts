@@ -57,11 +57,24 @@ export function releasePaced(p: VideoPlayer) {
   try {
     p.muted = true;
   } catch {}
-  try {
-    // An empty source stops loading and frees the decoder without a release.
-    // (The iOS main-thread warning on replace() does not apply to Android.)
-    (p as any).replace(null, true);
-  } catch {}
+  // NOT replace(null) HERE.
+  // This used to clear the source synchronously, to free the decoder without
+  // waiting for the paced release - worth having when decoders are the scarce
+  // resource. But pause() is asynchronous: it posts to the ExoPlayer:Playback
+  // thread and returns. Clearing the source immediately afterwards tears the
+  // sample queue down while that thread can still be inside it, and another
+  // session measured exactly that abort on device:
+  //
+  //   SIGSEGV, SampleDataQueue.readData -> DirectByteBuffer.put -> memcpy
+  //   to an unmapped address
+  //
+  // which is a decode buffer freed under a live reader. It needs 28 creates
+  // racing 52 releases in a ten-second window to show up, which is what the wall
+  // was doing before the mount budget, so it read as a rare crash rather than a
+  // race. The paced release below goes through release(), which stops playback
+  // and frees the decoder in the right order on the right thread; the only thing
+  // lost is a few hundred milliseconds of decoder lifetime per tile, and the
+  // mount budget means far fewer of them are alive to matter.
   queue.push(p);
   if (!timer) timer = setTimeout(step, RELEASE_GAP_MS);
 }
