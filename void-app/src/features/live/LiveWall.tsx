@@ -29,6 +29,7 @@ import {
   playerBudgetNow,
   MAX_MOUNTED_WEBVIEWS,
   PARK_SCREENS,
+  PLAYER_BUDGET_FLOOR,
   SLEEP_AFTER_MS,
   WALL_BATCH,
   WALL_HEAL_COOLDOWN,
@@ -432,8 +433,22 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
         over--;
       }
     };
+    // EVERYTHING IN VIEW PLAYS. THAT IS THE WHOLE RULE.
+    //
+    // The budget used to be a flat number - four - while a 2-wide wall shows about
+    // six tiles, so two of the tiles being looked at were evicted on every pass and
+    // the wall could never fill. A fixed number cannot be right here: it depends on
+    // the tile size, the screen, and where the wall is scrolled to.
+    //
+    // So the wall asks for what it is ACTUALLY SHOWING - the tiles at distance zero
+    // - and playerBudgetNow() is the CEILING on that ask rather than the ask itself.
+    // Off-screen tiles are still shed first and still shed hard; the ceiling still
+    // drops by one on every decoder failure and stays down for the session. A device
+    // that can serve the screen does; one that cannot finds its own level.
+    const inView = [...dist.values()].filter((d) => d === 0).length;
+    const want = Math.max(PLAYER_BUDGET_FLOOR, Math.min(playerBudgetNow(), inView));
     evictFarthest(web, MAX_MOUNTED_WEBVIEWS);
-    evictFarthest(live, playerBudgetNow());   // shrinks if this device fails decoders
+    evictFarthest(live, want);
     const same = (a: Set<number>, b: Set<number>) => a.size === b.size && [...a].every((x) => b.has(x));
     if (!same(parked, placementRef.current.parked) || !same(evicted, placementRef.current.evicted)) setPlacement({ parked, evicted });
   }, [w]);
@@ -747,7 +762,7 @@ const WallTile = memo(function WallTile({ rec, left, top, width, height, borderC
       ) : null}
       {/* ─── A PARKED TILE HOLDS NO PLAYER ────────────────────────────────
           The first fill places 12-24 tiles (fillCount) and each one mounted its
-          player immediately. The budgets - MAX_MOUNTED_PLAYERS 4,
+          player immediately. The budgets - MAX_MOUNTED_PLAYERS (a ceiling, the ask is what is on screen),
           MAX_MOUNTED_WEBVIEWS 2 - only ever EVICTED, which happens after a tile
           has already connected, so the peak was every tile in the batch at once.
           A YouTube tile is a WebView with its own renderer process and sockets,

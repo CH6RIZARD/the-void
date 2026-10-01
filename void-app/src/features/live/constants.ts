@@ -113,7 +113,11 @@ export const MAX_MOUNTED_WEBVIEWS = 2;
  * drops by one on every decoder failure and stays down for the session - so a
  * phone that cannot serve six settles where it can, on its own, within seconds.
  */
-export const MAX_MOUNTED_PLAYERS = 6;
+// This is the CEILING the device is willing to serve, not the number of tiles
+// that may play. The wall asks for as many as it is actually showing (see
+// LiveWall) and this caps that ask. It still drops by one on every decoder
+// failure, so a phone that cannot serve eight settles lower on its own.
+export const MAX_MOUNTED_PLAYERS = 8;
 // ─── THE BUDGET LEARNS THE DEVICE ────────────────────────────────────────
 // A phone has a fixed number of hardware video decoders (commonly 4-8). Past that
 // Android hands out the SOFTWARE decoder, and on the test phone that one dies:
