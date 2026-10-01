@@ -4,10 +4,11 @@
 // the credential. Until then the pressed control shows pending and errors print in
 // the red mono line with the card left on screen.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Dimensions, KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import Svg, { Circle, ClipPath, Defs, Ellipse, G, Line, LinearGradient as SvgGrad, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, Ellipse, G, Line, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
+import { CRIMP_RISE, LANYARDS, LANYARD_H, LANYARD_W, Lanyard, type SlotGeom } from './Lanyard';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FONTS, em } from '../../theme/palettes';
@@ -33,63 +34,8 @@ import { CTA, DIM, Enter, GOLD, LAV, Mono, RED, WHITE } from './parts';
 const BG: RadialSpec = { rx: 70, ry: 45, cx: 50, cy: 40, stops: [{ color: '#1a0c44', offset: 0 }, { color: '#0a0620', offset: 0.65 }] };
 const OK_EMAIL = /^\S+@\S+\.\S+$/;
 
-// ─── THE LANYARD ────────────────────────────────────────────────────────
-// Six straps, drawn in the mock's 402x874 screen space and scaled to whatever
-// this phone actually is. The path is a function of the slot's position because
-// the strap has to END IN THE HOLE: the slot is measured at runtime rather than
-// assumed, so it stays in the hole at any screen size, with any font scale, and
-// with the keyboard open.
-//
-// Each strap is drawn twice. Once behind everything, and once more clipped to
-// the band between the tag's top edge and the slot's lower lip, painted over the
-// tag - which is what makes it read as passing THROUGH the hole rather than
-// stopping at it. Nothing interactive sits above either copy.
-const LANYARD_W = 402;
-const LANYARD_H = 874;
-const LANYARDS: { d: (x: number, y: number) => string; gold?: boolean }[] = [
-  { d: (x, y) => `M-20 -20 C 110 40, ${x - 90} ${y - 120}, ${x} ${y - 40} L ${x} ${y}` },
-  { d: (x, y) => `M60 -20 C 90 110, ${x - 40} ${y - 110}, ${x} ${y - 40} L ${x} ${y} M340 -20 C 310 110, ${x + 40} ${y - 110}, ${x} ${y - 40} L ${x} ${y}` },
-  { d: (x, y) => `M230 -20 C 330 60, 370 150, ${x + 90} ${y - 130} C ${x + 40} ${y - 100}, ${x} ${y - 90}, ${x} ${y - 40} L ${x} ${y}` },
-  { d: (x, y) => `M120 -20 C 260 80, ${x - 70} ${y - 160}, ${x} ${y - 40} L ${x} ${y} M120 -20 C 40 110, ${x + 50} ${y - 140}, ${x} ${y - 40} L ${x} ${y}` },
-  { d: (x, y) => `M-20 -20 C 110 40, ${x - 90} ${y - 120}, ${x} ${y - 40} L ${x} ${y}`, gold: true },
-  { d: (x, y) => `M-10 -20 L ${x} ${y - 40} L ${x} ${y} M412 -20 L ${x} ${y - 40} L ${x} ${y}` },
-];
-
-/** Where the slot sits, in the lanyard's coordinate space. */
-interface SlotGeom { x: number; y: number; tagTop: number }
-
-function Lanyard({ idx, slot, over }: { idx: number; slot: SlotGeom; over?: boolean }) {
-  const v = LANYARDS[idx] || LANYARDS[0];
-  const d = v.d(slot.x, slot.y);
-  const stroke = v.gold ? '#c9a84c' : 'url(#strapGrad)';
-  return (
-    <Svg
-      pointerEvents="none"
-      style={StyleSheet.absoluteFill}
-      viewBox={`0 0 ${LANYARD_W} ${LANYARD_H}`}
-      preserveAspectRatio="none"
-    >
-      <Defs>
-        <SvgGrad id="strapGrad" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor="#1a1030" />
-          <Stop offset="0.5" stopColor="#2a1a52" />
-          <Stop offset="1" stopColor="#1a1030" />
-        </SvgGrad>
-        {over ? (
-          <ClipPath id="slotBand">
-            {/* Only the tag's top-to-slot band, so the strap appears over the
-                tag exactly as far as the hole and no further. */}
-            <Rect x={0} y={slot.tagTop} width={LANYARD_W} height={Math.max(0, slot.y - slot.tagTop)} />
-          </ClipPath>
-        ) : null}
-      </Defs>
-      <G clipPath={over ? 'url(#slotBand)' : undefined}>
-        <Path d={d} stroke={stroke} strokeWidth={15} fill="none" strokeLinecap="butt" />
-        <Path d={d} stroke="#c9a84c" strokeWidth={1} strokeDasharray="4 5" fill="none" opacity={0.55} strokeLinecap="butt" />
-      </G>
-    </Svg>
-  );
-}
+// The lanyard itself lives in Lanyard.tsx - ribbon, crimp, swivel hook and the
+// clear clip that actually passes through the slot.
 
 type Mode = 'create' | 'login';
 type Stage = 'providers' | 'email' | 'password';
@@ -234,6 +180,13 @@ export function CardGate({ stepLabel, initialMode = 'create', onEnter }: { stepL
   const [cardW, setCardW] = useState(0);
   // Rolled once per mount, as the notes require - there is no default variant.
   const [lanyardIdx] = useState(() => Math.floor(Math.random() * LANYARDS.length));
+  // Every SVG id is suffixed with this, so two tags on one screen cannot share
+  // a gradient or a pattern.
+  const [uid] = useState(() => 'u' + Math.random().toString(36).slice(2, 7));
+  // Hidden until measured AND settled: a strap that paints before it knows where
+  // the slot is lands across the tag's face, which is exactly what went wrong.
+  const strapIn = useSharedValue(0);
+  const strapAnim = useAnimatedStyle(() => ({ opacity: strapIn.value }));
   const [slot, setSlot] = useState<SlotGeom | null>(null);
   const zoneRef = useRef<View>(null);
   const slotRef = useRef<View>(null);
@@ -259,23 +212,31 @@ export function CardGate({ stepLabel, initialMode = 'create', onEnter }: { stepL
   const glowAnim = useAnimatedStyle(() => ({ opacity: 0.35 + 0.65 * lift.value }));
 
   // The strap is hidden until this has run, so it can never paint misaligned.
+  // MEASURE AGAINST THE WHOLE SCREEN.
+  //
+  // This used to measure the slot against the card ZONE and scale by the zone's
+  // size - but the lanyard SVG covers the whole screen, so its 402x874 space is
+  // the screen's, not the zone's. Everything landed short and high: the ribbon
+  // stopped in mid-air and the clipped copy fell across the tag's face.
   const measureSlot = useCallback(() => {
     const z = zoneRef.current as any;
     const sl = slotRef.current as any;
     if (!z || !sl || !z.measure || !sl.measure) return;
-    z.measure((_x: number, _y: number, zw: number, zh: number, zpx: number, zpy: number) => {
-      if (!zw || !zh) return;
-      sl.measure((_a: number, _b: number, sw: number, sh: number, spx: number, spy: number) => {
-        const kx = LANYARD_W / zw;
-        const ky = LANYARD_H / zh;
-        const next = {
-          x: (spx - zpx + sw / 2) * kx,
-          y: (spy - zpy + sh) * ky,
-          tagTop: (spy - zpy - 22) * ky, // the tag's own top edge, one pad above the slot
-        };
-        setSlot((p) => (p && Math.abs(p.x - next.x) < 0.5 && Math.abs(p.y - next.y) < 0.5 ? p : next));
-      });
+    const win = Dimensions.get('window');
+    const kx = LANYARD_W / win.width;
+    const ky = LANYARD_H / win.height;
+    sl.measure((_a: number, _b: number, sw: number, sh: number, spx: number, spy: number) => {
+      if (!sw || !sh) return;
+      // measure() gives page coordinates, which is what the full-screen SVG wants.
+      const next: SlotGeom = {
+        x: (spx + sw / 2) * kx,
+        y: (spy + sh) * ky,
+        tagTop: (spy - 22) * ky, // the tag's top edge, one pad above the slot
+      };
+      setSlot((p) => (p && Math.abs(p.x - next.x) < 0.5 && Math.abs(p.y - next.y) < 0.5 ? p : next));
+      strapIn.value = withTiming(1, { duration: 400 });
     });
+    void z;
   }, []);
 
   const reset = (m: Mode) => {
@@ -365,12 +326,23 @@ export function CardGate({ stepLabel, initialMode = 'create', onEnter }: { stepL
   return (
     <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0a0620' }]}>
       <RadialFill spec={BG} />
+      {/* The strap spans the SCREEN - its 402x874 space is the screen's, which is
+          why the slot is measured in page coordinates. Behind everything: the
+          notes put the ribbons under all text and buttons. */}
+      {slot && !done ? (
+        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, strapAnim]}>
+          <Lanyard idx={lanyardIdx} slot={slot} uid={uid} />
+        </Animated.View>
+      ) : null}
       {done ? (
         <Success via={done.via} handle={done.handle} onDone={finish} />
       ) : (
         <KeyboardAvoidingView style={[s.page, { paddingTop: 78 + insets.top, paddingBottom: 40 + insets.bottom }]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <View style={s.head}>
-            <Mono color={DIM}>{t('s3.eyebrow', { step: stepLabel })}</Mono>
+            {/* On a pill, so a ribbon passing behind it cannot run through the words. */}
+            <View style={s.eyebrowPill}>
+              <Mono color={DIM}>{t('s3.eyebrow', { step: stepLabel })}</Mono>
+            </View>
             <View style={s.tabs}>
               <Pressable onPress={() => reset('create')} style={[s.tab, tabBg(!login)]}>
                 <Mono size={7.5} tracking={0.18} color={login ? DIM : GOLD}>
@@ -390,7 +362,6 @@ export function CardGate({ stepLabel, initialMode = 'create', onEnter }: { stepL
 
           {/* CARD */}
           <View style={s.cardZone} ref={zoneRef} onLayout={measureSlot}>
-            {slot ? <Lanyard idx={lanyardIdx} slot={slot} /> : null}
             <Animated.View
               style={[s.card, cardAnim]}
               onLayout={(e) => {
@@ -470,7 +441,6 @@ export function CardGate({ stepLabel, initialMode = 'create', onEnter }: { stepL
                 </Mono>
               </View>
             </Animated.View>
-            {slot ? <Lanyard idx={lanyardIdx} slot={slot} over /> : null}
 
             <View style={s.underCard}>
               {login ? (
@@ -597,6 +567,14 @@ export function CardGate({ stepLabel, initialMode = 'create', onEnter }: { stepL
           )}
         </KeyboardAvoidingView>
       )}
+      {/* The clip, drawn again over the tag and clipped to the band between the
+          tag's top edge and the slot's lower lip. This is the half that makes it
+          read as passing THROUGH the hole rather than lying on the face. */}
+      {slot && !done ? (
+        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, strapAnim]}>
+          <Lanyard idx={lanyardIdx} slot={slot} uid={uid} over />
+        </Animated.View>
+      ) : null}
     </View>
   );
 }
@@ -604,6 +582,7 @@ export function CardGate({ stepLabel, initialMode = 'create', onEnter }: { stepL
 const s = StyleSheet.create({
   page: { flex: 1, paddingHorizontal: 28 },
   head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  eyebrowPill: { alignSelf: 'flex-start', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 12, backgroundColor: 'rgba(13,8,32,0.72)' },
   tabs: { flexDirection: 'row', gap: 2, padding: 3, borderRadius: 20, backgroundColor: 'rgba(13,8,32,0.72)', boxShadow: 'inset 0px 1px 0px rgba(255,255,255,0.08)' },
   tab: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16 },
   cardZone: { flex: 1, alignItems: 'center', justifyContent: 'center' },
