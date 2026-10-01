@@ -138,9 +138,31 @@ function wallFill(img) {
 }
 
 /** The globe sits in the upper third. Drawn vs black, and textured vs flat. */
+/**
+ * Drawn, and showing the NIGHT MAP rather than the fallback.
+ *
+ * Variance alone called a flat purple fallback sphere "textured" - it is blocky,
+ * and blocky varies. The night map is distinguishable by COLOUR: it is dark blue
+ * and black with warm city lights, so its blue channel leads and its red channel
+ * is low on average. The fallback is a violet gradient, where red and blue run
+ * together. Comparing the channels tells them apart; counting variance does not.
+ */
 function globeState(img) {
-  const s = regionStats(img, Math.round(img.w * 0.12), Math.round(img.h * 0.09), Math.round(img.w * 0.88), Math.round(img.h * 0.4));
-  return { drawn: s.litFrac > 0.08, textured: s.sd > 22, mean: +s.mean.toFixed(1), sd: +s.sd.toFixed(1) };
+  const x0 = Math.round(img.w * 0.12), y0 = Math.round(img.h * 0.09);
+  const x1 = Math.round(img.w * 0.88), y1 = Math.round(img.h * 0.4);
+  const st = regionStats(img, x0, y0, x1, y1);
+  let r = 0, g = 0, b = 0, n = 0;
+  for (let y = y0; y < y1; y += 4) {
+    for (let x = x0; x < x1; x += 4) {
+      const i = y * img.stride + x * 4;
+      r += img.data[i]; g += img.data[i + 1]; b += img.data[i + 2]; n++;
+    }
+  }
+  const R = n ? r / n : 0, G = n ? g / n : 0, B = n ? b / n : 0;
+  // Night map: blue clearly ahead of red. Violet fallback: red close to blue.
+  const mapLike = B > R * 1.55 && st.sd > 14;
+  return { drawn: st.litFrac > 0.08, textured: mapLike, fallbackLikely: st.litFrac > 0.08 && !mapLike,
+           mean: +st.mean.toFixed(1), sd: +st.sd.toFixed(1), rgb: [Math.round(R), Math.round(G), Math.round(B)] };
 }
 
 // ─── what the OS knows ───────────────────────────────────────────────────
@@ -352,7 +374,7 @@ function writeReport(rows) {
     lines.push(
       '',
       `- wall: **${r.fill.withPicture}/${r.fill.tiles} tiles showing a picture**`,
-      `- globe: ${r.globe.drawn ? 'drawn' : '**NOT DRAWN**'}, ${r.globe.textured ? 'textured' : '**flat / untextured**'} (mean ${r.globe.mean}, sd ${r.globe.sd})`,
+      `- globe: ${r.globe.drawn ? 'drawn' : '**NOT DRAWN**'}, ${r.globe.textured ? 'night map' : '**FALLBACK TEXTURE (purple)**'} (rgb ${(r.globe.rgb||[]).join('/')}, sd ${r.globe.sd})`,
       `- frames during a scroll: ${r.frames.total ?? '?'} rendered, ${r.frames.jankPct ?? '?'}% janky, p90 ${r.frames.p90 ?? '?'}ms, p95 ${r.frames.p95 ?? '?'}ms`,
       `- per-frame timing: ${r.timeline?.frames ?? 0} frames, ${r.timeline?.over16 ?? '?'} over 16.7ms, ${r.timeline?.over100 ?? '?'} over 100ms, p50 ${r.timeline?.p50 ?? '?'}ms, p90 ${r.timeline?.p90 ?? '?'}ms, worst ${r.timeline?.worst ?? '?'}ms`,
       `- filmstrip: scripts/device-watch-shots/strip-0..5.png (one scroll)`,

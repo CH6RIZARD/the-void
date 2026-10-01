@@ -10,6 +10,7 @@ import { onTabReselect } from '../../nav/reselect';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ToastModule from '../../ui/Toast';
 import { GlobeModeToggle } from './GlobeModeToggle';
+import { bundledEarthPixelsAsync } from './textures';
 import { GlobeCanvas, useGlobeHeight } from './GlobeCanvas';
 import { ReelsView } from './ReelsView';
 import { LiveWall, type LiveWallHandle } from '../live/LiveWall';
@@ -112,6 +113,23 @@ function GlobeSurfaces({
   const insets = useSafeAreaInsets();
   // Pull-to-refresh on the wall rebuilds the globe above it: they are one screen.
   const [globeNonce, setGlobeNonce] = useState(0);
+  // DECODE THE MAP BEFORE ANY SCENE EXISTS TO LOSE IT.
+  //
+  // The night map reaches the sphere one of two ways: a direct GL upload, which
+  // this chipset refuses with INVALID_OPERATION (the texture file documents it),
+  // or a JS decode of the bundled pixels. The JS decode was kicked off BY THE
+  // SCENE - so every GLView remount, and there is one on every pause, resume and
+  // refresh, disposed the scene while the decode was still running and threw the
+  // result away. The globe then kept the flat purple fallback, which is exactly
+  // what the device watcher photographed.
+  //
+  // The decode caches its result for the life of the process, so it only has to
+  // finish ONCE. Starting it here - on the screen, which outlives every canvas -
+  // means the pixels are already in hand by the time any scene asks, and no
+  // dispose can interrupt them.
+  useEffect(() => {
+    bundledEarthPixelsAsync().catch(() => {});
+  }, []);
   // TAP THE GLOBE TAB AGAIN TO REFRESH IT.
   //
   // Pull-to-refresh lives on the WALL's scroll view, which is below the globe -
