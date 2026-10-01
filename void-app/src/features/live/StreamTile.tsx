@@ -1,7 +1,7 @@
 // STREAM TILE — native port of attemptSource(cell, source) for ONE source.
 //
 // Contract (mirrors the web Promise):
-//   • mounts the player for `source` muted + autoplaying under the CONNECTING loader
+//   • mounts the player for `source` muted + autoplaying under the loader
 //   • calls onSettled(true) exactly once on a REAL playing signal
 //     (HLS: expo-video playing for 700ms AND the frame at 700ms is not colour bars; YouTube: playerState 1 or currentTime>0;
 //      mjpeg: first frame loaded; iframe cam: load end)
@@ -47,7 +47,7 @@ export interface StreamTileHandle {
 export interface StreamTileProps {
   tileId: string;
   source: StreamSource;
-  /** Loader label while connecting ('● CONNECTING'). */
+  /** Loader label. Empty by default: the loader moves, which is the message. */
   loaderLabel?: string;
   /** Far off-screen: pause HLS decode (native memory guard). YouTube keeps running. */
   parked?: boolean;
@@ -87,7 +87,7 @@ const STALL_DEAD_MS = 15000;
 const EASE = Easing.bezier(0.25, 0.1, 0.25, 1);
 
 export const StreamTile = forwardRef<StreamTileHandle, StreamTileProps>(function StreamTile(props, ref) {
-  const { tileId, source, loaderLabel = '● CONNECTING', parked = false, radius = 6, showLoader = true, tileWidth, surface: surfaceType = 'texture' } = props;
+  const { tileId, source, loaderLabel = '', parked = false, radius = 6, showLoader = true, tileWidth, surface: surfaceType = 'texture' } = props;
   const audio = useAudioOwner();
   const [playing, setPlaying] = useState(false);
   const done = useRef(false);

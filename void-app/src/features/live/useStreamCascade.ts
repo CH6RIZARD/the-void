@@ -15,7 +15,7 @@ export interface CascadeAttempt {
   key: string;
   src: StreamSource;
   index: number;
-  /** '● CONNECTING'. How many sources have been tried is not the viewer's business. */
+  /** Empty. A tile that is working on it says nothing; see the loader. */
   label: string;
 }
 
@@ -67,7 +67,7 @@ export function useStreamCascade(onResult: (r: CascadeResult) => void) {
         // working through its sources is still loading, and the sparkle already says
         // so; announcing the attempt number only tells the viewer the app is
         // struggling. One label, until it plays or gives up.
-        setAttempt({ key, src, index: i, label: '● CONNECTING' });
+        setAttempt({ key, src, index: i, label: '' });
         return;
       }
       curKey.current = null;

@@ -14,6 +14,12 @@ import { em, useLiveTheme } from '../live/liveTheme';
 import { useObserve } from 'expo-observe';
 
 export interface GlobeCanvasProps {
+  /**
+   * Handed down so the REELS/GLOBE swipe can be made to wait on this gesture.
+   * Turning the globe is a drag, and a drag that starts on the globe was also
+   * reaching the panel swipe - so exploring sometimes threw you into reels.
+   */
+  gestureRef?: React.MutableRefObject<any>;
   /** Bumped by pull-to-refresh: rebuild the canvas from scratch. */
   refreshNonce?: number;
   /** Render loop runs only while true (tab focused, GLOBE mode, app foregrounded). */
@@ -27,7 +33,7 @@ export function useGlobeHeight() {
   return Math.max(240, Math.min(height * 0.42, 320));
 }
 
-export function GlobeCanvas({ running, onOpenCountry, refreshNonce = 0 }: GlobeCanvasProps) {
+export function GlobeCanvas({ running, onOpenCountry, refreshNonce = 0, gestureRef }: GlobeCanvasProps) {
   const t = useLiveTheme();
   const { width } = useWindowDimensions();
   const height = useGlobeHeight();
@@ -154,6 +160,7 @@ export function GlobeCanvas({ running, onOpenCountry, refreshNonce = 0 }: GlobeC
   // ── touch handling: web touchstart/touchmove/touchend, 1:1 ───────────────
   const tr = useRef({ prev: null as null | { x?: number; y?: number; pinch?: number }, start: null as null | { x: number; y: number; t: number } }).current;
   const gesture = Gesture.Manual()
+    .withRef(gestureRef as any)
     .runOnJS(true)
     .onTouchesDown((e, mgr) => {
       mgr.activate(); // the globe owns its gestures; the REELS⇄GLOBE swipe must not start here

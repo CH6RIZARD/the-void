@@ -713,7 +713,10 @@ const WallTile = memo(function WallTile({ rec, left, top, width, height, borderC
   }, [evicted, phase]);
 
   const a = cascade.attempt;
-  const loaderLabel = phase === 'offline' ? '● NO SIGNAL' : a ? a.label : '● CONNECTING';
+  // NO WORD HERE WHILE IT WORKS. It was never asked for and says nothing a moving loader
+  // does not already say. Only the exhausted case speaks, because NO SIGNAL is
+  // information - it means stop waiting.
+  const loaderLabel = phase === 'offline' ? '● NO SIGNAL' : '';
   // POSTER FIRST: a YouTube tile shows the stream's thumbnail at once, under the loader,
   // while its player connects - and again whenever it sleeps or is evicted - instead of
   // a black box. The live picture replaces it the moment it plays.

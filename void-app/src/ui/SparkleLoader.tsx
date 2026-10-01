@@ -59,7 +59,7 @@ const Dot = memo(function Dot({ p, running, color }: { p: Particle; running: boo
 });
 
 export interface SparkleLoaderProps {
-  /** Mono label, e.g. '● CONNECTING'. Omit for none (sparkleMarkup without label). */
+  /** Mono label, e.g. '● NO SIGNAL'. Omit for none (sparkleMarkup without label). */
   label?: string;
   /** Tap handler (sparkleTile onRetry). */
   onPress?: () => void;

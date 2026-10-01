@@ -44,7 +44,10 @@ function fallbacksFor(ch: LiveChannelRef): StreamSource[] {
     const j = Math.floor(Math.random() * (i + 1));
     [all[i], all[j]] = [all[j], all[i]];
   }
-  return all.slice(0, 8).map((c) => ({ type: 'youtube', id: c.id, label: c.n }) as StreamSource);
+  // Every other channel, not the first eight of them. Eight substitutes over a
+  // thirteen-channel list meant a tile could exhaust its chain in seconds and sit
+  // on NO SIGNAL while sources it had never tried were still live.
+  return all.map((c) => ({ type: 'youtube', id: c.id, label: c.n }) as StreamSource);
 }
 
 /**
@@ -187,10 +190,10 @@ function SlotBody({ tileId, radius, slot }: { tileId: string; radius: number; sl
           onNeedsHeal={slot.heal}
         />
       ) : null}
-      {/* NO CONNECTING LABEL.
+      {/* NO LABEL WHILE IT WORKS.
           It was never in the design, and it lied: the loader was tied to
           `phase !== 'playing'`, so a stream that was already showing a picture
-          still had CONNECTING written across it whenever the cascade had not
+          still had a label written across it whenever the cascade had not
           settled. A tile that is working should look like it is working.
           Only the exhausted case says anything now - that one is real news. */}
       <TileLoader label="● NO SIGNAL" visible={slot.phase === 'offline'} />

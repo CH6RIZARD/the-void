@@ -120,6 +120,9 @@ function GlobeSurfaces({
   // and a GONE SurfaceView releases its surface. Only the surface goes - players,
   // buffers and sockets survive, so settling re-attaches instead of reconnecting.
   const [sliding, setSliding] = useState(false);
+  // The globe's own gesture. The panel swipe must fail wherever this one is
+  // active, or turning the globe doubles as a swipe to reels.
+  const globeGesture = useRef<any>(null);
   const [mode, setModeState] = useState<GlobeMode>(initialMode);
   // modeSV: 0 = the LEFT panel, 1 = the RIGHT one. GLOBE is now the left panel and
   // REELS the right, so the toggle reads GLOBE | REELS in the order they sit in -
@@ -165,6 +168,7 @@ function GlobeSurfaces({
   // commit past 22% of the width, else snap back. Gestures that start on the globe
   // canvas never switch (the canvas' manual gesture activates on touch-down).
   const swipe = Gesture.Pan()
+    .requireExternalGestureToFail(globeGesture)
     .activeOffsetX([-10, 10])
     .failOffsetY([-10, 10])
     .onStart(() => {
@@ -219,7 +223,7 @@ function GlobeSurfaces({
             <Animated.View style={[styles.view, { top: insets.top }, mapStyle]} pointerEvents={mode === 'globe' ? 'auto' : 'none'}>
               <LoaderActiveContext.Provider value={globeVisible}>
                 {globeSeen ? (
-                  <GlobeCanvas running={globeVisible} onOpenCountry={openCountry} refreshNonce={globeNonce} />
+                  <GlobeCanvas running={globeVisible} onOpenCountry={openCountry} refreshNonce={globeNonce} gestureRef={globeGesture} />
                 ) : (
                   <View style={{ height: globeH, backgroundColor: '#04020c' }} />
                 )}

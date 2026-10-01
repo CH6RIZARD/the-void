@@ -21,8 +21,16 @@ export const WALL_HEAL_COOLDOWN = 12000;
  * globe's first frames and the UI thread. Playing tiles do not hold a lane.
  */
 export const WALL_LANES = 4;
-/** First wall batch waits this long after the build, so the globe paints first. */
-export const FIRST_BATCH_DELAY_MS = 800;
+/**
+ * First wall batch waits this long after the build, so the globe paints first.
+ *
+ * 800ms meant the tiles did not EXIST yet, so their loaders could not move -
+ * and with the placement pass throttled behind them the sparkle took around
+ * three seconds to appear at all. The globe's first frame is quick now (it
+ * carries no textures on this screen), so the wall does not need to stand back
+ * nearly that long.
+ */
+export const FIRST_BATCH_DELAY_MS = 220;
 /** Out of sight this long, the wall unmounts its players (see LiveWall SLEEP). */
 export const SLEEP_AFTER_MS = 20000;
 /** Watchdog period (web setInterval 2500). */
