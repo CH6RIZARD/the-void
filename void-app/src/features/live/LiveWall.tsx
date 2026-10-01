@@ -473,7 +473,7 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
   const onScrollBeginDrag = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     // ARM_SLOP, not zero: the wall rests a hair off the top while the first
     // batch settles, and a finger that lands there is still a finger at the top.
-    setPullArmed(e.nativeEvent.contentOffset.y <= ARM_SLOP);
+    setPullArmed(e.nativeEvent.contentOffset.y <= ARM_SLOP && !refreshing);
   }, []);
   const onRefresh = useCallback(() => {
     if (refreshing) return;
@@ -540,7 +540,29 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
       onScroll={onScroll}
       onScrollBeginDrag={onScrollBeginDrag}
       onMomentumScrollEnd={recomputePlacement}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} enabled={pullArmed} tintColor="#c9a84c" colors={['#c9a84c']} progressBackgroundColor="#120830" />}
+      refreshControl={
+        // IT KEPT FIRING BY ACCIDENT, WHICH IS THE ONE THING THAT WAS ASKED FOR.
+        //
+        // Arming the gesture at the top was not enough on its own: Android's
+        // trigger distance is short, so a small downward drag from rest - the
+        // start of reading, not a pull - was already enough to set it off, and
+        // on a wall that is often at the top that meant it went off constantly.
+        //
+        // progressViewOffset pushes the whole trigger further down the screen, so
+        // the pull has to be long and obviously deliberate before anything
+        // happens. Combined with the arming rule (the drag must BEGIN at the
+        // top), scrolling cannot refresh: you have to stop, put your finger down
+        // at rest, and pull.
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          enabled={pullArmed}
+          progressViewOffset={96}
+          tintColor="#c9a84c"
+          colors={['#c9a84c']}
+          progressBackgroundColor="#120830"
+        />
+      }
       scrollEventThrottle={16}
       overScrollMode="never"
       bounces={false}

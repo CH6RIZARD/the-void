@@ -117,7 +117,11 @@ export const MAX_MOUNTED_WEBVIEWS = 2;
 // that may play. The wall asks for as many as it is actually showing (see
 // LiveWall) and this caps that ask. It still drops by one on every decoder
 // failure, so a phone that cannot serve eight settles lower on its own.
-export const MAX_MOUNTED_PLAYERS = 8;
+// Six, not eight. The wall asks for what it is showing and this caps the ask;
+// at eight the decoders contend - more streams starting at once means each one
+// starts SLOWER, and a wall that filled in about four seconds was taking twenty.
+// Six covers a 2-wide screen, which is the point, without that pile-up.
+export const MAX_MOUNTED_PLAYERS = 6;
 // ─── THE BUDGET LEARNS THE DEVICE ────────────────────────────────────────
 // A phone has a fixed number of hardware video decoders (commonly 4-8). Past that
 // Android hands out the SOFTWARE decoder, and on the test phone that one dies:

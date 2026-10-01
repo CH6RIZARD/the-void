@@ -211,7 +211,7 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
   const joinedLabel = (() => {
     const raw = isOther ? (other as any)?.created_at : (me as any)?.created_at;
     const d = raw ? new Date(raw) : null;
-    if (!d || isNaN(d.getTime())) return 'JOINED';
+    if (!d || isNaN(d.getTime())) return ''; // no date is no claim
     return 'JOINED ' + d.toLocaleString('en', { month: 'short' }).toUpperCase() + ' ' + d.getFullYear();
   })();
   // How many nations this account has actually dropped from.
@@ -234,25 +234,27 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
             Absolutely positioned so nothing above it has to move or change:
             it is a backdrop, not a row in the stack. The gradient over it is
             what keeps the handle and the stats readable on any photo. */}
-        <View pointerEvents="none" style={st.banner}>
-          {bannerUrl ? <Image source={{ uri: bannerUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
-          <LinearGradient
-            colors={['rgba(4,2,12,0.78)', 'rgba(4,2,12,0.68)', 'rgba(4,2,12,0.85)']}
-            style={StyleSheet.absoluteFill}
-          />
-        </View>
+        {/* Only when there IS one. Painting the placeholder regardless left a flat
+            purple slab cutting across the avatar - a banner's backdrop with no
+            banner in it, which reads as a rendering fault rather than a design. */}
+        {bannerUrl ? (
+          <View pointerEvents="none" style={st.banner}>
+            <Image source={{ uri: bannerUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+            <LinearGradient
+              colors={['rgba(4,2,12,0.78)', 'rgba(4,2,12,0.68)', 'rgba(4,2,12,0.85)']}
+              style={StyleSheet.absoluteFill}
+            />
+          </View>
+        ) : null}
 
-        {/* Header row: the handle, and settings. The ME/ANON pill is gone. */}
+        {/* The handle. Settings lives in the pinned bar above - one gear, not two:
+            adding this row without taking that bar away put a second gear on the
+            screen and the word PROFILE over the top of the handle. */}
         <View style={st.headRow}>
           <VText style={{ flex: 1, fontFamily: FONTS.mono, fontSize: 10, letterSpacing: em(10, 0.14), color: colors.gold }}>
             {handle}
             {otherBlocked ? ' · BLOCKED' : ''}
           </VText>
-          {!isOther ? (
-            <Pressable onPress={() => setAcct(true)} accessibilityLabel="Settings" hitSlop={8} style={st.gearBtn}>
-              <Icon name="gear" size={15} color={colors.white} />
-            </Pressable>
-          ) : null}
         </View>
 
         <View style={st.idRow}>
@@ -272,10 +274,15 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
         {/* Name, bio, and the two lines that say how long and how far. */}
         <VText style={{ fontFamily: FONTS.sansBold, fontSize: 19, color: colors.white, marginTop: 14 }}>{name}</VText>
         {bio ? <VText style={{ fontFamily: FONTS.sans, fontSize: 13.5, color: '#c9bfe8', marginTop: 5 }}>{bio}</VText> : null}
-        <VText style={{ fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.16), color: '#6a58a0', marginTop: 8 }}>
-          {joinedLabel}
-          {nationCount ? '  ·  ' + nationCount + ' NATIONS' : ''}
-        </VText>
+        {/* The row only exists if there is something true to put in it. A bare
+            word JOINED with no date is worse than no line at all. */}
+        {joinedLabel || nationCount ? (
+          <VText style={{ fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.16), color: '#6a58a0', marginTop: 8 }}>
+            {joinedLabel}
+            {joinedLabel && nationCount ? '  ·  ' : ''}
+            {nationCount ? nationCount + ' NATIONS' : ''}
+          </VText>
+        ) : null}
 
         {/* Two equal buttons, as the notes have them - not one wide and one square. */}
         <View style={st.actions}>
@@ -427,7 +434,10 @@ const st = StyleSheet.create({
   gearBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },
   idRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   // 0 0 0 2px bg then 0 0 0 4px gold: a dark gap, then the ring.
-  avRing: { borderRadius: 60, boxShadow: '0px 0px 0px 2px #04020c, 0px 0px 0px 4px #c9a84c' },
+  // borderWidth, not boxShadow: the two-stop shadow drew as one thin gold circle
+  // sitting well clear of the avatar, which looked like a mistake. A real border
+  // hugs the image, and the dark gap is the padding inside it.
+  avRing: { padding: 2, borderRadius: 60, borderWidth: 2, borderColor: '#c9a84c', backgroundColor: '#04020c' },
   statsRow: { flex: 1, flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' },
   act: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.08)' },
   tile: { margin: 1, overflow: 'hidden', borderRadius: 3, borderWidth: StyleSheet.hairlineWidth, backgroundColor: 'rgba(255,255,255,0.03)' },

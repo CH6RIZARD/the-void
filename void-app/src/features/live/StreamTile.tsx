@@ -211,7 +211,19 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
   // Play the smallest variant that covers this tile (see hlsVariant.ts). Already
   // resolved streams start on it; the rest connect on the master playlist as before
   // and switch once it is read, which is also what a failed read leaves in place.
-  const targetW = PixelRatio.getPixelSizeForLayoutSize(tileWidth || 180);
+  // CAP THE SCALE AT 2x, NOT THE SCREEN'S FULL DENSITY.
+  //
+  // getPixelSizeForLayoutSize uses the real density, so on a 3x phone a 170dp
+  // tile asked for ~510px and the picker handed it a 720p variant. Six of those
+  // decoding at once is what costs the frame rate - the decoders are the
+  // expense, and most of every frame was being thrown away scaling down into a
+  // tile a sixth of its area.
+  //
+  // Two device pixels per layout pixel is already more than a tile this size can
+  // show. On a 3x screen that asks for ~340px and gets a 480p variant instead:
+  // less than half the pixels to decode per tile, per frame, with the softness
+  // landing on a picture that is 170dp wide.
+  const targetW = Math.round((tileWidth || 180) * Math.min(2, PixelRatio.get()));
   const [url, setUrl] = useState(() => variantCached(raw, targetW) || raw);
   useEffect(() => {
     let alive = true;
