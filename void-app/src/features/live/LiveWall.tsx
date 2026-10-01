@@ -111,16 +111,6 @@ export interface LiveWallHandle {
   refresh(): void;
 }
 
-// A stable colour per stream: hash the key, spin a hue, keep it dark enough that
-// white chrome still reads over it.
-function panelFor(src: StreamSource | null | undefined): { experimental_backgroundImage: string } {
-  const k = src ? streamKey(src) || '' : '';
-  let h = 0;
-  for (let i = 0; i < k.length; i++) h = (h * 31 + k.charCodeAt(i)) >>> 0;
-  const hue = h % 360;
-  const hue2 = (hue + 24) % 360;
-  return { experimental_backgroundImage: `linear-gradient(145deg, hsl(${hue} 42% 11%), hsl(${hue2} 38% 6%))` };
-}
 
 const GAP = 6;
 const PAD = 10;
@@ -930,15 +920,25 @@ const WallTile = memo(function WallTile({ rec, left, top, width, height, borderC
       {/* Including when evicted. The poster is a still - it costs no decoder -
           and a tile that has been let go is exactly when there is nothing else to
           show. Suppressing it there turned every shed tile into a black square. */}
-      {/* A DETERMINISTIC PANEL UNDER EVERY TILE.
+      {/* NO GRADIENT UNDER THE TILE. IT WAS NEVER ONCE VISIBLE.
 
-          Derived from the stream key, so a given cam is the same colour on every
-          launch and the grid does not shimmer as tiles reshuffle. It is a style
-          object - a two-stop gradient - so it costs no image, no decode and no
-          file descriptor, which matters on a ROM that aborts at 1024 of them.
+          A key-hashed two-stop gradient was painted here, full-bleed, on every
+          tile, to make the wall read as full while it filled. It cost no image,
+          no decode and no file descriptor - and it also showed nothing, because
+          in every state something opaque is already on top of it: a playing
+          tile's video surface, a poster, or the sparkle loader's locked
+          rgba(3,1,10,.97) panel, which is precisely the "tile with no picture"
+          case the gradient was added for.
 
-          This is what makes the wall read as full while it is still filling. */}
-      <View pointerEvents="none" style={[StyleSheet.absoluteFill, panelFor(posterSrc)]} />
+          What it did do was fill the tile with a shader every frame. framestats
+          puts the frame's cost in the GPU stage - p50 12.8ms of a 16.7ms budget,
+          with draw, traversal and sync together under 2ms - so a dozen full-tile
+          gradient fills behind opaque pixels is the wrong thing to be spending
+          it on. styles.tile is already #000 underneath, which is what was there
+          before and what the loader panel sits on.
+
+          A tile reads as full because a loader panel is a panel rather than a
+          hole - see TileChrome - not because of this. */}
       {poster ? (
         <Image source={{ uri: poster }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} recyclingKey={poster} />
       ) : null}
