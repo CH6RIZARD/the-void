@@ -329,6 +329,8 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
   const shotRef = useRef<View>(null);
 
   useEffect(() => {
+    // Not built yet (paced creation) - nothing to listen to or register.
+    if (!player) return;
     let judgeT: ReturnType<typeof setTimeout> | null = null;
     const resume = () => {
       if (isReleasedPlayer(player)) return;   // a released player aborts the process
@@ -460,7 +462,7 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
   // STALL_DEAD_MS while unparked and playing means dead, and the wall heals it. This
   // runs whatever the surface type is - it also catches a frozen TextureView tile.
   useEffect(() => {
-    if (parked) return;
+    if (parked || !player) return;
     let last = -1;
     let lastMovedAt = Date.now();
     const iv = setInterval(() => {
@@ -495,7 +497,7 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
   // in the foreground and the clip is playing. At most one capture per ~15s per tile;
   // bars = dead now, a slate must repeat 3 checks. Dead -> refuse + heal.
   useEffect(() => {
-    if (parked) return;
+    if (parked || !player) return;
     // SurfaceView hands nothing back to captureRef, so this check can only ever say
     // "unknown" there - all cost, no verdict. The clock check above catches a dead
     // picture on any surface type, so only a TextureView still samples pixels.
@@ -526,7 +528,7 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
   }, [parked, player, api, source]);
 
   useEffect(() => {
-    if (!api.succeeded()) return;
+    if (!api.succeeded() || !player) return;
     try {
       if (isReleasedPlayer(player)) return;
       if (parked) player.pause();
@@ -542,6 +544,9 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
   return (
     // The capture target for sampleFrame: the video alone, never the loader or labels.
     <View ref={shotRef} collapsable={false} style={StyleSheet.absoluteFill} pointerEvents="none">
+      {/* No surface until there is a player to draw into it. The panel above
+          covers the tile meanwhile, exactly as it does while the variant resolves. */}
+      {player ? (
       <VideoView
         player={player}
         style={StyleSheet.absoluteFill}
@@ -555,6 +560,7 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
         useExoShutter={false}
         pointerEvents="none"
       />
+      ) : null}
     </View>
   );
 }

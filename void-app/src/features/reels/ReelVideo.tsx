@@ -38,6 +38,7 @@ export const ReelVideo = memo(function ReelVideo({ uri, want, muted, onMediaRead
   const wantRef = useWantRef(want);
 
   useEffect(() => {
+    if (!player) return; // paced creation: not built yet
     const clear = () => onMediaReady();
     const subStatus = player.addListener('statusChange', (e: any) => {
       const st = e && e.status;
@@ -69,20 +70,21 @@ export const ReelVideo = memo(function ReelVideo({ uri, want, muted, onMediaRead
   useEffect(() => {
     try {
       // A released player aborts the process if touched (see pacedPlayer).
-      if (isReleasedPlayer(player)) return;
+      if (!player || isReleasedPlayer(player)) return;
       if (want) player.play();
       else player.pause();
     } catch {}
   }, [want, player]);
 
   useEffect(() => {
+    if (!player) return;
     try {
       player.muted = muted;
       if (!muted) player.volume = 1;
     } catch {}
   }, [muted, player]);
 
-  return <VideoView player={player} style={[StyleSheet.absoluteFill, styles.vid]} contentFit="cover" nativeControls={false} allowsPictureInPicture={false} />;
+  return player ? <VideoView player={player} style={[StyleSheet.absoluteFill, styles.vid]} contentFit="cover" nativeControls={false} allowsPictureInPicture={false} /> : null;
 });
 
 function useWantRef(want: boolean) {

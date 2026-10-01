@@ -15,7 +15,7 @@
 // only RELEASED later, one at a time, RELEASE_GAP_MS apart. By the time its turn
 // comes the playback thread has nothing left to do, so the release returns quickly,
 // and no single frame ever pays for more than one of them.
-import { useEffect, useMemo } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createVideoPlayer, type VideoPlayer, type VideoSource } from 'expo-video';
 
 const RELEASE_GAP_MS = 350;
@@ -79,80 +79,103 @@ export function releasePaced(p: VideoPlayer) {
   if (!timer) timer = setTimeout(step, RELEASE_GAP_MS);
 }
 
-/**
- * Drop-in for expo-video's `useVideoPlayer(source, setup)`: same creation, same
- * re-creation when the source changes, but the old player goes through releasePaced
- * instead of being released synchronously on unmount.
- */
-// ─── PLAYERS FROM RENDERS THAT NEVER COMMITTED ───────────────────────────
-// createVideoPlayer runs inside useMemo, which is the render phase, while the only
-// release is an effect cleanup, which is the commit phase. React is free to throw a
-// render away - an interrupted or duplicated render under concurrent mode, which is
-// exactly what fast tab switching and reel scrolling produce - and a player created
-// by a render that never commits has no release path at all. It keeps its sockets,
-// its codec handle and its playback thread for the rest of the session.
+// ─── CREATION IS PACED TOO. IT USED TO HAPPEN INSIDE RENDER. ────────────
 //
-// That is a file-descriptor leak with no ceiling, and the process dies when any fd
-// number reaches 1024: "FORTIFY: FD_SET: file descriptor 1124 >= FD_SETSIZE 1024"
-// (SIGABRT on device, 2026-09-29). Reported for days as "crashes on tab switch".
+// createVideoPlayer is not a cheap handle. On Android the VideoPlayer's Kotlin
+// constructor runs ExoPlayer.Builder(...).build() in a property initialiser -
+// renderers, track selector, load control, the playback HandlerThread - on
+// whichever thread constructs the object. Called from useMemo, that thread is
+// the JS thread and the moment is the middle of a React commit. Only prepare()
+// is deferred to the main queue; the build itself is synchronous.
 //
-// Restructuring creation into the commit phase would change when a player exists
-// relative to first paint, which this component tree depends on. So creation stays
-// where it is and a sweeper collects what React abandoned: every player is recorded
-// at birth, the effect marks it adopted, and anything still unadopted well after any
-// real commit would have happened is released. A player that a slow commit has not
-// claimed yet is still within ADOPT_GRACE_MS, so this cannot take a live one.
-const ADOPT_GRACE_MS = 15000;
-const SWEEP_MS = 5000;
-const unadopted = new Map<VideoPlayer, number>();
-let sweeper: ReturnType<typeof setInterval> | null = null;
-
-function sweep() {
-  const cutoff = Date.now() - ADOPT_GRACE_MS;
-  let freed = 0;
-  for (const [p, born] of unadopted) {
-    if (born > cutoff) continue;
-    unadopted.delete(p);
-    if (!isReleasedPlayer(p)) {
-      releasePaced(p);
-      freed++;
+// A first fill commits a dozen tiles at once, and each in-ring tile built its
+// player right there. Measured with the heartbeat, breadcrumb twelve
+// milliseconds old: `js thread stalled 805ms · last: wall:placement`, then
+// 739ms, then `370ms · last: wall:loadBatch`. loadBatch already slices six
+// tiles per frame to stay responsive; six synchronous ExoPlayer builds per
+// slice is why it did not.
+//
+// The null source made it worse. A tile passes null while its HLS variant is
+// being resolved, and createVideoPlayer(null) builds a complete ExoPlayer with
+// nothing to play - then the real url arrives and a second one is built. The
+// "one player per tile" change had only moved the second build later.
+//
+// So creation goes through a queue: one build per tick, CREATE_GAP_MS apart,
+// never inside a commit, and never for a null source. A tile renders its panel
+// first and its player arrives a tick or two later - which is what it already
+// did while waiting on the variant, so nothing about when a picture appears
+// changes except that the thread stays free in between. Release was already
+// paced for the mirror-image reason; see the top of this file.
+//
+// This also closes the leak the old sweeper existed for. A player created in
+// render had no release path if React threw that render away; a player
+// created by a committed effect is owned by that effect's cleanup from the
+// instant it exists. There is no longer anything to sweep.
+const CREATE_GAP_MS = 40;
+interface CreateJob {
+  run: () => void;
+  cancelled: boolean;
+}
+const createQueue: CreateJob[] = [];
+let createTimer: ReturnType<typeof setTimeout> | null = null;
+function stepCreate() {
+  createTimer = null;
+  let job: CreateJob | undefined;
+  while ((job = createQueue.shift()) && job.cancelled) {
+    /* skipped: its tile unmounted or changed source before its turn */
+  }
+  if (job) {
+    try {
+      job.run();
+    } catch {
+      /* a failed build must not stop the queue */
     }
   }
-  if (freed) {
-    try {
-      console.warn('[fd] released ' + freed + ' player(s) from renders that never committed');
-    } catch {}
-  }
-  if (!unadopted.size && sweeper) {
-    clearInterval(sweeper);
-    sweeper = null;
-  }
+  if (createQueue.length) createTimer = setTimeout(stepCreate, CREATE_GAP_MS);
 }
-
-function born(p: VideoPlayer) {
-  unadopted.set(p, Date.now());
-  if (!sweeper) sweeper = setInterval(sweep, SWEEP_MS);
+function enqueueCreate(run: () => void): CreateJob {
+  const job: CreateJob = { run, cancelled: false };
+  createQueue.push(job);
+  // 0, not CREATE_GAP_MS: the first build goes on the next tick, not this one.
+  if (!createTimer) createTimer = setTimeout(stepCreate, 0);
+  return job;
 }
 
 /**
- * Drop-in for expo-video's `useVideoPlayer(source, setup)`: same creation, same
- * re-creation when the source changes, but the old player goes through releasePaced
- * instead of being released synchronously on unmount.
+ * Drop-in for expo-video's `useVideoPlayer(source, setup)`, except that the
+ * player is created on a paced queue after commit and released on a paced queue
+ * after unmount - so it is `null` until its turn comes, and callers render
+ * nothing for it until then. A null source creates nothing at all.
  */
-export function usePacedPlayer(source: VideoSource, setup?: (p: VideoPlayer) => void): VideoPlayer {
-  const key = JSON.stringify(source);
-  const player = useMemo(() => {
-    const p = createVideoPlayer(source);
-    born(p);
-    try {
-      setup?.(p);
-    } catch {}
-    return p;
+export function usePacedPlayer(source: VideoSource, setup?: (p: VideoPlayer) => void): VideoPlayer | null {
+  const key = JSON.stringify(source ?? null);
+  const [player, setPlayer] = useState<VideoPlayer | null>(null);
+  const setupRef = useRef(setup);
+  setupRef.current = setup;
+  useEffect(() => {
+    if (source == null) {
+      setPlayer(null);
+      return;
+    }
+    let mine: VideoPlayer | null = null;
+    const job = enqueueCreate(() => {
+      const p = createVideoPlayer(source);
+      mine = p;
+      try {
+        setupRef.current?.(p);
+      } catch {}
+      setPlayer(p);
+    });
+    return () => {
+      job.cancelled = true;
+      if (mine) {
+        const gone = mine;
+        releasePaced(gone);
+        // Never hand a released player to a VideoView, even for one tick.
+        setPlayer((cur) => (cur === gone ? null : cur));
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
-  useEffect(() => {
-    unadopted.delete(player); // this render committed; the cleanup below owns it now
-    return () => releasePaced(player);
-  }, [player]);
   return player;
 }
