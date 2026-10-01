@@ -29,6 +29,7 @@ import { liveVidFor, rememberStream, wallCascadeFor, wallSlots, streamKey, type 
 import {
   FIRST_BATCH_DELAY_MS,
   playerBudgetNow,
+  EVICT_SCREENS,
   MAX_MOUNTED_PLAYERS,
   MAX_MOUNTED_WEBVIEWS,
   PARK_SCREENS,
@@ -692,6 +693,26 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
         {tiles.map((rec) => {
           const p = positions.get(rec.id);
           if (!p) return null;
+          // ONLY THE TILES NEAR THE VIEWPORT ARE IN THE TREE.
+          //
+          // Tiles were never removed from the view tree - only their players were
+          // let go - so every one ever loaded stayed mounted, and each carries a
+          // Pressable, a loader and the loader's FOURTEEN animated particle views.
+          // They only accumulate: a batch of twelve arrives each time the sentinel
+          // is reached, and the list is cleared only on a rebuild. After a minute
+          // of scrolling that is several hundred tiles and a few thousand nodes
+          // for React to walk on every commit, which is the scroll cost that
+          // survives after placement stopped re-rendering them.
+          //
+          // The cut is made BEYOND the eviction distance, where the tile's player
+          // has already been released by the placement pass - so nothing is torn
+          // down here that was not torn down already. Identity, last-good source
+          // and phase live in the registry and the lastGood map, which outlive the
+          // component, so coming back is a cheap remount rather than a fresh walk
+          // of the chain.
+          const top = gridY + p.top - w.scrollY;
+          const band = viewportH * (EVICT_SCREENS + 1);
+          if (viewportH > 0 && (top > viewportH + band || top + rowH < -band)) return null;
           return (
             <WallTile
               key={`${gen}:${rec.id}`}
