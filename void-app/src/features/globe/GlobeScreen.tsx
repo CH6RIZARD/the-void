@@ -2,7 +2,7 @@
 //   REELS (default) ⇄ GLOBE (the original globe screen: globe canvas + LIVE FEEDS wall).
 // web: #screen-globe, setGlobeMode(), initGlobeSwipe(), setGlobeOffset/clearGlobeOffset.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { AppState, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { router, useFocusEffect } from 'expo-router';
@@ -12,7 +12,8 @@ import * as ToastModule from '../../ui/Toast';
 import { GlobeModeToggle } from './GlobeModeToggle';
 import { GlobeCanvas, useGlobeHeight } from './GlobeCanvas';
 import { ReelsView } from './ReelsView';
-import { LiveWall } from '../live/LiveWall';
+import { LiveWall, type LiveWallHandle } from '../live/LiveWall';
+import { Icon } from '../../ui/icons/Icon';
 import { cachedGlobeMode, loadGlobeMode, loadGrid3, saveGlobeMode, type GlobeMode } from './persist';
 import { useLiveTheme } from '../live/liveTheme';
 import type { Country } from '../live/core';
@@ -142,6 +143,18 @@ function GlobeSurfaces({
   // the wall and barely in view at that point - and resumes the moment the
   // scroll settles. Nothing is torn down; the loop simply stops asking.
   const [wallScrolling, setWallScrolling] = useState(false);
+  const wallRef = useRef<LiveWallHandle>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  // One button refreshes the whole tab - the globe above and the wall below are
+  // one screen, and nobody wants to refresh half of it.
+  const refreshAll = useCallback(() => {
+    setRefreshing(true);
+    setGlobeNonce((n) => n + 1);
+    try {
+      wallRef.current?.refresh();
+    } catch {}
+    setTimeout(() => setRefreshing(false), 900);
+  }, []);
   // The globe's own gesture. The panel swipe must fail wherever this one is
   // active, or turning the globe doubles as a swipe to reels.
   const globeGesture = useRef<any>(null);
@@ -250,7 +263,7 @@ function GlobeSurfaces({
                   <View style={{ height: globeH, backgroundColor: '#04020c' }} />
                 )}
                 {/* Built the first time GLOBE is shown (web: buildGlobeGrid inside setGlobeMode). */}
-                <LiveWall active={globeVisible && !sliding} grid3={grid3} bottomInset={bottomInset} onRefresh={() => setGlobeNonce((n) => n + 1)} onScrollActive={setWallScrolling} />
+                <LiveWall ref={wallRef} active={globeVisible && !sliding} grid3={grid3} bottomInset={bottomInset} onScrollActive={setWallScrolling} />
               </LoaderActiveContext.Provider>
             </Animated.View>
           </View>
@@ -258,6 +271,18 @@ function GlobeSurfaces({
       {/* Tapping the mode you are already in re-snaps the slide instead of doing
           nothing, so a surface that ever drifts out of sync is one tap from fixed. */}
       <GlobeModeToggle mode={mode} topInset={insets.top} onChange={(m) => setMode(m, m !== mode)} />
+      {/* Top right, opposite the search button. A deliberate tap, which is the
+          whole point - the pull gesture it replaces could not be told apart
+          from the start of a scroll. */}
+      <Pressable
+        onPress={refreshAll}
+        accessibilityRole="button"
+        accessibilityLabel="Refresh the globe and the live wall"
+        hitSlop={10}
+        style={({ pressed }: { pressed: boolean }) => [styles.refreshBtn, { top: 10 + insets.top, opacity: pressed || refreshing ? 0.55 : 1 }]}
+      >
+        <Icon name="repost" size={16} color="#c9a84c" />
+      </Pressable>
     </>
   );
 }
@@ -265,6 +290,7 @@ function GlobeSurfaces({
 export default GlobeScreen;
 
 const styles = StyleSheet.create({
+  refreshBtn: { position: 'absolute', right: 16, width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(13,8,32,0.72)', zIndex: 31 },
   screen: { flex: 1, overflow: 'hidden' },
   fill: { flex: 1 },
   view: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, flexDirection: 'column' },

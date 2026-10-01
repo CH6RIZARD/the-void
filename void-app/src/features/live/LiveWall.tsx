@@ -102,6 +102,8 @@ export interface LiveWallProps {
 
 export interface LiveWallHandle {
   rebuild(): void;
+  /** Start the wall over: drop the tiles, rewind the slot cursor, refill. */
+  refresh(): void;
 }
 
 const GAP = 6;
@@ -309,7 +311,10 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gen]);
 
-  useImperativeHandle(ref, () => ({ rebuild: build }), [build]);
+  const refreshRef = useRef<null | (() => void)>(null);
+  // refreshRef is filled in below, once onRefresh exists; the handle only ever
+  // calls through it, so declaration order does not matter.
+  useImperativeHandle(ref, () => ({ rebuild: build, refresh: () => refreshRef.current?.() }), [build]);
 
   // Watchdog (web setInterval 2500): nudge near tiles that are not PLAYING, then heal.
   useEffect(() => {
@@ -538,13 +543,25 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
   const onRefresh = useCallback(() => {
     if (refreshing) return;
     setRefreshing(true);
-    // Start the wall over: drop the tiles, rewind the slot cursor, refill. The
-    // same path the first load takes, so nothing needs a second way to work.
+    // REFRESH SWAPS CONTENT IN PLACE. IT DOES NOT BLANK THE WALL.
+    //
+    // This used to drop every tile and refill from nothing, so refreshing meant
+    // thirty seconds of empty boxes - worse than whatever was being refreshed
+    // away. The boxes and their pictures stay; each tile re-walks its own chain
+    // and swaps to a new source when it finds one, so the wall changes under you
+    // rather than disappearing and coming back.
+    //
+    // Every tile is asked, not only the visible ones, and the heal budget paces
+    // them so they do not all reconnect at once.
     try {
-      w.slotIdx = 0;
-      w.scrollY = 0;
-      setTiles([]);
-      loadBatchRef.current(fillCount());
+      for (const e of w.registry.values()) {
+        if (e.healing) continue;
+        e.healAt = 0; // an explicit refresh ignores the cooldown
+        w.healBusy++;
+        e.heal().finally(() => {
+          w.healBusy = Math.max(0, w.healBusy - 1);
+        });
+      }
     } catch {}
     // The pull refreshes the SCREEN, not just the list on it: the globe above
     // the wall is the other half of this tab, and someone pulling down at the
@@ -554,6 +571,7 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
     } catch {}
     setTimeout(() => setRefreshing(false), 600);
   }, [refreshing, w, onRefreshOuter]);
+  refreshRef.current = onRefresh;
 
   // Which tile owns the sound, as a ref: placement reads it every pass and must
   // not be rebuilt each time it changes.
@@ -618,30 +636,15 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
         scrollActiveRef.current?.(false);
         recomputePlacement();
       }}
-      refreshControl={
-        // IT KEPT FIRING BY ACCIDENT, WHICH IS THE ONE THING THAT WAS ASKED FOR.
-        //
-        // Arming the gesture at the top was not enough on its own: Android's
-        // trigger distance is short, so a small downward drag from rest - the
-        // start of reading, not a pull - was already enough to set it off, and
-        // on a wall that is often at the top that meant it went off constantly.
-        //
-        // progressViewOffset pushes the whole trigger further down the screen, so
-        // the pull has to be long and obviously deliberate before anything
-        // happens. Combined with the arming rule (the drag must BEGIN at the
-        // top), scrolling cannot refresh: you have to stop, put your finger down
-        // at rest, and pull.
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          enabled={pullArmed}
-          progressViewOffset={96}
-          tintColor="#c9a84c"
-          colors={['#c9a84c']}
-          progressBackgroundColor="#120830"
-        />
-      }
-      scrollEventThrottle={16}
+      // NO PULL-TO-REFRESH.
+      //
+      // Arming it at the top and lengthening the pull still was not enough: on a
+      // wall that usually sits at the top, the start of a scroll is
+      // indistinguishable from the start of a pull, so it fired before the reader
+      // had scrolled at all. A gesture that cannot be told apart from the one
+      // beside it does not belong here. Refresh is a button in the header now
+      // (GlobeScreen), and a button cannot misfire.
+            scrollEventThrottle={16}
       overScrollMode="never"
       bounces={false}
       showsVerticalScrollIndicator={false}
