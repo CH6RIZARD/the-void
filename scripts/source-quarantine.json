@@ -178,5 +178,95 @@
   },
   "since": 1790879903407,
   "why": "status 404"
+ },
+ "https://live-3.otcnet.ru/congresstv/index.m3u8": {
+  "country": "Russia",
+  "src": {
+   "type": "hls",
+   "url": "https://live-3.otcnet.ru/congresstv/index.m3u8",
+   "label": "Kongress TV"
+  },
+  "since": 1790882705457,
+  "why": "status 503"
+ },
+ "https://183.bozztv.com/giatv/giatv-AbejalesTV/AbejalesTV/playlist.m3u8": {
+  "country": "Venezuela",
+  "src": {
+   "type": "hls",
+   "url": "https://183.bozztv.com/giatv/giatv-AbejalesTV/AbejalesTV/playlist.m3u8",
+   "label": "AbejalesTV"
+  },
+  "since": 1790882705458,
+  "why": "status 404"
+ },
+ "https://akativi.siar.us/live/akativi.m3u8": {
+  "country": "Indonesia",
+  "src": {
+   "type": "hls",
+   "url": "https://akativi.siar.us/live/akativi.m3u8",
+   "label": "AKTV"
+  },
+  "since": 1790882705458,
+  "why": "status 404"
+ },
+ "https://5bf7b725107e5.streamlock.net/bungotv/bungotv/playlist.m3u8": {
+  "country": "Indonesia",
+  "src": {
+   "type": "hls",
+   "url": "https://5bf7b725107e5.streamlock.net/bungotv/bungotv/playlist.m3u8",
+   "label": "Bungo TV"
+  },
+  "since": 1790882705458,
+  "why": "status 404"
+ },
+ "https://5bf7b725107e5.streamlock.net/bantentv/bantentv/playlist.m3u8": {
+  "country": "Indonesia",
+  "src": {
+   "type": "hls",
+   "url": "https://5bf7b725107e5.streamlock.net/bantentv/bantentv/playlist.m3u8",
+   "label": "Banten TV"
+  },
+  "since": 1790882705458,
+  "why": "status 404"
+ },
+ "https://kali.vdopanel.com:3119/hybrid/play.m3u8": {
+  "country": "Guinea",
+  "src": {
+   "type": "hls",
+   "url": "https://kali.vdopanel.com:3119/hybrid/play.m3u8",
+   "label": "Afrik Info TV"
+  },
+  "since": 1790882705458,
+  "why": "status 404"
+ },
+ "https://tv.kaludecolombia.com/memfs/d71c0104-4752-4690-bdbf-19aa849da6c4.m3u8": {
+  "country": "Colombia",
+  "src": {
+   "type": "hls",
+   "url": "https://tv.kaludecolombia.com/memfs/d71c0104-4752-4690-bdbf-19aa849da6c4.m3u8",
+   "label": "Kalu TV"
+  },
+  "since": 1790882705458,
+  "why": "status 404"
+ },
+ "https://ngtrk.dc.beltelecom.by/ngtrk/smil:informacionnyy.smil/playlist.m3u8": {
+  "country": "Belarus",
+  "src": {
+   "type": "hls",
+   "url": "https://ngtrk.dc.beltelecom.by/ngtrk/smil:informacionnyy.smil/playlist.m3u8",
+   "label": "Perviy Informationniy"
+  },
+  "since": 1790882705459,
+  "why": "no-cors"
+ },
+ "https://ngtrk.dc.beltelecom.by/ngtrk/smil:belarus24.smil/playlist.m3u8": {
+  "country": "Belarus",
+  "src": {
+   "type": "hls",
+   "url": "https://ngtrk.dc.beltelecom.by/ngtrk/smil:belarus24.smil/playlist.m3u8",
+   "label": "Belarus-24"
+  },
+  "since": 1790882705459,
+  "why": "no-cors"
  }
 }
