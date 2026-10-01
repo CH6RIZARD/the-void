@@ -83,6 +83,7 @@ export interface StreamTileProps {
 let fillOk = 0;
 let fillFail = 0;
 const fillMs: number[] = [];
+let fillFirstAt = 0;
 let fillTimer: ReturnType<typeof setTimeout> | null = null;
 function noteSettle(success: boolean, ms: number, kind: string): void {
   if (success) {
@@ -91,8 +92,13 @@ function noteSettle(success: boolean, ms: number, kind: string): void {
   } else {
     fillFail++;
   }
+  if (!fillFirstAt) fillFirstAt = Date.now();
   if (fillTimer) clearTimeout(fillTimer);
-  // Report once the batch has gone quiet, so one line covers one fill.
+  // Report once the batch has gone quiet - but no later than ten seconds after
+  // its first settle. A wall that never stops settling (tiles timing out and
+  // healing in a loop) is exactly the one this line exists to describe, and a
+  // quiet-only timer never fired for it.
+  const wait = Math.max(300, Math.min(2500, fillFirstAt + 10000 - Date.now()));
   fillTimer = setTimeout(() => {
     fillTimer = null;
     const n = fillOk + fillFail;
@@ -110,7 +116,8 @@ function noteSettle(success: boolean, ms: number, kind: string): void {
     fillOk = 0;
     fillFail = 0;
     fillMs.length = 0;
-  }, 2500);
+    fillFirstAt = 0;
+  }, wait);
 }
 
 interface PlayerApi {
@@ -339,8 +346,7 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
         if (!player.playing) player.play();
       } catch {}
     };
-    const subPlaying = player.addListener('playingChange', (e: any) => {
-      const isPlaying = !!(e && (e.isPlaying ?? e));
+    const onPlaying = (isPlaying: boolean) => {
       if (isPlaying && !api.isDone() && !judgeT) {
         // web: judge one decoded frame 700ms after `playing`. PLAYING is not proof of a
         // picture: an off-air channel serves SMPTE bars. Bars fail the attempt (and are
@@ -387,8 +393,9 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
       }
       // If the OS pauses later, nudge — never show a controls UI.
       if (!isPlaying && api.succeeded() && !parkedRef.current && AppState.currentState === 'active') resume();
-    });
-    const subStatus = player.addListener('statusChange', (e: any) => {
+    };
+    const subPlaying = player.addListener('playingChange', (e: any) => onPlaying(!!(e && (e.isPlaying ?? e))));
+    const onError = (e: any) => {
       if (e && e.status === 'error') {
         // Codec failures are how this device says "no more decoders". Tell the budget
         // before healing, so the wall asks for one fewer from here on.
@@ -399,7 +406,25 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
         if (!api.isDone()) api.finish(false);
         else api.needsHeal();
       }
-    });
+    };
+    const subStatus = player.addListener('statusChange', onError);
+    // THE EVENT MAY HAVE FIRED BEFORE ANYONE WAS LISTENING.
+    //
+    // Player creation is paced now: the queue builds the player and setup calls
+    // play() in the same tick, and this effect - which attaches the listeners -
+    // only runs after React has re-rendered with the new player. A stream that
+    // starts quickly fires playingChange in that gap, nobody hears it, the tile
+    // never judges a frame, and at CONNECT_TIMEOUT it gives up on a picture that
+    // has been playing the whole time - then heals, remounts, and does it again.
+    // That churn is also why the [fill] line never went quiet long enough to
+    // print. With creation in render the gap was a few microseconds and the race
+    // was hidden; ReelVideo has guarded it all along ("the source may already be
+    // ready before the listeners attached"). So: read the state the player is
+    // already in. Both reads are cached fields, not blocking getters.
+    try {
+      if (player.playing) onPlaying(true);
+      else if (player.status === 'error') onError({ status: 'error' });
+    } catch {}
     api.register({
       nudge: () => {
         if (parkedRef.current) return;
