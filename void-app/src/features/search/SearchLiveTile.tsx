@@ -18,6 +18,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { StreamTile, type StreamTileHandle } from '../live/StreamTile';
 import { LiveDot, TileLoader } from '../live/TileChrome';
 import { useStreamCascade, type CascadeResult } from '../live/useStreamCascade';
+import { hlsSpread } from '../../core';
 import type { StreamSource } from '../live/core';
 import { useTheme } from '../../theme/tokens';
 import { FONTS, em } from '../../theme/palettes';
@@ -63,7 +64,16 @@ function fallbacksFor(ch: LiveChannelRef): StreamSource[] {
  * and the viewer can act on it; a rabbit in a tree is neither.
  */
 function sourcesFor(ch: LiveChannelRef): StreamSource[] {
-  return [{ type: 'youtube', id: ch.id, label: ch.n } as StreamSource, ...fallbacksFor(ch)];
+  // The channel's own embed, then the other channels, then REAL HLS from the
+  // same pools the wall plays. Without that tail every link in the chain is a
+  // YouTube embed, so a device that cannot play one cannot play any of them -
+  // the tile walks all thirteen and lands on nothing, which is what 'they just
+  // rotate and never play' looks like from the outside.
+  return [
+    { type: 'youtube', id: ch.id, label: ch.n } as StreamSource,
+    ...fallbacksFor(ch),
+    ...(hlsSpread(20) as unknown as StreamSource[]),
+  ];
 }
 
 // ─── NINE LIVE STREAMS AT ONCE IS NOT A SEARCH SCREEN ────────────────────

@@ -126,11 +126,24 @@ export const MAX_MOUNTED_WEBVIEWS = 2;
 // that may play. The wall asks for as many as it is actually showing (see
 // LiveWall) and this caps that ask. It still drops by one on every decoder
 // failure, so a phone that cannot serve eight settles lower on its own.
-// Six, not eight. The wall asks for what it is showing and this caps the ask;
-// at eight the decoders contend - more streams starting at once means each one
-// starts SLOWER, and a wall that filled in about four seconds was taking twenty.
-// Six covers a 2-wide screen, which is the point, without that pile-up.
-export const MAX_MOUNTED_PLAYERS = 6;
+/**
+ * The ceiling on live players. The wall asks for the VISIBLE ROW PLUS A RING
+ * either side (see LiveWall), and this caps that ask.
+ *
+ * Six covered the visible screen and nothing more, so a tile one row above or
+ * below was never connected: scrolling meant waiting for it to start, and a
+ * stream you scrolled past was let go and had to come back from nothing. Ten
+ * covers a screen of runway in both directions, which is what makes scrolling
+ * feel like the streams were already there.
+ *
+ * Ten is affordable now in a way six was not before: every tile decodes a 480p
+ * variant rather than 720p since the picker was capped at 2x, which is less than
+ * half the pixels per frame each. The crash that set the original cap came from
+ * about eighteen decoders at full size. And the budget still drops by one on
+ * every decoder failure and stays down, so a device that cannot hold ten finds
+ * its own number within seconds.
+ */
+export const MAX_MOUNTED_PLAYERS = 10;
 // ─── THE BUDGET LEARNS THE DEVICE ────────────────────────────────────────
 // A phone has a fixed number of hardware video decoders (commonly 4-8). Past that
 // Android hands out the SOFTWARE decoder, and on the test phone that one dies:

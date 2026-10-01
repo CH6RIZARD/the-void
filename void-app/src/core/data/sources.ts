@@ -101,6 +101,41 @@ function elsewhere(name: string, want = 14): StreamSource[] {
   return out;
 }
 
+/**
+ * A spread of HLS streams from everywhere, for a surface that is not about one
+ * country.
+ *
+ * The search tiles were YouTube and only YouTube - the thirteen LIVE_CHANNELS,
+ * each tile trying the others as substitutes. When a YouTube embed will not play
+ * (and on these devices they often will not), the whole chain is embeds, so the
+ * tile walks all thirteen and lands on nothing. Meanwhile the wall, which is HLS,
+ * plays fine on the same screen.
+ *
+ * So search gets the same pools the wall and the nation screens use: real HLS,
+ * shuffled, de-duplicated, as substitutes AFTER the channel's own embed.
+ */
+export function hlsSpread(want = 20): StreamSource[] {
+  const names = Object.keys(IPTV_POOL).concat(Object.keys(LIFE_POOL));
+  for (let i = names.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [names[i], names[j]] = [names[j], names[i]];
+  }
+  const out: StreamSource[] = [];
+  const seen = new Set<string>();
+  for (const n of names) {
+    for (const src of [...lifeFor(n), ...iptvFor(n)]) {
+      const k = String((src as { url?: string }).url || '');
+      if (!k || seen.has(k)) continue;
+      seen.add(k);
+      out.push(src);
+      if (out.length >= want) return out;
+    }
+  }
+  return out;
+}
+
+
+
 // World wall tile chain: this country's live cams, raw footage and LIFE streams,
 // then real live streams from elsewhere. No news, ever - and no test streams.
 export function wallChain(name: string): StreamSource[] {

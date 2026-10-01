@@ -38,6 +38,7 @@ import {
   WALL_LANES,
   WATCHDOG_MS,
 } from './constants';
+import { useAudioOwner } from './AudioOwner';
 import { em, useLiveTheme } from './liveTheme';
 
 type Phase = 'queued' | 'connecting' | 'playing' | 'offline' | 'evicted';
@@ -392,9 +393,18 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
       const d = top > vh ? (top - vh) / vh : top + g.tileH < 0 ? -(top + g.tileH) / vh : 0;
       dist.set(id, d);
     }
+    // WHATEVER YOU ARE LISTENING TO KEEPS PLAYING.
+    //
+    // Unmute a stream, scroll on, and it was parked the moment it left the
+    // screen - the sound stopped and you had to scroll back to hear it again.
+    // Audio is a deliberate choice about one tile; scrolling is not a decision
+    // to end it. The audible tile is exempt from parking and from eviction, and
+    // there is only ever one of them.
+    const audibleRec = tiles.find((t) => audibleIdRef.current && ('wall:' + t.id) === audibleIdRef.current);
+    const keepId = audibleRec ? audibleRec.id : -1;
     const parked = new Set<number>();
     // Distance only. The inactive case returned above.
-    for (const [id, d] of dist) if (d > PARK_SCREENS) parked.add(id);
+    for (const [id, d] of dist) if (d > PARK_SCREENS && id !== keepId) parked.add(id);
     const live = [...w.registry.values()].filter((e) => e.phase === 'playing' || e.phase === 'connecting');
     const web = live.filter((e) => e.kind === 'youtube' || e.kind === 'iframe');
     const evicted = new Set<number>(placementRef.current.evicted);
@@ -454,7 +464,7 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
       // there is nothing further away left to take.
       const usable = offscreen.length >= over ? offscreen : mustCut > 0 ? pool : offscreen;
       if (usable === offscreen && offscreen.length < over) over = offscreen.length;
-      const candidates = usable.filter((e) => !evicted.has(e.id)).sort((a, b) => rank(b) - rank(a));
+      const candidates = usable.filter((e) => !evicted.has(e.id) && e.id !== keepId).sort((a, b) => rank(b) - rank(a));
       for (const e of candidates) {
         if (over <= 0) break;
         evicted.add(e.id);
@@ -473,8 +483,19 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
     // Off-screen tiles are still shed first and still shed hard; the ceiling still
     // drops by one on every decoder failure and stays down for the session. A device
     // that can serve the screen does; one that cannot finds its own level.
-    const inView = [...dist.values()].filter((d) => d === 0).length;
-    const want = Math.max(PLAYER_BUDGET_FLOOR, Math.min(playerBudgetNow(), inView));
+    // THE RING, NOT THE ROW.
+    //
+    // Asking only for what is on screen meant a tile one row down had never
+    // connected when you reached it, so arriving at it meant watching it load -
+    // and a tile one row up had already been let go, so coming back meant
+    // watching it load again. Both are the same mistake from opposite ends.
+    //
+    // The ask covers everything within PARK_SCREENS: the visible tiles and a
+    // screen of runway above and below. Those are exactly the tiles you are
+    // about to see or have just seen, and keeping them connected is what makes
+    // scrolling feel like nothing is loading at all.
+    const inRing = [...dist.values()].filter((d) => d <= PARK_SCREENS).length;
+    const want = Math.max(PLAYER_BUDGET_FLOOR, Math.min(playerBudgetNow(), inRing));
     evictFarthest(web, MAX_MOUNTED_WEBVIEWS);
     evictFarthest(live, want);
     const same = (a: Set<number>, b: Set<number>) => a.size === b.size && [...a].every((x) => b.has(x));
@@ -522,6 +543,12 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
     } catch {}
     setTimeout(() => setRefreshing(false), 600);
   }, [refreshing, w, onRefreshOuter]);
+
+  // Which tile owns the sound, as a ref: placement reads it every pass and must
+  // not be rebuilt each time it changes.
+  const audio = useAudioOwner();
+  const audibleIdRef = useRef<string | null>(null);
+  audibleIdRef.current = audio.audibleId;
 
   const lastPlaceAt = useRef(0);
   const onScroll = useCallback(
