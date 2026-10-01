@@ -461,21 +461,39 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
   // while still claiming to play is caught by its clock instead: no progress for
   // STALL_DEAD_MS while unparked and playing means dead, and the wall heals it. This
   // runs whatever the surface type is - it also catches a frozen TextureView tile.
+  // THE CLOCK IS READ FROM AN EVENT, NOT POLLED.
+  //
+  // This polled player.currentTime every three seconds. That getter is one of
+  // the few in expo-video that BLOCKS: VideoModule.kt wraps it in
+  // runBlocking(mainQueue) - its own comment says "we shouldn't block the
+  // thread" - so each read parks the JS thread until the main thread gets
+  // round to answering, and the main thread is the one busy with layout,
+  // surfaces and paced releases. Ten tiles is ten of those waits every three
+  // seconds, on a timer, for as long as the wall is up.
+  //
+  // The timeUpdate event carries the same currentTime, is emitted from the
+  // player's own clock at timeUpdateEventInterval, and costs the JS thread
+  // nothing to receive. Same STALL_DEAD_MS rule, same verdict, no wait.
   useEffect(() => {
     if (parked || !player) return;
     let last = -1;
     let lastMovedAt = Date.now();
-    const iv = setInterval(() => {
+    try {
+      if (isReleasedPlayer(player)) return;
+      player.timeUpdateEventInterval = 3;
+    } catch {
+      return;
+    }
+    const sub = player.addListener('timeUpdate', (e: any) => {
       if (!api.succeeded() || AppState.currentState !== 'active') return;
-      let t = -1;
       let playing = false;
       try {
         if (isReleasedPlayer(player)) return;
-        t = player.currentTime;
         playing = player.playing;
       } catch {
         return;
       }
+      const t = e && typeof e.currentTime === 'number' ? e.currentTime : -1;
       if (!playing) {
         lastMovedAt = Date.now();
         return;
@@ -489,8 +507,13 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
         lastMovedAt = Date.now();
         api.needsHeal();
       }
-    }, 3000);
-    return () => clearInterval(iv);
+    });
+    return () => {
+      sub.remove();
+      try {
+        if (!isReleasedPlayer(player)) player.timeUpdateEventInterval = 0;
+      } catch {}
+    };
   }, [parked, player, api]);
 
   // Mid-stream (web checkTileSignal from the watchdog): only while on screen, the app is
