@@ -258,20 +258,26 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
         // web: judge one decoded frame 700ms after `playing`. PLAYING is not proof of a
         // picture: an off-air channel serves SMPTE bars. Bars fail the attempt (and are
         // refused for the session) so the cascade moves on; unknown counts as fine.
+        // REVEAL FIRST, JUDGE SECOND.
+        //
+        // The frame check runs 700ms after `playing` to catch an off-air channel
+        // serving colour bars - worth doing, but the tile used to stay behind its
+        // loader for that whole time with a live picture already decoded behind
+        // it. Every working tile paid 700ms so that a failing one could be caught
+        // silently. The settle now happens immediately and the check still runs;
+        // if it finds bars, markBadStream + needsHeal re-walks the chain exactly
+        // as before, just visibly.
+        api.finish(true);
         judgeT = setTimeout(async () => {
-          if (api.isDone()) return;
           let bars = false;
           if (AppState.currentState === 'active') {
             const px = await sampleFrame(shotRef.current);
             bars = frameVerdict(px, FRAME_W, FRAME_H) === 'bars';
           }
-          if (api.isDone()) return;
           if (bars) {
             markBadStream(source);
-            api.finish(false);
-            return;
+            api.needsHeal();
           }
-          api.finish(!!player.playing || player.status === 'readyToPlay');
         }, FRAME_JUDGE_DELAY);
       }
       // If the OS pauses later, nudge — never show a controls UI.

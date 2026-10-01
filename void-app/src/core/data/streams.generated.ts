@@ -442,7 +442,11 @@ export const NEWS_SOURCES: Record<string, StreamSource[]> = {
 };
 
 // Guaranteed-connectable, CORS-enabled HLS placeholder pool.
-export const GLOBAL_POOL: StreamSource[] = [
-  {"type":"hls","url":"https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8","label":"GLOBAL FEED"},
-  {"type":"hls","url":"https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8","label":"GLOBAL FEED 2"}
-];
+// EMPTY, DELIBERATELY. This held two test streams labelled 'GLOBAL FEED' -
+// test-streams.mux.dev/x36xhzz, which is Big Buck Bunny, and an Akamai test
+// master. They were the catch-all on several chains, so a tile that could not
+// reach a real source played a cartoon under a newsroom's name. The kept name
+// and empty array are so nothing that still imports it has to change shape.
+// See BANNED_STREAM in keys.ts: even if a regeneration puts them back, they
+// cannot be played.
+export const GLOBAL_POOL: StreamSource[] = [];

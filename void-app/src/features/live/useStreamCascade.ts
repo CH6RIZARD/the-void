@@ -9,7 +9,7 @@
 //   c.cancel()                → dispose (web disposeCell): unmounts + releases the claim
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { claimLiveKey, iframeAllowed, releaseLiveKey } from './constants';
-import { isBadStream, liveVidFor, type StreamSource } from './core';
+import { isBadStream, isBannedStream, liveVidFor, type StreamSource } from './core';
 
 export interface CascadeAttempt {
   key: string;
@@ -29,6 +29,8 @@ let attemptSeq = 0;
 /** attemptSource's synchronous refusals (resolve(false) before anything mounts). */
 export function refuseInstantly(src: StreamSource): boolean {
   if (!src) return true;
+  // Never, on any surface, by any route.
+  if (isBannedStream(src)) return true;
   // Not confirmed live → refuse in 0ms so dead channels never occupy a lane.
   if (src.type === 'youtube' && liveVidFor(src) === undefined) return true;
   if (isBadStream(src)) return true;

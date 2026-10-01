@@ -1,7 +1,21 @@
 // Ported verbatim from void2-final.html (LIVE CONNECTION ENGINE / GLOBE WORLD-WALL).
 import { streamKey, type StreamSource } from './core';
 
-export const CONNECT_TIMEOUT: Record<string, number> = { hls: 8000, mjpeg: 6000, youtube: 9000, iframe: 7000 };
+/**
+ * HOW LONG A SOURCE MAY HOLD A LANE BEFORE THE CASCADE GIVES UP ON IT.
+ *
+ * This was 8-9 SECONDS. There are four lanes, so four dead sources stalled the
+ * whole wall for most of ten seconds while the tiles sat there empty - and dead
+ * sources are common, because these lists are long and the internet moves.
+ * Nothing about that wait was useful: a feed that is alive answers in well under
+ * two seconds, and one that has not answered in three is almost never about to.
+ *
+ * Cut to roughly the time a live feed actually needs. The cost is a slow-but-
+ * alive stream on a bad connection being dropped a little early; the cascade
+ * simply moves to the next source, and since the pools are now thousands deep
+ * rather than a handful, moving on is cheap and standing still is not.
+ */
+export const CONNECT_TIMEOUT: Record<string, number> = { hls: 3200, mjpeg: 2600, youtube: 4000, iframe: 3200 };
 
 /** Hosts whose iframe embeds actually render (X-Frame friendly). */
 export const EMBEDDABLE_IFRAME =
