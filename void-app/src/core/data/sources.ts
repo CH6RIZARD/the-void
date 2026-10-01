@@ -5,6 +5,13 @@ import { CAM_SOURCES, COUNTRY_CH, GLOBAL_POOL, LIVE_CHANNELS, NEWS_SOURCES, RAW_
 import { IPTV_POOL } from './iptv.generated.ts';
 import { LIFE_POOL } from './life.generated.ts';
 
+// Evaluating this module builds the stream tables - iptv.generated.ts alone is
+// 302K of literals and 2589 objects - and it happens on whichever JS tick first
+// touches it, which is a tick that was doing something else. Named so a stall
+// that lands here says so instead of saying 'idle'.
+import { mark as _mark } from '../slow';
+_mark('data:sources');
+
 export { CAM_SOURCES, COUNTRY_CH, GLOBAL_POOL, LIVE_CHANNELS, NEWS_SOURCES, RAW_FOOTAGE, VOID_LIVE, IPTV_POOL, LIFE_POOL };
 
 /** Verified IPTV (HLS) pool for a country. Always a fresh copy; [] when none. */

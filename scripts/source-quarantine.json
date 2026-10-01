@@ -9,16 +9,6 @@
   "since": 1790871520273,
   "why": "error"
  },
- "https://livecdn.enlace.plus/enlace/smil:enlace-hd.smil/playlist.m3u8": {
-  "country": "Costa Rica",
-  "src": {
-   "type": "hls",
-   "url": "https://livecdn.enlace.plus/enlace/smil:enlace-hd.smil/playlist.m3u8",
-   "label": "Enlace"
-  },
-  "since": 1790871520274,
-  "why": "error"
- },
  "https://e.siar.us/live/tvmu.m3u8": {
   "country": "Indonesia",
   "src": {
@@ -28,16 +18,6 @@
   },
   "since": 1790871520275,
   "why": "status 404"
- },
- "https://zuzenean.goienamedia.eus/goiena-telebista.m3u8": {
-  "country": "Spain",
-  "src": {
-   "type": "hls",
-   "url": "https://zuzenean.goienamedia.eus/goiena-telebista.m3u8",
-   "label": "Goiena Eus"
-  },
-  "since": 1790877114107,
-  "why": "error"
  },
  "https://tab.parlament.hu:446/edgelive/smil:mkogytab.smil/playlist.m3u8": {
   "country": "Hungary",
@@ -79,16 +59,6 @@
   "since": 1790877114111,
   "why": "status 404"
  },
- "https://cdn-us-east-prod-ingest-infra-dacast-com.akamaized.net/8424fb7f-99a9-87ae-3861-f0620849d11c/source/index.m3u8": {
-  "country": "Guyana",
-  "src": {
-   "type": "hls",
-   "url": "https://cdn-us-east-prod-ingest-infra-dacast-com.akamaized.net/8424fb7f-99a9-87ae-3861-f0620849d11c/source/index.m3u8",
-   "label": "HGPTV"
-  },
-  "since": 1790877114113,
-  "why": "status 404"
- },
  "https://drlivedr1hls.akamaized.net/hls/live/2113625/drlivedr1/master.m3u8": {
   "country": "Denmark",
   "src": {
@@ -109,32 +79,12 @@
   "since": 1790879903405,
   "why": "status 404"
  },
- "https://rtmp.tamtv.com.ve/tmp_hls/stream/index.m3u8": {
-  "country": "Venezuela",
-  "src": {
-   "type": "hls",
-   "url": "https://rtmp.tamtv.com.ve/tmp_hls/stream/index.m3u8",
-   "label": "TAM TV"
-  },
-  "since": 1790879903405,
-  "why": "status 530"
- },
  "https://mgstv.siar.us/live/mgstv.m3u8": {
   "country": "Indonesia",
   "src": {
    "type": "hls",
    "url": "https://mgstv.siar.us/live/mgstv.m3u8",
    "label": "MGSTV"
-  },
-  "since": 1790879903406,
-  "why": "status 404"
- },
- "https://live.amelbatv.co:81/telemocoalive/index.m3u8": {
-  "country": "Colombia",
-  "src": {
-   "type": "hls",
-   "url": "https://live.amelbatv.co:81/telemocoalive/index.m3u8",
-   "label": "Tele Mocoa Canal 10"
   },
   "since": 1790879903406,
   "why": "status 404"
@@ -179,16 +129,6 @@
   "since": 1790879903407,
   "why": "status 404"
  },
- "https://live-3.otcnet.ru/congresstv/index.m3u8": {
-  "country": "Russia",
-  "src": {
-   "type": "hls",
-   "url": "https://live-3.otcnet.ru/congresstv/index.m3u8",
-   "label": "Kongress TV"
-  },
-  "since": 1790882705457,
-  "why": "status 503"
- },
  "https://183.bozztv.com/giatv/giatv-AbejalesTV/AbejalesTV/playlist.m3u8": {
   "country": "Venezuela",
   "src": {
@@ -229,46 +169,6 @@
   "since": 1790882705458,
   "why": "status 404"
  },
- "https://kali.vdopanel.com:3119/hybrid/play.m3u8": {
-  "country": "Guinea",
-  "src": {
-   "type": "hls",
-   "url": "https://kali.vdopanel.com:3119/hybrid/play.m3u8",
-   "label": "Afrik Info TV"
-  },
-  "since": 1790882705458,
-  "why": "status 404"
- },
- "https://tv.kaludecolombia.com/memfs/d71c0104-4752-4690-bdbf-19aa849da6c4.m3u8": {
-  "country": "Colombia",
-  "src": {
-   "type": "hls",
-   "url": "https://tv.kaludecolombia.com/memfs/d71c0104-4752-4690-bdbf-19aa849da6c4.m3u8",
-   "label": "Kalu TV"
-  },
-  "since": 1790882705458,
-  "why": "status 404"
- },
- "https://ngtrk.dc.beltelecom.by/ngtrk/smil:informacionnyy.smil/playlist.m3u8": {
-  "country": "Belarus",
-  "src": {
-   "type": "hls",
-   "url": "https://ngtrk.dc.beltelecom.by/ngtrk/smil:informacionnyy.smil/playlist.m3u8",
-   "label": "Perviy Informationniy"
-  },
-  "since": 1790882705459,
-  "why": "no-cors"
- },
- "https://ngtrk.dc.beltelecom.by/ngtrk/smil:belarus24.smil/playlist.m3u8": {
-  "country": "Belarus",
-  "src": {
-   "type": "hls",
-   "url": "https://ngtrk.dc.beltelecom.by/ngtrk/smil:belarus24.smil/playlist.m3u8",
-   "label": "Belarus-24"
-  },
-  "since": 1790882705459,
-  "why": "no-cors"
- },
  "https://tv.pointville.ag/hls/mystream.m3u8": {
   "country": "Antigua and Barbuda",
   "src": {
@@ -278,5 +178,15 @@
   },
   "since": 1790885784680,
   "why": "status 404"
+ },
+ "https://streamfi-alphatvdgtl1.zettawiseroutes.com:8181/hls/stream.m3u8": {
+  "country": "Uganda",
+  "src": {
+   "type": "hls",
+   "url": "https://streamfi-alphatvdgtl1.zettawiseroutes.com:8181/hls/stream.m3u8",
+   "label": "Alpha Digital"
+  },
+  "since": 1790888575379,
+  "why": "error"
  }
 }

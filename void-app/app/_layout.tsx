@@ -4,7 +4,7 @@ import '../src/lib/polyfills';
 import 'react-native-reanimated';
 import React, { useEffect, useState } from 'react';
 import { AppState, StyleSheet, View } from 'react-native';
-import { startHeartbeat } from '../src/core/slow';
+import { mark, startHeartbeat } from '../src/core/slow';
 
 // A GL SURFACE THAT COMES BACK EMPTY MUST NOT KILL THE APP. expo-gl's own
 // onSurfaceCreate does getGl(id) -> global.__EXGLContexts[id] -> configureLogging(gl)
@@ -102,7 +102,14 @@ function Shell() {
   useEffect(() => {
     const t = setTimeout(() => {
       try {
+        // Named, because a synchronous require of three.js and the scene builder
+        // is one of the largest single blocks the app can run, and it runs on a
+        // timer with nothing else to blame it on. The stall detector was
+        // reporting 300-450ms blocks around the four-second mark attributed to
+        // 'idle' - this is the first candidate to confirm or clear.
+        mark('boot:globeScene');
         require('../src/features/globe/globeScene');
+        mark('idle');
       } catch {
         /* the tab still works, it just pays for itself again */
       }
@@ -115,7 +122,10 @@ function Shell() {
     const sub = AppState.addEventListener('change', (st) => {
       if (st === 'background') ExpoImage.clearMemoryCache().catch(() => {});
     });
-    return () => sub.remove();
+    return () => {
+      stopHeartbeat();
+      sub.remove();
+    };
   }, []);
 
   if (!ready) return <View style={[styles.fill, { backgroundColor: '#04020c' }]} />;
