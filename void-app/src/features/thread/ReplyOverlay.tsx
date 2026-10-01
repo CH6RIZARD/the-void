@@ -14,6 +14,7 @@
 // Back pops one level; the scrim closes the whole stack.
 import React, { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { Easing, ReduceMotion, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { findPost, type Comment } from '../../core';
@@ -136,11 +137,22 @@ export function ReplyOverlay({ postId, stack, onOpen, onBack, onCloseAll, focusK
     });
   };
 
+  const pullDown = Gesture.Pan()
+    .activeOffsetY([-9999, 18])
+    .failOffsetX([-16, 16])
+    .onEnd((e) => {
+      'worklet';
+      if (e.translationY > 90 && e.velocityY > 0) runOnJS(onCloseAll)();
+    });
+
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents={open ? 'auto' : 'none'}>
       <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(2,1,8,0.55)' }, scrimStyle]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onCloseAll} accessibilityLabel="Close replies" />
       </Animated.View>
+      {/* Pull the sheet down to close it - the gesture the handle at the top
+          already implies. Backdrop tap was the only way out before. */}
+      <GestureDetector gesture={pullDown}>
       <Animated.View
         style={[
           styles.sheet,
@@ -194,6 +206,7 @@ export function ReplyOverlay({ postId, stack, onOpen, onBack, onCloseAll, focusK
           />
         </KeyboardAvoidingView>
       </Animated.View>
+      </GestureDetector>
     </View>
   );
 }
