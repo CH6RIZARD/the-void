@@ -6,6 +6,7 @@ import { AppState, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { router, useFocusEffect } from 'expo-router';
+import { onTabReselect } from '../../nav/reselect';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ToastModule from '../../ui/Toast';
 import { GlobeModeToggle } from './GlobeModeToggle';
@@ -110,6 +111,16 @@ function GlobeSurfaces({
   const insets = useSafeAreaInsets();
   // Pull-to-refresh on the wall rebuilds the globe above it: they are one screen.
   const [globeNonce, setGlobeNonce] = useState(0);
+  // TAP THE GLOBE TAB AGAIN TO REFRESH IT.
+  //
+  // Pull-to-refresh lives on the WALL's scroll view, which is below the globe -
+  // so pulling down ON the globe never reached it, and the globe's own gesture
+  // takes that drag anyway to turn the sphere. There was no way to refresh the
+  // half of the screen people were actually looking at.
+  //
+  // Re-tapping the tab is unambiguous, cannot be triggered by accident while
+  // exploring, and is the same gesture that already refreshes the feed.
+  useEffect(() => onTabReselect('globe', () => setGlobeNonce((n) => n + 1)), []);
   // TRUE WHILE THE TWO PANELS ARE MOVING.
   //
   // The wall's tiles render into SurfaceViews - a separate Android window layer

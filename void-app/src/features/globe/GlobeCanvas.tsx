@@ -249,7 +249,16 @@ export function GlobeCanvas({ running, onOpenCountry, refreshNonce = 0, gestureR
               and coming back, since that rebuilt the canvas and usually worked. A failed
               context now just rebuilds itself (glAttempt), and while that happens the
               screen stays dark rather than pretending to be a map. */}
-          <GLView key={glAttempt} style={StyleSheet.absoluteFill} onContextCreate={onContextCreate} msaaSamples={4} />
+          {/* msaaSamples={0}.
+
+              I turned antialias off in the three.js renderer and reported the
+              globe's multisampling gone. It was not: THIS is the setting that
+              controls it. expo-gl creates the surface, and it was still being
+              asked for 4x MSAA - every pixel resolved four times, on a GPU that
+              is also running the live wall's decoders directly underneath.
+
+              The renderer flag was the wrong knob; this is the right one. */}
+          <GLView key={glAttempt} style={StyleSheet.absoluteFill} onContextCreate={onContextCreate} msaaSamples={0} />
         </View>
       </GestureDetector>
 

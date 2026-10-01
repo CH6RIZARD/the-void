@@ -436,7 +436,17 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
       // the count is over the hard ceiling - the real decoder limit, not the
       // adapted one. Off-screen tiles are still shed exactly as before, which is
       // what keeps the memory in check.
-      const offscreen = pool.filter((e) => (dist.get(e.id) ?? 0) > 0);
+      // Not merely off-screen - PAST THE PARKED RING.
+      //
+      // A parked tile is paused, not unmounted: it keeps its player and therefore
+      // keeps its last frame on screen, which is why scrolling past one used to
+      // leave a picture behind rather than a hole. An EVICTED tile is unmounted
+      // and goes black, and taking them from the row you just scrolled past is
+      // what makes the wall look half-empty while you move through it.
+      //
+      // So the candidates are the tiles more than a screen away. Within that ring
+      // they stay parked and keep their picture.
+      const offscreen = pool.filter((e) => (dist.get(e.id) ?? 0) > PARK_SCREENS);
       const mustCut = pool.length - MAX_MOUNTED_PLAYERS;
       // Farthest first. Sorting by distance means the tiles nobody is looking at
       // go before any tile near the viewport does, and the loop simply stops once
@@ -776,7 +786,11 @@ const WallTile = memo(function WallTile({ rec, left, top, width, height, borderC
   // while its player connects - and again whenever it sleeps or is evicted - instead of
   // a black box. The live picture replaces it the moment it plays.
   const posterSrc = a ? a.src : s.lastSrc;
-  const vid = phase !== 'playing' && phase !== 'offline' && posterSrc?.type === 'youtube' ? liveVidFor(posterSrc) : null;
+  // A poster for a tile that is not currently decoding, whatever kind it is.
+  // Previously this was YouTube-only, so the HLS cams and LIFE streams - which
+  // are most of the wall - had nothing to show the moment they stopped playing.
+  const wantPoster = phase !== 'playing' && phase !== 'offline';
+  const vid = wantPoster && posterSrc?.type === 'youtube' ? liveVidFor(posterSrc) : null;
   const poster = vid ? `https://i.ytimg.com/vi/${vid}/hqdefault.jpg` : null;
 
   return (
@@ -797,7 +811,10 @@ const WallTile = memo(function WallTile({ rec, left, top, width, height, borderC
           grid of empty cells. Evicted tiles are more than EVICT_SCREENS away and
           draw nothing at all: their bitmap is a file descriptor too, and nobody
           is two screens ahead of their own thumb. */}
-      {poster && !evicted ? (
+      {/* Including when evicted. The poster is a still - it costs no decoder -
+          and a tile that has been let go is exactly when there is nothing else to
+          show. Suppressing it there turned every shed tile into a black square. */}
+      {poster ? (
         <Image source={{ uri: poster }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} recyclingKey={poster} />
       ) : null}
       {/* ─── A PARKED TILE HOLDS NO PLAYER ────────────────────────────────
