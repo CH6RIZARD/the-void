@@ -15,7 +15,16 @@ import { streamKey, type StreamSource } from './core';
  * simply moves to the next source, and since the pools are now thousands deep
  * rather than a handful, moving on is cheap and standing still is not.
  */
-export const CONNECT_TIMEOUT: Record<string, number> = { hls: 3200, mjpeg: 2600, youtube: 4000, iframe: 3200 };
+// MEASURED AGAIN, THE OTHER WAY. 8-9s was far too long and stalled the wall;
+// 3.2s turned out to be too SHORT - tiles switched source every couple of
+// seconds and never settled, because a live HLS stream on a phone connection
+// routinely needs four or five seconds to hand over its first segment, and
+// YouTube needs longer still. Cutting it off at 3.2s meant walking the whole
+// chain and finding nothing, which looks exactly like nothing loading.
+//
+// 5.5s and 7s: long enough for a real stream to answer, well short of the
+// ten-second stalls that started this.
+export const CONNECT_TIMEOUT: Record<string, number> = { hls: 5500, mjpeg: 4500, youtube: 7000, iframe: 5500 };
 
 /** Hosts whose iframe embeds actually render (X-Frame friendly). */
 export const EMBEDDABLE_IFRAME =

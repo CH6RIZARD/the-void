@@ -202,7 +202,16 @@ function SlotBody({ tileId, radius, slot }: { tileId: string; radius: number; sl
           still had a label written across it whenever the cascade had not
           settled. A tile that is working should look like it is working.
           Only the exhausted case says anything now - that one is real news. */}
-      <TileLoader label="● NO SIGNAL" visible={slot.phase === 'offline'} />
+      {/* Taking the CONNECTING text off was right; taking the LOADER off with it
+          was not. visible was tied to 'offline', so a tile that was working on a
+          source showed nothing at all - no picture yet and no sparkle either,
+          which is a dead black square. The sparkle IS the loading state; the
+          label is only for the end of the road. */}
+      <TileLoader
+        label={slot.phase === 'offline' ? '● NO SIGNAL' : undefined}
+        visible={slot.phase !== 'playing'}
+        animate={slot.phase !== 'offline'}
+      />
     </>
   );
 }

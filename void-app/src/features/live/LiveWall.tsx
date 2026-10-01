@@ -27,6 +27,7 @@ import { liveVidFor, rememberStream, wallCascadeFor, wallSlots, streamKey, type 
 import {
   FIRST_BATCH_DELAY_MS,
   playerBudgetNow,
+  MAX_MOUNTED_PLAYERS,
   MAX_MOUNTED_WEBVIEWS,
   PARK_SCREENS,
   PLAYER_BUDGET_FLOOR,
@@ -422,11 +423,28 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
       let over = pool.length - max;
       if (over <= 0) return;
       const rank = (e: WallEntry) => dist.get(e.id) ?? 0;
+      // A TILE YOU ARE LOOKING AT IS NOT A CANDIDATE.
+      //
+      // The budget shrinks by one on every decoder failure, so on a phone that
+      // fails a few it can end up BELOW the number of tiles on screen - four
+      // against six. Eviction then had to take two visible tiles, and since every
+      // scroll re-sorts by distance it took different ones each pass: tiles you
+      // were watching were unmounted and reconnected while you scrolled. That is
+      // the reloading, and it is not a feature.
+      //
+      // So in-view tiles are only ever taken when there is nothing else left AND
+      // the count is over the hard ceiling - the real decoder limit, not the
+      // adapted one. Off-screen tiles are still shed exactly as before, which is
+      // what keeps the memory in check.
+      const offscreen = pool.filter((e) => (dist.get(e.id) ?? 0) > 0);
+      const mustCut = pool.length - MAX_MOUNTED_PLAYERS;
       // Farthest first. Sorting by distance means the tiles nobody is looking at
       // go before any tile near the viewport does, and the loop simply stops once
       // the count is inside the budget - so a nearby tile is only ever taken when
       // there is nothing further away left to take.
-      const candidates = pool.filter((e) => !evicted.has(e.id)).sort((a, b) => rank(b) - rank(a));
+      const usable = offscreen.length >= over ? offscreen : mustCut > 0 ? pool : offscreen;
+      if (usable === offscreen && offscreen.length < over) over = offscreen.length;
+      const candidates = usable.filter((e) => !evicted.has(e.id)).sort((a, b) => rank(b) - rank(a));
       for (const e of candidates) {
         if (over <= 0) break;
         evicted.add(e.id);
