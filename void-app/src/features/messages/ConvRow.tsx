@@ -61,11 +61,24 @@ export function ConvRow({ c, onPress, hit }: { c: DmConv; onPress: () => void; h
             {hit.after}
           </VText>
         ) : (
-          <VText numberOfLines={1} style={{ fontFamily: FONTS.sans, fontSize: 11.5, color: unread ? '#c9bfe8' : colors.dim, marginTop: 2 }}>{preview}</VText>
+          // An unread row is louder in three ways at once - brighter preview,
+          // heavier weight, gold time - because one of them alone reads as a
+          // rendering accident rather than a state.
+          <VText
+            numberOfLines={1}
+            style={{
+              fontFamily: unread ? FONTS.sansBold : FONTS.sans,
+              fontSize: 12.5,
+              color: unread ? '#f4f0ff' : '#6a58a0',
+              marginTop: 2,
+            }}
+          >
+            {preview}
+          </VText>
         )}
       </View>
       <View style={st.right}>
-        <VText style={{ fontFamily: FONTS.mono, fontSize: 8, color: colors.dim, textTransform: 'uppercase' }}>{last ? ago(Date.parse(last.created_at)) : ''}</VText>
+        <VText style={{ fontFamily: FONTS.mono, fontSize: 8, color: unread ? colors.gold : '#6a58a0', textTransform: 'uppercase' }}>{last ? ago(Date.parse(last.created_at)) : ''}</VText>
         {unread ? <View style={[st.dot, { backgroundColor: colors.gold }]} /> : null}
       </View>
     </Pressable>
