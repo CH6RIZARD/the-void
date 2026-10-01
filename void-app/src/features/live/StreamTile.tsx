@@ -67,6 +67,52 @@ export interface StreamTileProps {
   onNeedsHeal?(): void;
 }
 
+// ─── HOW LONG A TILE TAKES TO SHOW A PICTURE, AND HOW OFTEN IT NEVER DOES ────
+//
+// The wall sits at three or four tiles of six with a picture, and until now
+// nothing said why. There are no JS stalls in a fifty-second window, so it is not
+// a blocked thread; a tile either takes a long time to connect or quietly gives
+// up at the CONNECT_TIMEOUT below, and both look identical from outside - a
+// sparkle panel.
+//
+// Per-tile logging would be useless here: a first fill settles a dozen tiles
+// within a second or two of each other and the interesting thing is the shape of
+// the set, not any one of them. So this keeps counters and prints one line per
+// batch, shortly after the wall stops settling tiles. Four numbers, no
+// allocation per tile, nothing retained.
+let fillOk = 0;
+let fillFail = 0;
+const fillMs: number[] = [];
+let fillTimer: ReturnType<typeof setTimeout> | null = null;
+function noteSettle(success: boolean, ms: number, kind: string): void {
+  if (success) {
+    fillOk++;
+    fillMs.push(ms);
+  } else {
+    fillFail++;
+  }
+  if (fillTimer) clearTimeout(fillTimer);
+  // Report once the batch has gone quiet, so one line covers one fill.
+  fillTimer = setTimeout(() => {
+    fillTimer = null;
+    const n = fillOk + fillFail;
+    if (!n) return;
+    const sorted = fillMs.slice().sort((a, b) => a - b);
+    const med = sorted.length ? sorted[sorted.length >> 1] : -1;
+    const worst = sorted.length ? sorted[sorted.length - 1] : -1;
+    try {
+      console.warn(
+        '[fill] ' + fillOk + '/' + n + ' tiles got a picture · median ' + med + 'ms · worst ' + worst + 'ms · ' + fillFail + ' gave up · last ' + kind,
+      );
+    } catch {
+      /* */
+    }
+    fillOk = 0;
+    fillFail = 0;
+    fillMs.length = 0;
+  }, 2500);
+}
+
 interface PlayerApi {
   finish(ok: boolean): void;
   isDone(): boolean;
@@ -104,6 +150,7 @@ export const StreamTile = forwardRef<StreamTileHandle, StreamTileProps>(function
     if (success && !mounted.current) success = false;
     ok.current = success;
     if (success) setPlaying(true);
+    noteSettle(success, Date.now() - startedAt.current, source.type);
     cb.current.onSettled(success);
   }, []);
 
@@ -117,8 +164,10 @@ export const StreamTile = forwardRef<StreamTileHandle, StreamTileProps>(function
     },
   }).current;
 
+  const startedAt = useRef(Date.now());
   useEffect(() => {
     mounted.current = true;
+    startedAt.current = Date.now();
     const timer = setTimeout(() => finish(false), CONNECT_TIMEOUT[source.type] || 8000);
     return () => {
       clearTimeout(timer);
