@@ -91,6 +91,8 @@ class Lanes {
 }
 
 export interface LiveWallProps {
+  /** Defer background work (watchdog, healing, new batches) - something else needs the thread. */
+  quiet?: boolean;
   /** True while the wall is being dragged or still gliding. */
   onScrollActive?: (active: boolean) => void;
   /** Pull-to-refresh also ran: refresh whatever else shares this screen. */
@@ -125,7 +127,7 @@ const PAD = 10;
 // How far off the top a finger may land and still count as a pull from rest.
 const ARM_SLOP = 6;
 
-export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveWall({ active, grid3 = false, bottomInset = 0, onRefresh: onRefreshOuter, onScrollActive }, ref) {
+export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveWall({ active, grid3 = false, bottomInset = 0, onRefresh: onRefreshOuter, onScrollActive, quiet = false }, ref) {
   const t = useLiveTheme();
   const win = useWindowDimensions();
   // TWO COLUMNS, ALWAYS.
@@ -270,6 +272,8 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
   loadBatchRef.current = loadBatch;
 
   const healVisible = useCallback(() => {
+    // Healing is never urgent enough to stutter a gesture.
+    if (quietRef.current) return;
     if (!w.activeRef || AppState.currentState !== 'active') return;
     const g = geo.current;
     for (const e of w.registry.values()) {
@@ -609,6 +613,9 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
   const audibleIdRef = useRef<string | null>(null);
   audibleIdRef.current = audio.audibleId;
 
+  // Read inside intervals and callbacks that must not be rebuilt when it flips.
+  const quietRef = useRef(quiet);
+  quietRef.current = quiet;
   const scrollActiveRef = useRef(onScrollActive);
   scrollActiveRef.current = onScrollActive;
   const lastPlaceAt = useRef(0);

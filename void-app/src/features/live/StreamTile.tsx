@@ -224,18 +224,42 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
   // less than half the pixels to decode per tile, per frame, with the softness
   // landing on a picture that is 170dp wide.
   const targetW = Math.round((tileWidth || 180) * Math.min(2, PixelRatio.get()));
-  const [url, setUrl] = useState(() => variantCached(raw, targetW) || raw);
+  // ONE PLAYER PER TILE, NOT TWO.
+  //
+  // This started the player on the master playlist and then called setUrl once
+  // the right variant was known. usePacedPlayer memoises on the source, so that
+  // second url DESTROYED the running player and built another - a second or so
+  // after the first had started playing. On a first fill of twelve to twenty-four
+  // tiles that is twelve to twenty-four extra creates and as many paced releases,
+  // which is precisely the churn pacedPlayer exists to survive rather than to be
+  // handed.
+  //
+  // So the variant is resolved FIRST and the player is created once, on the url
+  // it will keep. The tile shows its panel in the meantime, which costs nothing
+  // now that a panel is a gradient rather than a black hole. A cached variant -
+  // the common case after the first tile of a stream - resolves synchronously and
+  // nothing waits at all.
+  //
+  // If the master playlist cannot be read, variantFor returns the raw url, so a
+  // stream never fails to play because of this.
+  const [url, setUrl] = useState<string | null>(() => variantCached(raw, targetW) || null);
   useEffect(() => {
     let alive = true;
+    const cached = variantCached(raw, targetW);
+    if (cached) {
+      setUrl(cached);
+      return;
+    }
+    setUrl(null);
     variantFor(raw, targetW).then((u) => {
-      if (alive && u !== url) setUrl(u);
+      if (alive) setUrl(u || raw);
     });
     return () => {
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [raw, targetW]);
-  const player = usePacedPlayer({ uri: url, contentType: /\.m3u8(\?|$)/i.test(url) ? 'hls' : 'auto' } as any, (p) => {
+  const player = usePacedPlayer(url ? ({ uri: url, contentType: /\.m3u8(\?|$)/i.test(url) ? 'hls' : 'auto' } as any) : null, (p) => {
     p.muted = true;
     p.loop = true;
     try {

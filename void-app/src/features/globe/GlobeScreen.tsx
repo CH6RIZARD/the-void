@@ -67,7 +67,20 @@ export function GlobeScreen({ bottomInset = 58 }: GlobeScreenProps) {
   );
 
   return (
-    <View style={[styles.screen, { backgroundColor: t.bg }]}>
+    // A GL SURFACE DOES NOT LEAVE WHEN YOU LEAVE THE TAB.
+    //
+    // GLView renders into its own window layer, composited by the system rather
+    // than drawn into the app's view hierarchy - the same property the live wall
+    // documents for its video tiles. Tabs never unmount here
+    // (detachInactiveScreens={false}), so navigating away left the globe's
+    // surface sitting ON TOP of whatever screen came next: the void feed with a
+    // frozen globe over it and the nav pill correctly showing VOID, which reads
+    // as the app having crashed.
+    //
+    // display:'none' is View.GONE on Android, and a GONE surface is released and
+    // stops compositing. The wall has done this since September; the globe never
+    // did.
+    <View style={[styles.screen, { backgroundColor: t.bg }, focused ? null : styles.gone]}>
       {mode ? (
         <GlobeSurfaces
           initialMode={mode}
@@ -161,6 +174,16 @@ function GlobeSurfaces({
   // the wall and barely in view at that point - and resumes the moment the
   // scroll settles. Nothing is torn down; the loop simply stops asking.
   const [wallScrolling, setWallScrolling] = useState(false);
+  // True while a finger is on the globe. Same expiry trick as the scroll latch:
+  // a gesture that ends without a clean release must not leave the wall asleep.
+  const [globeTouching, setGlobeTouching] = useState(false);
+  const touchOffT = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const markGlobeTouching = useCallback((on: boolean) => {
+    if (touchOffT.current) clearTimeout(touchOffT.current);
+    setGlobeTouching(on);
+    if (on) touchOffT.current = setTimeout(() => setGlobeTouching(false), 1200);
+  }, []);
+  useEffect(() => () => { if (touchOffT.current) clearTimeout(touchOffT.current); }, []);
   // A LATCH THAT CANNOT STICK.
   //
   // Pausing the globe while the wall is dragged was right; trusting the scroll
@@ -299,12 +322,12 @@ function GlobeSurfaces({
             <Animated.View style={[styles.view, { top: insets.top }, mapStyle]} pointerEvents={mode === 'globe' ? 'auto' : 'none'}>
               <LoaderActiveContext.Provider value={globeVisible}>
                 {globeSeen ? (
-                  <GlobeCanvas running={globeVisible && !wallScrolling} onOpenCountry={openCountry} refreshNonce={globeNonce} gestureRef={globeGesture} />
+                  <GlobeCanvas running={globeVisible && !wallScrolling} onOpenCountry={openCountry} refreshNonce={globeNonce} gestureRef={globeGesture} onTouching={markGlobeTouching} />
                 ) : (
                   <View style={{ height: globeH, backgroundColor: '#04020c' }} />
                 )}
                 {/* Built the first time GLOBE is shown (web: buildGlobeGrid inside setGlobeMode). */}
-                <LiveWall ref={wallRef} active={globeVisible && !sliding} grid3={grid3} bottomInset={bottomInset} onScrollActive={markWallScrolling} />
+                <LiveWall ref={wallRef} active={globeVisible && !sliding} grid3={grid3} bottomInset={bottomInset} onScrollActive={markWallScrolling} quiet={globeTouching} />
               </LoaderActiveContext.Provider>
             </Animated.View>
           </View>
@@ -331,6 +354,7 @@ function GlobeSurfaces({
 export default GlobeScreen;
 
 const styles = StyleSheet.create({
+  gone: { display: 'none' },
   refreshBtn: { position: 'absolute', right: 16, width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(13,8,32,0.72)', zIndex: 31 },
   screen: { flex: 1, overflow: 'hidden' },
   fill: { flex: 1 },
