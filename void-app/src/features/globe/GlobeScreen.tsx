@@ -110,6 +110,16 @@ function GlobeSurfaces({
   const insets = useSafeAreaInsets();
   // Pull-to-refresh on the wall rebuilds the globe above it: they are one screen.
   const [globeNonce, setGlobeNonce] = useState(0);
+  // TRUE WHILE THE TWO PANELS ARE MOVING.
+  //
+  // The wall's tiles render into SurfaceViews - a separate Android window layer
+  // composited by the system - so they DO NOT move with their parent's transform.
+  // Mid-swipe, the globe panel slides but its video surfaces stay put, and the
+  // reels underneath come out from behind a live grid that is no longer where it
+  // appears to be. LiveWall already knows the cure: display:'none' is View.GONE,
+  // and a GONE SurfaceView releases its surface. Only the surface goes - players,
+  // buffers and sockets survive, so settling re-attaches instead of reconnecting.
+  const [sliding, setSliding] = useState(false);
   const [mode, setModeState] = useState<GlobeMode>(initialMode);
   // modeSV: 0 = the LEFT panel, 1 = the RIGHT one. GLOBE is now the left panel and
   // REELS the right, so the toggle reads GLOBE | REELS in the order they sit in -
@@ -144,12 +154,23 @@ function GlobeSurfaces({
     [modeSV, modeNum, drag],
   );
 
+  const slideT = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const endSlideSoon = useCallback(() => {
+    if (slideT.current) clearTimeout(slideT.current);
+    slideT.current = setTimeout(() => setSliding(false), SLIDE.duration + 40);
+  }, []);
+  useEffect(() => () => { if (slideT.current) clearTimeout(slideT.current); }, []);
+
   // Drag-to-switch: clearly horizontal only, travel only toward the other surface,
   // commit past 22% of the width, else snap back. Gestures that start on the globe
   // canvas never switch (the canvas' manual gesture activates on touch-down).
   const swipe = Gesture.Pan()
     .activeOffsetX([-10, 10])
     .failOffsetY([-10, 10])
+    .onStart(() => {
+      'worklet';
+      runOnJS(setSliding)(true);
+    })
     .onUpdate((e) => {
       'worklet';
       const w = Math.max(1, W.value);
@@ -160,6 +181,8 @@ function GlobeSurfaces({
       'worklet';
       if (Math.abs(drag.value) > 0.22) runOnJS(setMode)(modeNum.value === 0 ? 'reels' : 'globe', true);
       else drag.value = withTiming(0, SLIDE);
+      // Give the slide time to land before the surfaces come back.
+      runOnJS(endSlideSoon)();
     });
 
   // The left panel sits at (drag - mode)·100%; the right one a width further on.
@@ -201,7 +224,7 @@ function GlobeSurfaces({
                   <View style={{ height: globeH, backgroundColor: '#04020c' }} />
                 )}
                 {/* Built the first time GLOBE is shown (web: buildGlobeGrid inside setGlobeMode). */}
-                <LiveWall active={globeVisible} grid3={grid3} bottomInset={bottomInset} onRefresh={() => setGlobeNonce((n) => n + 1)} />
+                <LiveWall active={globeVisible && !sliding} grid3={grid3} bottomInset={bottomInset} onRefresh={() => setGlobeNonce((n) => n + 1)} />
               </LoaderActiveContext.Provider>
             </Animated.View>
           </View>
