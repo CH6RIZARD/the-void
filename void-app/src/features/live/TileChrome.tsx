@@ -7,7 +7,7 @@ import Svg, { Path } from 'react-native-svg';
 import * as SparkleModule from '../../ui/SparkleLoader';
 import { em, useLiveTheme } from './liveTheme';
 
-const SparkleLoader: React.ComponentType<{ label?: string; style?: ViewStyle; animate?: boolean; dense?: boolean }> =
+const SparkleLoader: React.ComponentType<{ label?: string; style?: ViewStyle; animate?: boolean }> =
   (SparkleModule as any).SparkleLoader ?? (SparkleModule as any).default;
 
 /** .strip-live-dot{width:5px;height:5px;border-radius:50%;background:var(--red);animation:blink 1.3s infinite} */
@@ -127,7 +127,7 @@ export function TileLoader({
           reads as a grid of panels waiting for pictures rather than a field of
           holes. Costs nothing: no image, no decode, no file descriptor. */}
       {SparkleLoader ? (
-        <SparkleLoader label={label} animate={visible && animate} dense={false} style={[StyleSheet.absoluteFill, over ? { backgroundColor: 'transparent' } : null] as unknown as ViewStyle} />
+        <SparkleLoader label={label} animate={visible && animate} style={[StyleSheet.absoluteFill, over ? { backgroundColor: 'transparent' } : null] as unknown as ViewStyle} />
       ) : null}
     </Animated.View>
   );

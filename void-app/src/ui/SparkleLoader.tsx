@@ -18,24 +18,19 @@ import { VText } from './Text';
 import { useLoaderLoop, useLoaderShown } from './loaders/useLoaderClock';
 
 /**
- * HOW MANY PARTICLES, AND WHY IT IS NOT ALWAYS FOURTEEN.
+ * FOURTEEN, EVERYWHERE, ALWAYS. THIS IS A DESIGN LOCK.
  *
- * Each particle is its own Animated.View on the native driver, driving an
- * opacity and a translate every frame. Fourteen is right for a loader that owns
- * the screen. On the live wall it is not: a dozen tiles are mounted at once, so
- * fourteen each is around a hundred and seventy native animations running
- * continuously, on a device already compositing six video surfaces and a GL
- * globe.
+ * I reduced this to five on wall tiles to buy frames - a dozen tiles mounted at
+ * once means around a hundred and seventy native animations, and on this device
+ * that is a real cost. It was still the wrong call: the loader is locked, and
+ * spending the look to buy the speed is not a trade that was on offer.
  *
- * Measured on the phone while the globe was being turned: 86% of frames janky,
- * p90 400ms - with the JS thread keeping perfect time, which is the app's own
- * test for 'the cost is native, and no JS fix will touch it'.
- *
- * A 170dp tile cannot show fourteen distinct motes anyway. Five reads as the
- * same effect at a third of the cost.
+ * The cost is real and still has to go. It goes by rendering the SAME fourteen
+ * particles more cheaply - one baked loop, or one canvas - never by drawing
+ * fewer of them. If a future change makes the wall stutter again, the answer is
+ * not in this number.
  */
 const COUNT = 14;
-const TILE_COUNT = 5;
 
 interface Particle {
   left: `${number}%`;
@@ -46,9 +41,9 @@ interface Particle {
   lead: number;
 }
 
-function makeParticles(n: number = COUNT): Particle[] {
+function makeParticles(): Particle[] {
   const out: Particle[] = [];
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < COUNT; i++) {
     out.push({
       left: `${Math.random() * 100}%` as `${number}%`,
       bottom: Math.random() * 40,
@@ -88,8 +83,6 @@ export interface SparkleLoaderProps {
    * 'feed': post media / carousel — LIGHT theme swaps to the milky #f7f3ea panel.
    */
   surface?: 'media' | 'feed';
-  /** A small tile needs far fewer motes than a full-screen loader. */
-  dense?: boolean;
   /** Fill the parent absolutely (default true, like position:absolute;inset:0). */
   absolute?: boolean;
   /**
@@ -100,7 +93,7 @@ export interface SparkleLoaderProps {
   style?: StyleProp<ViewStyle>;
 }
 
-export const SparkleLoader = memo(function SparkleLoader({ label, onPress, radius, surface = 'media', absolute = true, animate = true, dense = true, style }: SparkleLoaderProps) {
+export const SparkleLoader = memo(function SparkleLoader({ label, onPress, radius, surface = 'media', absolute = true, animate = true, style }: SparkleLoaderProps) {
   const theme = useTheme();
   // BUILT ONCE, ON FIRST SIGHT, AND KEPT.
   // Every instance mounted its full set of Animated.Views whether or not anyone
@@ -125,7 +118,7 @@ export const SparkleLoader = memo(function SparkleLoader({ label, onPress, radiu
   const seen = useRef(false);
   if (onScreen) seen.current = true;
   const running = onScreen && animate;
-  const particles = useMemo(() => (seen.current ? makeParticles(dense ? COUNT : TILE_COUNT) : []), [seen.current, dense]);
+  const particles = useMemo(() => (seen.current ? makeParticles() : []), [seen.current]);
   const lightFeed = surface === 'feed' && theme.isLight;
   const bg = lightFeed ? '#f7f3ea' : 'rgba(3,1,10,0.97)';
   const labelColor = lightFeed ? theme.colors.dim : theme.colors.muted;
