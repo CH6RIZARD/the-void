@@ -284,7 +284,20 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
         judgeT = setTimeout(async () => {
           if (api.isDone()) return;
           let bars = false;
-          if (AppState.currentState === 'active') {
+          // THE SAME GUARD THE MID-STREAM CHECK ALREADY HAS.
+          //
+          // A hundred lines below, the periodic checker says it plainly:
+          // "SurfaceView hands nothing back to captureRef, so this check can only
+          // ever say 'unknown' there - all cost, no verdict." That guard was added
+          // there and never here, and the wall mounts every tile as a SurfaceView.
+          //
+          // So on EVERY wall tile this ran a captureRef on the Android main
+          // thread, base64'd the result and PNG-decoded it in JS, to answer a
+          // question that is structurally unanswerable - and api.finish() waited
+          // behind the await. finish() is what releases the cascade LANE, and
+          // there are only four. Four tiles' worth of connect capacity was being
+          // spent on a measurement that always returned nothing.
+          if (surface !== 'surface' && AppState.currentState === 'active') {
             const px = await sampleFrame(shotRef.current);
             bars = frameVerdict(px, FRAME_W, FRAME_H) === 'bars';
           }

@@ -114,7 +114,18 @@ export function TileLoader({
   }, [visible, o]);
   if (!mounted) return null;
   return (
-    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { zIndex, opacity: o, backgroundColor: over ? OVER_BG : 'rgba(3,1,10,0.97)', overflow: 'hidden' }]}>
+    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { zIndex, opacity: o, backgroundColor: OVER_BG, overflow: 'hidden' }]}>
+      {/* A PANEL, NEVER A HOLE.
+
+          This painted rgba(3,1,10,0.97) - opaque - whenever there was no poster
+          behind it, and a poster only ever existed for YouTube sources. The wall
+          is mostly HLS, so almost every tile that was connecting, parked or
+          evicted was a BLACK BOX with sparkles on it. "The wall never looks
+          full" was that, not slow connections.
+
+          Half-transparent now, over a deterministic gradient (below), so the grid
+          reads as a grid of panels waiting for pictures rather than a field of
+          holes. Costs nothing: no image, no decode, no file descriptor. */}
       {SparkleLoader ? (
         <SparkleLoader label={label} animate={visible && animate} style={[StyleSheet.absoluteFill, over ? { backgroundColor: 'transparent' } : null] as unknown as ViewStyle} />
       ) : null}

@@ -106,6 +106,17 @@ export interface LiveWallHandle {
   refresh(): void;
 }
 
+// A stable colour per stream: hash the key, spin a hue, keep it dark enough that
+// white chrome still reads over it.
+function panelFor(src: StreamSource | null | undefined): { experimental_backgroundImage: string } {
+  const k = src ? streamKey(src) || '' : '';
+  let h = 0;
+  for (let i = 0; i < k.length; i++) h = (h * 31 + k.charCodeAt(i)) >>> 0;
+  const hue = h % 360;
+  const hue2 = (hue + 24) % 360;
+  return { experimental_backgroundImage: `linear-gradient(145deg, hsl(${hue} 42% 11%), hsl(${hue2} 38% 6%))` };
+}
+
 const GAP = 6;
 const PAD = 10;
 // How far off the top a finger may land and still count as a pull from rest.
@@ -143,6 +154,17 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
     batchSeq: 0,
     batchPending: new Map<number, number>(),
     registry: new Map<number, WallEntry>(),
+    // WHAT ACTUALLY PLAYED, PER TILE, OUTLIVING THE TILE ITSELF.
+    //
+    // A tile's own state dies with it when it is evicted, so coming back to one
+    // started again from `rec.src` - the source the slot was DEALT, which is
+    // often one of the dead ones it had already walked past. Scrolling back up
+    // therefore paid for the whole chain a second time: the wall would fill, and
+    // scrolling away and back left the same tiles blank for minutes.
+    //
+    // This lives on the wall, so a returning tile reconnects to the stream it was
+    // actually playing in ONE attempt instead of re-walking its chain.
+    lastGood: new Map<number, StreamSource>(),
     healBusy: 0,
     scrollY: 0,
     lanes: new Lanes(WALL_LANES),
@@ -673,6 +695,7 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
               evicted={placement.evicted.has(rec.id)}
               registry={registry}
               lanes={lanes}
+              lastGood={w.lastGood}
               onFirstSettled={onFirstSettled}
             />
           );
@@ -699,17 +722,18 @@ interface WallTileProps {
   evicted: boolean;
   registry: Map<number, WallEntry>;
   lanes: Lanes;
+  lastGood: Map<number, StreamSource>;
   onFirstSettled(rec: TileRec, res: CascadeResult): void;
 }
 
-const WallTile = memo(function WallTile({ rec, left, top, width, height, borderColor, parked, evicted, registry, lanes, onFirstSettled }: WallTileProps) {
+const WallTile = memo(function WallTile({ rec, left, top, width, height, borderColor, parked, evicted, registry, lanes, lastGood, onFirstSettled }: WallTileProps) {
   const tileId = `wall:${rec.id}`;
   const [phase, setPhase] = useState<Phase>('queued');
   const [label, setLabel] = useState<string | null>(null);
   const player = useRef<StreamTileHandle>(null);
   const s = useRef({
     first: true,
-    lastSrc: rec.src as StreamSource,
+    lastSrc: (lastGood.get(rec.id) || rec.src) as StreamSource,
     laneRelease: null as null | (() => void),
     healResolve: null as null | ((ok: boolean) => void),
     alive: true,
@@ -735,6 +759,7 @@ const WallTile = memo(function WallTile({ rec, left, top, width, height, borderC
     if (!s.alive) return;
     if (res.ok && res.src) {
       s.lastSrc = res.src;
+      lastGood.set(rec.id, res.src); // remembered past this tile's own lifetime
       entry.kind = res.src.type;
       entry.needsHeal = false;
       setPhaseBoth('playing');
@@ -867,6 +892,15 @@ const WallTile = memo(function WallTile({ rec, left, top, width, height, borderC
       {/* Including when evicted. The poster is a still - it costs no decoder -
           and a tile that has been let go is exactly when there is nothing else to
           show. Suppressing it there turned every shed tile into a black square. */}
+      {/* A DETERMINISTIC PANEL UNDER EVERY TILE.
+
+          Derived from the stream key, so a given cam is the same colour on every
+          launch and the grid does not shimmer as tiles reshuffle. It is a style
+          object - a two-stop gradient - so it costs no image, no decode and no
+          file descriptor, which matters on a ROM that aborts at 1024 of them.
+
+          This is what makes the wall read as full while it is still filling. */}
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill, panelFor(posterSrc)]} />
       {poster ? (
         <Image source={{ uri: poster }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} recyclingKey={poster} />
       ) : null}

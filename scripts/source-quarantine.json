@@ -1,1 +1,62 @@
-{}
+{
+ "https://mdc.ott.alticeusa.net/live4.ott.optimum.net/live4-uploads/N12PLUS_H_WC_A1/index_new.m3u8": {
+  "country": "United States",
+  "src": {
+   "type": "hls",
+   "url": "https://mdc.ott.alticeusa.net/live4.ott.optimum.net/live4-uploads/N12PLUS_H_WC_A1/index_new.m3u8",
+   "label": "News12+ Hudson Valley"
+  },
+  "since": 1790871520273,
+  "why": "error"
+ },
+ "https://60417ddeaf0d9.streamlock.net/telemetrika/smil:telemetrika.smil/playlist.m3u8": {
+  "country": "Mexico",
+  "src": {
+   "type": "hls",
+   "url": "https://60417ddeaf0d9.streamlock.net/telemetrika/smil:telemetrika.smil/playlist.m3u8",
+   "label": "Presumiendo Mexico"
+  },
+  "since": 1790871520273,
+  "why": "variant 404"
+ },
+ "https://livecdn.enlace.plus/enlace/smil:enlace-hd.smil/playlist.m3u8": {
+  "country": "Costa Rica",
+  "src": {
+   "type": "hls",
+   "url": "https://livecdn.enlace.plus/enlace/smil:enlace-hd.smil/playlist.m3u8",
+   "label": "Enlace"
+  },
+  "since": 1790871520274,
+  "why": "error"
+ },
+ "https://live20.bozztv.com/akamaissh101/ssh101/guaymatetv/playlist.m3u8": {
+  "country": "Dominican Republic",
+  "src": {
+   "type": "hls",
+   "url": "https://live20.bozztv.com/akamaissh101/ssh101/guaymatetv/playlist.m3u8",
+   "label": "Guaymate TV"
+  },
+  "since": 1790871520274,
+  "why": "status 404"
+ },
+ "https://e.siar.us/live/tvmu.m3u8": {
+  "country": "Indonesia",
+  "src": {
+   "type": "hls",
+   "url": "https://e.siar.us/live/tvmu.m3u8",
+   "label": "TV Mu"
+  },
+  "since": 1790871520275,
+  "why": "status 404"
+ },
+ "https://tvstream.upea.bo/hls/oSs0jSWumTFIIVY97559.m3u8": {
+  "country": "Bolivia",
+  "src": {
+   "type": "hls",
+   "url": "https://tvstream.upea.bo/hls/oSs0jSWumTFIIVY97559.m3u8",
+   "label": "UPEA TV"
+  },
+  "since": 1790871520275,
+  "why": "status 404"
+ }
+}
