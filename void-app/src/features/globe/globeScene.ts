@@ -84,7 +84,18 @@ export function createGlobeScene(gl: any, countries: Country[], viewW: number, v
       context: gl,
       // MSAA on: without it the sphere silhouette and marker edges stair-step (b50feb6).
       // expo-gl: iOS honours GLView msaaSamples; Android contexts have no MSAA.
-      antialias: true,
+      // NO MSAA.
+      //
+      // Multisampling resolves every pixel several times, and on a mobile GPU it
+      // is usually the most expensive setting in the renderer. This globe shares
+      // its GPU with up to six video decoders on the SAME SCREEN - the live wall
+      // is directly underneath it - so it is competing for exactly the bandwidth
+      // MSAA eats.
+      //
+      // What it buys is a smoother edge on one circle against a dark background.
+      // What it costs is the frame rate of everything. The map itself is full
+      // resolution and stays sharp either way.
+      antialias: false,
       powerPreference: 'high-performance',
       // highp everywhere: mediump banded the terminator on a lit sphere (b50feb6).
       precision: 'highp',
@@ -106,8 +117,24 @@ export function createGlobeScene(gl: any, countries: Country[], viewW: number, v
   // which would look exactly like the softness being reported - and no amount
   // of texture work would fix it. This screen has been diagnosed by guesswork
   // twice; it can say what it is doing.
+  // AND NOT EVERY DEVICE PIXEL.
+  //
+  // The drawing buffer is the full device-pixel raster: on a 3x phone that is
+  // about nine times the pixels of a 1x one, every frame, for a sphere that is
+  // mostly smooth gradient. Capping the raster at 2x cuts the shaded pixels by
+  // more than half and is still finer than the map has detail to fill.
+  //
+  // The scene is sized in BUFFER pixels (PointsMaterial sizes depend on it), so
+  // the cap is applied by rendering smaller and letting the surface scale - not
+  // by changing the sizes the scene is built with.
+  const RASTER_CAP = 2;
+  const density = Math.max(1, bufW / Math.max(1, viewW));
+  const rasterScale = density > RASTER_CAP ? RASTER_CAP / density : 1;
   renderer.setPixelRatio(1);
-  renderer.setSize(bufW, bufH, false);
+  renderer.setSize(Math.round(bufW * rasterScale), Math.round(bufH * rasterScale), false);
+  try {
+    console.warn('[globe] raster ' + Math.round(bufW * rasterScale) + 'x' + Math.round(bufH * rasterScale) + ' (density ' + density.toFixed(2) + ', scale ' + rasterScale.toFixed(2) + ')');
+  } catch {}
   try {
     console.warn('[globe] drawing buffer ' + bufW + 'x' + bufH);
   } catch {}
@@ -378,7 +405,11 @@ void main(){
       vh = h;
       canvas.width = bw;
       canvas.height = bh;
-      renderer.setSize(bw, bh, false);
+      // The same cap as the first sizing, or a rotation hands the raster back to
+      // full device pixels and the frame rate with it.
+      const d = Math.max(1, bw / Math.max(1, w));
+      const sc = d > RASTER_CAP ? RASTER_CAP / d : 1;
+      renderer.setSize(Math.round(bw * sc), Math.round(bh * sc), false);
       cam.aspect = w / Math.max(1, h);
       cam.updateProjectionMatrix();
     },
