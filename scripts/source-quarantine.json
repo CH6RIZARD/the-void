@@ -98,5 +98,85 @@
   },
   "since": 1790877114113,
   "why": "status 403"
+ },
+ "https://live20.bozztv.com/akamaissh101/ssh101/grandetv2240/playlist.m3u8": {
+  "country": "Venezuela",
+  "src": {
+   "type": "hls",
+   "url": "https://live20.bozztv.com/akamaissh101/ssh101/grandetv2240/playlist.m3u8",
+   "label": "Grande TV"
+  },
+  "since": 1790879903405,
+  "why": "status 404"
+ },
+ "https://rtmp.tamtv.com.ve/tmp_hls/stream/index.m3u8": {
+  "country": "Venezuela",
+  "src": {
+   "type": "hls",
+   "url": "https://rtmp.tamtv.com.ve/tmp_hls/stream/index.m3u8",
+   "label": "TAM TV"
+  },
+  "since": 1790879903405,
+  "why": "status 530"
+ },
+ "https://mgstv.siar.us/live/mgstv.m3u8": {
+  "country": "Indonesia",
+  "src": {
+   "type": "hls",
+   "url": "https://mgstv.siar.us/live/mgstv.m3u8",
+   "label": "MGSTV"
+  },
+  "since": 1790879903406,
+  "why": "status 404"
+ },
+ "https://live.amelbatv.co:81/telemocoalive/index.m3u8": {
+  "country": "Colombia",
+  "src": {
+   "type": "hls",
+   "url": "https://live.amelbatv.co:81/telemocoalive/index.m3u8",
+   "label": "Tele Mocoa Canal 10"
+  },
+  "since": 1790879903406,
+  "why": "status 404"
+ },
+ "https://movil.ejeserver.com/live/nets.m3u8": {
+  "country": "Colombia",
+  "src": {
+   "type": "hls",
+   "url": "https://movil.ejeserver.com/live/nets.m3u8",
+   "label": "Canal Nets"
+  },
+  "since": 1790879903406,
+  "why": "status 404"
+ },
+ "https://tv91.hostingnuclear.com:19360/intercable/intercable.m3u8": {
+  "country": "Guatemala",
+  "src": {
+   "type": "hls",
+   "url": "https://tv91.hostingnuclear.com:19360/intercable/intercable.m3u8",
+   "label": "Canal 13 Esquipulas"
+  },
+  "since": 1790879903407,
+  "why": "status 404"
+ },
+ "https://cdn4.skygo.mn/live/disk1/Star/HLSv3-FTA/Star.m3u8": {
+  "country": "Mongolia",
+  "src": {
+   "type": "hls",
+   "url": "https://cdn4.skygo.mn/live/disk1/Star/HLSv3-FTA/Star.m3u8",
+   "label": "Star TV"
+  },
+  "since": 1790879903407,
+  "why": "status 404"
+ },
+ "https://www.streaming507.net:19360/videofabulosa/videofabulosa.m3u8": {
+  "country": "Panama",
+  "src": {
+   "type": "hls",
+   "url": "https://www.streaming507.net:19360/videofabulosa/videofabulosa.m3u8",
+   "label": "Fabulosa Estereo 100.5 FM"
+  },
+  "since": 1790879903407,
+  "why": "status 404"
  }
 }

@@ -49,6 +49,24 @@ export async function timedAsync<T>(label: string, fn: () => Promise<T>): Promis
 // (rendering, reconciliation); if it stays on time while the screen still takes
 // seconds, the work is on the native side (view creation, layout, images) and no JS
 // fix will touch it.
+/**
+ * WHAT WAS RUNNING WHEN IT STALLED.
+ *
+ * The heartbeat proves the JS thread was blocked but says nothing about by
+ * what, so every stall has been diagnosed by reading code and guessing - which
+ * cost most of a day and several wrong answers. Heavy operations leave a
+ * breadcrumb; the stall report names the last one and how long ago it started.
+ *
+ * Deliberately a single module-level string: no allocation, no stack capture,
+ * nothing that could itself become the stall.
+ */
+let lastMark = 'idle';
+let lastMarkAt = 0;
+export function mark(label: string): void {
+  lastMark = label;
+  lastMarkAt = Date.now();
+}
+
 const HEARTBEAT_MS = 100;
 const LATE_MS = 300;
 export function startHeartbeat(): () => void {
@@ -59,7 +77,7 @@ export function startHeartbeat(): () => void {
     last = now;
     if (late >= LATE_MS) {
       try {
-        console.warn('[block] js thread stalled ' + late + 'ms');
+        console.warn('[block] js thread stalled ' + late + 'ms · last: ' + lastMark + ' (' + (lastMarkAt ? now - lastMarkAt : -1) + 'ms ago)');
       } catch {
         /* */
       }

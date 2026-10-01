@@ -16,6 +16,7 @@
 // "tiles remount and rebuffer on scroll" bug. A manual absolute grid keeps every tile
 // mounted; the only exception is the documented far-offscreen memory guard.
 import React, { memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, forwardRef } from 'react';
+import { mark } from '../../core/slow';
 import { AppState, Pressable, StyleSheet, Text, View, useWindowDimensions, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { RefreshControl } from 'react-native';
@@ -237,6 +238,7 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
 
   const loadBatch = useCallback(
     async (want: number) => {
+      mark('wall:loadBatch');
       if (w.busy) return;
       if (w.slotIdx >= w.slots.length) return;
       w.busy = true;
@@ -401,6 +403,7 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
 
   // Park / evict (native memory guard, see constants.ts).
   const recomputePlacement = useCallback(() => {
+    mark('wall:placement');
     // ─── AN INVISIBLE WALL HAS NO PLACEMENT ────────────────────────────
     // This used to run when the wall lost focus, and its park rule
     // (d > PARK_SCREENS || !w.activeRef) then marked EVERY tile parked at once.

@@ -12,6 +12,7 @@
 //                        into a raw GL texture handed to three.js (three never re-uploads a
 //                        version-0 texture).
 import * as THREE from 'three';
+import { mark } from '../../core/slow';
 import { Asset } from 'expo-asset';
 import { b64ToBytes, decodePngRGBA } from '../live/frameSample';
 import { EARTH_PNG_B64 } from './earthTexture';
@@ -72,6 +73,7 @@ export function bundledEarthPixelsAsync(): Promise<Uint8Array | null> {
   bundledPromise = (async () => {
     const t0 = Date.now();
     try {
+      mark('earth:atob');
       const bin = globalThis.atob(EARTH_Z);
       const z = new Uint8Array(bin.length);
       for (let off = 0; off < bin.length; off += DECODE_SLICE) {
@@ -94,6 +96,7 @@ export function bundledEarthPixelsAsync(): Promise<Uint8Array | null> {
       // yield between each. Total time is a touch longer; the longest block goes
       // from four seconds to a few milliseconds, which is the number that is
       // actually felt.
+      mark('earth:inflate');
       const parts: Uint8Array[] = [];
       let total = 0;
       const inf = new Unzlib((chunk) => {
