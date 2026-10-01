@@ -217,9 +217,19 @@ export default function VoidFeedScreen() {
 
   return (
     <View style={[styles.fill, { backgroundColor: 'transparent' }]}>
-      {/* Measured 2026-09-20: windowSize 7 kept ~7 screens of cards — with their decoded
-          images — mounted, for 162 MB of graphics memory and a UI thread at ~90%. Three
-          screens still leaves a screen of runway either side of the viewport. */}
+      {/* HOW MUCH FEED STAYS ALIVE BEHIND YOU.
+
+          windowSize 7 was measured at 162 MB of graphics memory and a UI thread at
+          ~90%, so I cut it to 3. That is ONE SCREEN of runway either side, and it
+          shows: scroll down past a few cards and back up, and the ones you passed
+          have been unmounted and have to load again - streams included. The feed
+          used to hold them.
+
+          5 is two screens either side, which covers the scroll-back people actually
+          do, at roughly two thirds of what 7 cost. The budget for it is real rather
+          than hoped for: the app now measures 74 MB native and 36 MB of GL on this
+          phone, against the 933 MB that was getting it killed, because the decoder
+          caps and the image work landed in between. */}
       <FlatList
         ref={listRef}
         data={visible}
@@ -233,9 +243,9 @@ export default function VoidFeedScreen() {
         ListEmptyComponent={empty}
         contentContainerStyle={{ paddingTop: 46 + insets.top, paddingBottom: 90 + 58 + insets.bottom }}
         maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
-        windowSize={3}
-        initialNumToRender={4}
-        maxToRenderPerBatch={4}
+        windowSize={5}
+        initialNumToRender={6}
+        maxToRenderPerBatch={6}
         updateCellsBatchingPeriod={60}
         removeClippedSubviews
         showsVerticalScrollIndicator={false}

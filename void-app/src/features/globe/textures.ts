@@ -48,32 +48,61 @@ let bundledCache: Uint8Array | null = null;
  * ride in the JS bundle instead, deflated - 452 KB, less than the 765 KB base64
  * PNG the app shipped originally, and without that PNG's 7271 ms unfilter loop.
  */
-function bundledEarthPixels(): Uint8Array | null {
-  if (bundledCache) return bundledCache;
-  const t0 = Date.now();
-  try {
-    const bin = globalThis.atob(EARTH_Z);
-    const z = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) z[i] = bin.charCodeAt(i);
-    const px = unzlibSync(z);
-    if (px.length !== EARTH_W * EARTH_H * 4) {
+/**
+ * The same decode, in slices, off the critical path.
+ *
+ * MEASURED ON THE PHONE: '[globe] bundled map: 2048x1024 in 5036ms'. Five
+ * seconds of synchronous JavaScript on the thread the whole app runs on - the
+ * base64 string is two million characters and the loop reads them one at a time,
+ * then unzlib writes eight megabytes. Nothing else could run, so the globe (and
+ * every touch) froze. Doubling the map's resolution to fix the blur is what made
+ * it this expensive.
+ *
+ * The work is the same; it is the BLOCKING that was the problem. The string is
+ * converted in slices with a yield between them, so the frame loop and touch
+ * handling keep running and the fallback map stays on screen until the real one
+ * is ready. unzlibSync is still one call - it is the smaller half and it cannot
+ * be split - but a single ~1s hitch is a different thing from a five-second
+ * freeze.
+ */
+const DECODE_SLICE = 64 * 1024;
+let bundledPromise: Promise<Uint8Array | null> | null = null;
+export function bundledEarthPixelsAsync(): Promise<Uint8Array | null> {
+  if (bundledCache) return Promise.resolve(bundledCache);
+  if (bundledPromise) return bundledPromise;
+  bundledPromise = (async () => {
+    const t0 = Date.now();
+    try {
+      const bin = globalThis.atob(EARTH_Z);
+      const z = new Uint8Array(bin.length);
+      for (let off = 0; off < bin.length; off += DECODE_SLICE) {
+        const end = Math.min(bin.length, off + DECODE_SLICE);
+        for (let i = off; i < end; i++) z[i] = bin.charCodeAt(i);
+        // Hand the thread back between slices.
+        await new Promise<void>((r) => setTimeout(r, 0));
+      }
+      const px = unzlibSync(z);
+      if (px.length !== EARTH_W * EARTH_H * 4) {
+        try {
+          console.warn('[globe] bundled map: wrong size ' + px.length);
+        } catch {}
+        return null;
+      }
+      bundledCache = px;
       try {
-        console.warn('[globe] bundled map: wrong size ' + px.length);
+        console.warn('[globe] bundled map (sliced): ' + EARTH_W + 'x' + EARTH_H + ' in ' + (Date.now() - t0) + 'ms');
+      } catch {}
+      return px;
+    } catch (e) {
+      try {
+        console.warn('[globe] bundled map failed: ' + String(e));
       } catch {}
       return null;
     }
-    bundledCache = px;
-    try {
-      console.warn('[globe] bundled map: ' + EARTH_W + 'x' + EARTH_H + ' in ' + (Date.now() - t0) + 'ms');
-    } catch {}
-    return px;
-  } catch (e) {
-    try {
-      console.warn('[globe] bundled map failed: ' + String(e));
-    } catch {}
-    return null;
-  }
+  })();
+  return bundledPromise;
 }
+
 const RAW_BYTES = RAW_W * RAW_H * 4;
 let rawCache: Uint8Array | null = null;
 
@@ -384,7 +413,7 @@ export async function loadEarthTexture(gl: any, renderer: THREE.WebGLRenderer, r
   // path to be faster than. That path stays below as a fallback rather than being
   // deleted, since on a device whose driver takes it AND whose three binds it, it
   // is one fewer copy; but the globe no longer depends on it.
-  const pre = bundledEarthPixels() ?? (await earthRawPixels());
+  const pre = (await bundledEarthPixelsAsync()) ?? (await earthRawPixels());
   if (pre) {
     const w = pre === bundledCache ? EARTH_W : RAW_W;
     const h = pre === bundledCache ? EARTH_H : RAW_H;
@@ -466,7 +495,7 @@ export async function loadEarthTexture(gl: any, renderer: THREE.WebGLRenderer, r
     // going to arrive, and only then decoded the pixels it already had in the
     // bundle. The bundled map is the full 2048x1024 now, so there is nothing to
     // gain by waiting for the file version anyway.
-    const bundled = bundledEarthPixels();
+    const bundled = await bundledEarthPixelsAsync();
     const raw = bundled ? null : await earthRawPixels();
     const px = bundled ? { w: EARTH_W, h: EARTH_H, data: bundled } : raw ? { w: RAW_W, h: RAW_H, data: raw } : earthPixels();
     if (!px) throw new Error('earth texture: GL ' + err + ' and neither map could be read');
