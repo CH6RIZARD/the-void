@@ -98,13 +98,22 @@ export const PARK_SCREENS = 1;
 export const EVICT_SCREENS = 2;
 export const MAX_MOUNTED_WEBVIEWS = 2;
 /**
- * Players of ANY kind mounted at once (HLS decoders included). A 2-wide wall shows
- * about 6 tiles, so everything in view still plays; anything past one screen is let
- * go once the wall is at the cap. Pausing an off-screen HLS tile does NOT free its
- * decoder: with only the WebView cap the wall reached 933 MB on the test phone and
- * Android killed the app (2026-09-22).
+ * Players of ANY kind mounted at once (HLS decoders included). Pausing an
+ * off-screen HLS tile does NOT free its decoder: with only the WebView cap the
+ * wall reached 933 MB on the test phone and Android killed the app (2026-09-22).
+ *
+ * THIS WAS 4, AND THE COMMENT ABOVE IT SAID 'a 2-wide wall shows about 6 tiles, so
+ * everything in view still plays'. Four is not six. The eviction pass sheds until
+ * it is inside the budget whatever the distance, so two of the six tiles you were
+ * actually looking at were let go every pass - which is why the wall never filled
+ * and why it looked like roughly two thirds of it was dead.
+ *
+ * Six, so the visible screen can fill, and no further. The crash that set this cap
+ * came from about EIGHTEEN live decoders, not six, and the budget below still
+ * drops by one on every decoder failure and stays down for the session - so a
+ * phone that cannot serve six settles where it can, on its own, within seconds.
  */
-export const MAX_MOUNTED_PLAYERS = 4;
+export const MAX_MOUNTED_PLAYERS = 6;
 // ─── THE BUDGET LEARNS THE DEVICE ────────────────────────────────────────
 // A phone has a fixed number of hardware video decoders (commonly 4-8). Past that
 // Android hands out the SOFTWARE decoder, and on the test phone that one dies:
