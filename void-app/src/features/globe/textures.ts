@@ -32,7 +32,7 @@ const EARTH = require('../../../assets/globe/earth-night.jpg');
 // already filled. The phone reads bytes and hands them to the GPU. No inflate,
 // no unfilter, no flip, and twice the resolution.
 const EARTH_RAW = require('../../../assets/globe/earth-night.rgba.bin');
-import { unzlibSync } from 'fflate';
+import { Unzlib } from 'fflate';
 import { EARTH_W, EARTH_H, EARTH_Z } from './earthPixels';
 
 const RAW_W = 2048;
@@ -61,9 +61,8 @@ let bundledCache: Uint8Array | null = null;
  * The work is the same; it is the BLOCKING that was the problem. The string is
  * converted in slices with a yield between them, so the frame loop and touch
  * handling keep running and the fallback map stays on screen until the real one
- * is ready. unzlibSync is still one call - it is the smaller half and it cannot
- * be split - but a single ~1s hitch is a different thing from a five-second
- * freeze.
+ * is ready. The inflate is streamed too (see below), so no single step blocks
+ * the thread for more than a few milliseconds.
  */
 const DECODE_SLICE = 64 * 1024;
 let bundledPromise: Promise<Uint8Array | null> | null = null;
@@ -81,7 +80,38 @@ export function bundledEarthPixelsAsync(): Promise<Uint8Array | null> {
         // Hand the thread back between slices.
         await new Promise<void>((r) => setTimeout(r, 0));
       }
-      const px = unzlibSync(z);
+      // STREAMED, NOT ONE CALL.
+      //
+      // The device's own stall detector caught this: '[block] js thread stalled
+      // 4078ms'. Slicing the base64 conversion was not enough, because
+      // unzlibSync is a single synchronous call that writes eight megabytes -
+      // and nothing else on the thread runs until it returns. A four second
+      // freeze is why the globe could not draw, tiles could not connect and
+      // every frame missed its budget: they were all waiting on this.
+      //
+      // fflate's Unzlib takes the compressed bytes in pushes and emits the
+      // inflated ones as it goes, so the same work happens in ~24 pieces with a
+      // yield between each. Total time is a touch longer; the longest block goes
+      // from four seconds to a few milliseconds, which is the number that is
+      // actually felt.
+      const parts: Uint8Array[] = [];
+      let total = 0;
+      const inf = new Unzlib((chunk) => {
+        parts.push(chunk);
+        total += chunk.length;
+      });
+      const PUSH = 64 * 1024;
+      for (let off = 0; off < z.length; off += PUSH) {
+        const end = Math.min(z.length, off + PUSH);
+        inf.push(z.subarray(off, end), end >= z.length);
+        await new Promise<void>((r) => setTimeout(r, 0));
+      }
+      const px = new Uint8Array(total);
+      let at = 0;
+      for (const p of parts) {
+        px.set(p, at);
+        at += p.length;
+      }
       if (px.length !== EARTH_W * EARTH_H * 4) {
         try {
           console.warn('[globe] bundled map: wrong size ' + px.length);

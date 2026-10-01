@@ -317,11 +317,32 @@ async function inspect(serial) {
   // This drove its scroll on whatever screen happened to be open, which was
   // usually the void feed - so it was measuring the wrong thing entirely. The
   // globe and the wall under it are the subject; the feed is not.
-  const sz0 = shq(['-s', serial, 'shell', 'wm', 'size']).match(/(d+)x(d+)/);
+  const sz0 = shq(['-s', serial, 'shell', 'wm', 'size']).match(/(\d+)x(\d+)/);
   const NW = sz0 ? +sz0[1] : 720, NH = sz0 ? +sz0[2] : 1560;
   // The nav pill is five icons across the bottom; the globe is the second.
   shq(['-s', serial, 'shell', 'input', 'tap', String(Math.round(NW * 0.338)), String(Math.round(NH * 0.883))]);
   await new Promise((r) => setTimeout(r, 2500));
+
+  // THE GLOBE IS MEASURED BEFORE THE SCROLL, NOT AFTER.
+  //
+  // The scroll that produces the jank numbers also carries the globe off the top
+  // of the screen - so reading it afterwards reported "NOT DRAWN" for a globe
+  // that was drawing perfectly well, just no longer in frame. Two cycles were
+  // logged that way before anyone noticed.
+  //
+  // So: return to the top, look at the globe, and only then scroll.
+  for (let i = 0; i < 3; i++) {
+    shq(['-s', serial, 'shell', 'input', 'swipe', String(Math.round(NW / 2)), String(Math.round(NH * 0.35)), String(Math.round(NW / 2)), String(Math.round(NH * 0.82)), '240']);
+    await new Promise((r) => setTimeout(r, 400));
+  }
+  await new Promise((r) => setTimeout(r, 1500));
+  let globeAtTop = null;
+  try {
+    const gImg = screen(serial);
+    globeAtTop = globeState(gImg);
+    const gpng = execFileSync(ADB, ['-s', serial, 'exec-out', 'screencap', '-p'], { maxBuffer: 64 << 20, timeout: 45000 });
+    writeFileSync(path.join(SHOTS, 'globe-at-top.png'), gpng);
+  } catch {}
 
   // Reset frame stats, drive a scroll, then read them: jank DURING a scroll is
   // the number that matters, and an idle app reports nothing at all.
@@ -349,7 +370,7 @@ async function inspect(serial) {
 
   const img = screen(serial);
   const fill = wallFill(img);
-  const globe = globeState(img);
+  const globe = globeAtTop || globeState(img);
   const frames = frameStats(serial);
   const timeline = frameTimeline(serial);
   const strip = await filmstrip(serial);
