@@ -143,6 +143,29 @@ function GlobeSurfaces({
   // the wall and barely in view at that point - and resumes the moment the
   // scroll settles. Nothing is torn down; the loop simply stops asking.
   const [wallScrolling, setWallScrolling] = useState(false);
+  // A LATCH THAT CANNOT STICK.
+  //
+  // Pausing the globe while the wall is dragged was right; trusting the scroll
+  // events to turn it back on was not. onMomentumScrollEnd does not fire when a
+  // drag ends without a fling - a slow scroll, or a finger that stops before
+  // lifting - so `true` could be set and never cleared, and the globe simply
+  // never rendered again. It came back as a blank half-screen, which is exactly
+  // what the device watcher caught.
+  //
+  // So the ON state expires by itself. Any scroll event refreshes the deadline;
+  // if none arrives for a beat, the globe resumes whether or not the event that
+  // was supposed to say so ever came.
+  const scrollOffT = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const markWallScrolling = useCallback((on: boolean) => {
+    if (scrollOffT.current) clearTimeout(scrollOffT.current);
+    if (!on) {
+      setWallScrolling(false);
+      return;
+    }
+    setWallScrolling(true);
+    scrollOffT.current = setTimeout(() => setWallScrolling(false), 900);
+  }, []);
+  useEffect(() => () => { if (scrollOffT.current) clearTimeout(scrollOffT.current); }, []);
   const wallRef = useRef<LiveWallHandle>(null);
   const [refreshing, setRefreshing] = useState(false);
   // One button refreshes the whole tab - the globe above and the wall below are
@@ -263,7 +286,7 @@ function GlobeSurfaces({
                   <View style={{ height: globeH, backgroundColor: '#04020c' }} />
                 )}
                 {/* Built the first time GLOBE is shown (web: buildGlobeGrid inside setGlobeMode). */}
-                <LiveWall ref={wallRef} active={globeVisible && !sliding} grid3={grid3} bottomInset={bottomInset} onScrollActive={setWallScrolling} />
+                <LiveWall ref={wallRef} active={globeVisible && !sliding} grid3={grid3} bottomInset={bottomInset} onScrollActive={markWallScrolling} />
               </LoaderActiveContext.Provider>
             </Animated.View>
           </View>

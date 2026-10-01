@@ -144,6 +144,64 @@ function globeState(img) {
 }
 
 // ─── what the OS knows ───────────────────────────────────────────────────
+/**
+ * PER-FRAME TIMING, WHICH IS WHAT LAG ACTUALLY IS.
+ *
+ * A screenshot cannot show a stutter and an average cannot either - 60fps with
+ * one 400ms hitch averages fine and feels broken. framestats gives the last 120
+ * frames with nanosecond timestamps, so this reports the distribution: how many
+ * frames missed the 16.7ms budget, and how bad the worst ones were. That is the
+ * number that matches what a thumb feels.
+ */
+function frameTimeline(serial) {
+  const out = shq(['-s', serial, 'shell', 'dumpsys', 'gfxinfo', PKG, 'framestats']);
+  const rows = out.split('\n').filter((l) => /^0,/.test(l.trim()));
+  const ms = [];
+  for (const r of rows) {
+    const c = r.trim().split(',').map(Number);
+    // INTENDED_VSYNC is column 1, FRAME_COMPLETED is the last populated column.
+    if (c.length < 14 || !c[1]) continue;
+    const done = c[13] || c[c.length - 1];
+    if (!done || done < c[1]) continue;
+    ms.push((done - c[1]) / 1e6);
+  }
+  if (!ms.length) return { frames: 0 };
+  ms.sort((a, b) => a - b);
+  const pick = (p) => +ms[Math.min(ms.length - 1, Math.floor(ms.length * p))].toFixed(1);
+  return {
+    frames: ms.length,
+    over16: ms.filter((v) => v > 16.7).length,
+    over100: ms.filter((v) => v > 100).length,
+    p50: pick(0.5),
+    p90: pick(0.9),
+    worst: +ms[ms.length - 1].toFixed(1),
+  };
+}
+
+/**
+ * A filmstrip across one scroll, so the lag can be LOOKED at rather than only
+ * counted - six frames, which is enough to see a wall that does not move with
+ * the finger or tiles that blink out as they pass.
+ */
+async function filmstrip(serial) {
+  const sz = shq(['-s', serial, 'shell', 'wm', 'size']).match(/(\d+)x(\d+)/);
+  const W = sz ? +sz[1] : 720;
+  const H = sz ? +sz[2] : 1560;
+  const shots = [];
+  // A slow swipe, so the frames land across the motion rather than after it.
+  try {
+    execFileSync(ADB, ['-s', serial, 'shell', 'input', 'swipe', String(Math.round(W / 2)), String(Math.round(H * 0.8)), String(Math.round(W / 2)), String(Math.round(H * 0.3)), '1400'], { timeout: 20000, stdio: 'ignore' });
+  } catch {}
+  for (let i = 0; i < 6; i++) {
+    try {
+      const png = execFileSync(ADB, ['-s', serial, 'exec-out', 'screencap', '-p'], { maxBuffer: 64 << 20, timeout: 20000 });
+      const p = path.join(SHOTS, 'strip-' + i + '.png');
+      writeFileSync(p, png);
+      shots.push(p);
+    } catch {}
+  }
+  return shots;
+}
 function frameStats(serial) {
   const out = shq(['-s', serial, 'shell', 'dumpsys', 'gfxinfo', PKG]);
   const num = (re) => {
@@ -255,10 +313,12 @@ async function inspect(serial) {
   const fill = wallFill(img);
   const globe = globeState(img);
   const frames = frameStats(serial);
+  const timeline = frameTimeline(serial);
+  const strip = await filmstrip(serial);
   const f = faults(serial);
   const vision = await describe(serial);
 
-  return { serial, model, w: img.w, h: img.h, fill, globe, frames, faults: f, vision };
+  return { serial, model, w: img.w, h: img.h, fill, globe, frames, timeline, strip: strip.length, faults: f, vision };
 }
 
 function writeReport(rows) {
@@ -274,6 +334,8 @@ function writeReport(rows) {
       `- wall: **${r.fill.withPicture}/${r.fill.tiles} tiles showing a picture**`,
       `- globe: ${r.globe.drawn ? 'drawn' : '**NOT DRAWN**'}, ${r.globe.textured ? 'textured' : '**flat / untextured**'} (mean ${r.globe.mean}, sd ${r.globe.sd})`,
       `- frames during a scroll: ${r.frames.total ?? '?'} rendered, ${r.frames.jankPct ?? '?'}% janky, p90 ${r.frames.p90 ?? '?'}ms, p95 ${r.frames.p95 ?? '?'}ms`,
+      `- per-frame timing: ${r.timeline?.frames ?? 0} frames, ${r.timeline?.over16 ?? '?'} over 16.7ms, ${r.timeline?.over100 ?? '?'} over 100ms, p50 ${r.timeline?.p50 ?? '?'}ms, p90 ${r.timeline?.p90 ?? '?'}ms, worst ${r.timeline?.worst ?? '?'}ms`,
+      `- filmstrip: scripts/device-watch-shots/strip-0..5.png (one scroll)`,
       `- decoder failures in the last 1200 log lines: ${r.faults.decoderFailures}; fatals: ${r.faults.fatal}`,
     );
     if (r.faults.globeLines?.length) lines.push(`- globe log: ${r.faults.globeLines.join(' | ')}`);

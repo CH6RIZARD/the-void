@@ -607,6 +607,9 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
   const onScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       w.scrollY = e.nativeEvent.contentOffset.y;
+      // Keeps the globe's pause alive while a scroll is genuinely in progress;
+      // it expires on its own if these stop arriving.
+      scrollActiveRef.current?.(true);
       if (sentinelNear()) loadBatchRef.current(WALL_BATCH);
       const now = Date.now();
       // Placement walks every tile, sorts them and rebuilds two Sets. At 300ms
