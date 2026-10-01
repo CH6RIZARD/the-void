@@ -11,7 +11,7 @@
 //   14 particles: left random 0-100%, bottom random 0-40px, duration 2.5-6.5s,
 //   delay -(0-6)s (always mid-flight), animation ignores prefers-reduced-motion.
 import React, { memo, useMemo, useRef } from 'react';
-import { Animated, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Animated, Platform, Pressable, StyleSheet, type StyleProp, type ViewStyle, View } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
 import { FONTS, em } from '../theme/palettes';
 import { VText } from './Text';
@@ -56,15 +56,51 @@ function makeParticles(): Particle[] {
 
 // Each particle is its own linear ramp on the native driver (see useLoaderLoop):
 // t = ((now + lead) % duration) / duration; opacity .4 -> 0, translate (0,0) -> (15,-70).
+//
+// MOVED BY translateX/translateY, NOT BY transform - ON ANDROID.
+//
+// The look is locked at fourteen particles and the cost of fourteen was real, so
+// it has to come out of HOW a dot is moved. It was moved by the `transform`
+// prop, and on Android that prop is expensive out of all proportion to a dot
+// travelling in a straight line: BaseViewManager.setTransformProperty builds a
+// 4x4 matrix, runs MatrixMathHelper.decomposeMatrix over it - solving for
+// rotation, scale, skew and perspective, with the square roots that implies -
+// and then writes up to eight RenderNode properties, each able to invalidate.
+// Per dot. Per frame. Fourteen dots across a dozen mounted tiles is on the order
+// of ten thousand matrix decompositions a second on the UI thread, to slide some
+// two-pixel dots up and to the right.
+//
+// translateX and translateY are separate props, and they are on the native
+// driver's allowlist (NativeAnimatedAllowlist.js:60) so they still never touch
+// JS. BaseViewManagerDelegate dispatches them to setTranslateX/setTranslateY,
+// which are `view.setTranslationX(PixelUtil.toPixelFromDIP(v))` - the exact call
+// the transform path ends in, with the exact same v. No matrix, no decomposition,
+// two property writes instead of eight.
+//
+// So this is not an approximation of the locked animation. The View ends each
+// frame in the same state it would have been in; the arithmetic that got it there
+// is shorter. Nothing about the geometry, the colour, the ramp or the count
+// changes, which is the only kind of saving this component is allowed to make.
+//
+// Android only. The two props are marked deprecated in favour of transform, so if
+// a future React Native drops them this falls back by deleting the branch, and
+// iOS - where setTransformProperty has no equivalent cost - keeps transform now.
 const Dot = memo(function Dot({ p, running, color }: { p: Particle; running: boolean; color: string }) {
   const t = useLoaderLoop(p.duration, p.lead, running);
   const style = useMemo(
     () => ({
       opacity: t.interpolate({ inputRange: [0, 1], outputRange: [0.4, 0] }),
-      transform: [
-        { translateY: t.interpolate({ inputRange: [0, 1], outputRange: [0, -70] }) },
-        { translateX: t.interpolate({ inputRange: [0, 1], outputRange: [0, 15] }) },
-      ],
+      ...(Platform.OS === 'android'
+        ? {
+            translateY: t.interpolate({ inputRange: [0, 1], outputRange: [0, -70] }),
+            translateX: t.interpolate({ inputRange: [0, 1], outputRange: [0, 15] }),
+          }
+        : {
+            transform: [
+              { translateY: t.interpolate({ inputRange: [0, 1], outputRange: [0, -70] }) },
+              { translateX: t.interpolate({ inputRange: [0, 1], outputRange: [0, 15] }) },
+            ],
+          }),
     }),
     [t],
   );
