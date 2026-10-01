@@ -83,22 +83,37 @@ async function earthRawPixels(): Promise<Uint8Array | null> {
   const t0 = Date.now();
   try {
     const a = Asset.fromModule(EARTH_RAW);
-    await a.downloadAsync();
+    // Same reasoning as the XHR below: never let this hold the globe.
+    await Promise.race([a.downloadAsync().catch(() => null), new Promise((r) => setTimeout(r, 2000))]);
     const uri = a.localUri || a.uri;
     if (!uri) return null;
     // XHR rather than fetch: fetch on Android returns a Blob whose arrayBuffer()
     // round-trips through base64, which would put the copying right back.
+    // A DEADLINE. This had none, and an XHR against a uri the release build
+    // cannot serve does not fail - it waits. Two seconds is longer than a local
+    // file read ever needs and far shorter than a user will sit in front of a
+    // black globe.
     const buf = await new Promise<ArrayBuffer | null>((resolve) => {
+      let done = false;
+      const finish = (v: ArrayBuffer | null) => {
+        if (done) return;
+        done = true;
+        resolve(v);
+      };
+      const deadline = setTimeout(() => finish(null), 2000);
       try {
         const xhr = new XMLHttpRequest();
         xhr.open('GET', uri, true);
         xhr.responseType = 'arraybuffer';
-        xhr.onload = () => resolve((xhr.response as ArrayBuffer) || null);
-        xhr.onerror = () => resolve(null);
-        xhr.onabort = () => resolve(null);
+        xhr.timeout = 2000;
+        xhr.onload = () => { clearTimeout(deadline); finish((xhr.response as ArrayBuffer) || null); };
+        xhr.onerror = () => { clearTimeout(deadline); finish(null); };
+        xhr.onabort = () => { clearTimeout(deadline); finish(null); };
+        xhr.ontimeout = () => { clearTimeout(deadline); finish(null); };
         xhr.send();
       } catch {
-        resolve(null);
+        clearTimeout(deadline);
+        finish(null);
       }
     });
     if (!buf) {
@@ -443,8 +458,17 @@ export async function loadEarthTexture(gl: any, renderer: THREE.WebGLRenderer, r
     // The pre-decoded map first: same pixels, twice the resolution, none of the
     // JS work. The base64 PNG decode stays behind it as the last resort, for a
     // device where the raw asset cannot be read at all.
-    const raw = await earthRawPixels();
-    const px = raw ? { w: RAW_W, h: RAW_H, data: raw } : earthPixels();
+    // BUNDLED PIXELS FIRST, like the fast path above does.
+    //
+    // This awaited the asset read first, and that read can HANG: downloadAsync
+    // plus an XHR against a uri this release build cannot serve. The globe sat
+    // black for twenty or thirty seconds waiting for something that was never
+    // going to arrive, and only then decoded the pixels it already had in the
+    // bundle. The bundled map is the full 2048x1024 now, so there is nothing to
+    // gain by waiting for the file version anyway.
+    const bundled = bundledEarthPixels();
+    const raw = bundled ? null : await earthRawPixels();
+    const px = bundled ? { w: EARTH_W, h: EARTH_H, data: bundled } : raw ? { w: RAW_W, h: RAW_H, data: raw } : earthPixels();
     if (!px) throw new Error('earth texture: GL ' + err + ' and neither map could be read');
     const dt = new THREE.DataTexture(px.data, px.w, px.h, THREE.RGBAFormat);
     // The WEB renders this map under three r128, whose default is LinearEncoding: the

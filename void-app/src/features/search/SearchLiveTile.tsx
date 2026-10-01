@@ -170,7 +170,13 @@ function useLiveSlot(ch: LiveChannelRef, active: boolean) {
   // substitute, and says so. The label follows the picture.
   const a = cascade.attempt;
   const own = !!a && a.src && (a.src as { id?: string }).id === ch.id;
-  const name = !a || own ? ch.n : (a.label && a.label !== 'LIVE' ? a.label : 'LIVE FEED').toUpperCase();
+  // The attempt's label is empty now (nothing says CONNECTING any more), and this
+  // used to fall through that emptiness to the words 'LIVE FEED' - so a tile still
+  // working on its first source sat there announcing LIVE FEED over a black
+  // square. The SOURCE carries its own name; use that, and say nothing while it
+  // is still connecting, because it does not yet know what it is.
+  const srcLabel = a && a.src ? String((a.src as { label?: string }).label || '') : '';
+  const name = !a || own ? ch.n : srcLabel.toUpperCase();
   return { phase, player, cascade, heal, name };
 }
 

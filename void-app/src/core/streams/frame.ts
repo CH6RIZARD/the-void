@@ -63,5 +63,11 @@ export function createSignalChecker() {
     return false;
   };
 }
-/** Connect-time judge delay after PLAYING before sampling (ms). */
-export const FRAME_JUDGE_DELAY = 700;
+/**
+ * Connect-time judge delay after PLAYING before sampling (ms).
+ *
+ * The tile keeps its loader until this lands, so this is also how long a working
+ * stream waits to be SEEN. 700ms was most of why tiles felt slow; it only has to
+ * be long enough for a frame to exist to sample.
+ */
+export const FRAME_JUDGE_DELAY = 320;
