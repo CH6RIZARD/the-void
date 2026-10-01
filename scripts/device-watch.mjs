@@ -377,6 +377,21 @@ async function inspect(serial) {
   const f = faults(serial);
   const vision = await describe(serial);
 
+  // AND CHECK AGAIN ON THE WAY OUT.
+  //
+  // The entry guard proves The Void was in front when the pass STARTED. A pass
+  // takes the better part of a minute, and this is the user's daily driver, so
+  // they can and do switch away in the middle of one - at which point every
+  // number after that moment is about a different app. The pass that prompted
+  // this reported `wall 2/6` and `globe NOT DRAWN` with p50 208ms and 100% janky,
+  // all of it measured while the app was being backgrounded, and it is now the
+  // most recent row in the trend.
+  //
+  // A skipped cycle is worth far more than a wrong number - the entry guard
+  // already says so - and a half-finished one is a wrong number.
+  const fgEnd = foreground(serial);
+  if (fgEnd !== PKG) return { serial, model, skipped: 'left mid-pass - foreground became ' + (fgEnd || 'unknown') };
+
   return { serial, model, w: img.w, h: img.h, fill, globe, frames, timeline, strip: strip.length, faults: f, vision };
 }
 

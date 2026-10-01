@@ -6,6 +6,8 @@
 // over SLOW_MS with its own name, so the device says it outright.
 //
 // console.warn, not log: release builds strip console.log and keep warn.
+import { AppState } from 'react-native';
+
 const SLOW_MS = 250;
 
 /** Run fn, and say so if it took long enough to be felt. */
@@ -69,12 +71,47 @@ export function mark(label: string): void {
 
 const HEARTBEAT_MS = 100;
 const LATE_MS = 300;
+
+/**
+ * A BACKGROUNDED APP IS NOT A STALLED ONE.
+ *
+ * Android suspends JS timers when the app loses the foreground, so the first tick
+ * after coming back finds the whole absence sitting in now - last and reports it
+ * as one block. The phone is the user's daily driver, so this happens constantly:
+ * today it produced `js thread stalled 19599ms`, with the breadcrumb honestly
+ * admitting it was 51 seconds stale - twenty seconds of nothing, in the signal
+ * that is meant to be the most trustworthy one in the app, naming no cause
+ * because there was no cause.
+ *
+ * That is worse than no signal. Three measurements today already had to be
+ * thrown away for the same reason - a wall scored 6/6 against the launcher
+ * wallpaper, a globe scored NOT DRAWN after being scrolled off screen - and each
+ * one cost a round of chasing something that was not there.
+ *
+ * So the heartbeat only measures while the app is active, and crossing a
+ * background boundary rearms it instead of reporting it. A real stall while the
+ * user is actually looking at the app is unaffected, which is the only kind worth
+ * knowing about.
+ */
+let appActive = AppState.currentState === 'active';
+let rearm = false;
+AppState.addEventListener('change', (st) => {
+  const now = st === 'active';
+  if (now && !appActive) rearm = true; // skip the gap we were asleep for
+  appActive = now;
+});
+
 export function startHeartbeat(): () => void {
   let last = Date.now();
   const id = setInterval(() => {
     const now = Date.now();
     const late = now - last - HEARTBEAT_MS;
     last = now;
+    // Not active, or the first tick back: there is nothing here to measure.
+    if (!appActive || rearm) {
+      rearm = false;
+      return;
+    }
     if (late >= LATE_MS) {
       try {
         console.warn('[block] js thread stalled ' + late + 'ms · last: ' + lastMark + ' (' + (lastMarkAt ? now - lastMarkAt : -1) + 'ms ago)');
