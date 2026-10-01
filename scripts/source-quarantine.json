@@ -9,16 +9,6 @@
   "since": 1790871520273,
   "why": "error"
  },
- "https://60417ddeaf0d9.streamlock.net/telemetrika/smil:telemetrika.smil/playlist.m3u8": {
-  "country": "Mexico",
-  "src": {
-   "type": "hls",
-   "url": "https://60417ddeaf0d9.streamlock.net/telemetrika/smil:telemetrika.smil/playlist.m3u8",
-   "label": "Presumiendo Mexico"
-  },
-  "since": 1790871520273,
-  "why": "variant 404"
- },
  "https://livecdn.enlace.plus/enlace/smil:enlace-hd.smil/playlist.m3u8": {
   "country": "Costa Rica",
   "src": {
@@ -28,16 +18,6 @@
   },
   "since": 1790871520274,
   "why": "error"
- },
- "https://live20.bozztv.com/akamaissh101/ssh101/guaymatetv/playlist.m3u8": {
-  "country": "Dominican Republic",
-  "src": {
-   "type": "hls",
-   "url": "https://live20.bozztv.com/akamaissh101/ssh101/guaymatetv/playlist.m3u8",
-   "label": "Guaymate TV"
-  },
-  "since": 1790871520274,
-  "why": "status 404"
  },
  "https://e.siar.us/live/tvmu.m3u8": {
   "country": "Indonesia",
@@ -49,14 +29,74 @@
   "since": 1790871520275,
   "why": "status 404"
  },
- "https://tvstream.upea.bo/hls/oSs0jSWumTFIIVY97559.m3u8": {
-  "country": "Bolivia",
+ "https://zuzenean.goienamedia.eus/goiena-telebista.m3u8": {
+  "country": "Spain",
   "src": {
    "type": "hls",
-   "url": "https://tvstream.upea.bo/hls/oSs0jSWumTFIIVY97559.m3u8",
-   "label": "UPEA TV"
+   "url": "https://zuzenean.goienamedia.eus/goiena-telebista.m3u8",
+   "label": "Goiena Eus"
   },
-  "since": 1790871520275,
+  "since": 1790877114107,
+  "why": "error"
+ },
+ "https://tab.parlament.hu:446/edgelive/smil:mkogytab.smil/playlist.m3u8": {
+  "country": "Hungary",
+  "src": {
+   "type": "hls",
+   "url": "https://tab.parlament.hu:446/edgelive/smil:mkogytab.smil/playlist.m3u8",
+   "label": "Orszaggyules: OGY TAB"
+  },
+  "since": 1790877114109,
+  "why": "error"
+ },
+ "https://cdn.adyadigitalteknologi.com:8090/vod/relay.m3u8": {
+  "country": "Indonesia",
+  "src": {
+   "type": "hls",
+   "url": "https://cdn.adyadigitalteknologi.com:8090/vod/relay.m3u8",
+   "label": "Sangaji TV"
+  },
+  "since": 1790877114111,
   "why": "status 404"
+ },
+ "https://stream.jogjatv.co.id/jtvlive/stream/index.m3u8": {
+  "country": "Indonesia",
+  "src": {
+   "type": "hls",
+   "url": "https://stream.jogjatv.co.id/jtvlive/stream/index.m3u8",
+   "label": "Jogja TV"
+  },
+  "since": 1790877114111,
+  "why": "status 404"
+ },
+ "https://media.streambrothers.com:19360/8036/8036.m3u8": {
+  "country": "Honduras",
+  "src": {
+   "type": "hls",
+   "url": "https://media.streambrothers.com:19360/8036/8036.m3u8",
+   "label": "Maya TV"
+  },
+  "since": 1790877114111,
+  "why": "status 404"
+ },
+ "https://cdn-us-east-prod-ingest-infra-dacast-com.akamaized.net/8424fb7f-99a9-87ae-3861-f0620849d11c/source/index.m3u8": {
+  "country": "Guyana",
+  "src": {
+   "type": "hls",
+   "url": "https://cdn-us-east-prod-ingest-infra-dacast-com.akamaized.net/8424fb7f-99a9-87ae-3861-f0620849d11c/source/index.m3u8",
+   "label": "HGPTV"
+  },
+  "since": 1790877114113,
+  "why": "status 404"
+ },
+ "https://drlivedr1hls.akamaized.net/hls/live/2113625/drlivedr1/master.m3u8": {
+  "country": "Denmark",
+  "src": {
+   "type": "hls",
+   "url": "https://drlivedr1hls.akamaized.net/hls/live/2113625/drlivedr1/master.m3u8",
+   "label": "DR1"
+  },
+  "since": 1790877114113,
+  "why": "status 403"
  }
 }

@@ -267,12 +267,28 @@ async function describe(serial) {
 }
 
 // ─── a pass over one phone ───────────────────────────────────────────────
+/** Whatever is on screen right now, by package. */
+function foreground(serial) {
+  const out = shq(['-s', serial, 'shell', 'dumpsys', 'activity', 'activities']);
+  const m = out.match(/mResumedActivity[^\n]*?([a-zA-Z0-9_.]+)\/[^\s}]+/);
+  return m ? m[1] : '';
+}
+
 async function inspect(serial) {
   const model = shq(['-s', serial, 'shell', 'getprop', 'ro.product.model']);
-  if (!alive(serial)) {
-    shq(['-s', serial, 'shell', 'monkey', '-p', PKG, '-c', 'android.intent.category.LAUNCHER', '1']);
-    await new Promise((r) => setTimeout(r, 9000));
-  }
+
+  // THE PHONE BELONGS TO WHOEVER IS HOLDING IT.
+  //
+  // This used to force-launch the app and swipe every cycle. That takes the
+  // screen away mid-use, and it also measures nonsense: with a launcher or
+  // another app in front, the brightness-and-variance test counts wallpaper as
+  // live video and reports a full wall. One such reading was logged as 6/6 while
+  // the phone was sitting on an app-drawer search.
+  //
+  // So: measure only when The Void is already in front, and never bring it
+  // there. A skipped cycle is worth far more than a wrong number.
+  const fg = foreground(serial);
+  if (fg !== PKG) return { serial, model, skipped: 'in use - foreground is ' + (fg || 'unknown') };
 
   // GO TO THE GLOBE TAB FIRST.
   //
@@ -325,6 +341,10 @@ function writeReport(rows) {
   const lines = ['# device-watch', '', `Last pass ${new Date().toISOString()}`, ''];
   for (const r of rows) {
     lines.push(`## ${r.model || r.serial} (${r.serial})`);
+    if (r.skipped) {
+      lines.push('', '- **not measured this cycle** - ' + r.skipped + '. The app was not in front, and measuring another app would produce a false reading.', '');
+      continue;
+    }
     if (r.error) {
       lines.push('', '- could not read: ' + r.error, '');
       continue;
@@ -374,6 +394,10 @@ function log(line) {
       }
     }
     for (const r of rows) {
+      if (r.skipped) {
+        log(`${r.model || r.serial}: skipped - ${r.skipped}`);
+        continue;
+      }
       if (r.error) {
         log(`${r.serial}: ${r.error}`);
         continue;

@@ -22,6 +22,7 @@ import { RefreshControl } from 'react-native';
 import { Image } from 'expo-image';
 import { LiveDot, TileLabel, TileLoader } from './TileChrome';
 import { StreamTile, type StreamTileHandle } from './StreamTile';
+import { applyPlacement, clearPlacement, evictedIds, placementOf, usePlacement } from './placementStore';
 import { useStreamCascade, type CascadeResult } from './useStreamCascade';
 import { liveVidFor, rememberStream, wallCascadeFor, wallSlots, streamKey, type StreamSource, type StreamType, type WallSlot } from './core';
 import {
@@ -143,7 +144,9 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
   const [order, setOrder] = useState<Record<number, number>>({});
   const [done, setDone] = useState(false);
   const [gen, setGen] = useState(0);
-  const [placement, setPlacement] = useState<{ parked: Set<number>; evicted: Set<number> }>({ parked: new Set(), evicted: new Set() });
+  // Placement is NOT React state. See placementStore.ts: holding it here meant
+  // every pass rebuilt every mounted tile element, twice a second during a drag,
+  // over a list that only grows. Each tile subscribes to its own id instead.
 
   const w = useRef({
     slots: [] as WallSlot[],
@@ -444,7 +447,7 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
     for (const [id, d] of dist) if (d > PARK_SCREENS && id !== keepId) parked.add(id);
     const live = [...w.registry.values()].filter((e) => e.phase === 'playing' || e.phase === 'connecting');
     const web = live.filter((e) => e.kind === 'youtube' || e.kind === 'iframe');
-    const evicted = new Set<number>(placementRef.current.evicted);
+    const evicted = evictedIds();
     if (w.asleepRef) {
       // Asleep: every player goes (the tile effect only acts on PLAYING tiles; a tile
       // still connecting is evicted once it connects, via the order change).
@@ -536,10 +539,11 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
     evictFarthest(web, MAX_MOUNTED_WEBVIEWS);
     evictFarthest(live, want);
     const same = (a: Set<number>, b: Set<number>) => a.size === b.size && [...a].every((x) => b.has(x));
-    if (!same(parked, placementRef.current.parked) || !same(evicted, placementRef.current.evicted)) setPlacement({ parked, evicted });
+    // Tells only the tiles whose state actually flipped - usually none, and at
+    // most a handful as a boundary is crossed.
+    applyPlacement(parked, evicted);
   }, [w]);
-  const placementRef = useRef(placement);
-  placementRef.current = placement;
+
   useEffect(() => {
     recomputePlacement();
   }, [active, asleep, tiles, order, recomputePlacement]);
@@ -694,8 +698,7 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
               width={tileW}
               height={tileH}
               borderColor={t.border}
-              parked={placement.parked.has(rec.id)}
-              evicted={placement.evicted.has(rec.id)}
+
               registry={registry}
               lanes={lanes}
               lastGood={w.lastGood}
@@ -721,15 +724,16 @@ interface WallTileProps {
   width: number;
   height: number;
   borderColor: string;
-  parked: boolean;
-  evicted: boolean;
   registry: Map<number, WallEntry>;
   lanes: Lanes;
   lastGood: Map<number, StreamSource>;
   onFirstSettled(rec: TileRec, res: CascadeResult): void;
 }
 
-const WallTile = memo(function WallTile({ rec, left, top, width, height, borderColor, parked, evicted, registry, lanes, lastGood, onFirstSettled }: WallTileProps) {
+const WallTile = memo(function WallTile({ rec, left, top, width, height, borderColor, registry, lanes, lastGood, onFirstSettled }: WallTileProps) {
+  // This tile's own parked/evicted, subscribed by id: a placement pass that does
+  // not touch this tile does not re-render it.
+  const { parked, evicted } = usePlacement(rec.id);
   const tileId = `wall:${rec.id}`;
   const [phase, setPhase] = useState<Phase>('queued');
   const [label, setLabel] = useState<string | null>(null);
