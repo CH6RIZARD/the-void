@@ -2,7 +2,7 @@
 import type { StreamSource, LiveChannel } from '../types.ts';
 
 // Resolved by scripts/resolve-live.js: only these were CONFIRMED broadcasting at _resolvedAt.
-export const VOID_LIVE: { _resolvedAt: string; items: LiveChannel[] } = {"_resolvedAt":"2026-08-03T00:23:08.713Z","items":[{"n":"DW NEWS","id":"UCknLrEdhRCp1aegoMqRaCZg","vid":"LuKwFajn37U"},{"n":"BLOOMBERG","id":"UCIALMKvObZNtJ6AmdCLP7Lg","vid":"QB5BNdBFujE"},{"n":"TIMES NOW","id":"UCt4t-jeY85JegMlZ-E5UWtA","vid":"fuqnTZm94us"},{"n":"TRT WORLD","id":"UC7fWeaHhqgM4Ry-RMpM2YYw","vid":"b8lPrtjmnmw"}]};
+export const VOID_LIVE: { _resolvedAt: string; items: LiveChannel[] } = {"_resolvedAt":"2026-10-01T15:17:09.634Z","items":[{"n":"DW NEWS","id":"UCknLrEdhRCp1aegoMqRaCZg","vid":"LuKwFajn37U"},{"n":"BLOOMBERG","id":"UCIALMKvObZNtJ6AmdCLP7Lg","vid":"QB5BNdBFujE"},{"n":"TIMES NOW","id":"UCt4t-jeY85JegMlZ-E5UWtA","vid":"kXlSrKm9FjU"},{"n":"TRT WORLD","id":"UC7fWeaHhqgM4Ry-RMpM2YYw","vid":"qBe59l6p_EU"}]};
 
 // Channels ordered by embed reliability (DW confirmed working in tests).
 export const LIVE_CHANNELS: LiveChannel[] = [
@@ -442,11 +442,4 @@ export const NEWS_SOURCES: Record<string, StreamSource[]> = {
 };
 
 // Guaranteed-connectable, CORS-enabled HLS placeholder pool.
-// EMPTY, DELIBERATELY. This held two test streams labelled 'GLOBAL FEED' -
-// test-streams.mux.dev/x36xhzz, which is Big Buck Bunny, and an Akamai test
-// master. They were the catch-all on several chains, so a tile that could not
-// reach a real source played a cartoon under a newsroom's name. The kept name
-// and empty array are so nothing that still imports it has to change shape.
-// See BANNED_STREAM in keys.ts: even if a regeneration puts them back, they
-// cannot be played.
 export const GLOBAL_POOL: StreamSource[] = [];

@@ -113,9 +113,16 @@ function elsewhere(name: string, want = 14): StreamSource[] {
  *
  * So search gets the same pools the wall and the nation screens use: real HLS,
  * shuffled, de-duplicated, as substitutes AFTER the channel's own embed.
+ *
+ * IPTV ONLY, AND DELIBERATELY SO NOW. This used to list LIFE_POOL as well and
+ * then throw every one of its 487 entries away, because a LIFE entry is a
+ * YouTube id with no `url` and the de-duplication keyed on `url`. The effect was
+ * right - a spread of HLS - but by accident, which is the kind of thing that
+ * gets 'fixed' later by someone who notices the filter and removes it. LIFE is
+ * YouTube; a chain that exists to escape YouTube embeds has no use for it.
  */
 export function hlsSpread(want = 20): StreamSource[] {
-  const names = Object.keys(IPTV_POOL).concat(Object.keys(LIFE_POOL));
+  const names = Object.keys(IPTV_POOL);
   for (let i = names.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [names[i], names[j]] = [names[j], names[i]];
@@ -123,7 +130,7 @@ export function hlsSpread(want = 20): StreamSource[] {
   const out: StreamSource[] = [];
   const seen = new Set<string>();
   for (const n of names) {
-    for (const src of [...lifeFor(n), ...iptvFor(n)]) {
+    for (const src of iptvFor(n)) {
       const k = String((src as { url?: string }).url || '');
       if (!k || seen.has(k)) continue;
       seen.add(k);

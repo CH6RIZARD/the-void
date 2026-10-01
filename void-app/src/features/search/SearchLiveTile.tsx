@@ -64,15 +64,24 @@ function fallbacksFor(ch: LiveChannelRef): StreamSource[] {
  * and the viewer can act on it; a rabbit in a tree is neither.
  */
 function sourcesFor(ch: LiveChannelRef): StreamSource[] {
-  // The channel's own embed, then the other channels, then REAL HLS from the
-  // same pools the wall plays. Without that tail every link in the chain is a
-  // YouTube embed, so a device that cannot play one cannot play any of them -
-  // the tile walks all thirteen and lands on nothing, which is what 'they just
-  // rotate and never play' looks like from the outside.
+  // THE CHANNEL, THEN SOMETHING THAT WORKS, THEN THE REST OF YOUTUBE.
+  //
+  // The chain used to be 39 YouTube embeds followed by HLS, so nothing reached
+  // the HLS unless all 39 failed. And 29 of those 39 fail in ZERO MILLISECONDS:
+  // refuseInstantly only lets a YouTube source mount if it carries an explicit
+  // video id or its channel is in VOID_LIVE, and VOID_LIVE is four channels
+  // resolved on 2026-08-03. So the viewer watched the same handful of channels
+  // cycle on months-old pinned videos while two thousand working HLS streams sat
+  // at the back of the queue.
+  //
+  // The tile still leads with its OWN channel - that is what the tile claims to
+  // be. What follows is real HLS, so a tile that cannot mount its channel shows
+  // a working picture within one attempt instead of after thirty-nine. The other
+  // channels stay on the end as a last resort rather than a wall to climb.
   return [
     { type: 'youtube', id: ch.id, label: ch.n } as StreamSource,
+    ...(hlsSpread(14) as unknown as StreamSource[]),
     ...fallbacksFor(ch),
-    ...(hlsSpread(20) as unknown as StreamSource[]),
   ];
 }
 
