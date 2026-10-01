@@ -88,6 +88,8 @@ class Lanes {
 }
 
 export interface LiveWallProps {
+  /** True while the wall is being dragged or still gliding. */
+  onScrollActive?: (active: boolean) => void;
   /** Pull-to-refresh also ran: refresh whatever else shares this screen. */
   onRefresh?: () => void;
   /** Globe tab focused AND mode === 'globe' AND nothing covering it. */
@@ -107,7 +109,7 @@ const PAD = 10;
 // How far off the top a finger may land and still count as a pull from rest.
 const ARM_SLOP = 6;
 
-export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveWall({ active, grid3 = false, bottomInset = 0, onRefresh: onRefreshOuter }, ref) {
+export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveWall({ active, grid3 = false, bottomInset = 0, onRefresh: onRefreshOuter, onScrollActive }, ref) {
   const t = useLiveTheme();
   const win = useWindowDimensions();
   // TWO COLUMNS, ALWAYS.
@@ -400,8 +402,16 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
     // Audio is a deliberate choice about one tile; scrolling is not a decision
     // to end it. The audible tile is exempt from parking and from eviction, and
     // there is only ever one of them.
-    const audibleRec = tiles.find((t) => audibleIdRef.current && ('wall:' + t.id) === audibleIdRef.current);
-    const keepId = audibleRec ? audibleRec.id : -1;
+    // Read the id straight out of the audio owner rather than searching `tiles`.
+    // This callback does not list `tiles` in its deps, so the array it closed over
+    // is the one from the FIRST render - empty - and the lookup found nothing every
+    // time. keepId was always -1 and the protection never once applied, which is
+    // why the stream you were listening to still died on a scroll.
+    //
+    // A wall tile is `wall:<id>` (see WallTile), so the id is already in the
+    // string and no lookup is needed.
+    const audibleNow = audibleIdRef.current || '';
+    const keepId = audibleNow.startsWith('wall:') ? Number(audibleNow.slice(5)) : -1;
     const parked = new Set<number>();
     // Distance only. The inactive case returned above.
     for (const [id, d] of dist) if (d > PARK_SCREENS && id !== keepId) parked.add(id);
@@ -520,6 +530,7 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
   const [refreshing, setRefreshing] = useState(false);
   const [pullArmed, setPullArmed] = useState(true);
   const onScrollBeginDrag = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    scrollActiveRef.current?.(true);
     // ARM_SLOP, not zero: the wall rests a hair off the top while the first
     // batch settles, and a finger that lands there is still a finger at the top.
     setPullArmed(e.nativeEvent.contentOffset.y <= ARM_SLOP && !refreshing);
@@ -550,13 +561,20 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
   const audibleIdRef = useRef<string | null>(null);
   audibleIdRef.current = audio.audibleId;
 
+  const scrollActiveRef = useRef(onScrollActive);
+  scrollActiveRef.current = onScrollActive;
   const lastPlaceAt = useRef(0);
   const onScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       w.scrollY = e.nativeEvent.contentOffset.y;
       if (sentinelNear()) loadBatchRef.current(WALL_BATCH);
       const now = Date.now();
-      if (now - lastPlaceAt.current > 300) {
+      // Placement walks every tile, sorts them and rebuilds two Sets. At 300ms
+      // that is three of those per second DURING a drag, on the thread the
+      // gesture is being handled on - which is felt as the scroll not following
+      // the finger. Twice a second is still well ahead of anything leaving the
+      // ring, and the pass on momentum-end catches up the moment it settles.
+      if (now - lastPlaceAt.current > 500) {
         lastPlaceAt.current = now;
         recomputePlacement();
       }
@@ -594,7 +612,12 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
       }}
       onScroll={onScroll}
       onScrollBeginDrag={onScrollBeginDrag}
-      onMomentumScrollEnd={recomputePlacement}
+      onScrollEndDrag={() => scrollActiveRef.current?.(false)}
+      onMomentumScrollBegin={() => scrollActiveRef.current?.(true)}
+      onMomentumScrollEnd={() => {
+        scrollActiveRef.current?.(false);
+        recomputePlacement();
+      }}
       refreshControl={
         // IT KEPT FIRING BY ACCIDENT, WHICH IS THE ONE THING THAT WAS ASKED FOR.
         //

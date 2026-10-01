@@ -131,6 +131,17 @@ function GlobeSurfaces({
   // and a GONE SurfaceView releases its surface. Only the surface goes - players,
   // buffers and sockets survive, so settling re-attaches instead of reconnecting.
   const [sliding, setSliding] = useState(false);
+  // THE GLOBE DOES NOT RENDER WHILE YOU ARE SCROLLING THE WALL.
+  //
+  // The globe's frame loop runs on the same JS thread that handles the wall's
+  // gesture, and it runs whether or not the globe is the thing being touched.
+  // Scrolling the wall therefore competes with a full 3D render every frame,
+  // and the scroll stops following the finger.
+  //
+  // While the wall is being dragged the globe holds its last frame - it is above
+  // the wall and barely in view at that point - and resumes the moment the
+  // scroll settles. Nothing is torn down; the loop simply stops asking.
+  const [wallScrolling, setWallScrolling] = useState(false);
   // The globe's own gesture. The panel swipe must fail wherever this one is
   // active, or turning the globe doubles as a swipe to reels.
   const globeGesture = useRef<any>(null);
@@ -234,12 +245,12 @@ function GlobeSurfaces({
             <Animated.View style={[styles.view, { top: insets.top }, mapStyle]} pointerEvents={mode === 'globe' ? 'auto' : 'none'}>
               <LoaderActiveContext.Provider value={globeVisible}>
                 {globeSeen ? (
-                  <GlobeCanvas running={globeVisible} onOpenCountry={openCountry} refreshNonce={globeNonce} gestureRef={globeGesture} />
+                  <GlobeCanvas running={globeVisible && !wallScrolling} onOpenCountry={openCountry} refreshNonce={globeNonce} gestureRef={globeGesture} />
                 ) : (
                   <View style={{ height: globeH, backgroundColor: '#04020c' }} />
                 )}
                 {/* Built the first time GLOBE is shown (web: buildGlobeGrid inside setGlobeMode). */}
-                <LiveWall active={globeVisible && !sliding} grid3={grid3} bottomInset={bottomInset} onRefresh={() => setGlobeNonce((n) => n + 1)} />
+                <LiveWall active={globeVisible && !sliding} grid3={grid3} bottomInset={bottomInset} onRefresh={() => setGlobeNonce((n) => n + 1)} onScrollActive={setWallScrolling} />
               </LoaderActiveContext.Provider>
             </Animated.View>
           </View>
