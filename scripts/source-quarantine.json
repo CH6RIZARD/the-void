@@ -318,5 +318,85 @@
   },
   "since": 1790891386590,
   "why": "no-cors"
+ },
+ "https://dhohotv.siar.us/dhohotv/live/playlist.m3u8": {
+  "country": "Indonesia",
+  "src": {
+   "type": "hls",
+   "url": "https://dhohotv.siar.us/dhohotv/live/playlist.m3u8",
+   "label": "Dhoho TV"
+  },
+  "since": 1790894170152,
+  "why": "status 404"
+ },
+ "https://v2.siar.us/radartasikmalaya/live/playlist.m3u8": {
+  "country": "Indonesia",
+  "src": {
+   "type": "hls",
+   "url": "https://v2.siar.us/radartasikmalaya/live/playlist.m3u8",
+   "label": "Radar Tasikmalaya TV"
+  },
+  "since": 1790894170152,
+  "why": "status 404"
+ },
+ "https://5ab772334c39c.streamlock.net/live-teleislas/teleislas/playlist.m3u8": {
+  "country": "Colombia",
+  "src": {
+   "type": "hls",
+   "url": "https://5ab772334c39c.streamlock.net/live-teleislas/teleislas/playlist.m3u8",
+   "label": "Teleislas"
+  },
+  "since": 1790894170153,
+  "why": "status 404"
+ },
+ "https://cdn.streamhispanatv.net:3390/live/sastvgtlive.m3u8": {
+  "country": "Guatemala",
+  "src": {
+   "type": "hls",
+   "url": "https://cdn.streamhispanatv.net:3390/live/sastvgtlive.m3u8",
+   "label": "SAS TV"
+  },
+  "since": 1790894170153,
+  "why": "status 404"
+ },
+ "https://live20.bozztv.com/akamaissh101/ssh101/fsradiotv/playlist.m3u8": {
+  "country": "Belize",
+  "src": {
+   "type": "hls",
+   "url": "https://live20.bozztv.com/akamaissh101/ssh101/fsradiotv/playlist.m3u8",
+   "label": "Flex Studio Radio TV"
+  },
+  "since": 1790894170153,
+  "why": "status 404"
+ },
+ "https://59ef525c24caa.streamlock.net/vmtv/tvvintage/playlist.m3u8": {
+  "country": "Costa Rica",
+  "src": {
+   "type": "hls",
+   "url": "https://59ef525c24caa.streamlock.net/vmtv/tvvintage/playlist.m3u8",
+   "label": "Vintage Music"
+  },
+  "since": 1790896954517,
+  "why": "status 403"
+ },
+ "https://calm-forest-3478.cristianbracho904.workers.dev/live/index.m3u8": {
+  "country": "Venezuela",
+  "src": {
+   "type": "hls",
+   "url": "https://calm-forest-3478.cristianbracho904.workers.dev/live/index.m3u8",
+   "label": "Canal C del Zulia"
+  },
+  "since": 1790896954517,
+  "why": "status 502"
+ },
+ "https://live20.bozztv.com/giatv/giatv-chinique100tvenvivo/chinique100tvenvivo/playlist.m3u8": {
+  "country": "Guatemala",
+  "src": {
+   "type": "hls",
+   "url": "https://live20.bozztv.com/giatv/giatv-chinique100tvenvivo/chinique100tvenvivo/playlist.m3u8",
+   "label": "Canal 100 Chinique"
+  },
+  "since": 1790896954518,
+  "why": "status 404"
  }
 }

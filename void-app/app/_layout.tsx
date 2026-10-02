@@ -5,6 +5,8 @@ import 'react-native-reanimated';
 import React, { useEffect, useState } from 'react';
 import { AppState, StyleSheet, View } from 'react-native';
 import { mark, startHeartbeat } from '../src/core/slow';
+// Module evaluation time: the earliest moment JS can see. [boot] lines count from here.
+const BOOT_T0 = Date.now();
 
 // A GL SURFACE THAT COMES BACK EMPTY MUST NOT KILL THE APP. expo-gl's own
 // onSurfaceCreate does getGl(id) -> global.__EXGLContexts[id] -> configureLogging(gl)
@@ -85,7 +87,13 @@ function Shell() {
   }, [theme.colors.bg]);
 
   useEffect(() => {
-    if (ready) SplashScreen.hideAsync().catch(() => {});
+    if (!ready) return;
+    SplashScreen.hideAsync().catch(() => {});
+    // The first frame of the real app. Everything before this was a dark view.
+    mark('boot:ready');
+    try {
+      console.warn('[boot] ready after ' + (Date.now() - BOOT_T0) + 'ms (core ' + coreReady + ', theme ' + theme.ready + ', fonts ' + (fontsLoaded || !!fontError) + ')');
+    } catch {}
   }, [ready]);
 
   // Backgrounding is the one safe moment to hand the decoded-image cache back: the
