@@ -10448,16 +10448,36 @@ window.VMod={SUPPORT_EMAIL,TERMS_URL,PRIVACY_URL,menu,cmenu,author,reportSheet,p
 #onb .ob-copy{padding:26px 28px calc(46px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px;height:50%;max-width:560px;margin:0 auto}
 /* 3 · card */
 #onb .ob-card-bg{background:#0a0620;background-image:radial-gradient(70% 45% at 50% 40%,#1a0c44 0%,#0a0620 65%)}
-#onb .ob-page{height:100%;display:flex;flex-direction:column;padding:calc(78px + env(safe-area-inset-top)) 28px calc(40px + env(safe-area-inset-bottom));max-width:560px;margin:0 auto}
+#onb .ob-page{height:100%;display:flex;flex-direction:column;padding:calc(78px + env(safe-area-inset-top)) 28px calc(40px + env(safe-area-inset-bottom));max-width:560px;margin:0 auto;position:relative;z-index:1}
+#onb .ob-pill{padding:6px 10px;border-radius:12px;background:rgba(13,8,32,.72)}
 #onb .ob-tabs{display:flex;gap:2px;padding:3px;border-radius:20px;background:rgba(13,8,32,.72);box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
 #onb .ob-tabs button{padding:6px 12px;border:none;border-radius:16px;background:transparent;font-family:'Syne Mono',monospace;font-size:7.5px;letter-spacing:.18em;color:#5c4d8a;cursor:pointer}
 #onb .ob-tabs button.on{background:rgba(255,255,255,.07);color:#c9a84c}
-#onb .ob-card{width:100%;aspect-ratio:1.586;position:relative;border-radius:18px;background:linear-gradient(160deg,#0d0820 0%,#04020c 60%,#0f0a26 100%);box-shadow:0 40px 80px rgba(0,0,0,.7),0 0 0 1px rgba(201,168,76,.35),inset 0 1px 0 rgba(255,255,255,.08);padding:22px 24px;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;animation:obCardIn .7s cubic-bezier(.2,.8,.2,1) both}
-#onb .ob-card::before{content:'';position:absolute;inset:0;background:linear-gradient(115deg,transparent 30%,rgba(201,168,76,.08) 45%,transparent 60%);background-size:200% 100%;animation:obShimmer 5s linear infinite;pointer-events:none}
-#onb .ob-field{display:flex;align-items:baseline;gap:6px}
+/* THE NAME TAG on its LANYARD (v2, 2026-09-30) — the web twin of
+   void-app/src/features/onboarding/{CardGate,Lanyard}.tsx. Same tag, same
+   ribbon stack, same hardware, same ten flows; one rolls at random per
+   session. The ribbons span the WHOLE screen (402x874 space stretched to
+   the viewport) and sit under every text and button; the strap-clip is
+   drawn twice — behind the tag, and again in an overlay clipped to the
+   band between the tag's top edge and the slot's lower lip — so it visibly
+   passes THROUGH the hole. Everything is anchored to the measured slot. */
+#onb .ob-tagzone{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;z-index:2;width:100%}
+#onb .ob-tag{width:100%;aspect-ratio:1.586;position:relative;border-radius:18px;background:linear-gradient(160deg,#0d0820 0%,#04020c 60%,#0f0a26 100%);box-shadow:0 40px 80px rgba(0,0,0,.7),0 0 0 1px rgba(201,168,76,.35),inset 0 1px 0 rgba(255,255,255,.08);display:flex;flex-direction:column;overflow:hidden;animation:obCardIn .7s cubic-bezier(.2,.8,.2,1) both}
+#onb .ob-tag::before{content:'';position:absolute;inset:0;background:linear-gradient(115deg,transparent 30%,rgba(201,168,76,.08) 45%,transparent 60%);background-size:200% 100%;animation:obShimmer 5s linear infinite;pointer-events:none;z-index:2}
+#onb .ob-slot{position:relative;z-index:1;align-self:center;width:34px;height:9px;border-radius:5px;background:#04020c;margin:10px 0;box-shadow:inset 0 1px 2px rgba(0,0,0,.9),0 1px 0 rgba(201,168,76,.22)}
+#onb .ob-band{display:flex;justify-content:space-between;align-items:center;padding:11px 24px;background:linear-gradient(90deg,#c9a84c 0%,#e2c56a 50%,#c9a84c 100%);color:#0a0620;font-weight:800;font-size:13px;letter-spacing:.14em}
+#onb .ob-band .ob-mono{color:#2a1060}
+#onb .ob-tagbody{flex:1;display:flex;flex-direction:column;justify-content:space-between;padding:16px 24px 18px}
+#onb .ob-stamp{display:flex;align-items:center;gap:8px}
+#onb .ob-barcode{display:flex;align-items:flex-end;gap:2px;height:22px}
+#onb .ob-barcode span{display:block;height:22px;background:rgba(233,230,245,.85)}
+#onb .ob-lanyard{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;opacity:0;transition:opacity .4s;z-index:0}
+#onb .ob-lanyard.over{z-index:4}
+#onb .ob-lanyard.in{opacity:1}
+#onb .ob-field{display:flex;align-items:baseline;gap:6px;border-bottom:1px solid rgba(255,255,255,.12);padding-bottom:4px}
 #onb .ob-field b{font-family:'DM Serif Display',serif;font-style:italic;font-size:30px;color:#c9a84c;font-weight:400}
 #onb .ob-field input{flex:1;background:transparent;border:none;outline:none;color:#f4f0ff;font-family:'DM Serif Display',serif;font-style:italic;font-size:30px;caret-color:#c9a84c;min-width:0;padding:0}
-#onb .ob-globebtn{position:relative;background:none;border:none;padding:6px;margin:-6px;cursor:default;display:flex}
+#onb .ob-globebtn{position:relative;background:none;border:none;padding:6px;margin:-6px;cursor:default;display:flex;align-items:center;gap:8px}
 #onb .ob-globebtn.armed{cursor:pointer;animation:obLift 1.6s ease-in-out infinite}
 #onb .ob-globebtn i{position:absolute;inset:-4px;border-radius:50%;background:radial-gradient(circle,rgba(201,168,76,.45),rgba(201,168,76,0) 70%);opacity:0;pointer-events:none}
 #onb .ob-globebtn.armed i{animation:obGlow 1.6s ease-in-out infinite}
@@ -10483,15 +10503,15 @@ window.VMod={SUPPORT_EMAIL,TERMS_URL,PRIVACY_URL,menu,cmenu,author,reportSheet,p
 const ONBOARDED='void_onboarded', RESUME='void_onboard_resume', PREV='void_onboard_prev', PENDING='void_pending_profile', FLOORS='void_onboard_floors', PICKS='void_onboard_picks';
 const HANDLE_RE=/^[a-z0-9_]{3,20}$/, ANON_RE=/^void_[a-z0-9]{6}$/, OK_EMAIL=/^\S+@\S+\.\S+$/;
 const COPY={
-  's1.live':'{n} WINDOWS OPEN RIGHT NOW','s1.headline':'The world, unranked, from the people standing in it.','s1.cta':'JUMP INTO THE VOID','s1.signin':'ALREADY HAVE A CARD · SIGN IN','s1.tile.live':'LIVE',
+  's1.live':'{n} WINDOWS OPEN RIGHT NOW','s1.headline':'The world, unranked, from the people standing in it.','s1.cta':'JUMP INTO THE VOID','s1.signin':'ALREADY HAVE A TAG · SIGN IN','s1.tile.live':'LIVE',
   's2.eyebrow':'THE GLOBE · 195 NATIONS','s2.headline':'Every light is someone streaming. They come and go like stars.','s2.body':'No algorithm decides which ones you see. You turn the globe, you pick the light.','s2.hint':'DRAG TO TURN','s2.cta':'CLAIM A SIGNAL',
-  's3.eyebrow':'IDENTITY · 3 OF 4','s3.new.headline':'Your card. Print a name on it, or don’t.','s3.login.headline':'Welcome back. Your card, your handle.',
+  's3.eyebrow':'IDENTITY · 3 OF 4','s3.new.headline':'Your tag. Print a name on it, or don’t.','s3.login.headline':'Welcome back. Your tag, your handle.',
   's3.new.providers.empty':'TYPE A HANDLE, THEN SIGN UP WITH','s3.new.providers.filled':'SIGN UP @{H} WITH','s3.login.providers':'OR SIGN IN WITH',
   's3.new.legal.blank':'NO NAME · NO EMAIL · NOTHING TO LEAK','s3.new.legal.filled':'YOUR HANDLE IS SAVED WITH WHICHEVER YOU PICK','s3.login.legal':'FOUR WAYS IN · EACH ONE STANDS ALONE',
   'err.handle.missing.new':'TYPE A HANDLE ON THE CARD FIRST','err.handle.missing.login':'TYPE YOUR HANDLE ON THE CARD','err.handle.format':'3+ LETTERS, NUMBERS AND _ ONLY',
   'err.email':'VALID EMAIL','err.pass.missing':'ENTER YOUR PASSWORD','err.pass.short':'8+ CHARACTER PASSWORD','err.pass.mismatch':'PASSWORDS DON’T MATCH',
-  'err.server.handleTaken':'HANDLE TAKEN','err.server.badLogin':'WRONG HANDLE OR PASSWORD','err.server.badEmailLogin':'WRONG EMAIL OR PASSWORD','err.server.noAccount':'NO CARD FOUND · TRY NEW USER',
-  'err.server.cardExists':'CARD EXISTS · USE LOGIN','err.server.confirmEmail':'CHECK YOUR EMAIL TO CONFIRM, THEN LOG IN','err.server.providerOff':'{P} SIGN-IN IS NOT SWITCHED ON YET','err.server.handleLoginOff':'HANDLE LOGIN UNAVAILABLE · USE EMAIL','err.server.offline':'SIGNAL LOST · RETRY',
+  'err.server.handleTaken':'HANDLE TAKEN','err.server.badLogin':'WRONG HANDLE OR PASSWORD','err.server.badEmailLogin':'WRONG EMAIL OR PASSWORD','err.server.noAccount':'NO TAG FOUND · TRY NEW USER',
+  'err.server.cardExists':'TAG EXISTS · USE LOGIN','err.server.confirmEmail':'CHECK YOUR EMAIL TO CONFIRM, THEN LOG IN','err.server.providerOff':'{P} SIGN-IN IS NOT SWITCHED ON YET','err.server.handleLoginOff':'HANDLE LOGIN UNAVAILABLE · USE EMAIL','err.server.offline':'SIGNAL LOST · RETRY',
   's4.headline.0':'What should reach you first?','s4.headline.1to2':'Good. Two more and the feed knows you.','s4.headline.3plus':'Enough to start. It learns from every bolt.',
   's5.line.empty':'Everything, then. The void starts wide.','s5.line.login':'Your feed, where you left it.'
 };
@@ -10680,9 +10700,73 @@ function screenGlobe(){
   return `<div class="ob-screen" style="display:flex;flex-direction:column"><div class="ob-globe"><canvas id="ob-cv"></canvas><div class="ob-horizon"></div><div class="ob-mono" style="position:absolute;left:0;right:0;bottom:10px;text-align:center;font-size:7.5px;letter-spacing:.25em;color:#8d7cc0;pointer-events:none">${t('s2.hint')}</div></div>
   <div class="ob-copy"><div class="ob-mono">${t('s2.eyebrow')}</div><div class="ob-serif" style="font-size:30px">${t('s2.headline')}</div><div style="font-size:13px;line-height:1.5;color:#8d7cc0">${t('s2.body')}</div><div style="flex:1"></div><button class="ob-cta" data-a="next">${t('s2.cta')}</button></div></div>`;
 }
+// Eleven bars, fixed — a barcode that changes is a barcode nobody believes.
+const BARCODE=[3,1,2,1,1,3,1,2,2,1,3].map(w=>'<span style="width:'+w+'px"></span>').join('');   // spans, not <i>: .ob-globebtn i is the glow
+// Lanyard v2 — mirrors void-app/src/features/onboarding/Lanyard.tsx exactly.
+// Screen space is 402x874 (stretched to the viewport, preserveAspectRatio
+// none); the crimp sits CRIMP_RISE above the slot's bottom edge; the ribbon
+// ends stop 6px above the crimp and 3px either side of it.
+const LANYARD_W=402,LANYARD_H=874,CRIMP_RISE=58;
+const LANYARDS=[
+  {n:'9a NECK LOOP',l:(x,y)=>`M40 -30 C 70 120, ${x-70} ${y-160}, ${x-3} ${y-6}`,r:(x,y)=>`M362 -30 C 332 120, ${x+70} ${y-160}, ${x+3} ${y-6}`},
+  {n:'9b OFF-SHOULDER',l:(x,y)=>`M-30 20 C 90 60, ${x-60} ${y-140}, ${x-3} ${y-6}`,r:(x,y)=>`M300 -30 C 300 120, ${x+40} ${y-120}, ${x+3} ${y-6}`},
+  {n:'9c SLUNG RIGHT',l:(x,y)=>`M120 -30 C 130 100, ${x-30} ${y-130}, ${x-3} ${y-6}`,r:(x,y)=>`M430 40 C 330 90, ${x+90} ${y-120}, ${x+3} ${y-6}`},
+  {n:'9d CROSSED',l:(x,y)=>`M80 -30 C 200 80, ${x-110} ${y-140}, ${x-3} ${y-6}`,r:(x,y)=>`M330 -30 C 210 90, ${x+110} ${y-150}, ${x+3} ${y-6}`},
+  {n:'9e GOLD LOOP',l:(x,y)=>`M40 -30 C 70 120, ${x-70} ${y-160}, ${x-3} ${y-6}`,r:(x,y)=>`M362 -30 C 332 120, ${x+70} ${y-160}, ${x+3} ${y-6}`,gold:true},
+  {n:'9f WIDE V',l:(x,y)=>`M-20 -30 C 60 60, ${x-50} ${y-120}, ${x-3} ${y-6}`,r:(x,y)=>`M422 -30 C 342 60, ${x+50} ${y-120}, ${x+3} ${y-6}`},
+  {n:'9g TIGHT V',l:(x,y)=>`M150 -30 C 160 90, ${x-25} ${y-150}, ${x-3} ${y-6}`,r:(x,y)=>`M252 -30 C 242 90, ${x+25} ${y-150}, ${x+3} ${y-6}`},
+  {n:'9h SLUNG LEFT',l:(x,y)=>`M-28 40 C 70 90, ${x-90} ${y-120}, ${x-3} ${y-6}`,r:(x,y)=>`M282 -30 C 272 100, ${x+30} ${y-130}, ${x+3} ${y-6}`},
+  {n:'9i SLACK BELLY',l:(x,y)=>`M60 -30 C 20 160, ${x-120} ${y-60}, ${x-3} ${y-6}`,r:(x,y)=>`M342 -30 C 382 160, ${x+120} ${y-60}, ${x+3} ${y-6}`},
+  {n:'9j GOLD CROSSED',l:(x,y)=>`M80 -30 C 200 80, ${x-110} ${y-140}, ${x-3} ${y-6}`,r:(x,y)=>`M330 -30 C 210 90, ${x+110} ${y-150}, ${x+3} ${y-6}`,gold:true},
+];
+const RIB_PURPLE=['#150c2c','#2b1b55','#3a2670','#2b1b55','#150c2c'],RIB_GOLD=['#7a5a1c','#c9a84c','#e2c56a','#c9a84c','#7a5a1c'];
+// One ribbon end: the same path as a stack of strokes. The stitch is drawn
+// wide, then the body is re-drawn narrower over it, leaving a 1.5px stitch
+// line down each edge. The print rides a <textPath> along the same path.
+function ribbonSvg(d,uid,gold,pid){const ink=gold?'#2a1060':'#c9a84c';return `<path d="${d}" stroke="rgba(0,0,0,.38)" stroke-width="19" fill="none" stroke-linecap="butt" transform="translate(1,3)"/><path d="${d}" stroke="url(#rib${uid})" stroke-width="18" fill="none" stroke-linecap="butt"/><path d="${d}" stroke="url(#weave${uid})" stroke-width="18" fill="none" stroke-linecap="butt"/><path d="${d}" stroke="${ink}" stroke-opacity=".6" stroke-width="15" stroke-dasharray="2.5 3" fill="none" stroke-linecap="butt"/><path d="${d}" stroke="url(#rib${uid})" stroke-width="12" fill="none" stroke-linecap="butt"/><path d="${d}" stroke="url(#weave${uid})" stroke-width="12" fill="none" stroke-linecap="butt"/><text font-family="'Syne',sans-serif" font-weight="800" font-size="6" letter-spacing="1.4" fill="${ink}" fill-opacity=".9" dominant-baseline="central"><textPath href="#${pid}" startOffset="2%">${'THE ⬡ VOID · '.repeat(48)}</textPath></text>`;}
+// Crimp, neck stub and swivel hook, at the crimp point.
+function hardwareSvg(cx,cy,uid){return `<rect x="${cx-13}" y="${cy-11}" width="26" height="22" rx="5" fill="url(#crimp${uid})"/><path d="M${cx-7} ${cy-4} H${cx+7} M${cx-7} ${cy+4} H${cx+7}" stroke="rgba(0,0,0,.45)" stroke-width="1.4"/><rect x="${cx-3}" y="${cy+11}" width="6" height="7" rx="1.5" fill="#c9a84c"/><path d="M${cx} ${cy+18} C ${cx-9} ${cy+24}, ${cx-9} ${cy+38}, ${cx} ${cy+40} C ${cx+9} ${cy+38}, ${cx+9} ${cy+24}, ${cx} ${cy+18} Z" fill="none" stroke="#c9a84c" stroke-width="3.2"/><path d="M${cx} ${cy+21} C ${cx-6} ${cy+26}, ${cx-6} ${cy+36}, ${cx} ${cy+37} C ${cx+6} ${cy+36}, ${cx+6} ${cy+26}, ${cx} ${cy+21} Z" fill="none" stroke="rgba(0,0,0,.5)" stroke-width=".7"/>`;}
+// The clear plastic clip: from the hook ring down THROUGH the slot and back.
+function clipD(cx,cy,slotY){const top=cy+34,bottom=slotY+10;return `M${cx-5} ${top} C ${cx-7} ${top+10}, ${cx-7} ${bottom-10}, ${cx-5} ${bottom} L ${cx+5} ${bottom} C ${cx+7} ${bottom-10}, ${cx+7} ${top+10}, ${cx+5} ${top}`;}
+function clipSvg(cx,cy,slotY,uid){const d=clipD(cx,cy,slotY);return `<path d="${d}" fill="none" stroke="url(#clip${uid})" stroke-width="3" stroke-linecap="round"/><path d="${d}" fill="none" stroke="rgba(255,255,255,.5)" stroke-width=".6" stroke-linecap="round"/>`;}
+// over=true draws ONLY the clip, clipped to the band between the tag's top
+// edge and the slot's lower lip; painted above the tag it is what makes the
+// clip pass through the hole. Every id carries the per-instance uid.
+function lanyardSvg(idx,slot,uid,over){
+  const flow=LANYARDS[idx]||LANYARDS[0],cx=slot.x,cy=slot.y-CRIMP_RISE,stops=flow.gold?RIB_GOLD:RIB_PURPLE,dl=flow.l(cx,cy),dr=flow.r(cx,cy);
+  const defs=`<defs><linearGradient id="rib${uid}" x1="0" y1="0" x2="1" y2="0">${stops.map((c,i)=>`<stop offset="${i/(stops.length-1)}" stop-color="${c}"/>`).join('')}</linearGradient><pattern id="weave${uid}" width="3" height="3" patternUnits="userSpaceOnUse"><rect x="0" y="0" width="1.5" height="1.5" fill="rgba(255,255,255,.07)"/><rect x="1.5" y="1.5" width="1.5" height="1.5" fill="rgba(0,0,0,.18)"/></pattern><linearGradient id="crimp${uid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f3e3a6"/><stop offset=".4" stop-color="#c9a84c"/><stop offset=".75" stop-color="#7d6122"/><stop offset="1" stop-color="#d8b95a"/></linearGradient><linearGradient id="clip${uid}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".08"/><stop offset=".5" stop-color="#fff" stop-opacity=".28"/><stop offset="1" stop-color="#fff" stop-opacity=".08"/></linearGradient><path id="rpl${uid}" d="${dl}" fill="none"/><path id="rpr${uid}" d="${dr}" fill="none"/>${over?`<clipPath id="band${uid}"><rect x="0" y="${slot.tagTop}" width="${LANYARD_W}" height="${Math.max(0,slot.y-slot.tagTop)}"/></clipPath>`:''}</defs>`;
+  const body=over?`<g clip-path="url(#band${uid})">${clipSvg(cx,cy,slot.y,uid)}</g>`:ribbonSvg(dl,uid,flow.gold,'rpl'+uid)+ribbonSvg(dr,uid,flow.gold,'rpr'+uid)+clipSvg(cx,cy,slot.y,uid)+hardwareSvg(cx,cy,uid);
+  return `<svg class="ob-lanyard${over?' over':''}" viewBox="0 0 ${LANYARD_W} ${LANYARD_H}" preserveAspectRatio="none" aria-hidden="true">${defs}${body}</svg>`;
+}
+// Measure the slot against the SCREEN (the SVG covers all of it), then paint
+// both copies. Hidden until measured AND the tag's entrance has settled: a
+// strap measured mid-flight lands across the tag's face.
+function mountLanyard(){
+  const scr=document.querySelector('#onb .ob-screen'),tag=document.getElementById('ob-tag'),slot=document.getElementById('ob-slot');
+  if(!scr||!tag||!slot)return;
+  if(S.lanyard==null)S.lanyard=Math.floor(Math.random()*LANYARDS.length);   // rolled once per session — never a default
+  const uid='u'+Math.random().toString(36).slice(2,7);
+  let settled=false,painted=false;
+  const paint=()=>{
+    const R=scr.getBoundingClientRect(),s=slot.getBoundingClientRect(),g=tag.getBoundingClientRect();
+    if(!R.width||!R.height||!s.width||!document.contains(tag))return;
+    const kx=LANYARD_W/R.width,ky=LANYARD_H/R.height;
+    const geom={x:(s.left+s.width/2-R.left)*kx,y:(s.bottom-R.top)*ky,tagTop:(g.top-R.top)*ky};
+    scr.querySelectorAll('.ob-lanyard').forEach(e=>e.remove());
+    scr.insertAdjacentHTML('afterbegin',lanyardSvg(S.lanyard,geom,uid,false));
+    scr.insertAdjacentHTML('beforeend',lanyardSvg(S.lanyard,geom,uid,true));
+    const svgs=scr.querySelectorAll('.ob-lanyard');
+    if(painted)svgs.forEach(e=>e.classList.add('in'));else requestAnimationFrame(()=>svgs.forEach(e=>e.classList.add('in')));
+    painted=true;
+  };
+  const go=()=>{if(settled)return;settled=true;paint();};
+  tag.addEventListener('animationend',go,{once:true});setTimeout(go,800);
+  if(S.lanyardRO){S.lanyardRO.disconnect();S.lanyardRO=null;}
+  if(typeof ResizeObserver!=='undefined'){const ro=new ResizeObserver(()=>{if(settled)paint();});ro.observe(scr);S.lanyardRO=ro;}
+}
 function screenCard(){
-  if(S.done){const v=S.done.via,h=S.done.handle;const w=v==='anon'?'You are nobody here.':v==='login'?(h?'@'+esc(h)+', you’re back.':'Welcome back.'):'@'+esc(h)+', your card is issued.';
-    return `<div class="ob-screen ob-card-bg" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 28px"><div style="font-size:40px;color:#c9a84c;text-shadow:0 0 30px rgba(201,168,76,.7)">⬡</div><div class="ob-serif" style="font-size:26px;margin-top:22px">${w}</div><div class="ob-bar"><div></div></div><div class="ob-mono" style="letter-spacing:.35em;margin-top:14px">${v==='login'?'CARD FOUND':'SIGNAL ACQUIRED'}</div></div>`;}
+  if(S.done){const v=S.done.via,h=S.done.handle;const w=v==='anon'?'You are nobody here.':v==='login'?(h?'@'+esc(h)+', you’re back.':'Welcome back.'):'@'+esc(h)+', your tag is issued.';
+    return `<div class="ob-screen ob-card-bg" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 28px"><div style="font-size:40px;color:#c9a84c;text-shadow:0 0 30px rgba(201,168,76,.7)">⬡</div><div class="ob-serif" style="font-size:26px;margin-top:22px">${w}</div><div class="ob-bar"><div></div></div><div class="ob-mono" style="letter-spacing:.35em;margin-top:14px">${v==='login'?'TAG FOUND':'SIGNAL ACQUIRED'}</div></div>`;}
   const login=S.mode==='login',h=strip(S.handle),H=h.toUpperCase().slice(0,14),armed=S.flipped&&!!S.pass,dis=S.busy?' disabled':'';
   const field=S.flipped
     ?`<div class="ob-field"><b>✱</b><input id="ob-pass" type="${S.showPass?'text':'password'}" value="${esc(S.pass)}" placeholder="password" autocomplete="current-password"><button class="ob-link" data-a="showPass" style="font-size:7px;color:#8d7cc0;padding:4px 0">${S.showPass?'HIDE':'SHOW'}</button></div>`
@@ -10703,15 +10787,16 @@ function screenCard(){
     const ring=S.pass2&&S.pass2!==S.pass?'rgba(239,68,68,.6)':S.pass2&&S.pass2===S.pass?'rgba(16,185,129,.6)':'rgba(201,168,76,.35)';
     bottom=`<div style="display:flex;align-items:center;gap:10px" class="ob-mono"><button class="ob-link" data-a="backEmail" style="font-size:16px;color:#8d7cc0;padding:0 4px 0 0">‹</button><span style="font-size:7px;letter-spacing:.22em">${esc(S.email.toUpperCase().slice(0,18))} · SET A PASSWORD</span></div>
     <input class="ob-box" id="ob-p1" type="password" value="${esc(S.pass)}" placeholder="password · 8+ characters" autocomplete="new-password"><input class="ob-box" id="ob-p2" type="password" value="${esc(S.pass2)}" placeholder="confirm password" autocomplete="new-password" style="box-shadow:inset 0 0 0 1px ${ring}">
-    <div class="ob-err">${esc(S.err)}</div><button class="ob-cta" data-a="create"${dis}>ISSUE THE CARD</button>`;
+    <div class="ob-err">${esc(S.err)}</div><button class="ob-cta" data-a="create"${dis}>ISSUE THE TAG</button>`;
   }
   return `<div class="ob-screen ob-card-bg"><div class="ob-page">
-  <div style="display:flex;justify-content:space-between;align-items:center"><div class="ob-mono">${t('s3.eyebrow')}</div><div class="ob-tabs"><button class="${login?'':'on'}" data-a="tabNew">NEW USER</button><button class="${login?'on':''}" data-a="tabLogin">LOGIN</button></div></div>
+  <div style="display:flex;justify-content:space-between;align-items:center"><div class="ob-mono ob-pill">${t('s3.eyebrow')}</div><div class="ob-tabs"><button class="${login?'':'on'}" data-a="tabNew">NEW USER</button><button class="${login?'on':''}" data-a="tabLogin">LOGIN</button></div></div>
   <div class="ob-serif" style="font-size:27px;line-height:1.2;margin-top:10px">${login?t('s3.login.headline'):t('s3.new.headline')}</div>
-  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center">
-    <div class="ob-card"><div style="display:flex;justify-content:space-between;align-items:center"><div style="font-weight:800;font-size:13px;letter-spacing:.14em">THE<span style="color:#c9a84c">⬡</span>VOID</div><div class="ob-mono" style="font-size:7px;letter-spacing:.2em;color:#c9a84c">${S.flipped?'PASSWORD · @'+esc(h||'—'):''}</div></div>
-      ${field}
-      <div style="display:flex;justify-content:space-between;align-items:flex-end"><div class="ob-mono" style="font-size:7.5px;letter-spacing:.22em;color:#8d7cc0">${today()}</div><button class="ob-globebtn${armed?' armed':''}" data-a="globe" title="${S.flipped?'Enter':''}"><i></i>${GLOBE_SVG}</button></div></div>
+  <div class="ob-tagzone" id="ob-tagzone">
+    <div class="ob-tag" id="ob-tag"><div class="ob-slot" id="ob-slot"></div>
+      <div class="ob-band"><span>THE<span style="color:#2a1060">⬡</span>VOID</span><span class="ob-mono" style="font-size:7px;letter-spacing:.2em">${S.flipped?'PASSWORD · @'+esc(h||'—'):login?'RETURNING':''}</span></div>
+      <div class="ob-tagbody">${field}
+      <div style="display:flex;justify-content:space-between;align-items:flex-end"><button class="ob-globebtn${armed?' armed':''}" data-a="globe" title="${S.flipped?'Enter':''}" aria-label="Enter"><i></i><span class="ob-barcode">${BARCODE}</span>${GLOBE_SVG}</button><div class="ob-mono" style="font-size:7.5px;letter-spacing:.22em;color:#8d7cc0">${today()}</div></div></div></div>
     <div style="height:34px;display:flex;align-items:center;justify-content:center;margin-top:14px;gap:14px">${login?`<button class="ob-link" data-a="flip" style="color:#c9a84c;letter-spacing:.22em;display:flex;align-items:center;gap:8px"><span style="font-size:12px">⟲</span>${S.flipped?'ENTER USERNAME':'ENTER PASSWORD'}</button>${S.flipped?`<span class="ob-mono" style="font-size:7px;letter-spacing:.2em;color:${S.pass?'#c9a84c':'#5c4d8a'}">TAP THE GLOBE TO ENTER</span>`:''}`:''}</div>
   </div>
   <div style="display:flex;flex-direction:column;gap:10px">${bottom}</div></div></div>`;
@@ -10742,7 +10827,9 @@ function render(){
   cancelAnimationFrame(S.glRaf);
   const html=[screenJump,screenGlobe,screenCard,screenIgnite,screenLit][S.step]();
   el.innerHTML=html+dots();
+  if(S.lanyardRO){S.lanyardRO.disconnect();S.lanyardRO=null;}
   if(S.step===1){const cv=document.getElementById('ob-cv');if(cv)startGlobe(cv);}
+  if(S.step===2&&!S.done)mountLanyard();
   if(S.step===2&&!S.done){const f=document.getElementById(S.flipped?'ob-pass':'ob-handle');if(f&&document.activeElement!==f)setTimeout(()=>{try{f.focus({preventScroll:true});f.setSelectionRange(f.value.length,f.value.length);}catch(e){}},30);}
   if(S.step===4&&!litTimer)litTimer=setTimeout(finish,1600);
 }
