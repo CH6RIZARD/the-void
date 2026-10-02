@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme';
 import { FONTS, em } from '../../theme/palettes';
 import { VText } from '../../ui/Text';
+import { Pfp } from '../../ui/Pfp';
 import { Icon } from '../../ui/icons/Icon';
 import { voidToast } from '../../ui/Toast';
 import { ROUTES } from '../../nav/routes';
@@ -88,7 +89,7 @@ export default function ChatScreen({ id: idProp }: { id?: string }) {
   const rows = useMemo(() => {
     const out: React.ReactNode[] = [];
     let lastDay = '';
-    list.forEach((m) => {
+    list.forEach((m, i) => {
       const d = new Date(m.created_at);
       const day = dayLabel(d);
       if (day !== lastDay) {
@@ -100,22 +101,40 @@ export default function ChatScreen({ id: idProp }: { id?: string }) {
         lastDay = day;
       }
       const mine = m.sender_id === me;
+      // The avatar marks the END of a run, not the start: it sits beside the last
+      // thing someone said, where the eye is when the turn passes back. Every other
+      // bubble in the run keeps the space so the column never shifts.
+      const next = list[i + 1];
+      const lastOfRun = !next || next.sender_id !== m.sender_id;
       out.push(
-        <View key={m.id} style={[st.wrap, mine ? st.wrapMine : st.wrapTheirs, m._pending ? { opacity: 0.55 } : null]}>
+        <View key={m.id} style={[st.row2, mine ? st.rowMine : st.rowTheirs, m._pending ? { opacity: 0.55 } : null]}>
+          {!mine ? (
+            <View style={st.avSlot}>{lastOfRun ? <Pfp seed={conv?.other.id || conv?.other.handle || 'void'} size={26} /> : null}</View>
+          ) : null}
           {mine ? (
-            <View style={st.bubbleMine}>
-              <LinearGradient colors={['rgba(124,58,237,0.35)', 'rgba(91,33,212,0.2)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-              <VText selectable style={{ fontFamily: FONTS.sans, fontSize: 13, lineHeight: 13 * 1.55, color: colors.white }}>{m.body}</VText>
+            <View style={st.bMine}>
+              <LinearGradient colors={['#7c3aed', '#5b21d4']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+              <VText selectable style={st.bText}>{m.body}</VText>
             </View>
           ) : (
-            <VText selectable style={{ fontFamily: FONTS.sans, fontSize: 13, lineHeight: 13 * 1.55, color: '#c9bfe8' }}>{m.body}</VText>
+            <View style={st.bTheirs}>
+              <VText selectable style={st.bText}>{m.body}</VText>
+            </View>
           )}
-          <VText style={{ fontFamily: FONTS.mono, fontSize: 7, letterSpacing: em(7, 0.06), color: colors.dim, marginTop: 3 }}>{m._pending ? 'SENDING' : timeLabel(d)}</VText>
         </View>,
       );
+      // One time under the stack, on the last message - not a stamp on every
+      // bubble, which turned a conversation into a log.
+      if (!next) {
+        out.push(
+          <VText key={'t' + m.id} align="center" style={st.stackTime}>
+            {m._pending ? 'SENDING' : timeLabel(d)}
+          </VText>,
+        );
+      }
     });
     return out;
-  }, [list, me, colors]);
+  }, [list, me, colors, conv]);
 
   const send = async () => {
     const body = text.trim();
@@ -205,6 +224,15 @@ export default function ChatScreen({ id: idProp }: { id?: string }) {
 }
 
 const st = StyleSheet.create({
+  row2: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginTop: 8 },
+  rowMine: { justifyContent: 'flex-end' },
+  rowTheirs: { justifyContent: 'flex-start' },
+  avSlot: { width: 26, height: 26 },
+  // 18/18/18/6 theirs, 18/18/6/18 mine: the square corner points at the speaker.
+  bTheirs: { maxWidth: '74%', paddingVertical: 10, paddingHorizontal: 14, backgroundColor: 'rgba(255,255,255,0.08)', borderTopLeftRadius: 18, borderTopRightRadius: 18, borderBottomRightRadius: 18, borderBottomLeftRadius: 6 },
+  bMine: { maxWidth: '74%', paddingVertical: 10, paddingHorizontal: 14, overflow: 'hidden', borderTopLeftRadius: 18, borderTopRightRadius: 18, borderBottomRightRadius: 6, borderBottomLeftRadius: 18 },
+  bText: { fontFamily: FONTS.sans, fontSize: 14, lineHeight: 14 * 1.45, color: '#f4f0ff' },
+  stackTime: { fontFamily: FONTS.mono, fontSize: 7, letterSpacing: em(7, 0.14), color: '#5c4d8a', marginTop: 6 },
   fill: { flex: 1 },
   head: { paddingHorizontal: 16, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 10 },
   back: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },

@@ -17,8 +17,25 @@ const p = (d: string): IconShape => ({ t: 'path', d });
 
 export const ICONS = {
   bolt: { shapes: [p('M13 2 4 14h6l-1 8 9-12h-6l1-8z')] },
+  // The reaction is a heart now. The bolt glyphs stay defined: the bolt is still
+  // the mark of the app itself, and deleting it would take the logo with it.
+  // The profile's layout toggle and its gallery marker.
+  grid: { shapes: [
+    { t: 'rect', x: 3.5, y: 3.5, width: 7, height: 7, rx: 1.5 },
+    { t: 'rect', x: 13.5, y: 3.5, width: 7, height: 7, rx: 1.5 },
+    { t: 'rect', x: 3.5, y: 13.5, width: 7, height: 7, rx: 1.5 },
+    { t: 'rect', x: 13.5, y: 13.5, width: 7, height: 7, rx: 1.5 },
+  ] },
+  rows: { shapes: [p('M4 7h16M4 12h16M4 17h16')] },
+  stack: { shapes: [
+    { t: 'rect', x: 7.5, y: 3.5, width: 13, height: 13, rx: 2 },
+    p('M16.5 20.5h-11a2 2 0 0 1-2-2v-11'),
+  ] },
+  heart: { shapes: [p('M12 20.4 4.2 12.6a4.8 4.8 0 0 1 6.8-6.8l1 1 1-1a4.8 4.8 0 0 1 6.8 6.8z')] },
+  heartFill: { filled: true, shapes: [p('M12 20.4 4.2 12.6a4.8 4.8 0 0 1 6.8-6.8l1 1 1-1a4.8 4.8 0 0 1 6.8 6.8z')] },
   boltFill: { filled: true, shapes: [p('M13 2 4 14h6l-1 8 9-12h-6l1-8z')] },
   reply: { shapes: [p('M21 12a8 8 0 0 1-8 8H4l2.2-2.6A8 8 0 1 1 21 12z')] },
+  pen: { shapes: [p('M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17v3z'), p('M14.5 6.5l3 3')] },
   share: { shapes: [p('M12 16V4M7 9l5-5 5 5M4 20h16')] },
   less: { shapes: [p('M12 5v14M6 13l6 6 6-6')] },
   play: { filled: true, shapes: [p('M7 4.5v15l13-7.5-13-7.5z')] },

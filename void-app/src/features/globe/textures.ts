@@ -12,12 +12,198 @@
 //                        into a raw GL texture handed to three.js (three never re-uploads a
 //                        version-0 texture).
 import * as THREE from 'three';
+import { mark } from '../../core/slow';
 import { Asset } from 'expo-asset';
 import { b64ToBytes, decodePngRGBA } from '../live/frameSample';
 import { EARTH_PNG_B64 } from './earthTexture';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const EARTH = require('../../../assets/globe/earth-night.jpg');
+// ─── THE MAP, ALREADY DECODED ────────────────────────────────────────────
+// The JS fallback below inflates a base64 PNG and unfilters it a byte at a time:
+// 2,097,152 iterations plus a 2 MB row flip, synchronously, on the frame that
+// enters the globe tab. Measured on the phone that is a 7271 ms block of the JS
+// thread, which is why the globe takes ten seconds to appear. And the PNG it
+// decodes is 1024x512, half the resolution of the jpg sitting next to it, which
+// is why the globe looks soft once it does appear.
+//
+// None of that work depends on anything only the phone knows - it is the same
+// picture every time - so scripts/globe-raw.mjs does it here and ships the
+// finished pixels: 2048x1024 RGBA, rows already flipped for DataTexture, alpha
+// already filled. The phone reads bytes and hands them to the GPU. No inflate,
+// no unfilter, no flip, and twice the resolution.
+const EARTH_RAW = require('../../../assets/globe/earth-night.rgba.bin');
+import { Unzlib } from 'fflate';
+import { EARTH_W, EARTH_H, EARTH_Z } from './earthPixels';
+
+const RAW_W = 2048;
+const RAW_H = 1024;
+
+let bundledCache: Uint8Array | null = null;
+/**
+ * The night map's pixels, out of the bundle rather than off the filesystem.
+ *
+ * Every build logs "[globe] raw map: could not be read": XHR will not serve the
+ * bundled .bin on this release build and there is no expo-file-system here to
+ * fall back on, so the file route does not exist on this device. These pixels
+ * ride in the JS bundle instead, deflated - 452 KB, less than the 765 KB base64
+ * PNG the app shipped originally, and without that PNG's 7271 ms unfilter loop.
+ */
+/**
+ * The same decode, in slices, off the critical path.
+ *
+ * MEASURED ON THE PHONE: '[globe] bundled map: 2048x1024 in 5036ms'. Five
+ * seconds of synchronous JavaScript on the thread the whole app runs on - the
+ * base64 string is two million characters and the loop reads them one at a time,
+ * then unzlib writes eight megabytes. Nothing else could run, so the globe (and
+ * every touch) froze. Doubling the map's resolution to fix the blur is what made
+ * it this expensive.
+ *
+ * The work is the same; it is the BLOCKING that was the problem. The string is
+ * converted in slices with a yield between them, so the frame loop and touch
+ * handling keep running and the fallback map stays on screen until the real one
+ * is ready. The inflate is streamed too (see below), so no single step blocks
+ * the thread for more than a few milliseconds.
+ */
+const DECODE_SLICE = 64 * 1024;
+let bundledPromise: Promise<Uint8Array | null> | null = null;
+export function bundledEarthPixelsAsync(): Promise<Uint8Array | null> {
+  if (bundledCache) return Promise.resolve(bundledCache);
+  if (bundledPromise) return bundledPromise;
+  bundledPromise = (async () => {
+    const t0 = Date.now();
+    try {
+      mark('earth:atob');
+      const bin = globalThis.atob(EARTH_Z);
+      const z = new Uint8Array(bin.length);
+      for (let off = 0; off < bin.length; off += DECODE_SLICE) {
+        const end = Math.min(bin.length, off + DECODE_SLICE);
+        for (let i = off; i < end; i++) z[i] = bin.charCodeAt(i);
+        // Hand the thread back between slices.
+        await new Promise<void>((r) => setTimeout(r, 0));
+      }
+      // STREAMED, NOT ONE CALL.
+      //
+      // The device's own stall detector caught this: '[block] js thread stalled
+      // 4078ms'. Slicing the base64 conversion was not enough, because
+      // unzlibSync is a single synchronous call that writes eight megabytes -
+      // and nothing else on the thread runs until it returns. A four second
+      // freeze is why the globe could not draw, tiles could not connect and
+      // every frame missed its budget: they were all waiting on this.
+      //
+      // fflate's Unzlib takes the compressed bytes in pushes and emits the
+      // inflated ones as it goes, so the same work happens in ~24 pieces with a
+      // yield between each. Total time is a touch longer; the longest block goes
+      // from four seconds to a few milliseconds, which is the number that is
+      // actually felt.
+      mark('earth:inflate');
+      const parts: Uint8Array[] = [];
+      let total = 0;
+      const inf = new Unzlib((chunk) => {
+        parts.push(chunk);
+        total += chunk.length;
+      });
+      const PUSH = 64 * 1024;
+      for (let off = 0; off < z.length; off += PUSH) {
+        const end = Math.min(z.length, off + PUSH);
+        inf.push(z.subarray(off, end), end >= z.length);
+        await new Promise<void>((r) => setTimeout(r, 0));
+      }
+      const px = new Uint8Array(total);
+      let at = 0;
+      for (const p of parts) {
+        px.set(p, at);
+        at += p.length;
+      }
+      if (px.length !== EARTH_W * EARTH_H * 4) {
+        try {
+          console.warn('[globe] bundled map: wrong size ' + px.length);
+        } catch {}
+        return null;
+      }
+      bundledCache = px;
+      try {
+        console.warn('[globe] bundled map (sliced): ' + EARTH_W + 'x' + EARTH_H + ' in ' + (Date.now() - t0) + 'ms');
+      } catch {}
+      return px;
+    } catch (e) {
+      try {
+        console.warn('[globe] bundled map failed: ' + String(e));
+      } catch {}
+      return null;
+    }
+  })();
+  return bundledPromise;
+}
+
+const RAW_BYTES = RAW_W * RAW_H * 4;
+let rawCache: Uint8Array | null = null;
+
+/** The pre-decoded map, read as bytes. null if it cannot be read on this device. */
+async function earthRawPixels(): Promise<Uint8Array | null> {
+  if (rawCache) return rawCache;
+  const t0 = Date.now();
+  try {
+    const a = Asset.fromModule(EARTH_RAW);
+    // Same reasoning as the XHR below: never let this hold the globe.
+    await Promise.race([a.downloadAsync().catch(() => null), new Promise((r) => setTimeout(r, 2000))]);
+    const uri = a.localUri || a.uri;
+    if (!uri) return null;
+    // XHR rather than fetch: fetch on Android returns a Blob whose arrayBuffer()
+    // round-trips through base64, which would put the copying right back.
+    // A DEADLINE. This had none, and an XHR against a uri the release build
+    // cannot serve does not fail - it waits. Two seconds is longer than a local
+    // file read ever needs and far shorter than a user will sit in front of a
+    // black globe.
+    const buf = await new Promise<ArrayBuffer | null>((resolve) => {
+      let done = false;
+      const finish = (v: ArrayBuffer | null) => {
+        if (done) return;
+        done = true;
+        resolve(v);
+      };
+      const deadline = setTimeout(() => finish(null), 2000);
+      try {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', uri, true);
+        xhr.responseType = 'arraybuffer';
+        xhr.timeout = 2000;
+        xhr.onload = () => { clearTimeout(deadline); finish((xhr.response as ArrayBuffer) || null); };
+        xhr.onerror = () => { clearTimeout(deadline); finish(null); };
+        xhr.onabort = () => { clearTimeout(deadline); finish(null); };
+        xhr.ontimeout = () => { clearTimeout(deadline); finish(null); };
+        xhr.send();
+      } catch {
+        clearTimeout(deadline);
+        finish(null);
+      }
+    });
+    if (!buf) {
+      try {
+        console.warn('[globe] raw map: could not be read');
+      } catch {}
+      return null;
+    }
+    if (buf.byteLength !== RAW_BYTES) {
+      // A short read means the asset was mangled in packaging. Better to fall
+      // through to the slow path than to upload garbage as the planet.
+      try {
+        console.warn('[globe] raw map: wrong size ' + buf.byteLength + ', expected ' + RAW_BYTES);
+      } catch {}
+      return null;
+    }
+    rawCache = new Uint8Array(buf);
+    try {
+      console.warn('[globe] raw map: ' + RAW_W + 'x' + RAW_H + ' in ' + (Date.now() - t0) + 'ms');
+    } catch {}
+    return rawCache;
+  } catch (e) {
+    try {
+      console.warn('[globe] raw map: threw', String(e));
+    } catch {}
+    return null;
+  }
+}
 
 type Stop = [number, number, number, number, number]; // offset, r, g, b, a(0..1)
 
@@ -68,6 +254,18 @@ function canvasLikeTexture(data: Uint8Array, w: number, h: number): THREE.DataTe
   return tex;
 }
 
+// THE SAME TWO PICTURES, EVERY TIME.
+// rasterRadial walks 128x128 pixels computing a hypot and a gradient lookup for
+// each - about 16k iterations per call, twice per scene build - and the inputs are
+// two hard-coded constants, so it produced identical bytes every time. The scene is
+// rebuilt on entering the globe and again on each GL retry, and this sat directly
+// in the path of the first frame. The pixels are computed once per process now.
+//
+// The bytes are cached, not the texture: a THREE.DataTexture belongs to the GL
+// context that uploaded it, and handing a dead context's texture to a new one is
+// how you get a blank globe after a retry.
+const markerPixels: (Uint8Array | null)[] = [null, null];
+
 /** web mkTex(hot) */
 export function markerTexture(hot: boolean): THREE.DataTexture {
   const stops: Stop[] = hot
@@ -85,13 +283,27 @@ export function markerTexture(hot: boolean): THREE.DataTexture {
         [0.6, 0, 0, 0, 0.05],
         [1, 0, 0, 0, 0],
       ];
-  return canvasLikeTexture(rasterRadial(128, stops), 128, 128);
+  const slot = hot ? 1 : 0;
+  let px = markerPixels[slot];
+  if (!px) {
+    px = rasterRadial(128, stops);
+    markerPixels[slot] = px;
+  }
+  return canvasLikeTexture(px, 128, 128);
 }
 
 /** web _fallbackEarth(): 512×256 vertical gradient + 900 faint landmass-ish rects. */
+// Cached for the same reason the markers are: this is ~400k float writes plus 900
+// alpha-blended rectangles, it is drawn from constants and a seeded pattern, and it
+// sits on the frame that enters the globe tab - which is rebuilt on every GL retry.
+// The bytes are cached, never the texture: a DataTexture belongs to the context
+// that uploaded it.
+let fallbackPixels: Uint8Array | null = null;
+
 export function fallbackEarthTexture(): THREE.DataTexture {
   const W = 512,
     H = 256;
+  if (fallbackPixels) return canvasLikeTexture(fallbackPixels, W, H);
   const px = new Float32Array(W * H * 3);
   const c0 = [0x0a, 0x07, 0x33],
     c1 = [0x14, 0x0b, 0x3a];
@@ -129,6 +341,7 @@ export function fallbackEarthTexture(): THREE.DataTexture {
     data[i * 4 + 2] = Math.round(px[i * 3 + 2]);
     data[i * 4 + 3] = 255;
   }
+  fallbackPixels = data;
   const tex = canvasLikeTexture(data, W, H);
   // (CanvasTexture flips on upload; this pattern is random/vertically symmetric, so the
   // flip is skipped — expo-gl's UNPACK_FLIP_Y support for typed arrays is not relied on.)
@@ -160,14 +373,103 @@ function flipRowsInPlace(data: Uint8Array, w: number, h: number): void {
     data.set(tmp, bot);
   }
 }
+// Decoded once per launch and kept: this is ~0.5 M pixels of PNG filtering in JS, and
+// it blocks the thread everything else is waiting on. The device log showed it running
+// twice in a session, which is the kind of stall that shows up as a 10 s tab switch.
+let earthCache: { w: number; h: number; data: Uint8Array } | null = null;
 function earthPixels(): { w: number; h: number; data: Uint8Array } | null {
+  if (earthCache) {
+    try {
+      console.warn('[globe] earth pixels: cached');
+    } catch {}
+    return earthCache;
+  }
+  const t0 = Date.now();
   try {
-    return decodePngRGBA(b64ToBytes(EARTH_PNG_B64));
-  } catch {
+    const bytes = b64ToBytes(EARTH_PNG_B64);
+    const tB64 = Date.now();
+    const px = decodePngRGBA(bytes);
+    const tPng = Date.now();
+    if (!px) {
+      try {
+        console.warn('[globe] earth pixels: PNG decode returned nothing');
+      } catch {}
+      return null;
+    }
+    try {
+      console.warn(
+        '[globe] earth pixels: base64 ' + (tB64 - t0) + 'ms, png ' + (tPng - tB64) + 'ms, ' + px.w + 'x' + px.h,
+      );
+    } catch {}
+    flipRowsInPlace(px.data, px.w, px.h);   // once: DataTexture has no flipY
+    try {
+      console.warn('[globe] earth pixels: total ' + (Date.now() - t0) + 'ms');
+    } catch {}
+    earthCache = px;
+    return earthCache;
+  } catch (e) {
+    try {
+      console.warn('[globe] earth pixels: threw after ' + (Date.now() - t0) + 'ms', String(e));
+    } catch {}
     return null;
   }
 }
 export async function loadEarthTexture(gl: any, renderer: THREE.WebGLRenderer, rawPixelStorei: (p: number, v: any) => void): Promise<THREE.Texture> {
+  // three's state reset reads gl.canvas.width; expo-gl's context has no canvas, so
+  // renderer.resetState() throws "Cannot read property 'width' of undefined" - which
+  // is what the device reported once the decode path finally ran, and what the
+  // original code would have hit too had it ever got past the upload. The scene builds
+  // a fake canvas for the RENDERER; the context needs one as well.
+  if (!(gl as any).canvas) {
+    (gl as any).canvas = { width: gl.drawingBufferWidth, height: gl.drawingBufferHeight };
+  }
+
+  // ─── THE MAP THREE CAN ACTUALLY SEE, FIRST ───────────────────────────────
+  // The direct GL upload below is not a real success on this device, and it took
+  // a screenshot to notice. It reports no error, and the code then hands three a
+  // new THREE.Texture() with NO IMAGE and injects the raw GL handle into
+  // renderer.properties behind three's back. The device duly logs
+  //
+  //   [globe] earth upload: direct GL path, error 0 (accepted)
+  //   [globe] earth texture applied to the sphere
+  //
+  // and the sphere renders black. Every texture change before this one - the
+  // colour space, the resolution, the anisotropy, making the night map emissive -
+  // was aimed at a texture that was never sampled at all. GL said yes, three said
+  // yes, nothing drew, and the dark disc with a magenta blob was the procedural
+  // fallback with a point light on it the whole time.
+  //
+  // The pre-decoded map is a plain DataTexture with real pixels, which three owns
+  // end to end: it uploads it, mipmaps it, and binds it for the diffuse and
+  // emissive slots alike. It is also no longer expensive - scripts/globe-raw.mjs
+  // does the decoding at author time - so there is nothing left for the direct
+  // path to be faster than. That path stays below as a fallback rather than being
+  // deleted, since on a device whose driver takes it AND whose three binds it, it
+  // is one fewer copy; but the globe no longer depends on it.
+  const pre = (await bundledEarthPixelsAsync()) ?? (await earthRawPixels());
+  if (pre) {
+    const w = pre === bundledCache ? EARTH_W : RAW_W;
+    const h = pre === bundledCache ? EARTH_H : RAW_H;
+    const dt = new THREE.DataTexture(pre, w, h, THREE.RGBAFormat);
+    // Linear, like the r128 reference the web uses: tagging a night-lights map
+    // sRGB converts it to linear and crushes exactly the dark tones it is made of.
+    dt.colorSpace = THREE.LinearSRGBColorSpace;
+    dt.magFilter = THREE.LinearFilter;
+    dt.minFilter = THREE.LinearMipmapLinearFilter;
+    dt.wrapS = THREE.ClampToEdgeWrapping;
+    dt.wrapT = THREE.ClampToEdgeWrapping;
+    dt.generateMipmaps = true;
+    try {
+      const maxAniso = (renderer.capabilities as any)?.getMaxAnisotropy?.() || 1;
+      dt.anisotropy = maxAniso;
+    } catch {}
+    dt.needsUpdate = true;
+    try {
+      console.warn('[globe] earth texture: DataTexture ' + w + 'x' + h);
+    } catch {}
+    return dt;
+  }
+
   const asset = Asset.fromModule(EARTH);
   await asset.downloadAsync();
   if (!asset.localUri) throw new Error('earth texture: no localUri');
@@ -176,54 +478,114 @@ export async function loadEarthTexture(gl: any, renderer: THREE.WebGLRenderer, r
   gl.bindTexture(gl.TEXTURE_2D, glTex);
   rawPixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true); // TextureLoader textures have flipY = true
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, { localUri: asset.localUri });
-  // Driver refused the file upload (1282 on the MT6762 test phone: expo-gl's
-  // { localUri } upload is a native path and this driver rejects it). Hand the pixels
-  // to three instead - it does its own upload, mipmaps and filtering, so nothing here
-  // has to be right about raw GL state. console.warn, not log: release builds strip log.
-  const direct = gl.getError();
-  if (direct !== gl.NO_ERROR) {
-    rawPixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-    gl.bindTexture(gl.TEXTURE_2D, null);
-    gl.deleteTexture(glTex);
-    renderer.resetState();
-    const px = earthPixels();
-    if (!px) throw new Error('earth texture: GL ' + direct + ' and the PNG decode failed too');
-    flipRowsInPlace(px.data, px.w, px.h);   // DataTexture ignores flipY
-    const dt = new THREE.DataTexture(px.data, px.w, px.h, THREE.RGBAFormat);
-    dt.colorSpace = THREE.SRGBColorSpace;
-    dt.magFilter = THREE.LinearFilter;
-    dt.minFilter = THREE.LinearMipmapLinearFilter;
-    dt.wrapS = THREE.ClampToEdgeWrapping;
-    dt.wrapT = THREE.ClampToEdgeWrapping;
-    dt.generateMipmaps = true;
-    dt.needsUpdate = true;
-    try { console.warn('[globe] earth texture: JS PNG decode path ' + px.w + 'x' + px.h + ' (direct upload gave GL ' + direct + ')'); } catch {}
-    return dt;
-  }
   rawPixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
   gl.generateMipmap(gl.TEXTURE_2D);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  // tex.anisotropy = Math.min(4, maxAnisotropy)
+  // ANISOTROPY: TAKE WHAT THE GPU OFFERS.
+  // A sphere shows its texture at a glancing angle over most of its area - the
+  // whole way round towards the limb - and that is exactly where a mipmapped
+  // texture without anisotropic filtering goes to mush. The web reference is
+  // sharp there; this was capped at 4 to be careful on a weak phone, which is
+  // most of why the map reads as soft next to it. GPUs report 16, and the cost
+  // is paid per sampled pixel on one textured sphere, not per triangle.
   try {
     const ext = gl.getExtension('EXT_texture_filter_anisotropic');
     if (ext) {
       const max = gl.getParameter(ext.MAX_TEXTURE_MAX_ANISOTROPY_EXT) || 1;
-      gl.texParameterf(gl.TEXTURE_2D, ext.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(4, max));
+      gl.texParameterf(gl.TEXTURE_2D, ext.TEXTURE_MAX_ANISOTROPY_EXT, max);
+      try {
+        console.warn('[globe] anisotropy ' + max + ' (direct path)');
+      } catch {}
     }
   } catch {}
   const err = gl.getError();
   gl.bindTexture(gl.TEXTURE_2D, null);
+  try {
+    console.warn('[globe] earth upload: direct GL path, error ' + err + (err === gl.NO_ERROR ? ' (accepted)' : ' (refused)'));
+  } catch {}
   if (err !== gl.NO_ERROR) {
+    // The driver would not take the file. Measured on the MT6762 test phone: the
+    // { localUri } texImage2D reports NO error of its own, and 1282 (INVALID_OPERATION)
+    // only surfaces here, at generateMipmap of a texture that was never filled - which
+    // is why checking straight after the upload saw a clean state and this path was
+    // never reached. Decode the map in JS instead (fflate + the app's own PNG reader)
+    // and hand three the pixels: three does the upload, mipmaps and filtering, so
+    // nothing here has to be right about raw GL state.
+    // console.warn, not log: release builds strip console.log.
     gl.deleteTexture(glTex);
-    throw new Error('earth texture upload failed: GL error ' + err);
+    renderer.resetState();
+    // The pre-decoded map first: same pixels, twice the resolution, none of the
+    // JS work. The base64 PNG decode stays behind it as the last resort, for a
+    // device where the raw asset cannot be read at all.
+    // BUNDLED PIXELS FIRST, like the fast path above does.
+    //
+    // This awaited the asset read first, and that read can HANG: downloadAsync
+    // plus an XHR against a uri this release build cannot serve. The globe sat
+    // black for twenty or thirty seconds waiting for something that was never
+    // going to arrive, and only then decoded the pixels it already had in the
+    // bundle. The bundled map is the full 2048x1024 now, so there is nothing to
+    // gain by waiting for the file version anyway.
+    const bundled = await bundledEarthPixelsAsync();
+    const raw = bundled ? null : await earthRawPixels();
+    const px = bundled ? { w: EARTH_W, h: EARTH_H, data: bundled } : raw ? { w: RAW_W, h: RAW_H, data: raw } : earthPixels();
+    if (!px) throw new Error('earth texture: GL ' + err + ' and neither map could be read');
+    const dt = new THREE.DataTexture(px.data, px.w, px.h, THREE.RGBAFormat);
+    // The WEB renders this map under three r128, whose default is LinearEncoding: the
+    // sRGB bytes are used as-is. Tagging it SRGBColorSpace here converts to linear and
+    // crushes exactly the dark tones a night-lights map is made of - measured on device,
+    // the globe came out ~2.5x darker than the web and read as black with a glow on it.
+    // Match the reference: treat the bytes as linear, like r128 does.
+    dt.colorSpace = THREE.LinearSRGBColorSpace;
+    dt.magFilter = THREE.LinearFilter;
+    dt.minFilter = THREE.LinearMipmapLinearFilter;
+    dt.wrapS = THREE.ClampToEdgeWrapping;
+    dt.wrapT = THREE.ClampToEdgeWrapping;
+    dt.generateMipmaps = true;
+    // Match the direct path: anisotropic filtering keeps the map from smearing where
+    // the sphere turns away from the camera, which is most of what you actually see.
+    try {
+      const maxAniso = (renderer.capabilities as any)?.getMaxAnisotropy?.() || 1;
+      dt.anisotropy = maxAniso;
+      try {
+        console.warn('[globe] anisotropy ' + dt.anisotropy + ' of ' + maxAniso);
+      } catch {}
+    } catch {}
+    dt.needsUpdate = true;
+    try { console.warn('[globe] earth texture: JS PNG decode path ' + px.w + 'x' + px.h + ' (direct upload gave GL ' + err + ')'); } catch {}
+    return dt;
   }
+  try { console.warn('[globe] earth texture: direct upload'); } catch {}
   const tex = new THREE.Texture();
+  // ─── WHY THIS TEXTURE WAS NEVER SAMPLED ─────────────────────────────────
+  // Injecting __webglTexture is only half of the handshake. three's
+  // WebGLTextures.setTexture2D decides between uploading and binding like this:
+  //
+  //   if (texture.version > 0 && props.__version !== texture.version) uploadTexture()
+  //   else bindTexture(props.__webglTexture)
+  //
+  // __version was never set here, so the moment anything marked this texture
+  // needing an update three took the UPLOAD branch - on a THREE.Texture with no
+  // image at all - and the carefully injected handle was never bound. GL logged
+  // "accepted", three logged "applied", and the sphere rendered black in every
+  // build this code has ever shipped in.
+  //
+  // Two things close it: an image object, because three reads width and height
+  // from it for mipmapping and for the texture size it caches; and __version
+  // agreeing with the texture's version, which is what tells three this texture
+  // is already resident and must be bound rather than re-uploaded.
+  tex.image = { width: RAW_W, height: RAW_H } as any;
+  tex.flipY = false; // already flipped during the upload, via UNPACK_FLIP_Y_WEBGL
+  tex.colorSpace = THREE.LinearSRGBColorSpace;
+  tex.magFilter = THREE.LinearFilter;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.generateMipmaps = false; // the mipmaps were generated on the raw handle above
   const props = renderer.properties.get(tex) as any;
   props.__webglTexture = glTex;
   props.__webglInit = true;
+  props.__version = tex.version; // resident: bind it, do not try to upload it
   renderer.resetState(); // three's GL state cache no longer matches after raw calls
   return tex;
 }

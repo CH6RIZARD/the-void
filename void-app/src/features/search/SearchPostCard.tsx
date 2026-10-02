@@ -174,7 +174,7 @@ export const SearchPostCard = memo(function SearchPostCard({
       </Text>
       <View style={styles.meta}>
         <View style={styles.metaItem}>
-          <Icon name="bolt" size={11} color={colors.muted} />
+          <Icon name="heart" size={11} color={colors.muted} />
           <Text allowFontScaling={false} style={[styles.metaText, { color: colors.muted }]}>
             {fmt(p.score || 0)}
           </Text>

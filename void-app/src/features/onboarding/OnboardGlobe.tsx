@@ -88,7 +88,11 @@ export function OnboardGlobe({ running = true }: { running?: boolean }) {
         gl.endFrameEXP();
         if (first) {
           first = false;
-          shown.value = withTiming(1, { duration: 600 });
+          // 600ms was long enough to read as the globe arriving LATE, after the
+          // headline and the button were already there. This scene carries no
+          // textures, so the only real wait is the GL context; once the first
+          // frame is on screen there is nothing to hide behind a slow fade.
+          shown.value = withTiming(1, { duration: 220 });
         }
       };
       loop();
@@ -115,7 +119,7 @@ export function OnboardGlobe({ running = true }: { running?: boolean }) {
     <GestureDetector gesture={pan}>
       <View style={StyleSheet.absoluteFill}>
         <Animated.View style={[StyleSheet.absoluteFill, fade]}>
-          <GLView style={StyleSheet.absoluteFill} onContextCreate={onContextCreate} />
+          <GLView style={StyleSheet.absoluteFill} onContextCreate={onContextCreate} msaaSamples={4} />
         </Animated.View>
       </View>
     </GestureDetector>

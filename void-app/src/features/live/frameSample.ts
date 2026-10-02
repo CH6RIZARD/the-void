@@ -213,3 +213,27 @@ export async function sampleFrame(view: any): Promise<Uint8Array | null> {
     return null;
   }
 }
+
+// ─── App-wide pacing for mid-stream checks ──────────────────────────────────
+// captureRef reads the TextureView bitmap on the Android MAIN thread, then the PNG is
+// inflated in JS. Every playing HLS tile used to do that every 6.1 s on its own
+// clock, so a wall of them stacked main-thread stalls and GC spikes. Mid-stream
+// checks now share one gate: one capture at a time app-wide, at least
+// MIDSTREAM_GAP_MS apart. A check that finds the gate closed simply skips its turn
+// (null = unknown, which the signal checker already treats as "no verdict").
+// The one-shot connect-time judge still uses sampleFrame directly, unpaced.
+const MIDSTREAM_GAP_MS = 2000;
+let gateBusy = false;
+let gateLast = 0;
+
+export async function sampleFramePaced(view: any): Promise<Uint8Array | null> {
+  const now = Date.now();
+  if (gateBusy || now - gateLast < MIDSTREAM_GAP_MS) return null;
+  gateBusy = true;
+  gateLast = now;
+  try {
+    return await sampleFrame(view);
+  } finally {
+    gateBusy = false;
+  }
+}

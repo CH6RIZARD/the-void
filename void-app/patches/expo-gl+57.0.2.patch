@@ -1,0 +1,54 @@
+diff --git a/node_modules/expo-gl/android/src/main/java/expo/modules/gl/GLModule.kt b/node_modules/expo-gl/android/src/main/java/expo/modules/gl/GLModule.kt
+index 8752ff6..3c2999e 100644
+--- a/node_modules/expo-gl/android/src/main/java/expo/modules/gl/GLModule.kt
++++ b/node_modules/expo-gl/android/src/main/java/expo/modules/gl/GLModule.kt
+@@ -94,6 +94,9 @@ class GLModule : Module() {
+       Prop("enableExperimentalWorkletSupport") { view: GLView, enableExperimentalWorkletSupport: Boolean? ->
+         view.enableExperimentalWorkletSupport = enableExperimentalWorkletSupport ?: false
+       }
++      Prop("opaque") { view: GLView, opaque: Boolean? ->
++        view.opaque = opaque ?: false
++      }
+     }
+   }
+ 
+diff --git a/node_modules/expo-gl/android/src/main/java/expo/modules/gl/GLView.kt b/node_modules/expo-gl/android/src/main/java/expo/modules/gl/GLView.kt
+index 72dfb8b..ac97fe3 100644
+--- a/node_modules/expo-gl/android/src/main/java/expo/modules/gl/GLView.kt
++++ b/node_modules/expo-gl/android/src/main/java/expo/modules/gl/GLView.kt
+@@ -30,6 +30,18 @@ class GLView(context: Context, appContext: AppContext) : TextureView(context), S
+     get() = glContext.contextId
+ 
+   var enableExperimentalWorkletSupport: Boolean = false
++
++  // A TextureView marked non-opaque is alpha-blended by HWUI every frame it is
++  // composited - a read-modify-write over its whole area, whether or not a
++  // single transparent pixel exists. A scene that clears to a solid colour has
++  // none, and pays for the blend anyway. `opaque` lets such a scene say so.
++  // Default false: a scene that clears to alpha 0 (the onboarding globe) must
++  // keep blending, and upstream behaviour is unchanged unless asked.
++  var opaque: Boolean = false
++    set(value) {
++      field = value
++      isOpaque = value
++    }
+   val onSurfaceCreate by EventDispatcher<OnSurfaceCreateRecord>()
+ 
+   init {
+diff --git a/node_modules/expo-gl/build/GLView.types.d.ts b/node_modules/expo-gl/build/GLView.types.d.ts
+index 1d86d23..d21e653 100644
+--- a/node_modules/expo-gl/build/GLView.types.d.ts
++++ b/node_modules/expo-gl/build/GLView.types.d.ts
+@@ -81,6 +81,12 @@ export type GLViewProps = {
+      * @default 4
+      */
+     msaaSamples?: number;
++    /**
++     * Android only. Marks the underlying TextureView opaque, so HWUI composites it
++     * without alpha blending. Only for a scene that clears to a solid colour; a
++     * scene that relies on a transparent clear must leave this false (the default).
++     */
++    opaque?: boolean;
+     /**
+      * Enables support for interacting with a `gl` object from code running on the Reanimated worklet thread.
+      * @default false

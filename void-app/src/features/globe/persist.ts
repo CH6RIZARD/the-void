@@ -12,9 +12,9 @@ export async function loadGlobeMode(): Promise<GlobeMode> {
   if (modeCache) return modeCache;
   try {
     const v = await AsyncStorage.getItem(GLOBE_MODE_KEY);
-    modeCache = v === 'globe' ? 'globe' : 'reels'; // REELS is the default
+    modeCache = v === 'reels' ? 'reels' : 'globe'; // GLOBE is the default: the tab opens on the globe
   } catch {
-    modeCache = 'reels';
+    modeCache = 'globe';
   }
   return modeCache;
 }

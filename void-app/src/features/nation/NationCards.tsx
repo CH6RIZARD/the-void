@@ -3,7 +3,7 @@
 //   .nation-card = Card variant 'tile' (radius 12, var(--card), inset hi; LIGHT adds --elev)
 //   .nc-eyebrow{Syne Mono 7px;.14em} trend gold · about #a78bfa (DARK #9d9aa3, LIGHT var(--purple))
 //   .nc-title{12px;600;white;margin-top:5px;line-height:1.4;2 lines}
-//   .nc-meta{Syne Mono 7px;dim;margin-top:5px;1 line ellipsis}  "<fmt(score)> BOLTS · TAP → REELS"
+//   .nc-meta{Syne Mono 7px;dim;margin-top:5px;1 line ellipsis}  "<fmt(score)> HEARTS · TAP → REELS"
 import React, { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { Post } from '../../core/types';
@@ -38,7 +38,7 @@ function NationCard({ eyebrow, eyebrowColor, post, onOpen }: { eyebrow: string; 
         {title}
       </Text>
       <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.meta, { color: colors.dim }]}>
-        {`${fmt(post.score || 0)} BOLTS · TAP → REELS`}
+        {`${fmt(post.score || 0)} HEARTS · TAP → REELS`}
       </Text>
     </Card>
   );

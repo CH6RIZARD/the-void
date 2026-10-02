@@ -13,12 +13,14 @@
 // 5. AppState-driven timers: BIO.decay 5s; BIO.save + persistSeen 15s and on
 //    background; moderation.syncModeration 30s.
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { mark } from '../core/slow';
 import Constants from 'expo-constants';
 import { AppState, type AppStateStatus } from 'react-native';
 import { configureCore, createMemoryStorage, initAuth, moderation, BIO, persistSeen, SIGNED_IN_KEY, type KVStorage } from '../core/index.ts';
 import { ensureCore } from '../features/auth/coreBridge';
 import { continueAnonymously } from '../features/auth/authActions';
 import { AUTH_REDIRECT_URL } from '../nav/routes';
+import { fetchWithDeadline } from './net';
 
 let booted: Promise<void> | null = null;
 let storageRef: KVStorage | null = null;
@@ -26,16 +28,46 @@ let storageRef: KVStorage | null = null;
 const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, unknown>;
 const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : '');
 
+// THE WHOLE STORE, READ BEFORE ANYTHING CAN DRAW - SO SAY HOW LONG IT TOOK.
+//
+// Nothing renders until bootCore resolves (_layout returns a blank view until
+// `ready`), and the first thing bootCore awaits is this: every key in
+// AsyncStorage, in one multiGet. On Android that storage is one serial
+// executor, so every getItem anyone issues meanwhile - the globe tab's mode,
+// which it will not mount without - queues behind it as well.
+//
+// Two cold launches today showed the wall and the globe texture waking at
+// +70s and +74s, with nothing else to explain the gap. If this read is the
+// gap, the line below says so with the number, the key count, the size, and
+// the five keys that account for it.
 async function hydrate(): Promise<Record<string, string>> {
+  const t0 = Date.now();
+  mark('boot:hydrate');
+  let n = 0;
+  let chars = 0;
+  const big: Array<[string, number]> = [];
   try {
     const keys = await AsyncStorage.getAllKeys();
     if (!keys.length) return {};
     const pairs = await AsyncStorage.multiGet(keys);
     const out: Record<string, string> = {};
-    for (const [k, v] of pairs) if (v != null) out[k] = v;
+    for (const [k, v] of pairs) {
+      if (v == null) continue;
+      out[k] = v;
+      n++;
+      chars += v.length;
+      big.push([k, v.length]);
+    }
     return out;
   } catch {
     return {};
+  } finally {
+    try {
+      big.sort((a, b) => b[1] - a[1]);
+      const top = big.slice(0, 5).map(([k, l]) => k + '=' + l).join(' ');
+      console.warn('[boot] hydrate ' + (Date.now() - t0) + 'ms · ' + n + ' keys · ' + chars + ' chars · biggest: ' + top);
+    } catch {}
+    mark('idle');
   }
 }
 
@@ -105,6 +137,7 @@ function startTimers() {
 export function bootCore(): Promise<void> {
   if (booted) return booted;
   booted = (async () => {
+    const bootT0 = Date.now();
     const initial = await hydrate();
     const storage = createMemoryStorage({ initial, onWrite: queueWrite });
     storageRef = storage;
@@ -114,7 +147,10 @@ export function bootCore(): Promise<void> {
     configureCore({
       storage,
       session: createMemoryStorage(),
-      fetch: (u, i) => (globalThis as any).fetch(u, i),
+      // Every core request (proxy, Bluesky, Reddit, PeerTube, Supabase REST, uploads)
+      // gets a deadline: a stalled connection must never hold a surface's lock for the
+      // rest of the session. See lib/net.ts.
+      fetch: (u, i) => fetchWithDeadline(u, i),
       now: () => Date.now(),
       random: () => Math.random(),
       oauthRedirect: AUTH_REDIRECT_URL,
@@ -138,6 +174,9 @@ export function bootCore(): Promise<void> {
       continueAnonymously().catch(() => {});
     }
     startTimers();
+    try {
+      console.warn('[boot] core ready ' + (Date.now() - bootT0) + 'ms after bootCore()');
+    } catch {}
   })();
   return booted;
 }

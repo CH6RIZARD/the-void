@@ -15,6 +15,7 @@ import {
   env,
   findPost,
   learnReact,
+  unlearnReact,
   moderation,
   pullReelPage,
   reelPosts,
@@ -71,7 +72,9 @@ export function toggleBolt(postId: string): void {
   const p = findPost(postId);
   r.mf = !r.mf;
   r.fire = (r.fire || 0) + (r.mf ? 1 : -1);
+  // Both directions: a heart taken back takes its weight back with it.
   if (r.mf) learnReact(p, postId, 'fire');
+  else unlearnReact(p, postId, 'fire');
   tap();
   bump();
   VoidAPI.bolt(postId, !!r.mf).catch(() => {

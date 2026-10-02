@@ -5,19 +5,25 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme';
 import { FONTS, em } from '../../theme/palettes';
 import { VText } from '../../ui/Text';
-import { ago, dmColor, dmMe, DM_FOOT, type DmConv, type DmPerson } from './dmStore';
+import { Pfp } from '../../ui/Pfp';
+import { ago, dmMe, DM_FOOT, type DmConv, type DmPerson } from './dmStore';
 
-export function ConvAvatar({ id, name, size = 44, fontSize = 16, ring }: { id: string; name: string; size?: number; fontSize?: number; ring?: boolean }) {
-  const { colors, isLight } = useTheme();
+/**
+ * Someone's face in the message list.
+ *
+ * The handoff calls for the PFP set here - a gold figure on a deep-purple disc -
+ * rather than the first letter of a name on a tinted circle. The figure is chosen
+ * from the person's id, so it is the same face in the pinned strip, in the row
+ * below it and in the thread behind it.
+ *
+ * `fontSize` is kept in the signature and ignored: callers pass it, and a figure
+ * has no letter to size.
+ */
+export function ConvAvatar({ id, name, size = 44, fontSize, ring }: { id: string; name: string; size?: number; fontSize?: number; ring?: boolean }) {
+  void fontSize;
   return (
-    <View
-      style={[
-        { width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: dmColor(id), flexShrink: 0 },
-        ring ? { boxShadow: '0px 0px 0px 2px rgba(124,58,237,0.4)' } : null,
-        isLight ? { backgroundColor: '#ded7c5', boxShadow: 'inset 0px 0px 0px 1px rgba(26,20,36,0.12), 0px 2px 6px rgba(26,20,36,0.12)' } : null,
-      ]}
-    >
-      <VText style={{ fontFamily: FONTS.sansExtraBold, fontSize, color: isLight ? '#4a4234' : colors.white }}>{String(name || '?')[0].toUpperCase()}</VText>
+    <View style={{ flexShrink: 0 }}>
+      <Pfp seed={id || name} size={size} ring={ring} />
     </View>
   );
 }
@@ -55,11 +61,24 @@ export function ConvRow({ c, onPress, hit }: { c: DmConv; onPress: () => void; h
             {hit.after}
           </VText>
         ) : (
-          <VText numberOfLines={1} style={{ fontFamily: FONTS.sans, fontSize: 11.5, color: unread ? '#c9bfe8' : colors.dim, marginTop: 2 }}>{preview}</VText>
+          // An unread row is louder in three ways at once - brighter preview,
+          // heavier weight, gold time - because one of them alone reads as a
+          // rendering accident rather than a state.
+          <VText
+            numberOfLines={1}
+            style={{
+              fontFamily: unread ? FONTS.sansBold : FONTS.sans,
+              fontSize: 12.5,
+              color: unread ? '#f4f0ff' : '#6a58a0',
+              marginTop: 2,
+            }}
+          >
+            {preview}
+          </VText>
         )}
       </View>
       <View style={st.right}>
-        <VText style={{ fontFamily: FONTS.mono, fontSize: 8, color: colors.dim, textTransform: 'uppercase' }}>{last ? ago(Date.parse(last.created_at)) : ''}</VText>
+        <VText style={{ fontFamily: FONTS.mono, fontSize: 8, color: unread ? colors.gold : '#6a58a0', textTransform: 'uppercase' }}>{last ? ago(Date.parse(last.created_at)) : ''}</VText>
         {unread ? <View style={[st.dot, { backgroundColor: colors.gold }]} /> : null}
       </View>
     </Pressable>

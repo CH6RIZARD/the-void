@@ -5,6 +5,7 @@ import { Animated, AppState, Easing, Pressable, StyleSheet, Text, View, useWindo
 import { GLView, type ExpoWebGLRenderingContext } from 'expo-gl';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { BlurView } from 'expo-blur';
+import { Image } from 'expo-image';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { createGlobeScene, type GlobeScene } from './globeScene';
 import { GlobeSearch } from './GlobeSearch';
@@ -13,6 +14,16 @@ import { em, useLiveTheme } from '../live/liveTheme';
 import { useObserve } from 'expo-observe';
 
 export interface GlobeCanvasProps {
+  /**
+   * Handed down so the REELS/GLOBE swipe can be made to wait on this gesture.
+   * Turning the globe is a drag, and a drag that starts on the globe was also
+   * reaching the panel swipe - so exploring sometimes threw you into reels.
+   */
+  gestureRef?: React.MutableRefObject<any>;
+  /** True while a finger is on the globe, so the wall can stand down. */
+  onTouching?: (touching: boolean) => void;
+  /** Bumped by pull-to-refresh: rebuild the canvas from scratch. */
+  refreshNonce?: number;
   /** Render loop runs only while true (tab focused, GLOBE mode, app foregrounded). */
   running: boolean;
   onOpenCountry(c: Country): void;
@@ -24,16 +35,12 @@ export function useGlobeHeight() {
   return Math.max(240, Math.min(height * 0.42, 320));
 }
 
-export function GlobeCanvas({ running, onOpenCountry }: GlobeCanvasProps) {
+export function GlobeCanvas({ running, onOpenCountry, refreshNonce = 0, gestureRef, onTouching }: GlobeCanvasProps) {
   const t = useLiveTheme();
   const { width } = useWindowDimensions();
   const height = useGlobeHeight();
   const scene = useRef<GlobeScene | null>(null);
-  const runRef = useRef(running);
-  runRef.current = running;
   const [appActive, setAppActive] = useState(AppState.currentState === 'active');
-  const appRef = useRef(appActive);
-  appRef.current = appActive;
   const size = useRef({ w: width, h: height });
   size.current = { w: width, h: height };
   const [tip, setTip] = useState<{ x: number; y: number; name: string } | null>(null);
@@ -52,21 +59,97 @@ export function GlobeCanvas({ running, onOpenCountry }: GlobeCanvasProps) {
   }, []);
 
   // ── GL context + render loop ─────────────────────────────────────────────
+  // The loop runs ONLY while the globe is the visible surface and the app is
+  // foregrounded. It used to re-arm requestAnimationFrame 60x/s for as long as the
+  // tab was mounted and just return early when hidden, which woke the JS thread
+  // every frame on every tab for the rest of the session.
   const rafId = useRef<number | null>(null);
+  const [sceneReady, setSceneReady] = useState(false);
+  // A GL context or shader that fails on some GPU must never leave a black panel: the
+  // globe falls back to the static night map, and search still opens every nation.
+  // Each value mounts a fresh GLView. A context that comes back unusable bumps it
+  // rather than leaving the screen empty for the session.
+  const [glAttempt, setGlAttempt] = useState(0);
+  const glRetries = useRef(0);
+  const retryGl = useCallback(() => {
+    if (glRetries.current >= 3) return;
+    glRetries.current += 1;
+    setTimeout(() => setGlAttempt(a => a + 1), 400 * glRetries.current);
+  }, []);
+  // THE THREE RETRIES ARE PER OUTAGE, NOT PER SESSION.
+  //
+  // glRetries only ever counted up. Three context losses at any point in the
+  // session - and they happen, because leaving for a nation feed tears down and
+  // rebuilds surfaces while a dozen video decoders fight over the GPU - burned
+  // the budget permanently. After that retryGl was a no-op, so the NEXT loss
+  // left a black panel with the country label still drawn over it, for as long
+  // as the app stayed open. Coming back to the globe from a nation is exactly
+  // the path that spends them.
+  //
+  // A frame that actually draws means the context is healthy, so the budget is
+  // spent and can be given back. Three FAILURES IN A ROW still gives up.
+  const noteGlHealthy = useCallback(() => {
+    glRetries.current = 0;
+  }, []);
+  // A pull-to-refresh rebuilds the canvas, and gives back the retry budget with
+  // it: an explicit refresh is exactly when someone is telling us the picture is
+  // wrong, so it should never be refused for failures that happened earlier.
+  const firstNonce = useRef(refreshNonce);
+  useEffect(() => {
+    if (refreshNonce === firstNonce.current) return;
+    glRetries.current = 0;
+    setGlAttempt((a) => a + 1);
+  }, [refreshNonce]);
   const onContextCreate = useCallback((gl: ExpoWebGLRenderingContext) => {
-    const s = createGlobeScene(gl, countries(), size.current.w, size.current.h);
-    scene.current = s;
+    // See the guard in app/_layout.tsx: a re-created surface can hand back a context
+    // that is not real. Building a renderer on it would fail in a dozen places.
+    if (!gl || typeof (gl as any).createTexture !== 'function' || (gl as any).__voidMissingContext) {
+      try {
+        console.warn('[globe] context unusable - rebuilding the canvas');
+      } catch {}
+      retryGl();
+      return;
+    }
+    try {
+      scene.current = createGlobeScene(gl, countries(), size.current.w, size.current.h);
+      setSceneReady(true);
+    } catch (e) {
+      console.warn('[globe] scene failed - rebuilding the canvas', e);
+      scene.current = null;
+      retryGl();
+    }
+  }, []);
+  useEffect(() => {
+    const s = scene.current;
+    if (!sceneReady || !s || !running || !appActive) return;
+    let alive = true;
     const loop = (ts: number) => {
+      if (!alive) return;
       rafId.current = requestAnimationFrame(loop);
-      // Nothing renders unless the globe is the visible surface and the app is foregrounded.
-      if (!runRef.current || !appRef.current) return;
-      if (s.frame(ts || Date.now()) && !markedRef.current) {
-        markedRef.current = true;
-        interactiveRef.current({ params: { surface: 'globe' } });
+      let drew = false;
+      try {
+        drew = s.frame(ts || Date.now());
+      } catch (e) {
+        console.warn('[globe] frame failed - rebuilding the canvas', e);
+        alive = false;
+        retryGl();
+        return;
+      }
+      if (drew) {
+        noteGlHealthy();
+        if (!markedRef.current) {
+          markedRef.current = true;
+          interactiveRef.current({ params: { surface: 'globe' } });
+        }
       }
     };
     rafId.current = requestAnimationFrame(loop);
-  }, []);
+    return () => {
+      alive = false;
+      if (rafId.current != null) cancelAnimationFrame(rafId.current);
+      rafId.current = null;
+    };
+  }, [sceneReady, running, appActive, noteGlHealthy]);
   useEffect(
     () => () => {
       if (rafId.current != null) cancelAnimationFrame(rafId.current);
@@ -77,11 +160,28 @@ export function GlobeCanvas({ running, onOpenCountry }: GlobeCanvasProps) {
   );
 
   // ── touch handling: web touchstart/touchmove/touchend, 1:1 ───────────────
+  const touchingRef = useRef(onTouching);
+  touchingRef.current = onTouching;
   const tr = useRef({ prev: null as null | { x?: number; y?: number; pinch?: number }, start: null as null | { x: number; y: number; t: number } }).current;
   const gesture = Gesture.Manual()
+    .withRef(gestureRef as any)
     .runOnJS(true)
     .onTouchesDown((e, mgr) => {
       mgr.activate(); // the globe owns its gestures; the REELS⇄GLOBE swipe must not start here
+      // A FINGER ON THE GLOBE MEANS THE WALL STOPS WORKING IN THE BACKGROUND.
+      //
+      // The globe renders from a requestAnimationFrame on the JS thread, so its
+      // smoothness is decided by whatever else is queued there - the wall's
+      // watchdog, its healing pass, new cascade starts. Converting the gesture
+      // to a worklet would not help: the frames themselves still come from JS,
+      // so a blocked thread is a frozen globe whoever read the touch.
+      //
+      // So while the globe is being turned, the wall does nothing it can defer.
+      // Players keep playing; only the background work pauses, and it resumes on
+      // release.
+      try {
+        touchingRef.current?.(true);
+      } catch {}
       const s = scene.current;
       if (!s) return;
       setTip(null); // the tap label lives until the next touch
@@ -161,7 +261,36 @@ export function GlobeCanvas({ running, onOpenCountry }: GlobeCanvasProps) {
     <View style={[styles.wrap, { height }]}>
       <GestureDetector gesture={gesture}>
         <View style={StyleSheet.absoluteFill} collapsable={false}>
-          <GLView style={StyleSheet.absoluteFill} onContextCreate={onContextCreate} msaaSamples={4} />
+          {/* The globe screen shows the GLOBE. There is no flat-map stand-in: a still
+              picture of the world is not this screen, and it was on show every time the
+              first canvas failed - which is why the globe only appeared after leaving
+              and coming back, since that rebuilt the canvas and usually worked. A failed
+              context now just rebuilds itself (glAttempt), and while that happens the
+              screen stays dark rather than pretending to be a map. */}
+          {/* msaaSamples={0}.
+
+              I turned antialias off in the three.js renderer and reported the
+              globe's multisampling gone. It was not: THIS is the setting that
+              controls it. expo-gl creates the surface, and it was still being
+              asked for 4x MSAA - every pixel resolved four times, on a GPU that
+              is also running the live wall's decoders directly underneath.
+
+              The renderer flag was the wrong knob; this is the right one. */}
+          {/* OPAQUE, BECAUSE IT IS.
+
+              expo-gl's GLView is a TextureView hard-marked isOpaque=false, so
+              HWUI alpha-blends its whole 720x640 area into the window every
+              frame it is on screen - a read-modify-write over the largest
+              layer on this screen, including while the globe is holding still
+              during a wall scroll. The scene clears to solid 0x04020c (alpha 1,
+              globeScene.ts); there is no transparent pixel to blend. Warm, the
+              globe is the worst surface in the app and its cost is the GPU
+              stage alone (p50 14.6ms of a 16.7ms frame). This is the one lever
+              that removes work from that stage without touching the look.
+
+              `opaque` is a prop this app adds to expo-gl (patches/expo-gl); the
+              onboarding globe clears to alpha 0 and must not set it. */}
+          <GLView key={glAttempt} style={StyleSheet.absoluteFill} onContextCreate={onContextCreate} msaaSamples={0} opaque />
         </View>
       </GestureDetector>
 
@@ -198,6 +327,8 @@ export function GlobeCanvas({ running, onOpenCountry }: GlobeCanvasProps) {
     </View>
   );
 }
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 
 const styles = StyleSheet.create({
   wrap: { position: 'relative', width: '100%', flexShrink: 0, overflow: 'hidden', backgroundColor: '#04020c' },

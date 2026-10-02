@@ -21,6 +21,8 @@ export const COPY = {
   's3.eyebrow': 'IDENTITY · {step}',
   's3.tab.new': 'NEW USER',
   's3.tab.login': 'LOGIN',
+  // The band on a returning tag; blank on a new one.
+  's3.tag.returning': 'RETURNING',
 
   's3.new.headline': 'Your card. Print a name on it, or don’t.',
   's3.new.handle.placeholder': 'nobody',

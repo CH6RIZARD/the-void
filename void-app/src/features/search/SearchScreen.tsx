@@ -30,12 +30,20 @@ import { LiveDot } from '../live/TileChrome';
 import { useTheme } from '../../theme/tokens';
 import { FONTS, em } from '../../theme/palettes';
 import { useBottomNavSpace } from '../../nav/layout';
+import { onTabReselect } from '../../nav/reselect';
 import { FILTERS, buildSearch, type SearchBlock, type SearchFilter } from './searchModel';
 import { SEARCH_SURFACE, SearchPostCard } from './SearchPostCard';
 import { setInView } from '../feed/stores';
 
 /** observeVideos threshold (feed usePostViewability: >=60% visible plays). */
 const VIDEO_VISIBLE = 0.6;
+// Enough to fill the first screen, then a few per frame. Small enough that no
+// single commit is felt; large enough that the rest is there before a thumb
+// reaches it.
+const FIRST_PAINT = 4;
+const STEP = 3;
+const STEP_MS = 90;
+
 /** At most this many search clips decode at once. */
 const MAX_DECODING = 2;
 import { SearchLiveFeat, SearchLiveRow } from './SearchLiveTile';
@@ -48,6 +56,11 @@ export default function SearchScreen() {
   const insets = useSafeAreaInsets();
   const navSpace = useBottomNavSpace();
   const [input, setInput] = useState(''); // #si.value
+  // Tapping SEARCH while already on search puts the cursor in the field - the
+  // tab press is someone asking to type, and they should not have to aim at the
+  // box afterwards.
+  const fieldRef = useRef<TextInput>(null);
+  useEffect(() => onTabReselect('search', () => fieldRef.current?.focus()), []);
   const inputRef = useRef('');
   inputRef.current = input;
   const [query, setQuery] = useState(''); // the value renderSearch last ran with
@@ -77,7 +90,30 @@ export default function SearchScreen() {
     if (sigRef.current === r.sig) return;
     sigRef.current = r.sig;
     setBlocks(r.blocks);
+    setShown(FIRST_PAINT);
   }, []);
+
+  // ─── THE SCREEN ARRIVES IN PIECES, NOT ALL AT ONCE ─────────────────────
+  // Measured on the phone: pressing SEARCH blocked the JS thread for 14351ms and
+  // the tab took 13669ms to appear. This is where it went. Every block was
+  // rendered in one commit - a dozen post cards with their media, plus nine live
+  // stream slots - into a plain ScrollView, which does no windowing at all. One
+  // commit that large is not a slow screen, it is a frozen app: nothing else on
+  // the JS thread runs until it finishes.
+  //
+  // Turning this into a FlatList would be the textbook answer and would also
+  // rewrite the sticky header, the hand-rolled viewport tracking below, and the
+  // block-to-card mapping. The cost here is the size of the first commit, so
+  // that is what is cut: enough blocks to fill a screen immediately, the rest
+  // appended a few at a time on later frames. The thread comes back between each
+  // step, so the tab is usable while the remainder arrives.
+  const [shown, setShown] = useState(FIRST_PAINT);
+  useEffect(() => {
+    if (shown >= blocks.length) return;
+    // A frame's grace between steps: this runs after paint, not instead of it.
+    const t = setTimeout(() => setShown((n) => Math.min(blocks.length, n + STEP)), STEP_MS);
+    return () => clearTimeout(t);
+  }, [shown, blocks.length]);
 
   // renderSearch on entry / query / filter change.
   useEffect(() => {
@@ -233,6 +269,7 @@ export default function SearchScreen() {
         >
           <View style={styles.bar}>
             <TextInput
+                ref={fieldRef}
                 value={input}
                 onChangeText={setInput}
                 onSubmitEditing={doSearch}
@@ -277,7 +314,7 @@ export default function SearchScreen() {
             recomputeView();
           }}
         >
-          {blocks.map(renderBlock)}
+          {blocks.slice(0, shown).map(renderBlock)}
         </View>
       </ScrollView>
     </View>

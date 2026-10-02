@@ -32,6 +32,27 @@ export function markBadStream(src: StreamSource | null | undefined): void { cons
 export function isBadStream(src: StreamSource | null | undefined): boolean { const k = src && streamKey(src); return !!(k && _badStreams.has(k)); }
 
 // ─── SESSION VARIETY ────────────────────────────────────────────────────
+/**
+ * Sources this app will never play, whatever list they arrive on.
+ *
+ * These are TEST streams - Big Buck Bunny and an Akamai test master - that used
+ * to sit on the end of several chains as a catch-all, so a tile that could not
+ * reach a real feed showed a cartoon with a newsroom's name over it. They have
+ * been removed from the data, and this is here so that removing them STAYS
+ * removed: the data file is generated, and a regeneration would otherwise put
+ * them straight back.
+ *
+ * Matched on the URL, because the label is not the thing - a test stream under
+ * any other name is still a test stream.
+ */
+const BANNED_STREAM = /test-streams\.mux\.dev|x36xhzz|bigbuckbunny|big_buck|\/hls\/live\/2000341\/test\//i;
+
+/** True for a source this app refuses to play on principle. */
+export function isBannedStream(s: { url?: string; id?: string } | null | undefined): boolean {
+  if (!s) return false;
+  return BANNED_STREAM.test(String(s.url || '')) || BANNED_STREAM.test(String(s.id || ''));
+}
+
 export const USED_STREAMS_KEY = 'void_used_stream_sources_v1';
 export function usedStreamKeys(): Set<string> { try { return new Set(JSON.parse(env.session.getItem(USED_STREAMS_KEY) || '[]')); } catch { return new Set(); } }
 /** Call when a stream actually PLAYED, so the next wall build sinks it. Keeps the last 250. */

@@ -222,14 +222,14 @@ export const ReelItem = memo(function ReelItem(props: ReelItemProps) {
           ) : null}
           <Animated.View pointerEvents="none" style={[styles.burst, burstStyle]}>
             <View style={styles.burstGlow}>
-              <Icon name="boltFill" size={84} color="#c9a84c" />
+              <Icon name="heartFill" size={84} color="#c9a84c" />
             </View>
           </Animated.View>
         </View>
       </GestureDetector>
 
       <View style={[styles.rail, { bottom: railBottom }]} pointerEvents="box-none">
-        <Act icon="bolt" tone="gold" label={fmt(boltCount(p))} onPress={fire} />
+        <Act icon="heart" tone="gold" label={fmt(boltCount(p))} onPress={fire} />
         <Act icon="reply" label={fmt(p.replies || 0)} onPress={() => props.onReply(pid)} />
         <Act icon="repost" label={fmt(repostCount(p))} onPress={() => props.onRepost(pid)} />
         <Act icon="share" label="SHARE" onPress={() => props.onShare(pid)} />

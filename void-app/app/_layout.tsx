@@ -4,6 +4,37 @@ import '../src/lib/polyfills';
 import 'react-native-reanimated';
 import React, { useEffect, useState } from 'react';
 import { AppState, StyleSheet, View } from 'react-native';
+import { mark, startHeartbeat } from '../src/core/slow';
+// Module evaluation time: the earliest moment JS can see. [boot] lines count from here.
+const BOOT_T0 = Date.now();
+
+// A GL SURFACE THAT COMES BACK EMPTY MUST NOT KILL THE APP. expo-gl's own
+// onSurfaceCreate does getGl(id) -> global.__EXGLContexts[id] -> configureLogging(gl)
+// with no check, so when the surface is re-created and the id is no longer registered
+// it sets a property on undefined and throws on the JS thread. In a release build that
+// is a hard crash, and it is what killed the app on tab switches (device log 09-23
+// 12:24: "Cannot set property '__expoSetLogging' of undefined" from _onSurfaceCreate).
+// Handing back an inert object instead turns that into a globe that reports it cannot
+// start - GlobeCanvas checks the context it is given and shows its fallback.
+(() => {
+  const g = globalThis as any;
+  if (g.__voidExglGuard) return;
+  g.__voidExglGuard = true;
+  let store: Record<string, any> = g.__EXGLContexts || {};
+  Object.defineProperty(g, '__EXGLContexts', {
+    configurable: true,
+    get() {
+      return new Proxy(store, {
+        get(t, k: string) {
+          const v = (t as any)[k];
+          if (v !== undefined || typeof k === 'symbol') return v;
+          return { __voidMissingContext: true };   // inert: GlobeCanvas refuses it
+        },
+      });
+    },
+    set(v) { store = v || {}; },
+  });
+})();
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
@@ -56,17 +87,53 @@ function Shell() {
   }, [theme.colors.bg]);
 
   useEffect(() => {
-    if (ready) SplashScreen.hideAsync().catch(() => {});
+    if (!ready) return;
+    SplashScreen.hideAsync().catch(() => {});
+    // The first frame of the real app. Everything before this was a dark view.
+    mark('boot:ready');
+    try {
+      console.warn('[boot] ready after ' + (Date.now() - BOOT_T0) + 'ms (core ' + coreReady + ', theme ' + theme.ready + ', fonts ' + (fontsLoaded || !!fontError) + ')');
+    } catch {}
   }, [ready]);
 
   // Backgrounding is the one safe moment to hand the decoded-image cache back: the
   // disk cache still has every file, so returning re-decodes at the size now needed
   // instead of holding the old bitmaps. Measured 2026-09-20: ~162 MB of graphics memory.
+  // THE GLOBE TAB SHOULD NOT PAY FOR THREE.JS ON THE FRAME IT IS PRESSED.
+  // The globe screen's module graph pulls in the whole of three, and the tab is
+  // lazy, so the first press paid to evaluate it - several hundred milliseconds of
+  // JS before anything to do with the globe had even started. Evaluating it at
+  // startup would only move that cost onto the splash screen, so it happens a few
+  // seconds after first paint instead, while the feed is being read: by the time
+  // the tab is pressed the module is already in the registry and the press does
+  // nothing but build the scene.
   useEffect(() => {
+    const t = setTimeout(() => {
+      try {
+        // Named, because a synchronous require of three.js and the scene builder
+        // is one of the largest single blocks the app can run, and it runs on a
+        // timer with nothing else to blame it on. The stall detector was
+        // reporting 300-450ms blocks around the four-second mark attributed to
+        // 'idle' - this is the first candidate to confirm or clear.
+        mark('boot:globeScene');
+        require('../src/features/globe/globeScene');
+        mark('idle');
+      } catch {
+        /* the tab still works, it just pays for itself again */
+      }
+    }, 4000);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    const stopHeartbeat = startHeartbeat();
     const sub = AppState.addEventListener('change', (st) => {
       if (st === 'background') ExpoImage.clearMemoryCache().catch(() => {});
     });
-    return () => sub.remove();
+    return () => {
+      stopHeartbeat();
+      sub.remove();
+    };
   }, []);
 
   if (!ready) return <View style={[styles.fill, { backgroundColor: '#04020c' }]} />;

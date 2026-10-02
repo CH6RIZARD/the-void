@@ -8,7 +8,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme';
 import { FONTS } from '../../theme/palettes';
-import { VText } from '../../ui/Text';
+import { MyPfp } from '../../ui/Pfp';
 
 export function ProfileAvatar({ name, url, size = 72 }: { name: string; url?: string | null; size?: number }) {
   const { colors, name: theme } = useTheme();
@@ -29,7 +29,10 @@ export function ProfileAvatar({ name, url, size = 72 }: { name: string; url?: st
       {url ? (
         <Image source={{ uri: url }} style={[StyleSheet.absoluteFill, { borderRadius: size / 2 }]} contentFit="cover" transition={150} />
       ) : (
-        <VText style={{ fontFamily: FONTS.sansExtraBold, fontSize: Math.round(size * 0.36), color: light ? '#4a4234' : colors.white }}>{String(name || '?')[0].toUpperCase()}</VText>
+        // No photo: the figure the person chose from the PFP set, or the one
+        // derived from their id. The same face they have in messages - a letter
+        // on a disc here and a figure there was two different people.
+        <MyPfp seed={name} size={size} />
       )}
     </View>
   );

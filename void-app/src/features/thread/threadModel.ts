@@ -2,7 +2,7 @@
 // optimistic write path (_threadAddReply) with the VMod terms gate, and a hook that
 // re-renders a thread whenever its replies change.
 import { useEffect, useState } from 'react';
-import { addReply, boltComment, env, loadUser, onRepliesChanged, saveUser, threadComments, type Comment } from '../../core';
+import { addReply, boltComment, env, findPost, learnReact, loadUser, onRepliesChanged, saveUser, threadComments, type Comment } from '../../core';
 import { voidToast } from '../../ui/Toast';
 import { requireTerms } from '../feed/ModerationSheet';
 import { touchPost } from '../feed/reactions';
@@ -114,6 +114,12 @@ export function postReply(postId: string, author: string, text: string, parentId
       const u = loadUser();
       u.posts = (u.posts || 0) + 1;
       saveUser(u);
+    } catch {}
+    // The strongest signal the reader gives, and until now the only one the
+    // model never saw: hearting taught it, dwelling taught it, writing a reply
+    // taught it nothing.
+    try {
+      learnReact(findPost(postId), postId, 'reply');
     } catch {}
     bumpThread(postId);
     done(id);

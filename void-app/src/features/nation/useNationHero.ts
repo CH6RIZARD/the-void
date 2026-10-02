@@ -133,7 +133,7 @@ export function useNationHero(c: Country) {
           if (token !== r.token) return false;
           teardown();
           r.needsHeal = false;
-          patch({ playing: false }); // sparkleTile(stage,'● CONNECTING')
+          patch({ playing: false }); // sparkleTile(stage) - no label
           const ok = await tryOne(src);
           if (token !== r.token) return false;
           if (ok) {

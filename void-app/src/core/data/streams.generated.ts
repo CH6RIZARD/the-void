@@ -2,7 +2,7 @@
 import type { StreamSource, LiveChannel } from '../types.ts';
 
 // Resolved by scripts/resolve-live.js: only these were CONFIRMED broadcasting at _resolvedAt.
-export const VOID_LIVE: { _resolvedAt: string; items: LiveChannel[] } = {"_resolvedAt":"2026-08-03T00:23:08.713Z","items":[{"n":"DW NEWS","id":"UCknLrEdhRCp1aegoMqRaCZg","vid":"LuKwFajn37U"},{"n":"BLOOMBERG","id":"UCIALMKvObZNtJ6AmdCLP7Lg","vid":"QB5BNdBFujE"},{"n":"TIMES NOW","id":"UCt4t-jeY85JegMlZ-E5UWtA","vid":"fuqnTZm94us"},{"n":"TRT WORLD","id":"UC7fWeaHhqgM4Ry-RMpM2YYw","vid":"b8lPrtjmnmw"}]};
+export const VOID_LIVE: { _resolvedAt: string; items: LiveChannel[] } = {"_resolvedAt":"2026-10-01T15:17:09.634Z","items":[{"n":"DW NEWS","id":"UCknLrEdhRCp1aegoMqRaCZg","vid":"LuKwFajn37U"},{"n":"BLOOMBERG","id":"UCIALMKvObZNtJ6AmdCLP7Lg","vid":"QB5BNdBFujE"},{"n":"TIMES NOW","id":"UCt4t-jeY85JegMlZ-E5UWtA","vid":"kXlSrKm9FjU"},{"n":"TRT WORLD","id":"UC7fWeaHhqgM4Ry-RMpM2YYw","vid":"qBe59l6p_EU"}]};
 
 // Channels ordered by embed reliability (DW confirmed working in tests).
 export const LIVE_CHANNELS: LiveChannel[] = [
@@ -442,7 +442,4 @@ export const NEWS_SOURCES: Record<string, StreamSource[]> = {
 };
 
 // Guaranteed-connectable, CORS-enabled HLS placeholder pool.
-export const GLOBAL_POOL: StreamSource[] = [
-  {"type":"hls","url":"https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8","label":"GLOBAL FEED"},
-  {"type":"hls","url":"https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8","label":"GLOBAL FEED 2"}
-];
+export const GLOBAL_POOL: StreamSource[] = [];

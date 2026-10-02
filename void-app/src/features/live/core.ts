@@ -76,6 +76,11 @@ export function markBadStream(src: StreamSource | null | undefined): void {
   const k = streamKey(src);
   if (k) badSet().add(k);
 }
+/** Sources refused on principle (test streams). See keys.ts. */
+export function isBannedStream(s: { url?: string; id?: string } | null | undefined): boolean {
+  return typeof S.isBannedStream === 'function' ? !!S.isBannedStream(s) : false;
+}
+
 export function isBadStream(src: StreamSource | null | undefined): boolean {
   if (!src) return false;
   if (typeof S.isBadStream === 'function') return !!S.isBadStream(src);
