@@ -231,7 +231,7 @@ export function CardGate({ stepLabel, initialMode = 'create', onEnter }: { stepL
       const next: SlotGeom = {
         x: (spx + sw / 2) * kx,
         y: (spy + sh) * ky,
-        tagTop: (spy - 22) * ky, // the tag's top edge, one pad above the slot
+        tagTop: (spy - 10) * ky, // the tag's top edge, one slot margin above the slot
       };
       setSlot((p) => (p && Math.abs(p.x - next.x) < 0.5 && Math.abs(p.y - next.y) < 0.5 ? p : next));
       strapIn.value = withTiming(1, { duration: 400 });
@@ -373,15 +373,18 @@ export function CardGate({ stepLabel, initialMode = 'create', onEnter }: { stepL
               <Shimmer width={cardW} />
               {/* The slot the strap goes through. Measured, not assumed. */}
               <View ref={slotRef} onLayout={measureSlot} style={s.slot} />
-              <View style={s.cardTop}>
-                <VText style={{ fontFamily: FONTS.sansExtraBold, fontSize: 13, letterSpacing: em(13, 0.14), color: WHITE }}>
-                  THE<VText style={{ fontFamily: FONTS.sansExtraBold, fontSize: 13, color: GOLD }}>⬡</VText>VOID
+              {/* THE GOLD BAND — the mock's tag header: dark THE⬡VOID on gold,
+                  the band empty on a new tag, RETURNING on a returning one,
+                  PASSWORD · @handle once the tag is flipped. */}
+              <LinearGradient colors={[GOLD, '#e2c56a', GOLD]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.band}>
+                <VText style={{ fontFamily: FONTS.sansExtraBold, fontSize: 13, letterSpacing: em(13, 0.14), color: '#0a0620' }}>
+                  THE<VText style={{ fontFamily: FONTS.sansExtraBold, fontSize: 13, color: '#2a1060' }}>⬡</VText>VOID
                 </VText>
-                {/* Empty for a new tag; a returning one says so. */}
-                <Mono size={7} tracking={0.2} color={GOLD}>
-                  {login ? t('s3.tag.returning') : ''}
+                <Mono size={7} tracking={0.2} color="#2a1060">
+                  {flipped ? t('s3.login.card.passLabel', { handle: h || '—' }) : login ? t('s3.tag.returning') : ''}
                 </Mono>
-              </View>
+              </LinearGradient>
+              <View style={s.tagBody}>
               {flipped ? (
                 <View style={s.fieldRow}>
                   <VText style={s.fieldMark}>✱</VText>
@@ -439,6 +442,7 @@ export function CardGate({ stepLabel, initialMode = 'create', onEnter }: { stepL
                 <Mono size={7.5} tracking={0.22} color={LAV}>
                   {today()}
                 </Mono>
+              </View>
               </View>
             </Animated.View>
 
@@ -590,15 +594,14 @@ const s = StyleSheet.create({
     width: '100%',
     aspectRatio: 1.586,
     borderRadius: 18,
-    paddingVertical: 22,
-    paddingHorizontal: 24,
-    justifyContent: 'space-between',
     overflow: 'hidden',
     boxShadow: '0px 40px 80px rgba(0,0,0,0.7), 0px 0px 0px 1px rgba(201,168,76,0.35), inset 0px 1px 0px rgba(255,255,255,0.08)',
   },
-  slot: { alignSelf: 'center', width: 34, height: 9, borderRadius: 5, backgroundColor: '#04020c', marginBottom: 10, boxShadow: 'inset 0px 1px 2px rgba(0,0,0,0.9), 0px 1px 0px rgba(201,168,76,0.22)' },
-  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  fieldRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  slot: { alignSelf: 'center', width: 34, height: 9, borderRadius: 5, backgroundColor: '#04020c', marginTop: 10, marginBottom: 10, boxShadow: 'inset 0px 1px 2px rgba(0,0,0,0.9), 0px 1px 0px rgba(201,168,76,0.22)' },
+  band: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 24 },
+  tagBody: { flex: 1, justifyContent: 'space-between', paddingTop: 16, paddingHorizontal: 24, paddingBottom: 18 },
+  // The handle sits on a hairline, as on the mock.
+  fieldRow: { flexDirection: 'row', alignItems: 'center', gap: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.12)', paddingBottom: 4 },
   fieldMark: { fontFamily: FONTS.serifItalic, fontSize: 30, color: GOLD },
   cardInput: { flex: 1, fontFamily: FONTS.serifItalic, fontSize: 30, color: WHITE, padding: 0, backgroundColor: 'transparent', minWidth: 0 },
   cardBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
