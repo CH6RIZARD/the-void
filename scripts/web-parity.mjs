@@ -1,0 +1,347 @@
+// WEB PARITY WITH NATIVE: hearts, the profile tabs and tile grid, the Messages
+// pinned strip / RECENT / compose, and the PFP set. Native is the source of
+// truth (void-app/src/features/profile, messages, ui/Pfp.tsx, ui/icons/paths.ts).
+// Run once against void2-final.html, then `node build.js`.
+import { readFileSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+const L = (...x) => x.join('\n');
+const f = fileURLToPath(new URL('../void2-final.html', import.meta.url));
+let s = readFileSync(f, 'utf8'); const crlf = s.includes('\r\n'); s = s.replace(/\r\n/g, '\n');
+const rep = (a, b, all) => { const n = s.split(a).length - 1; if (n < 1 || (!all && n !== 1)) { console.log('ANCHOR x' + n + ': ' + a.slice(0, 90)); process.exit(1); } s = s.split(a).join(b); };
+const span = (start, end, replacement) => { const i = s.indexOf(start); if (i < 0) { console.log('SPAN START MISSING: ' + start.slice(0, 80)); process.exit(1); } const j = s.indexOf(end, i); if (j < 0) { console.log('SPAN END MISSING: ' + end.slice(0, 80)); process.exit(1); } s = s.slice(0, i) + replacement + s.slice(j + end.length); };
+
+// ─── 1. Icons (ui/icons/paths.ts). The bolt stays: it is the logo. ───────────
+rep("  boltFill:VI('<path d=\"M13 2 4 14h6l-1 8 9-12h-6l1-8z\"/>',1),", L(
+"  boltFill:VI('<path d=\"M13 2 4 14h6l-1 8 9-12h-6l1-8z\"/>',1),",
+"  // The reaction is a heart now (native: 'The reaction is a heart now. The bolt",
+"  // glyphs stay defined: the bolt is still the mark of the app itself').",
+"  heart:   VI('<path d=\"M12 20.4 4.2 12.6a4.8 4.8 0 0 1 6.8-6.8l1 1 1-1a4.8 4.8 0 0 1 6.8 6.8z\"/>'),",
+"  heartFill:VI('<path d=\"M12 20.4 4.2 12.6a4.8 4.8 0 0 1 6.8-6.8l1 1 1-1a4.8 4.8 0 0 1 6.8 6.8z\"/>',1),",
+"  // The profile's layout toggle and its gallery marker.",
+"  grid:    VI('<rect x=\"3.5\" y=\"3.5\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"13.5\" y=\"3.5\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"3.5\" y=\"13.5\" width=\"7\" height=\"7\" rx=\"1.5\"/><rect x=\"13.5\" y=\"13.5\" width=\"7\" height=\"7\" rx=\"1.5\"/>'),",
+"  rows:    VI('<path d=\"M4 7h16M4 12h16M4 17h16\"/>'),",
+"  stack:   VI('<rect x=\"7.5\" y=\"3.5\" width=\"13\" height=\"13\" rx=\"2\"/><path d=\"M16.5 20.5h-11a2 2 0 0 1-2-2v-11\"/>'),",
+"  pen:     VI('<path d=\"M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17v3z\"/><path d=\"M14.5 6.5l3 3\"/>'),",
+));
+
+// ─── 2. Every reaction that drew a bolt draws a heart. ─────────────────────
+// All 21 VICON.bolt* uses in the file are reactions (feed, react(), thread OP,
+// comments, search cards, profile rows, reels rail and burst); the logo does
+// not go through VICON. Checked by listing them before this ran.
+rep('VICON.boltFill', 'VICON.heartFill', true);
+s = s.replace(/VICON\.bolt\b/g, 'VICON.heart');
+
+// ─── 3. Profile: DROPS / HEARTED / REPLIES + the grid-tile layout ───────────
+rep(L(
+"    <div class=\"me-tabs\">",
+"      <div class=\"me-tab on\" data-pane=\"drops\" onclick=\"switchMeTab(this)\">DROPS</div>",
+"      <div class=\"me-tab\" data-pane=\"messages\" onclick=\"switchMeTab(this)\">MESSAGES</div>",
+"    </div>",
+"    <div class=\"prof-content\">",
+"      <div class=\"me-pane on\" id=\"me-pane-drops\">",
+"        <div id=\"user-posts-feed\"><div class=\"user-posts-empty\">NO DROPS YET &middot; JOIN THE THREAD</div></div>",
+"      </div>",
+"      <div class=\"me-pane\" id=\"me-pane-messages\">",
+"        <div id=\"me-conv-list\"></div>",
+"      </div>",
+"    </div>",
+), L(
+"    <!-- DROPS / HEARTED / REPLIES, as native ProfileScreen: Messages is a tab of",
+"         its own in the nav, so it is not here. The button at the end flips the",
+"         drops between the card list and a three-across tile grid. -->",
+"    <div class=\"me-tabs\">",
+"      <div class=\"me-tab on\" data-pane=\"drops\" onclick=\"switchMeTab(this)\">DROPS</div>",
+"      <div class=\"me-tab\" data-pane=\"hearted\" onclick=\"switchMeTab(this)\">HEARTED</div>",
+"      <div class=\"me-tab\" data-pane=\"replies\" onclick=\"switchMeTab(this)\">REPLIES</div>",
+"      <button class=\"prof-layout-btn\" id=\"prof-layout-btn\" onclick=\"toggleProfLayout()\" aria-label=\"Show drops as a grid\"></button>",
+"    </div>",
+"    <div class=\"prof-content\">",
+"      <div class=\"me-pane on\" id=\"me-pane-drops\"><div id=\"user-posts-feed\"><div class=\"user-posts-empty\">NO DROPS YET &middot; JOIN THE THREAD</div></div></div>",
+"      <div class=\"me-pane\" id=\"me-pane-hearted\"><div id=\"user-hearted-feed\"></div></div>",
+"      <div class=\"me-pane\" id=\"me-pane-replies\"><div id=\"user-replies-feed\"></div></div>",
+"    </div>",
+));
+
+rep(L(
+"function switchMeTab(el){",
+"  document.querySelectorAll('.me-tab').forEach(t=>t.classList.remove('on'));",
+"  document.querySelectorAll('.me-pane').forEach(p=>p.classList.remove('on'));",
+"  el.classList.add('on');",
+"  document.getElementById('me-pane-'+el.dataset.pane).classList.add('on');",
+"  if(el.dataset.pane==='messages')renderConvList();",
+"}",
+), L(
+"function switchMeTab(el){",
+"  document.querySelectorAll('.me-tab').forEach(t=>t.classList.remove('on'));",
+"  document.querySelectorAll('.me-pane').forEach(p=>p.classList.remove('on'));",
+"  el.classList.add('on');",
+"  const pane=el.dataset.pane;_profTab=pane;",
+"  const pe=document.getElementById('me-pane-'+pane);if(pe)pe.classList.add('on');",
+"  // HEARTED is a record of what you did, so it is re-read on every visit: a",
+"  // heart given on the feed a moment ago belongs at the top of it.",
+"  if(pane==='hearted')_profHearted=null;",
+"  renderProfPane(pane);",
+"}",
+));
+
+span("// The DROPS pane only ever held an empty-state string", "  }).join('');\n}\n", L(
+"// ─── PROFILE PANES: DROPS / HEARTED / REPLIES, as a list or a 3-wide tile grid ───",
+"// Ported from native ProfileScreen + profileApi. HEARTED reads the `reactions`",
+"// relation back (post ids first, then the posts through the same sbPostToApp",
+"// mapping as every other list, ordered by when the heart was given); REPLIES is",
+"// the author's posts with reply_to set. Fetched posts are merged into allPosts",
+"// by id so openThread finds them like any other drop.",
+"const PROF_LAYOUT_KEY='void.profile.layout';",
+"let _profLayout=localStorage.getItem(PROF_LAYOUT_KEY)==='tiles'?'tiles':'scroll';",
+"let _profTab='drops',_profHearted=null,_profReplies=null;",
+"const PROF_POST_SELECT='id,author_id,body,rank_score,created_at,profiles:author_id(handle,display_name),post_media(url,ordinal,kind,mime,duration_s)';",
+"function _profMerge(rows){",
+"  const out=[];",
+"  for(const r of rows||[]){const p=sbPostToApp(r);if(!p)continue;const have=allPosts.find(x=>x.id===p.id);if(have){Object.assign(have,p);out.push(have);}else{allPosts.push(p);out.push(p);}}",
+"  return out;",
+"}",
+"async function fetchHeartedPosts(){",
+"  const uid=VoidAPI._uid();if(!uid)return [];",
+"  try{",
+"    const refs=await sbGet('/rest/v1/reactions?user_id=eq.'+encodeURIComponent(uid)+'&select=post_id,created_at&order=created_at.desc&limit=60');",
+"    const ids=(Array.isArray(refs)?refs:[]).map(r=>r&&r.post_id).filter(Boolean);",
+"    if(!ids.length)return [];",
+"    const rows=await sbGet('/rest/v1/posts?id=in.('+ids.join(',')+')&select='+PROF_POST_SELECT+'&limit=60');",
+"    if(!Array.isArray(rows))return [];",
+"    const order=new Map(ids.map((id,i)=>[id,i]));",
+"    return _profMerge(rows).sort((a,b)=>(order.get(a.id)??1e9)-(order.get(b.id)??1e9));",
+"  }catch(e){return [];}",
+"}",
+"async function fetchReplyPosts(){",
+"  const uid=VoidAPI._uid();if(!uid)return [];",
+"  try{",
+"    const rows=await sbGet('/rest/v1/posts?author_id=eq.'+encodeURIComponent(uid)+'&reply_to=not.is.null&select='+PROF_POST_SELECT+'&order=created_at.desc&limit=40');",
+"    return Array.isArray(rows)?_profMerge(rows):[];",
+"  }catch(e){return [];}",
+"}",
+"function profRowHtml(p){",
+"  const r=postReactions[p.id]||{};",
+"  const serif=p.style==='drop'||p.style==='quiet';",
+"  return `<div class=\"up-row\" onclick=\"openThread('${p.id}')\">",
+"      <div class=\"up-body${serif?' serif':''}\">${esc(p.body||'')}</div>",
+"      <div class=\"up-acts\">",
+"        <span class=\"up-age\">${ago(p.time||Date.now()).toUpperCase()}</span>",
+"        <span>${r.mf?VICON.heartFill:VICON.heart}${fmt((p.score||0)+(r.fire||0))}</span>",
+"        <span>${VICON.reply}${fmt((p.replies||0)+(r.rank||0))}</span>",
+"        <span class=\"up-rp\">${VICON.repost}${fmt(p.reposts||0)}</span>",
+"      </div>",
+"    </div>`;",
+"}",
+"// One square of the tile grid (native ProfileTile): media fills it; a clip and a",
+"// gallery say which they are with a corner glyph; a voice drop draws its",
+"// waveform, deterministic per post; a text drop shows its first lines.",
+"function profTileHtml(p){",
+"  const img=p._img||(p._imgs&&p._imgs[0])||'';",
+"  const isVoice=p.style==='audio'||!!p._audio,isClip=p.style==='video'||!!p._video,isGallery=p.style==='carousel'||!!(p._imgs&&p._imgs.length>1),isLive=p.style==='link_live';",
+"  let body;",
+"  if(img)body=`<img class=\"ptile-img\" src=\"${esc(img)}\" alt=\"\" loading=\"lazy\">`;",
+"  else if(isVoice)body=`<div class=\"ptile-voice\">${Array.from({length:13},(_,i)=>{const seed=(p.id.charCodeAt(i%p.id.length)*31+i*17)%100;return `<i style=\"height:${(6+(seed/100)*26).toFixed(1)}px\"></i>`;}).join('')}</div>`;",
+"  else body=`<div class=\"ptile-text\"><span>${esc((p.body||'').trim()||'\\u2014')}</span></div>`;",
+"  const glyph=isLive?`<span class=\"ptile-pill\">LIVE</span>`:isClip?`<span class=\"ptile-glyph\">${VICON.play}</span>`:isGallery?`<span class=\"ptile-glyph\">${VICON.stack}</span>`:'';",
+"  return `<div class=\"ptile\" role=\"button\" onclick=\"openThread('${p.id}')\">${body}${glyph}</div>`;",
+"}",
+"function profListHtml(posts,empty){",
+"  if(!posts.length)return `<div class=\"user-posts-empty\">${empty}</div>`;",
+"  return _profLayout==='tiles'?`<div class=\"prof-tiles\">${posts.map(profTileHtml).join('')}</div>`:posts.map(profRowHtml).join('');",
+"}",
+"function renderUserDrops(){",
+"  const mount=document.getElementById('user-posts-feed'); if(!mount)return;",
+"  const mine=allPosts.filter(p=>p._user).sort((a,b)=>(b.time||0)-(a.time||0));",
+"  mount.innerHTML=profListHtml(mine,'NO DROPS YET &middot; JOIN THE THREAD');",
+"}",
+"async function renderProfPane(pane){",
+"  if(pane==='drops'){renderUserDrops();return;}",
+"  const mount=document.getElementById(pane==='hearted'?'user-hearted-feed':'user-replies-feed');if(!mount)return;",
+"  let list=pane==='hearted'?_profHearted:_profReplies;",
+"  if(list===null){",
+"    mount.innerHTML='<div class=\"user-posts-empty\">PULLING&hellip;</div>';",
+"    list=pane==='hearted'?await fetchHeartedPosts():await fetchReplyPosts();",
+"    if(pane==='hearted')_profHearted=list;else _profReplies=list;",
+"    if(_profTab!==pane)return;   // the tab moved on while this was in flight",
+"  }",
+"  mount.innerHTML=profListHtml(list,pane==='hearted'?'NOTHING HEARTED YET':'NO REPLIES YET');",
+"}",
+"// Persisted, as native: whichever way you last chose to look at a profile is",
+"// how it opens next time.",
+"function toggleProfLayout(){",
+"  _profLayout=_profLayout==='tiles'?'scroll':'tiles';",
+"  localStorage.setItem(PROF_LAYOUT_KEY,_profLayout);",
+"  paintProfLayoutBtn();renderProfPane(_profTab);",
+"}",
+"function paintProfLayoutBtn(){",
+"  const b=document.getElementById('prof-layout-btn');if(!b)return;",
+"  b.innerHTML=_profLayout==='tiles'?VICON.rows:VICON.grid;",
+"  b.setAttribute('aria-label',_profLayout==='tiles'?'Show drops as a list':'Show drops as a grid');",
+"}",
+));
+rep("  renderUserDrops();\n  BIO._update();", "  paintProfLayoutBtn();renderProfPane(_profTab);\n  BIO._update();");
+
+// The profile avatar: the figure you chose, or the one your id gives you - the
+// same face you have in Messages. A letter here and a figure there was two people.
+rep("  av.textContent=(USER.name||'?')[0].toUpperCase();", "  av.innerHTML=myPfpHtml(72);");
+
+// ─── 4. Messages: pinned strip, RECENT, compose ─────────────────────────────
+rep(L(
+"    <div class=\"msg-head-title\">Messages</div>",
+"    <div class=\"msg-enc-badge\">NOT ENCRYPTED</div>",
+), L(
+"    <div class=\"msg-head-title\">Messages</div>",
+"    <button class=\"msg-compose-btn\" onclick=\"dmCompose()\" aria-label=\"Compose a message\"></button>",
+"    <div class=\"msg-enc-badge\">NOT ENCRYPTED</div>",
+));
+rep("  const list=document.getElementById('conv-list');if(!list)return;\n  const qEl=document.getElementById('msg-search');",
+    "  const list=document.getElementById('conv-list');if(!list)return;\n  {const cb=document.querySelector('.msg-compose-btn');if(cb&&!cb.querySelector('.vi'))cb.innerHTML=VICON.pen;}\n  const qEl=document.getElementById('msg-search');");
+rep("  }else{\n    html=DM_CONVS.map(c=>convRow(c)).join('');\n  }",
+    "  }else{\n    html=pinnedRowHtml()+'<div class=\"conv-sect\">RECENT</div>'+DM_CONVS.map(c=>convRow(c)).join('');\n  }");
+
+// ─── 5. The PFP set, everywhere Messages shows a face ──────────────────────
+rep("    <div class=\"conv-av\" style=\"background:${dmColor(c.other.id)}\">${esc((c.other.name||'?')[0].toUpperCase())}</div>",
+    "    <div class=\"conv-av\">${pfpHtml(c.other.id||c.other.name,44,{ring:c.unread>0})}</div>");
+rep("    <div class=\"conv-av\" style=\"background:${dmColor(p.id)}\">${esc(String(p.display_name||p.handle||'?')[0].toUpperCase())}</div>",
+    "    <div class=\"conv-av\">${pfpHtml(p.id||p.handle,44)}</div>");
+rep("  document.getElementById('chat-av').textContent=(c.other.name||'?')[0].toUpperCase();\n  document.getElementById('chat-av').style.background=dmColor(c.other.id);",
+    "  document.getElementById('chat-av').innerHTML=pfpHtml(c.other.id||c.other.name,36);\n  document.getElementById('chat-av').style.background='';");
+
+rep("function dmColor(id){let h=0;for(const c of String(id||''))h=(h*31+c.charCodeAt(0))>>>0;return AVC[h%AVC.length];}", L(
+"function dmColor(id){let h=0;for(const c of String(id||''))h=(h*31+c.charCodeAt(0))>>>0;return AVC[h%AVC.length];}",
+"// ─── THE PFP SET (native ui/Pfp.tsx, verbatim) ──────────────────────────────",
+"// A gold line figure on a deep-purple disc, used wherever someone has no photo:",
+"// the pinned strip, conversation rows, the chat head, the profile. The figure is",
+"// chosen by number, and the SAME seed always gives the SAME figure, so a person",
+"// keeps one face everywhere they appear.",
+"const PFP_GOLD='#c9a84c';",
+"const PFP_FIGURES=[",
+"  {n:1,name:'Classic bust',d:'M50 26a13 13 0 1 1 0 26a13 13 0 1 1 0-26z M22 88c2-18 13-28 28-28s26 10 28 28'},",
+"  {n:2,name:'Bust \\u00b7 filled head',d:'M22 88c2-18 13-28 28-28s26 10 28 28',fill:'M50 26a13 13 0 1 1 0 26a13 13 0 1 1 0-26z'},",
+"  {n:3,name:'Hex head',d:'M50 24l12 7v14l-12 7-12-7V31z M22 88c2-18 13-28 28-28s26 10 28 28'},",
+"  {n:4,name:'Hooded',d:'M50 22c-16 0-26 12-26 30v10h52V52c0-18-10-30-26-30z M40 62c2-10 6-14 10-14s8 4 10 14 M26 88c4-10 12-16 24-16s20 6 24 16'},",
+"  {n:5,name:'Silhouette \\u00b7 rounded',d:'M50 24a12 12 0 0 1 12 12v6a12 12 0 0 1-24 0v-6a12 12 0 0 1 12-12z M20 90c0-16 12-26 30-26s30 10 30 26'},",
+"  {n:6,name:'Two strokes',d:'M38 40a12 12 0 1 0 24 0 M24 86c4-16 14-24 26-24s22 8 26 24'},",
+"  {n:7,name:'Dot head \\u00b7 arc',d:'M22 84c4-14 14-22 28-22s24 8 28 22',fill:'M50 30a10 10 0 1 1 0 20a10 10 0 1 1 0-20z'},",
+"  {n:8,name:'Bust with collar',d:'M50 26a13 13 0 1 1 0 26a13 13 0 1 1 0-26z M22 88c2-18 13-28 28-28s26 10 28 28 M42 60l8 12 8-12'},",
+"  {n:9,name:'Offset \\u00b7 looking away',d:'M46 30a12 12 0 1 1 8 22 M20 90c2-17 12-27 28-27 8 0 15 2 21 6'},",
+"  {n:10,name:'Hex bust',d:'M50 26a13 13 0 1 1 0 26a13 13 0 1 1 0-26z M50 60l26 15v13H24V75z'},",
+"  {n:11,name:'Ghost',d:'M30 88V50a20 20 0 0 1 40 0v38l-8-6-8 6-8-6-8 6-8-6z',fill:'M42 48a3 3 0 1 1 0 6a3 3 0 1 1 0-6z M58 48a3 3 0 1 1 0 6a3 3 0 1 1 0-6z'},",
+"  {n:12,name:'Masked',d:'M50 26a13 13 0 1 1 0 26a13 13 0 1 1 0-26z M22 88c2-18 13-28 28-28s26 10 28 28',fill:'M38 36h24v8H38z'},",
+"  {n:13,name:'Halo',d:'M50 30a12 12 0 1 1 0 24a12 12 0 1 1 0-24z M24 88c3-16 13-25 26-25s23 9 26 25',fill:'M50 14a20 4 0 1 0 0 8a20 4 0 1 0 0-8z'},",
+"  {n:14,name:'Square head',d:'M38 28h24v24H38z M22 88c2-18 13-28 28-28s26 10 28 28'},",
+"  {n:15,name:'Crescent',d:'M56 24a16 16 0 1 0 8 30 12 12 0 1 1-8-30z M22 88c2-18 13-28 28-28s26 10 28 28'},",
+"  {n:16,name:'Antenna',d:'M50 30a12 12 0 1 1 0 24a12 12 0 1 1 0-24z M50 30V18 M22 88c2-18 13-28 28-28s26 10 28 28',fill:'M50 12a4 4 0 1 1 0 8a4 4 0 1 1 0-8z'},",
+"  {n:17,name:'Eye',d:'M20 50c10-16 50-16 60 0-10 16-50 16-60 0z',fill:'M50 42a8 8 0 1 1 0 16a8 8 0 1 1 0-16z'},",
+"  {n:18,name:'Pin drop',d:'M50 20c-12 0-20 9-20 20 0 14 20 40 20 40s20-26 20-40c0-11-8-20-20-20z',fill:'M50 33a7 7 0 1 1 0 14a7 7 0 1 1 0-14z'},",
+"  {n:19,name:'Double bust',d:'M38 34a9 9 0 1 1 0 18a9 9 0 1 1 0-18z M62 34a9 9 0 1 1 0 18a9 9 0 1 1 0-18z M16 84c2-14 10-22 22-22 4 0 8 1 12 4 4-3 8-4 12-4 12 0 20 8 22 22'},",
+"  {n:20,name:'Void ring',d:'M50 22a28 28 0 1 1 0 56a28 28 0 1 1 0-56z',fill:'M50 40a10 10 0 1 1 0 20a10 10 0 1 1 0-20z'},",
+"  {n:24,name:'Smiling',d:'M50 26a13 13 0 1 1 0 26a13 13 0 1 1 0-26z M22 88c2-18 13-28 28-28s26 10 28 28 M44 42c2 4 10 4 12 0',fill:'M45 34a1.8 1.8 0 1 1 0 3.6a1.8 1.8 0 1 1 0-3.6z M55 34a1.8 1.8 0 1 1 0 3.6a1.8 1.8 0 1 1 0-3.6z'},",
+"  {n:25,name:'Sleeping',d:'M50 26a13 13 0 1 1 0 26a13 13 0 1 1 0-26z M22 88c2-18 13-28 28-28s26 10 28 28 M43 38c2 2 5 2 7 0 M53 38c2 2 5 2 7 0 M68 20h8l-8 8h8'},",
+"  {n:26,name:'Looking up',d:'M50 26a13 13 0 1 1 0 26a13 13 0 1 1 0-26z M22 88c2-18 13-28 28-28s26 10 28 28',fill:'M45 30a2 2 0 1 1 0 4a2 2 0 1 1 0-4z M55 30a2 2 0 1 1 0 4a2 2 0 1 1 0-4z'},",
+"  {n:27,name:'Winking',d:'M50 26a13 13 0 1 1 0 26a13 13 0 1 1 0-26z M22 88c2-18 13-28 28-28s26 10 28 28 M53 36h6 M46 42c2 3 6 3 8 0',fill:'M45 34a1.8 1.8 0 1 1 0 3.6a1.8 1.8 0 1 1 0-3.6z'},",
+"  {n:28,name:'Headphones',d:'M50 26a13 13 0 1 1 0 26a13 13 0 1 1 0-26z M22 88c2-18 13-28 28-28s26 10 28 28 M35 40a15 15 0 0 1 30 0',fill:'M32 38h5v9h-5z M63 38h5v9h-5z'},",
+"  {n:30,name:'Speaking',d:'M50 26a13 13 0 1 1 0 26a13 13 0 1 1 0-26z M22 88c2-18 13-28 28-28s26 10 28 28 M66 22h16a5 5 0 0 1 5 5v9a5 5 0 0 1-5 5h-9l-6 6v-6h-1a5 5 0 0 1-5-5v-9a5 5 0 0 1 5-5z',fill:'M69 30a2 2 0 1 1 0 4a2 2 0 1 1 0-4z M74 30a2 2 0 1 1 0 4a2 2 0 1 1 0-4z M79 30a2 2 0 1 1 0 4a2 2 0 1 1 0-4z'},",
+"];",
+"const PFP_BY_N=new Map(PFP_FIGURES.map(f=>[f.n,f]));",
+"// Derived from the id, so it is stable for that person on every device.",
+"function pfpFor(seed){const s=String(seed||'');let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return PFP_FIGURES[h%PFP_FIGURES.length]||PFP_FIGURES[0];}",
+"function pfpFigSvg(fig,size,sw){return `<svg class=\"pfp-fig\" width=\"${size}\" height=\"${size}\" viewBox=\"0 0 100 100\"><path d=\"${fig.d}\" fill=\"none\" stroke=\"${PFP_GOLD}\" stroke-width=\"${sw}\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>${fig.fill?`<path d=\"${fig.fill}\" fill=\"${PFP_GOLD}\"/>`:''}</svg>`;}",
+"// The figure on the disc. `figure` picks explicitly; otherwise `seed` decides.",
+"// `ring` draws the gold outline the mock puts on an unread pin. The figures sit",
+"// in a 100x100 box that is mostly figure; on the disc they read at about 72%.",
+"function pfpHtml(seed,size,opts){",
+"  opts=opts||{};const fig=(opts.figure!=null&&PFP_BY_N.get(opts.figure))||pfpFor(seed);const inner=Math.round(size*.72);",
+"  return `<span class=\"pfp\" style=\"width:${size}px;height:${size}px\"><svg width=\"${size}\" height=\"${size}\" viewBox=\"0 0 100 100\"><defs><radialGradient id=\"pfpDisc\" cx=\"35%\" cy=\"30%\" r=\"75%\"><stop offset=\"0\" stop-color=\"#2a1060\"/><stop offset=\".7\" stop-color=\"#0d0520\"/></radialGradient></defs><circle cx=\"50\" cy=\"50\" r=\"50\" fill=\"url(#pfpDisc)\"/>${opts.ring?`<circle cx=\"50\" cy=\"50\" r=\"48.5\" fill=\"none\" stroke=\"${PFP_GOLD}\" stroke-width=\"3\"/>`:''}</svg>${pfpFigSvg(fig,inner,size>=90?1.8:2.2)}</span>`;",
+"}",
+"// Which figure you chose - stored on this device, like native (profiles has no",
+"// column for it), under the same key, so the choice reads the same in both.",
+"const PFP_KEY='void.pfp.figure';",
+"function readPfpChoice(){try{const v=JSON.parse(localStorage.getItem(PFP_KEY)||'null');return typeof v==='number'&&PFP_BY_N.has(v)?v:null;}catch(e){return null;}}",
+"function writePfpChoice(n){try{localStorage.setItem(PFP_KEY,JSON.stringify(n));}catch(e){}}",
+"function myPfpSeed(){try{const u=VoidAPI._uid();if(u)return u;}catch(e){}return USER.handle||USER.name;}",
+"function myPfpHtml(size){const c=readPfpChoice();return pfpHtml(myPfpSeed(),size,{figure:c==null?undefined:c});}",
+"// The picker in Settings (native EditProfileSheet: 'OR CHOOSE A FIGURE').",
+"let _pfpPending=null;",
+"function pfpSettingsOpen(){_pfpPending=readPfpChoice();const g=document.getElementById('pfp-choices');if(g)g.hidden=true;const t=document.getElementById('pfp-toggle');if(t)t.textContent='OR CHOOSE A FIGURE';renderPfpSettings();}",
+"function renderPfpSettings(){",
+"  const pv=document.getElementById('s-pfp-preview');if(pv)pv.innerHTML=pfpHtml(myPfpSeed(),56,{figure:_pfpPending==null?undefined:_pfpPending});",
+"  const g=document.getElementById('pfp-choices');",
+"  if(g&&!g.hidden)g.innerHTML=PFP_FIGURES.map(f=>`<span class=\"pfp-choice${_pfpPending===f.n?' on':''}\" title=\"${esc(f.name)}\" onclick=\"pickPfp(${f.n})\">${pfpHtml('',48,{figure:f.n})}</span>`).join('');",
+"}",
+"function togglePfpChoices(btn){const g=document.getElementById('pfp-choices');if(!g)return;g.hidden=!g.hidden;btn.textContent=g.hidden?'OR CHOOSE A FIGURE':'CLOSE THE SET';renderPfpSettings();}",
+"function pickPfp(n){_pfpPending=_pfpPending===n?null:n;renderPfpSettings();}",
+"// ─── THE PINNED STRIP (native MessagesScreen PinnedRow) ───────────────────",
+"// Most-messaged, counted from the messages this client has actually loaded:",
+"// convs arrive with one `last` each and msgs[] fills in as threads are opened,",
+"// so a fresh launch ranks by recency and settles toward real volume as threads",
+"// are read. A strip of one is just the list again, so it needs two.",
+"function pinnedRowHtml(){",
+"  const count=c=>(DM_MSGS[c.id]||[]).length;",
+"  const pinned=DM_CONVS.map((c,i)=>({c,i})).sort((a,b)=>count(b.c)-count(a.c)||a.i-b.i).slice(0,5).map(x=>x.c);",
+"  if(pinned.length<2)return '';",
+"  return `<div class=\"pin-row\">${pinned.map(c=>`<div class=\"pin${c.unread?' unread':''}\" role=\"button\" onclick=\"openChat('${c.id}')\"><span class=\"pin-av\">${pfpHtml(c.other.id||c.other.name,64,{ring:c.unread>0})}${c.unread>0?`<span class=\"pin-badge\">${c.unread>9?'9+':c.unread}</span>`:''}</span><span class=\"pin-name\">${esc(String(c.other.name||c.other.handle||'').trim().split(/\\s+/)[0])}</span></div>`).join('')}</div>`;",
+"}",
+"// Compose: the search field is where a conversation starts (type a handle).",
+"function dmCompose(){const s=document.getElementById('msg-search');if(s){s.focus();try{s.scrollIntoView({block:'nearest'});}catch(e){}}}",
+));
+
+// ─── 6. Settings: the figure picker under Identity ─────────────────────────
+rep(L(
+"      <div class=\"settings-row\">",
+"        <div class=\"settings-row-info\"><div class=\"settings-row-label\">Bio</div></div>",
+"        <input class=\"settings-edit-input\" id=\"s-bio\" placeholder=\"what you stand for&#x2026;\" maxlength=\"80\">",
+"      </div>",
+), L(
+"      <div class=\"settings-row\">",
+"        <div class=\"settings-row-info\"><div class=\"settings-row-label\">Bio</div></div>",
+"        <input class=\"settings-edit-input\" id=\"s-bio\" placeholder=\"what you stand for&#x2026;\" maxlength=\"80\">",
+"      </div>",
+"      <!-- The PFP set: the face you wear when you have no photo (native EditProfileSheet). -->",
+"      <div class=\"settings-row\">",
+"        <div class=\"settings-row-info\"><div class=\"settings-row-label\">Avatar</div><div class=\"settings-row-sub\">The figure you wear when you have no photo</div></div>",
+"        <span id=\"s-pfp-preview\"></span>",
+"      </div>",
+"      <button class=\"pfp-toggle\" id=\"pfp-toggle\" onclick=\"togglePfpChoices(this)\">OR CHOOSE A FIGURE</button>",
+"      <div class=\"pfp-choices\" id=\"pfp-choices\" hidden></div>",
+));
+rep("function openSettings(){", "function openSettings(){try{pfpSettingsOpen();}catch(e){}");
+rep("saveUser();localStorage.setItem('v_lang',SETTINGS.lang);", "saveUser();writePfpChoice(_pfpPending);localStorage.setItem('v_lang',SETTINGS.lang);");
+
+// ─── 7. CSS ───────────────────────────────────────────────────────────────
+rep(".me-tabs{display:flex;gap:26px;padding:26px 0 0}", L(
+"/* Profile tabs + the layout toggle; the 3-across tile grid (native ProfileScreen st.tile*) */",
+".me-tabs .prof-layout-btn{margin-left:auto;background:none;border:none;padding:0 0 9px;color:var(--nav-dim);cursor:pointer;display:flex;align-items:center}",
+".prof-layout-btn .vi{width:14px;height:14px}",
+".prof-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:2px}",
+".ptile{position:relative;aspect-ratio:1;overflow:hidden;border-radius:3px;border:1px solid var(--hairline);background:rgba(255,255,255,.03);cursor:pointer}",
+".ptile-img{width:100%;height:100%;object-fit:cover;display:block}",
+".ptile-text{height:100%;padding:8px;display:flex;align-items:center;font-family:'Syne',sans-serif;font-size:11px;line-height:15px;color:var(--muted)}",
+".ptile-text span{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}",
+".ptile-voice{height:100%;display:flex;align-items:center;justify-content:center;gap:3px}",
+".ptile-voice i{display:block;width:3px;border-radius:2px;background:#7a5cc4}",
+".ptile-glyph{position:absolute;top:5px;right:5px;color:#fff;display:flex}.ptile-glyph .vi{width:13px;height:13px}",
+".ptile-pill{position:absolute;top:5px;left:5px;padding:2px 5px;border-radius:3px;background:rgba(210,60,60,.9);color:#fff;font-family:'Syne Mono',monospace;font-size:7px;letter-spacing:.16em}",
+"/* Messages: compose, the pinned strip (native MessagesScreen st.pin*) */",
+".msg-compose-btn{width:30px;height:30px;border-radius:15px;border:1px solid var(--gold);background:none;color:var(--gold);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;flex-shrink:0}",
+".msg-compose-btn .vi{width:15px;height:15px}",
+".pin-row{display:flex;gap:14px;padding:2px 6px 12px;overflow-x:auto;scrollbar-width:none}.pin-row::-webkit-scrollbar{display:none}",
+".pin{width:68px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer}",
+".pin-av{position:relative;display:inline-block}",
+".pin-badge{position:absolute;top:-2px;right:-2px;min-width:18px;height:18px;border-radius:9px;border:2px solid var(--bg);background:var(--gold);color:#0d0820;font-family:'Syne Mono',monospace;font-size:9px;display:flex;align-items:center;justify-content:center;padding:0 4px;box-sizing:border-box}",
+".pin-name{font-family:'Syne',sans-serif;font-size:11px;max-width:66px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--dim)}",
+".pin.unread .pin-name{color:var(--white)}",
+"/* THE PFP SET: figure on disc (native ui/Pfp.tsx) */",
+".pfp{position:relative;border-radius:50%;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;vertical-align:middle}",
+".pfp>svg{display:block}.pfp .pfp-fig{position:absolute}",
+".conv-av,.chat-av{background:none!important;padding:0}",
+".pfp-toggle{font-family:'Syne Mono',monospace;font-size:8px;letter-spacing:.2em;color:var(--gold);background:none;border:none;padding:12px 0;cursor:pointer;display:block}",
+".pfp-choices{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;padding-bottom:8px}",
+".pfp-choice{cursor:pointer;border-radius:50%;box-shadow:0 0 0 1px rgba(255,255,255,.08);display:inline-flex}",
+".pfp-choice.on{box-shadow:0 0 0 2px var(--gold)}",
+".me-tabs{display:flex;gap:26px;padding:26px 0 0}",
+));
+
+if (crlf) s = s.replace(/\n/g, '\r\n');
+writeFileSync(f, s);
+console.log('web: hearts, profile tabs + tiles, pinned strip + RECENT + compose, the PFP set');

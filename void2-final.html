@@ -1159,6 +1159,35 @@ body.tab-void .bio-hud{display:flex}
 /* ME section tabs */
 /* Plain text row, not a segmented pill: the filled gold chip read as a button
    rather than a tab. Active = white text on a 1px gold rule. */
+/* Profile tabs + the layout toggle; the 3-across tile grid (native ProfileScreen st.tile*) */
+.me-tabs .prof-layout-btn{margin-left:auto;background:none;border:none;padding:0 0 9px;color:var(--nav-dim);cursor:pointer;display:flex;align-items:center}
+.prof-layout-btn .vi{width:14px;height:14px}
+.prof-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:2px}
+.ptile{position:relative;aspect-ratio:1;overflow:hidden;border-radius:3px;border:1px solid var(--hairline);background:rgba(255,255,255,.03);cursor:pointer}
+.ptile-img{width:100%;height:100%;object-fit:cover;display:block}
+.ptile-text{height:100%;padding:8px;display:flex;align-items:center;font-family:'Syne',sans-serif;font-size:11px;line-height:15px;color:var(--muted)}
+.ptile-text span{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.ptile-voice{height:100%;display:flex;align-items:center;justify-content:center;gap:3px}
+.ptile-voice i{display:block;width:3px;border-radius:2px;background:#7a5cc4}
+.ptile-glyph{position:absolute;top:5px;right:5px;color:#fff;display:flex}.ptile-glyph .vi{width:13px;height:13px}
+.ptile-pill{position:absolute;top:5px;left:5px;padding:2px 5px;border-radius:3px;background:rgba(210,60,60,.9);color:#fff;font-family:'Syne Mono',monospace;font-size:7px;letter-spacing:.16em}
+/* Messages: compose, the pinned strip (native MessagesScreen st.pin*) */
+.msg-compose-btn{width:30px;height:30px;border-radius:15px;border:1px solid var(--gold);background:none;color:var(--gold);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;flex-shrink:0}
+.msg-compose-btn .vi{width:15px;height:15px}
+.pin-row{display:flex;gap:14px;padding:2px 6px 12px;overflow-x:auto;scrollbar-width:none}.pin-row::-webkit-scrollbar{display:none}
+.pin{width:68px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer}
+.pin-av{position:relative;display:inline-block}
+.pin-badge{position:absolute;top:-2px;right:-2px;min-width:18px;height:18px;border-radius:9px;border:2px solid var(--bg);background:var(--gold);color:#0d0820;font-family:'Syne Mono',monospace;font-size:9px;display:flex;align-items:center;justify-content:center;padding:0 4px;box-sizing:border-box}
+.pin-name{font-family:'Syne',sans-serif;font-size:11px;max-width:66px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--dim)}
+.pin.unread .pin-name{color:var(--white)}
+/* THE PFP SET: figure on disc (native ui/Pfp.tsx) */
+.pfp{position:relative;border-radius:50%;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;vertical-align:middle}
+.pfp>svg{display:block}.pfp .pfp-fig{position:absolute}
+.conv-av,.chat-av{background:none!important;padding:0}
+.pfp-toggle{font-family:'Syne Mono',monospace;font-size:8px;letter-spacing:.2em;color:var(--gold);background:none;border:none;padding:12px 0;cursor:pointer;display:block}
+.pfp-choices{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;padding-bottom:8px}
+.pfp-choice{cursor:pointer;border-radius:50%;box-shadow:0 0 0 1px rgba(255,255,255,.08);display:inline-flex}
+.pfp-choice.on{box-shadow:0 0 0 2px var(--gold)}
 .me-tabs{display:flex;gap:26px;padding:26px 0 0}
 .me-tab{padding:0 0 9px;font-family:'Syne Mono',monospace;font-size:8.5px;letter-spacing:.18em;color:var(--nav-dim);cursor:pointer;background:transparent;border-bottom:1px solid transparent;transition:color .2s}
 .me-tab.on{color:var(--white);border-bottom-color:var(--gold);border-bottom-color:color-mix(in srgb,var(--gold) 60%,transparent)}
@@ -1414,17 +1443,19 @@ body.tab-void .bio-hud{display:flex}
       <button class="prof-edit" onclick="openSettings()">EDIT PROFILE</button>
       <button class="prof-share" onclick="shareProfile()" aria-label="Share profile"></button>
     </div>
+    <!-- DROPS / HEARTED / REPLIES, as native ProfileScreen: Messages is a tab of
+         its own in the nav, so it is not here. The button at the end flips the
+         drops between the card list and a three-across tile grid. -->
     <div class="me-tabs">
       <div class="me-tab on" data-pane="drops" onclick="switchMeTab(this)">DROPS</div>
-      <div class="me-tab" data-pane="messages" onclick="switchMeTab(this)">MESSAGES</div>
+      <div class="me-tab" data-pane="hearted" onclick="switchMeTab(this)">HEARTED</div>
+      <div class="me-tab" data-pane="replies" onclick="switchMeTab(this)">REPLIES</div>
+      <button class="prof-layout-btn" id="prof-layout-btn" onclick="toggleProfLayout()" aria-label="Show drops as a grid"></button>
     </div>
     <div class="prof-content">
-      <div class="me-pane on" id="me-pane-drops">
-        <div id="user-posts-feed"><div class="user-posts-empty">NO DROPS YET &middot; JOIN THE THREAD</div></div>
-      </div>
-      <div class="me-pane" id="me-pane-messages">
-        <div id="me-conv-list"></div>
-      </div>
+      <div class="me-pane on" id="me-pane-drops"><div id="user-posts-feed"><div class="user-posts-empty">NO DROPS YET &middot; JOIN THE THREAD</div></div></div>
+      <div class="me-pane" id="me-pane-hearted"><div id="user-hearted-feed"></div></div>
+      <div class="me-pane" id="me-pane-replies"><div id="user-replies-feed"></div></div>
     </div>
   </div>
 </div>
@@ -1523,6 +1554,13 @@ body.tab-void .bio-hud{display:flex}
         <div class="settings-row-info"><div class="settings-row-label">Bio</div></div>
         <input class="settings-edit-input" id="s-bio" placeholder="what you stand for&#x2026;" maxlength="80">
       </div>
+      <!-- The PFP set: the face you wear when you have no photo (native EditProfileSheet). -->
+      <div class="settings-row">
+        <div class="settings-row-info"><div class="settings-row-label">Avatar</div><div class="settings-row-sub">The figure you wear when you have no photo</div></div>
+        <span id="s-pfp-preview"></span>
+      </div>
+      <button class="pfp-toggle" id="pfp-toggle" onclick="togglePfpChoices(this)">OR CHOOSE A FIGURE</button>
+      <div class="pfp-choices" id="pfp-choices" hidden></div>
       <div class="settings-row">
         <div class="settings-row-info"><div class="settings-row-label">Sign out</div><div class="settings-row-sub">Return to the identity screen</div></div>
         <button class="si-ghost" style="width:auto;margin:0;padding:8px 16px" onclick="signOut()">SIGN OUT</button>
@@ -1618,6 +1656,7 @@ body.tab-void .bio-hud{display:flex}
 <div class="screen" id="screen-messages">
   <div class="msg-head">
     <div class="msg-head-title">Messages</div>
+    <button class="msg-compose-btn" onclick="dmCompose()" aria-label="Compose a message"></button>
     <div class="msg-enc-badge">NOT ENCRYPTED</div>
   </div>
   <div class="msg-search-wrap">
@@ -1984,6 +2023,15 @@ const VI=(p,f)=>`<svg class="vi" viewBox="0 0 24 24" fill="${f?'currentColor':'n
 const VICON={
   bolt:    VI('<path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/>'),
   boltFill:VI('<path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/>',1),
+  // The reaction is a heart now (native: 'The reaction is a heart now. The bolt
+  // glyphs stay defined: the bolt is still the mark of the app itself').
+  heart:   VI('<path d="M12 20.4 4.2 12.6a4.8 4.8 0 0 1 6.8-6.8l1 1 1-1a4.8 4.8 0 0 1 6.8 6.8z"/>'),
+  heartFill:VI('<path d="M12 20.4 4.2 12.6a4.8 4.8 0 0 1 6.8-6.8l1 1 1-1a4.8 4.8 0 0 1 6.8 6.8z"/>',1),
+  // The profile's layout toggle and its gallery marker.
+  grid:    VI('<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>'),
+  rows:    VI('<path d="M4 7h16M4 12h16M4 17h16"/>'),
+  stack:   VI('<rect x="7.5" y="3.5" width="13" height="13" rx="2"/><path d="M16.5 20.5h-11a2 2 0 0 1-2-2v-11"/>'),
+  pen:     VI('<path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17v3z"/><path d="M14.5 6.5l3 3"/>'),
   reply:   VI('<path d="M21 12a8 8 0 0 1-8 8H4l2.2-2.6A8 8 0 1 1 21 12z"/>'),
   share:   VI('<path d="M12 16V4M7 9l5-5 5 5M4 20h16"/>'),
   less:    VI('<path d="M12 5v14M6 13l6 6 6-6"/>'),
@@ -4029,10 +4077,10 @@ let SETTINGS={lang:localStorage.getItem('v_lang')||'en',autoplay:localStorage.ge
 // existing call sites keep working, and it RE-ASSERTS the build value rather
 // than honouring its argument — a caller must not be able to desync the layout.
 function applyGrid3(){document.documentElement.classList.toggle('g3',window.VOID_GRID===3);}
-function openSettings(){const _sb=document.querySelector('.settings-back');if(_sb&&!_sb.innerHTML)_sb.innerHTML=VICON.back;const _sc=document.querySelector('.settings-close');if(_sc&&!_sc.innerHTML)_sc.innerHTML=VICON.x;document.getElementById('s-name').value=USER.name;document.getElementById('s-handle').value=USER.handle;document.getElementById('s-bio').value=USER.bio||'';document.getElementById('s-lang').value=SETTINGS.lang;document.getElementById('s-autoplay').className='toggle'+(SETTINGS.autoplay?' on':'');document.getElementById('s-notify').className='toggle'+(SETTINGS.notify?' on':'');syncThemeUI();document.getElementById('settings-modal').classList.add('open');}
+function openSettings(){try{pfpSettingsOpen();}catch(e){}const _sb=document.querySelector('.settings-back');if(_sb&&!_sb.innerHTML)_sb.innerHTML=VICON.back;const _sc=document.querySelector('.settings-close');if(_sc&&!_sc.innerHTML)_sc.innerHTML=VICON.x;document.getElementById('s-name').value=USER.name;document.getElementById('s-handle').value=USER.handle;document.getElementById('s-bio').value=USER.bio||'';document.getElementById('s-lang').value=SETTINGS.lang;document.getElementById('s-autoplay').className='toggle'+(SETTINGS.autoplay?' on':'');document.getElementById('s-notify').className='toggle'+(SETTINGS.notify?' on':'');syncThemeUI();document.getElementById('settings-modal').classList.add('open');}
 function closeSettings(){document.getElementById('settings-modal').classList.remove('open');}
 function toggleSetting(el){el.classList.toggle('on');}
-function saveSettings(){USER.name=document.getElementById('s-name').value.trim()||USER.name;USER.handle=document.getElementById('s-handle').value.trim()||USER.handle;USER.bio=document.getElementById('s-bio').value.trim();SETTINGS.lang=document.getElementById('s-lang').value;SETTINGS.autoplay=document.getElementById('s-autoplay').classList.contains('on');SETTINGS.notify=document.getElementById('s-notify').classList.contains('on');saveUser();localStorage.setItem('v_lang',SETTINGS.lang);localStorage.setItem('v_autoplay',SETTINGS.autoplay);localStorage.setItem('v_notify',SETTINGS.notify);applyGrid3();renderProfile();closeSettings();}
+function saveSettings(){USER.name=document.getElementById('s-name').value.trim()||USER.name;USER.handle=document.getElementById('s-handle').value.trim()||USER.handle;USER.bio=document.getElementById('s-bio').value.trim();SETTINGS.lang=document.getElementById('s-lang').value;SETTINGS.autoplay=document.getElementById('s-autoplay').classList.contains('on');SETTINGS.notify=document.getElementById('s-notify').classList.contains('on');saveUser();writePfpChoice(_pfpPending);localStorage.setItem('v_lang',SETTINGS.lang);localStorage.setItem('v_autoplay',SETTINGS.autoplay);localStorage.setItem('v_notify',SETTINGS.notify);applyGrid3();renderProfile();closeSettings();}
 function clearData(){if(confirm('Clear all void data?')){localStorage.clear();location.reload();}}
 
 const AVC=['#3b1f8a','#1f3a8a','#8a1f3a','#1f8a3a','#5b1f8a','#8a5b1f','#6b1f5a'];
@@ -4500,7 +4548,7 @@ function renderPost(p,i){
     ${mediaHtml}
     <div class="post-acts">
       <button class="pa rank" onclick="event.stopPropagation();openThread('${p.id}')">${VICON.reply}<span id="rc-${p.id}">${fmt(p.replies+(r.rank||0))}</span></button>
-      <button class="pa fire ${r.mf?'on':''}" onclick="react('${p.id}','fire',event)">${r.mf?VICON.boltFill:VICON.bolt}<span id="fc-${p.id}">${fmt(p.score+(r.fire||0))}</span></button>
+      <button class="pa fire ${r.mf?'on':''}" onclick="react('${p.id}','fire',event)">${r.mf?VICON.heartFill:VICON.heart}<span id="fc-${p.id}">${fmt(p.score+(r.fire||0))}</span></button>
       <button class="pa repost ${r.mrp?'on':''}" onclick="repost('${p.id}',event)">${VICON.repost}<span>${fmt(p.reposts||0)}</span></button>
       <button class="pa" onclick="quickTranslate(event,'${p.id}')" style="margin-left:auto">${VICON.globe} TR</button>
     </div>
@@ -4529,7 +4577,7 @@ async function quickTranslate(e,postId){
   }catch{el.innerHTML=el.dataset.original;delete el.dataset.original;btn.classList.remove('on');voidToast('TRANSLATION UNAVAILABLE · TRY AGAIN SOON');}
   finally{delete el.dataset.pending;}
 }
-function react(postId,type,e){e.stopPropagation();if(!postReactions[postId])postReactions[postId]={fire:0,rank:0,slash:0,mf:false,mr:false,ms:false};const r=postReactions[postId];const p=findPost(postId);const flip={fire:'mf',rank:'mr',slash:'ms'}[type];r[flip]=!r[flip];r[type]=(r[type]||0)+(r[flip]?1:-1);const el=document.getElementById(type[0]+'c-'+postId);if(el){const base=!p?0:type==='fire'?p.score:type==='rank'?p.replies:0;el.textContent=fmt(Math.max(0,base+(r[type]||0)));}const btn=document.querySelector(`#post-${postId} .pa.${type}`);btn?.classList.toggle('on',r[flip]);if(type==='fire'&&btn){const svg=btn.querySelector('.vi');if(svg)svg.outerHTML=(r.mf?VICON.boltFill:VICON.bolt);}
+function react(postId,type,e){e.stopPropagation();if(!postReactions[postId])postReactions[postId]={fire:0,rank:0,slash:0,mf:false,mr:false,ms:false};const r=postReactions[postId];const p=findPost(postId);const flip={fire:'mf',rank:'mr',slash:'ms'}[type];r[flip]=!r[flip];r[type]=(r[type]||0)+(r[flip]?1:-1);const el=document.getElementById(type[0]+'c-'+postId);if(el){const base=!p?0:type==='fire'?p.score:type==='rank'?p.replies:0;el.textContent=fmt(Math.max(0,base+(r[type]||0)));}const btn=document.querySelector(`#post-${postId} .pa.${type}`);btn?.classList.toggle('on',r[flip]);if(type==='fire'&&btn){const svg=btn.querySelector('.vi');if(svg)svg.outerHTML=(r.mf?VICON.heartFill:VICON.heart);}
   // Both selectors above are FEED-CARD only (#fc-<id>, #post-<id> .pa.fire). Bolting
   // from inside an open thread therefore changed nothing on screen — the icon stayed
   // hollow and the count stayed put — while still writing to the server. And once
@@ -4537,7 +4585,7 @@ function react(postId,type,e){e.stopPropagation();if(!postReactions[postId])post
   // repost() already mirrors into the thread; fire never did. Same treatment here.
   if(type==='fire'&&currentThreadPost===postId){
     const tb=document.getElementById('tb-'+postId);
-    if(tb&&p){tb.classList.toggle('on',!!r.mf);tb.innerHTML=(r.mf?VICON.boltFill:VICON.bolt)+fmt(Math.max(0,p.score+(r.fire||0)));}
+    if(tb&&p){tb.classList.toggle('on',!!r.mf);tb.innerHTML=(r.mf?VICON.heartFill:VICON.heart)+fmt(Math.max(0,p.score+(r.fire||0)));}
   }
   if(r[flip]){BIO.react(postId,type,p?.tags||[]);if(p){BIO.bumpRegion(p.country,8);BIO.bumpFormat(p.style,6);}}
   // Optimistic: the count above already moved. If the write is rejected we undo
@@ -4547,9 +4595,9 @@ function react(postId,type,e){e.stopPropagation();if(!postReactions[postId])post
     const el2=document.getElementById('fc-'+postId);if(el2&&p)el2.textContent=fmt(Math.max(0,p.score+(r.fire||0)));
     const b2=document.querySelector(`#post-${postId} .pa.fire`);b2?.classList.toggle('on',r.mf);
     // Roll the icon back too (hollow <-> filled), and the open thread's mirror.
-    if(b2){const s2=b2.querySelector('.vi');if(s2)s2.outerHTML=(r.mf?VICON.boltFill:VICON.bolt);}
+    if(b2){const s2=b2.querySelector('.vi');if(s2)s2.outerHTML=(r.mf?VICON.heartFill:VICON.heart);}
     if(currentThreadPost===postId){const tb2=document.getElementById('tb-'+postId);
-      if(tb2&&p){tb2.classList.toggle('on',!!r.mf);tb2.innerHTML=(r.mf?VICON.boltFill:VICON.bolt)+fmt(Math.max(0,p.score+(r.fire||0)));}}
+      if(tb2&&p){tb2.classList.toggle('on',!!r.mf);tb2.innerHTML=(r.mf?VICON.heartFill:VICON.heart)+fmt(Math.max(0,p.score+(r.fire||0)));}}
     voidToast('SIGNAL LOST · RETRY');
   });
 }
@@ -6477,8 +6525,8 @@ async function pullCountryBsky(c){
   }catch(e){return [];}
 }
 // Country feed: seed posts → Reddit → Wikipedia fallback (always shows something)
-function feedPostHtml(p,i,iso){const src=p.source||'void';const srcHandle={'reddit':'r/worldnews','telegram':'telegram','twitter':'x.com','void':'void.signal','forum':'forum','bluesky':'void.signal'}[src]||src;return `<div class="post" style="animation-delay:${i*.04}s"><div class="post-header"><div class="post-avatar" style="background:${AVC[i%AVC.length]}">${iso}</div><div class="post-meta"><div class="post-name">${esc(p.country||'world')} <span class="post-handle">@${srcHandle}</span></div><div class="post-time">${ago(p.time)}</div></div></div><div class="post-body${p.style==='take'?' take':''}" onclick="openThread('${p.id}')">${esc(p.body)}</div><div class="post-acts"><button class="pa fire">${VICON.bolt}<span>${fmt(p.score)}</span></button><button class="pa rank">${VICON.reply}<span>${fmt(p.replies||0)}</span></button></div></div>`;}
-function redditPostHtml(p,i,iso,url){const sub=url.match(/\/r\/([^/]+)/)?.[1]||'worldnews';return `<div class="post" style="animation-delay:${i*.04}s"><div class="post-header"><div class="post-avatar" style="background:${AVC[i%AVC.length]}">${iso}</div><div class="post-meta"><div class="post-name">reddit <span class="post-handle">r/${sub}</span></div><div class="post-time">${ago(p.time)} &middot; ${fmt(p.nc||0)} voices</div></div></div><div class="post-body take" onclick="openThreadFromUrl('${encodeURIComponent(url)}',this)">${esc(p.title)}</div><div class="post-acts"><button class="pa fire">${VICON.bolt}<span>${fmt(p.score||0)}</span></button><button class="pa rank">${VICON.reply}<span>${fmt(p.nc||0)}</span></button><a href="${url}" target="_blank" class="pa" style="text-decoration:none">&#x2197; VIEW</a></div></div>`;}
+function feedPostHtml(p,i,iso){const src=p.source||'void';const srcHandle={'reddit':'r/worldnews','telegram':'telegram','twitter':'x.com','void':'void.signal','forum':'forum','bluesky':'void.signal'}[src]||src;return `<div class="post" style="animation-delay:${i*.04}s"><div class="post-header"><div class="post-avatar" style="background:${AVC[i%AVC.length]}">${iso}</div><div class="post-meta"><div class="post-name">${esc(p.country||'world')} <span class="post-handle">@${srcHandle}</span></div><div class="post-time">${ago(p.time)}</div></div></div><div class="post-body${p.style==='take'?' take':''}" onclick="openThread('${p.id}')">${esc(p.body)}</div><div class="post-acts"><button class="pa fire">${VICON.heart}<span>${fmt(p.score)}</span></button><button class="pa rank">${VICON.reply}<span>${fmt(p.replies||0)}</span></button></div></div>`;}
+function redditPostHtml(p,i,iso,url){const sub=url.match(/\/r\/([^/]+)/)?.[1]||'worldnews';return `<div class="post" style="animation-delay:${i*.04}s"><div class="post-header"><div class="post-avatar" style="background:${AVC[i%AVC.length]}">${iso}</div><div class="post-meta"><div class="post-name">reddit <span class="post-handle">r/${sub}</span></div><div class="post-time">${ago(p.time)} &middot; ${fmt(p.nc||0)} voices</div></div></div><div class="post-body take" onclick="openThreadFromUrl('${encodeURIComponent(url)}',this)">${esc(p.title)}</div><div class="post-acts"><button class="pa fire">${VICON.heart}<span>${fmt(p.score||0)}</span></button><button class="pa rank">${VICON.reply}<span>${fmt(p.nc||0)}</span></button><a href="${url}" target="_blank" class="pa" style="text-decoration:none">&#x2197; VIEW</a></div></div>`;}
 // ─── NATION FEED ────────────────────────────────────────────────────────
 // Why it showed "NO VERIFIED SIGNAL": Bluesky's public searchPosts now answers 403
 // without a session, GDELT allows one call per 5s, and admitPost() — the feed's
@@ -7207,7 +7255,7 @@ function openThread(postId){const p=allPosts.find(x=>x.id===postId);if(!p)return
   // shows the story's own text (Lemmy self-text) and a card out to the article.
   const _tLink=p.source==='news'?(p._url||p.sourceUrl||''):(p.source==='lemmy'&&p._link&&p._link!==p._url&&!/\.(jpe?g|png|webp|gif)(\?|$)/i.test(p._link)?p._link:'');
   const _tArt=(p._desc?`<div class="t-desc">${esc(p._desc)}</div>`:'')+(/^https?:\/\//i.test(_tLink)?`<a class="t-article" href="${_tcAttr(_tLink)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()"><span class="t-art-host">${esc((fediHost(_tLink)||'').replace(/^www\./,'').toUpperCase())}</span><span class="t-art-cta">READ THE FULL STORY</span><span class="t-art-arr">&#x2197;</span></a>`:'');
-  document.getElementById('thread-original').innerHTML=`<div class="post-head"><div class="post-av seeded" style="background:${_col}">${_av}</div><div class="post-meta"><div class="post-name">${esc(p._author||p.country||'void')}</div><div class="post-time">${esc(p._handle||'@void')} · ${ago(p.time)}</div></div><button class="btn-translate" onclick="translateThreadBody()">${VICON.globe} TR</button><button class="top-x" onclick="closeThread()" aria-label="Close">${VICON.x}</button></div><div class="body-${p.style==='drop'?'drop':p.style==='quiet'?'quiet':'take'}" id="thread-body-text">${esc(p.body)}</div><div id="thread-op-media"></div>${_tArt}<div class="thread-acts"><span class="ta-bolt${(postReactions[p.id]||{}).mf?' on':''}" id="tb-${p.id}" onclick="react('${p.id}','fire',event)">${(postReactions[p.id]||{}).mf?VICON.boltFill:VICON.bolt}${fmt(p.score)}</span><span id="trc-${p.id}">${VICON.reply}${fmt(p.replies||0)}</span><span class="ta-repost${(postReactions[p.id]||{}).mrp?' on':''}" onclick="repost('${p.id}',event)">${VICON.repost}${fmt(p.reposts||0)}</span><span class="ta-share" onclick="vwShare('${p.id}')">${VICON.share}</span></div><div class="thread-source-bar">${srcHref!=='#'?`<a class="thread-source-link" href="${srcHref}" target="_blank">${srcLabel}</a>`:`<span class="thread-source-link">${srcLabel}</span>`}</div>`;
+  document.getElementById('thread-original').innerHTML=`<div class="post-head"><div class="post-av seeded" style="background:${_col}">${_av}</div><div class="post-meta"><div class="post-name">${esc(p._author||p.country||'void')}</div><div class="post-time">${esc(p._handle||'@void')} · ${ago(p.time)}</div></div><button class="btn-translate" onclick="translateThreadBody()">${VICON.globe} TR</button><button class="top-x" onclick="closeThread()" aria-label="Close">${VICON.x}</button></div><div class="body-${p.style==='drop'?'drop':p.style==='quiet'?'quiet':'take'}" id="thread-body-text">${esc(p.body)}</div><div id="thread-op-media"></div>${_tArt}<div class="thread-acts"><span class="ta-bolt${(postReactions[p.id]||{}).mf?' on':''}" id="tb-${p.id}" onclick="react('${p.id}','fire',event)">${(postReactions[p.id]||{}).mf?VICON.heartFill:VICON.heart}${fmt(p.score)}</span><span id="trc-${p.id}">${VICON.reply}${fmt(p.replies||0)}</span><span class="ta-repost${(postReactions[p.id]||{}).mrp?' on':''}" onclick="repost('${p.id}',event)">${VICON.repost}${fmt(p.reposts||0)}</span><span class="ta-share" onclick="vwShare('${p.id}')">${VICON.share}</span></div><div class="thread-source-bar">${srcHref!=='#'?`<a class="thread-source-link" href="${srcHref}" target="_blank">${srcLabel}</a>`:`<span class="thread-source-link">${srcLabel}</span>`}</div>`;
   {const _slot=document.getElementById('thread-op-media');if(!_threadBorrowMedia(_card,_slot))_slot.innerHTML=_tm;}
   if(_remoteReplies[postId])syncReplyCount(postId);   // replies warmed before the tap: OP count and divider agree at once
   loadRemoteReplies(postId);_threadDeal=true;renderThreadComments(postId);const _ta=document.querySelector('#thread-overlay .thread-attach-btn');if(_ta&&!_ta.querySelector('.vi'))_ta.insertAdjacentHTML('afterbegin',VICON.attach);const _tp=document.querySelector('#thread-overlay .thread-post-btn');if(_tp&&!_tp.innerHTML)_tp.innerHTML=VICON.send;document.getElementById('compose-av').textContent=(USER.name||'?')[0].toUpperCase();document.getElementById('thread-input').value='';pendingAttach=null;document.getElementById('attach-preview').style.display='none';
@@ -7756,7 +7804,7 @@ function _tcCard(c,opAuthor,kidsN,o){
       <div class="thread-comment-text">${esc(c.text||'')}</div>
       ${c.img?`<div class="tc-img">${IMG_LOADER}<img class="thread-comment-img" src="${_tcAttr(c.img)}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onload="imgLoaded(this)" onerror="this.parentNode.remove()"></div>`:''}
       <div class="tc-acts">
-        <button class="${c.mine?'on':''}" onclick="event.stopPropagation();boltComment(currentThreadPost,this.closest('.tc-wrap').dataset.cid)">${c.mine?VICON.boltFill:VICON.bolt}${fmt(c.bolts||0)}</button>
+        <button class="${c.mine?'on':''}" onclick="event.stopPropagation();boltComment(currentThreadPost,this.closest('.tc-wrap').dataset.cid)">${c.mine?VICON.heartFill:VICON.heart}${fmt(c.bolts||0)}</button>
         <button onclick="event.stopPropagation();${reply}">REPLY</button>
       </div>
     </div></div>`;
@@ -8170,7 +8218,7 @@ function renderSearch(q=''){
         <div class="search-post-card-head">${VICON.pin} ${esc(p.country||'world')}${isUser?` &nbsp;<span class="search-user-badge">YOUR DROP</span>`:''}</div>
         <div class="search-post-tag">${esc((p.tags&&p.tags[0])||'void')}</div>
         <div class="search-post-body ${bodyClass}">${esc(p.body||'')}</div>
-        <div class="search-post-meta"><span>${VICON.bolt}${fmt(p.score||0)}</span><span>${VICON.reply}${fmt(p.replies||0)}</span><span>${ago(p.time||Date.now())}</span></div>
+        <div class="search-post-meta"><span>${VICON.heart}${fmt(p.score||0)}</span><span>${VICON.reply}${fmt(p.replies||0)}</span><span>${ago(p.time||Date.now())}</span></div>
       </div>`;
       if((i+1)%4===0){
         const off=(3+(Math.floor(i/4)*2))%LIVE_CHANNELS.length;
@@ -8193,7 +8241,7 @@ function renderProfile(){
   document.getElementById('p-handle').textContent=USER.handle;
   document.getElementById('p-bio').textContent=USER.bio||'signal in the noise';
   const av=document.getElementById('p-avatar');
-  av.textContent=(USER.name||'?')[0].toUpperCase();
+  av.innerHTML=myPfpHtml(72);
   av.style.background='';   // 5b avatar ground comes from .prof-avatar (theme-aware), not an inline purple
   const gb=document.querySelector('.profile-settings-btn');
   if(gb&&!gb.querySelector('.vi'))gb.innerHTML=VICON.gear;
@@ -8202,32 +8250,104 @@ function renderProfile(){
   document.getElementById('p-posts').textContent=USER.posts||0;
   document.getElementById('p-following').textContent=USER.following||0;
   document.getElementById('p-followers').textContent=USER.followers||0;
-  renderUserDrops();
+  paintProfLayoutBtn();renderProfPane(_profTab);
   BIO._update();
   applySavedCover();
   buildCoverPalette();
 }
-// The DROPS pane only ever held an empty-state string — the user's own posts
-// existed in allPosts (flagged _user) but were never listed anywhere.
-function renderUserDrops(){
-  const mount=document.getElementById('user-posts-feed'); if(!mount)return;
-  const mine=allPosts.filter(p=>p._user).sort((a,b)=>(b.time||0)-(a.time||0));
-  if(!mine.length){mount.innerHTML='<div class="user-posts-empty">NO DROPS YET &middot; JOIN THE THREAD</div>';return;}
-  mount.innerHTML=mine.map(p=>{
-    const r=postReactions[p.id]||{};
-    const serif=p.style==='drop'||p.style==='quiet';
-    return `<div class="up-row" onclick="openThread('${p.id}')">
+// ─── PROFILE PANES: DROPS / HEARTED / REPLIES, as a list or a 3-wide tile grid ───
+// Ported from native ProfileScreen + profileApi. HEARTED reads the `reactions`
+// relation back (post ids first, then the posts through the same sbPostToApp
+// mapping as every other list, ordered by when the heart was given); REPLIES is
+// the author's posts with reply_to set. Fetched posts are merged into allPosts
+// by id so openThread finds them like any other drop.
+const PROF_LAYOUT_KEY='void.profile.layout';
+let _profLayout=localStorage.getItem(PROF_LAYOUT_KEY)==='tiles'?'tiles':'scroll';
+let _profTab='drops',_profHearted=null,_profReplies=null;
+const PROF_POST_SELECT='id,author_id,body,rank_score,created_at,profiles:author_id(handle,display_name),post_media(url,ordinal,kind,mime,duration_s)';
+function _profMerge(rows){
+  const out=[];
+  for(const r of rows||[]){const p=sbPostToApp(r);if(!p)continue;const have=allPosts.find(x=>x.id===p.id);if(have){Object.assign(have,p);out.push(have);}else{allPosts.push(p);out.push(p);}}
+  return out;
+}
+async function fetchHeartedPosts(){
+  const uid=VoidAPI._uid();if(!uid)return [];
+  try{
+    const refs=await sbGet('/rest/v1/reactions?user_id=eq.'+encodeURIComponent(uid)+'&select=post_id,created_at&order=created_at.desc&limit=60');
+    const ids=(Array.isArray(refs)?refs:[]).map(r=>r&&r.post_id).filter(Boolean);
+    if(!ids.length)return [];
+    const rows=await sbGet('/rest/v1/posts?id=in.('+ids.join(',')+')&select='+PROF_POST_SELECT+'&limit=60');
+    if(!Array.isArray(rows))return [];
+    const order=new Map(ids.map((id,i)=>[id,i]));
+    return _profMerge(rows).sort((a,b)=>(order.get(a.id)??1e9)-(order.get(b.id)??1e9));
+  }catch(e){return [];}
+}
+async function fetchReplyPosts(){
+  const uid=VoidAPI._uid();if(!uid)return [];
+  try{
+    const rows=await sbGet('/rest/v1/posts?author_id=eq.'+encodeURIComponent(uid)+'&reply_to=not.is.null&select='+PROF_POST_SELECT+'&order=created_at.desc&limit=40');
+    return Array.isArray(rows)?_profMerge(rows):[];
+  }catch(e){return [];}
+}
+function profRowHtml(p){
+  const r=postReactions[p.id]||{};
+  const serif=p.style==='drop'||p.style==='quiet';
+  return `<div class="up-row" onclick="openThread('${p.id}')">
       <div class="up-body${serif?' serif':''}">${esc(p.body||'')}</div>
       <div class="up-acts">
         <span class="up-age">${ago(p.time||Date.now()).toUpperCase()}</span>
-        <span>${r.mf?VICON.boltFill:VICON.bolt}${fmt((p.score||0)+(r.fire||0))}</span>
+        <span>${r.mf?VICON.heartFill:VICON.heart}${fmt((p.score||0)+(r.fire||0))}</span>
         <span>${VICON.reply}${fmt((p.replies||0)+(r.rank||0))}</span>
         <span class="up-rp">${VICON.repost}${fmt(p.reposts||0)}</span>
       </div>
     </div>`;
-  }).join('');
 }
-// Profile share — same clipboard mechanism as vwShare, pointed at the handle.
+// One square of the tile grid (native ProfileTile): media fills it; a clip and a
+// gallery say which they are with a corner glyph; a voice drop draws its
+// waveform, deterministic per post; a text drop shows its first lines.
+function profTileHtml(p){
+  const img=p._img||(p._imgs&&p._imgs[0])||'';
+  const isVoice=p.style==='audio'||!!p._audio,isClip=p.style==='video'||!!p._video,isGallery=p.style==='carousel'||!!(p._imgs&&p._imgs.length>1),isLive=p.style==='link_live';
+  let body;
+  if(img)body=`<img class="ptile-img" src="${esc(img)}" alt="" loading="lazy">`;
+  else if(isVoice)body=`<div class="ptile-voice">${Array.from({length:13},(_,i)=>{const seed=(p.id.charCodeAt(i%p.id.length)*31+i*17)%100;return `<i style="height:${(6+(seed/100)*26).toFixed(1)}px"></i>`;}).join('')}</div>`;
+  else body=`<div class="ptile-text"><span>${esc((p.body||'').trim()||'\u2014')}</span></div>`;
+  const glyph=isLive?`<span class="ptile-pill">LIVE</span>`:isClip?`<span class="ptile-glyph">${VICON.play}</span>`:isGallery?`<span class="ptile-glyph">${VICON.stack}</span>`:'';
+  return `<div class="ptile" role="button" onclick="openThread('${p.id}')">${body}${glyph}</div>`;
+}
+function profListHtml(posts,empty){
+  if(!posts.length)return `<div class="user-posts-empty">${empty}</div>`;
+  return _profLayout==='tiles'?`<div class="prof-tiles">${posts.map(profTileHtml).join('')}</div>`:posts.map(profRowHtml).join('');
+}
+function renderUserDrops(){
+  const mount=document.getElementById('user-posts-feed'); if(!mount)return;
+  const mine=allPosts.filter(p=>p._user).sort((a,b)=>(b.time||0)-(a.time||0));
+  mount.innerHTML=profListHtml(mine,'NO DROPS YET &middot; JOIN THE THREAD');
+}
+async function renderProfPane(pane){
+  if(pane==='drops'){renderUserDrops();return;}
+  const mount=document.getElementById(pane==='hearted'?'user-hearted-feed':'user-replies-feed');if(!mount)return;
+  let list=pane==='hearted'?_profHearted:_profReplies;
+  if(list===null){
+    mount.innerHTML='<div class="user-posts-empty">PULLING&hellip;</div>';
+    list=pane==='hearted'?await fetchHeartedPosts():await fetchReplyPosts();
+    if(pane==='hearted')_profHearted=list;else _profReplies=list;
+    if(_profTab!==pane)return;   // the tab moved on while this was in flight
+  }
+  mount.innerHTML=profListHtml(list,pane==='hearted'?'NOTHING HEARTED YET':'NO REPLIES YET');
+}
+// Persisted, as native: whichever way you last chose to look at a profile is
+// how it opens next time.
+function toggleProfLayout(){
+  _profLayout=_profLayout==='tiles'?'scroll':'tiles';
+  localStorage.setItem(PROF_LAYOUT_KEY,_profLayout);
+  paintProfLayoutBtn();renderProfPane(_profTab);
+}
+function paintProfLayoutBtn(){
+  const b=document.getElementById('prof-layout-btn');if(!b)return;
+  b.innerHTML=_profLayout==='tiles'?VICON.rows:VICON.grid;
+  b.setAttribute('aria-label',_profLayout==='tiles'?'Show drops as a list':'Show drops as a grid');
+}// Profile share — same clipboard mechanism as vwShare, pointed at the handle.
 function shareProfile(){
   const url=location.href.split('#')[0]+'#'+(USER.handle||'@void');
   if(navigator.share){navigator.share({title:USER.name||'The Void',url}).catch(()=>{});return;}
@@ -8724,7 +8844,7 @@ function vwItemHtml(p,i){
            moves nothing on screen and reads as a tap that did not register. The
            lane claim keeps a post out of the feed and a reel at the same time, so
            this id stays unique. -->
-      <div class="vw-act gold" onclick="vwReact(this,'fire',event)">${VICON.bolt}<span id="fc-${p.id.split('~')[0]}">${fmt(p.score)}</span></div>
+      <div class="vw-act gold" onclick="vwReact(this,'fire',event)">${VICON.heart}<span id="fc-${p.id.split('~')[0]}">${fmt(p.score)}</span></div>
       <div class="vw-act" onclick="openThread('${p.id.split('~')[0]}')">${VICON.reply}<span>${fmt(p.replies||0)}</span></div>
       <div class="vw-act${postReactions[p.id.split('~')[0]]&&postReactions[p.id.split('~')[0]].mrp?' on':''}" data-act="repost" onclick="repost('${p.id.split('~')[0]}',event)">${VICON.repost}<span>${fmt(p.reposts||0)}</span></div>
       <div class="vw-act" onclick="vwShare('${p.id.split('~')[0]}')">${VICON.share}<span>SHARE</span></div>
@@ -8780,7 +8900,7 @@ function vwObserve(ctEl){
 }
 function vwFire(item){const pid=item.dataset.pid,p=findPost(pid);
   if(p){react(pid,'fire',{stopPropagation(){}} );vwBump(p.tags,1.5);}
-  const f=document.createElement('div');f.className='vw-burst';f.innerHTML=VICON.boltFill;
+  const f=document.createElement('div');f.className='vw-burst';f.innerHTML=VICON.heartFill;
   item.appendChild(f);setTimeout(()=>f.remove(),700);}
 // vwFire -> react() ALREADY performs the optimistic write plus its rollback. This
 // used to fire a second VoidAPI.bolt on top of it, so every reel bolt hit the server
@@ -9609,6 +9729,81 @@ function dmMe(){return VoidAPI._uid();}
 // Server-side blocks (006) plus the on-device block list (VMod), either direction.
 function dmIsBlocked(uid,handle){if(_dmBlocked.has(uid))return true;try{return !!(window.VMod&&VMod.isBlockedUser&&VMod.isBlockedUser({id:uid,handle:handle||''}));}catch(e){return false;}}
 function dmColor(id){let h=0;for(const c of String(id||''))h=(h*31+c.charCodeAt(0))>>>0;return AVC[h%AVC.length];}
+// ─── THE PFP SET (native ui/Pfp.tsx, verbatim) ──────────────────────────────
+// A gold line figure on a deep-purple disc, used wherever someone has no photo:
+// the pinned strip, conversation rows, the chat head, the profile. The figure is
+// chosen by number, and the SAME seed always gives the SAME figure, so a person
+// keeps one face everywhere they appear.
+const PFP_GOLD='#c9a84c';
+const PFP_FIGURES=[
+  {n:1,name:'Classic bust',d:'M50 26a13 13 0 1 1 0 26a13 13 0 1 1 0-26z M22 88c2-18 13-28 28-28s26 10 28 28'},
+  {n:2,name:'Bust \u00b7 filled head',d:'M22 88c2-18 13-28 28-28s26 10 28 28',fill:'M50 26a13 13 0 1 1 0 26a13 13 0 1 1 0-26z'},
+  {n:3,name:'Hex head',d:'M50 24l12 7v14l-12 7-12-7V31z M22 88c2-18 13-28 28-28s26 10 28 28'},
+  {n:4,name:'Hooded',d:'M50 22c-16 0-26 12-26 30v10h52V52c0-18-10-30-26-30z M40 62c2-10 6-14 10-14s8 4 10 14 M26 88c4-10 12-16 24-16s20 6 24 16'},
+  {n:5,name:'Silhouette \u00b7 rounded',d:'M50 24a12 12 0 0 1 12 12v6a12 12 0 0 1-24 0v-6a12 12 0 0 1 12-12z M20 90c0-16 12-26 30-26s30 10 30 26'},
+  {n:6,name:'Two strokes',d:'M38 40a12 12 0 1 0 24 0 M24 86c4-16 14-24 26-24s22 8 26 24'},
+  {n:7,name:'Dot head \u00b7 arc',d:'M22 84c4-14 14-22 28-22s24 8 28 22',fill:'M50 30a10 10 0 1 1 0 20a10 10 0 1 1 0-20z'},
+  {n:8,name:'Bust with collar',d:'M50 26a13 13 0 1 1 0 26a13 13 0 1 1 0-26z M22 88c2-18 13-28 28-28s26 10 28 28 M42 60l8 12 8-12'},
+  {n:9,name:'Offset \u00b7 looking away',d:'M46 30a12 12 0 1 1 8 22 M20 90c2-17 12-27 28-27 8 0 15 2 21 6'},
+  {n:10,name:'Hex bust',d:'M50 26a13 13 0 1 1 0 26a13 13 0 1 1 0-26z M50 60l26 15v13H24V75z'},
+  {n:11,name:'Ghost',d:'M30 88V50a20 20 0 0 1 40 0v38l-8-6-8 6-8-6-8 6-8-6z',fill:'M42 48a3 3 0 1 1 0 6a3 3 0 1 1 0-6z M58 48a3 3 0 1 1 0 6a3 3 0 1 1 0-6z'},
+  {n:12,name:'Masked',d:'M50 26a13 13 0 1 1 0 26a13 13 0 1 1 0-26z M22 88c2-18 13-28 28-28s26 10 28 28',fill:'M38 36h24v8H38z'},
+  {n:13,name:'Halo',d:'M50 30a12 12 0 1 1 0 24a12 12 0 1 1 0-24z M24 88c3-16 13-25 26-25s23 9 26 25',fill:'M50 14a20 4 0 1 0 0 8a20 4 0 1 0 0-8z'},
+  {n:14,name:'Square head',d:'M38 28h24v24H38z M22 88c2-18 13-28 28-28s26 10 28 28'},
+  {n:15,name:'Crescent',d:'M56 24a16 16 0 1 0 8 30 12 12 0 1 1-8-30z M22 88c2-18 13-28 28-28s26 10 28 28'},
+  {n:16,name:'Antenna',d:'M50 30a12 12 0 1 1 0 24a12 12 0 1 1 0-24z M50 30V18 M22 88c2-18 13-28 28-28s26 10 28 28',fill:'M50 12a4 4 0 1 1 0 8a4 4 0 1 1 0-8z'},
+  {n:17,name:'Eye',d:'M20 50c10-16 50-16 60 0-10 16-50 16-60 0z',fill:'M50 42a8 8 0 1 1 0 16a8 8 0 1 1 0-16z'},
+  {n:18,name:'Pin drop',d:'M50 20c-12 0-20 9-20 20 0 14 20 40 20 40s20-26 20-40c0-11-8-20-20-20z',fill:'M50 33a7 7 0 1 1 0 14a7 7 0 1 1 0-14z'},
+  {n:19,name:'Double bust',d:'M38 34a9 9 0 1 1 0 18a9 9 0 1 1 0-18z M62 34a9 9 0 1 1 0 18a9 9 0 1 1 0-18z M16 84c2-14 10-22 22-22 4 0 8 1 12 4 4-3 8-4 12-4 12 0 20 8 22 22'},
+  {n:20,name:'Void ring',d:'M50 22a28 28 0 1 1 0 56a28 28 0 1 1 0-56z',fill:'M50 40a10 10 0 1 1 0 20a10 10 0 1 1 0-20z'},
+  {n:24,name:'Smiling',d:'M50 26a13 13 0 1 1 0 26a13 13 0 1 1 0-26z M22 88c2-18 13-28 28-28s26 10 28 28 M44 42c2 4 10 4 12 0',fill:'M45 34a1.8 1.8 0 1 1 0 3.6a1.8 1.8 0 1 1 0-3.6z M55 34a1.8 1.8 0 1 1 0 3.6a1.8 1.8 0 1 1 0-3.6z'},
+  {n:25,name:'Sleeping',d:'M50 26a13 13 0 1 1 0 26a13 13 0 1 1 0-26z M22 88c2-18 13-28 28-28s26 10 28 28 M43 38c2 2 5 2 7 0 M53 38c2 2 5 2 7 0 M68 20h8l-8 8h8'},
+  {n:26,name:'Looking up',d:'M50 26a13 13 0 1 1 0 26a13 13 0 1 1 0-26z M22 88c2-18 13-28 28-28s26 10 28 28',fill:'M45 30a2 2 0 1 1 0 4a2 2 0 1 1 0-4z M55 30a2 2 0 1 1 0 4a2 2 0 1 1 0-4z'},
+  {n:27,name:'Winking',d:'M50 26a13 13 0 1 1 0 26a13 13 0 1 1 0-26z M22 88c2-18 13-28 28-28s26 10 28 28 M53 36h6 M46 42c2 3 6 3 8 0',fill:'M45 34a1.8 1.8 0 1 1 0 3.6a1.8 1.8 0 1 1 0-3.6z'},
+  {n:28,name:'Headphones',d:'M50 26a13 13 0 1 1 0 26a13 13 0 1 1 0-26z M22 88c2-18 13-28 28-28s26 10 28 28 M35 40a15 15 0 0 1 30 0',fill:'M32 38h5v9h-5z M63 38h5v9h-5z'},
+  {n:30,name:'Speaking',d:'M50 26a13 13 0 1 1 0 26a13 13 0 1 1 0-26z M22 88c2-18 13-28 28-28s26 10 28 28 M66 22h16a5 5 0 0 1 5 5v9a5 5 0 0 1-5 5h-9l-6 6v-6h-1a5 5 0 0 1-5-5v-9a5 5 0 0 1 5-5z',fill:'M69 30a2 2 0 1 1 0 4a2 2 0 1 1 0-4z M74 30a2 2 0 1 1 0 4a2 2 0 1 1 0-4z M79 30a2 2 0 1 1 0 4a2 2 0 1 1 0-4z'},
+];
+const PFP_BY_N=new Map(PFP_FIGURES.map(f=>[f.n,f]));
+// Derived from the id, so it is stable for that person on every device.
+function pfpFor(seed){const s=String(seed||'');let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return PFP_FIGURES[h%PFP_FIGURES.length]||PFP_FIGURES[0];}
+function pfpFigSvg(fig,size,sw){return `<svg class="pfp-fig" width="${size}" height="${size}" viewBox="0 0 100 100"><path d="${fig.d}" fill="none" stroke="${PFP_GOLD}" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round"/>${fig.fill?`<path d="${fig.fill}" fill="${PFP_GOLD}"/>`:''}</svg>`;}
+// The figure on the disc. `figure` picks explicitly; otherwise `seed` decides.
+// `ring` draws the gold outline the mock puts on an unread pin. The figures sit
+// in a 100x100 box that is mostly figure; on the disc they read at about 72%.
+function pfpHtml(seed,size,opts){
+  opts=opts||{};const fig=(opts.figure!=null&&PFP_BY_N.get(opts.figure))||pfpFor(seed);const inner=Math.round(size*.72);
+  return `<span class="pfp" style="width:${size}px;height:${size}px"><svg width="${size}" height="${size}" viewBox="0 0 100 100"><defs><radialGradient id="pfpDisc" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#2a1060"/><stop offset=".7" stop-color="#0d0520"/></radialGradient></defs><circle cx="50" cy="50" r="50" fill="url(#pfpDisc)"/>${opts.ring?`<circle cx="50" cy="50" r="48.5" fill="none" stroke="${PFP_GOLD}" stroke-width="3"/>`:''}</svg>${pfpFigSvg(fig,inner,size>=90?1.8:2.2)}</span>`;
+}
+// Which figure you chose - stored on this device, like native (profiles has no
+// column for it), under the same key, so the choice reads the same in both.
+const PFP_KEY='void.pfp.figure';
+function readPfpChoice(){try{const v=JSON.parse(localStorage.getItem(PFP_KEY)||'null');return typeof v==='number'&&PFP_BY_N.has(v)?v:null;}catch(e){return null;}}
+function writePfpChoice(n){try{localStorage.setItem(PFP_KEY,JSON.stringify(n));}catch(e){}}
+function myPfpSeed(){try{const u=VoidAPI._uid();if(u)return u;}catch(e){}return USER.handle||USER.name;}
+function myPfpHtml(size){const c=readPfpChoice();return pfpHtml(myPfpSeed(),size,{figure:c==null?undefined:c});}
+// The picker in Settings (native EditProfileSheet: 'OR CHOOSE A FIGURE').
+let _pfpPending=null;
+function pfpSettingsOpen(){_pfpPending=readPfpChoice();const g=document.getElementById('pfp-choices');if(g)g.hidden=true;const t=document.getElementById('pfp-toggle');if(t)t.textContent='OR CHOOSE A FIGURE';renderPfpSettings();}
+function renderPfpSettings(){
+  const pv=document.getElementById('s-pfp-preview');if(pv)pv.innerHTML=pfpHtml(myPfpSeed(),56,{figure:_pfpPending==null?undefined:_pfpPending});
+  const g=document.getElementById('pfp-choices');
+  if(g&&!g.hidden)g.innerHTML=PFP_FIGURES.map(f=>`<span class="pfp-choice${_pfpPending===f.n?' on':''}" title="${esc(f.name)}" onclick="pickPfp(${f.n})">${pfpHtml('',48,{figure:f.n})}</span>`).join('');
+}
+function togglePfpChoices(btn){const g=document.getElementById('pfp-choices');if(!g)return;g.hidden=!g.hidden;btn.textContent=g.hidden?'OR CHOOSE A FIGURE':'CLOSE THE SET';renderPfpSettings();}
+function pickPfp(n){_pfpPending=_pfpPending===n?null:n;renderPfpSettings();}
+// ─── THE PINNED STRIP (native MessagesScreen PinnedRow) ───────────────────
+// Most-messaged, counted from the messages this client has actually loaded:
+// convs arrive with one `last` each and msgs[] fills in as threads are opened,
+// so a fresh launch ranks by recency and settles toward real volume as threads
+// are read. A strip of one is just the list again, so it needs two.
+function pinnedRowHtml(){
+  const count=c=>(DM_MSGS[c.id]||[]).length;
+  const pinned=DM_CONVS.map((c,i)=>({c,i})).sort((a,b)=>count(b.c)-count(a.c)||a.i-b.i).slice(0,5).map(x=>x.c);
+  if(pinned.length<2)return '';
+  return `<div class="pin-row">${pinned.map(c=>`<div class="pin${c.unread?' unread':''}" role="button" onclick="openChat('${c.id}')"><span class="pin-av">${pfpHtml(c.other.id||c.other.name,64,{ring:c.unread>0})}${c.unread>0?`<span class="pin-badge">${c.unread>9?'9+':c.unread}</span>`:''}</span><span class="pin-name">${esc(String(c.other.name||c.other.handle||'').trim().split(/\s+/)[0])}</span></div>`).join('')}</div>`;
+}
+// Compose: the search field is where a conversation starts (type a handle).
+function dmCompose(){const s=document.getElementById('msg-search');if(s){s.focus();try{s.scrollIntoView({block:'nearest'});}catch(e){}}}
 // 006 adds `blocks`; until it exists (404) there is nothing to exclude.
 async function dmLoadBlocks(){
   if(_dmBlocksMissing)return _dmBlocked;
@@ -9669,7 +9864,7 @@ function convRow(c,extra,act){
   const last=c.last,me=dmMe();
   const preview=last?(last.sender_id===me?'You: ':'')+last.body.slice(0,38)+(last.body.length>38?'…':''):'no messages yet';
   return `<div class="conv-item${c.unread?' unread':''}" onclick="${act||`openChat('${c.id}')`}">
-    <div class="conv-av" style="background:${dmColor(c.other.id)}">${esc((c.other.name||'?')[0].toUpperCase())}</div>
+    <div class="conv-av">${pfpHtml(c.other.id||c.other.name,44,{ring:c.unread>0})}</div>
     <div class="conv-info">
       <div class="conv-name">${esc(c.other.name)} <span class="post-handle">@${esc(c.other.handle)}</span></div>
       ${extra||`<div class="conv-preview">${esc(preview)}</div>`}
@@ -9682,7 +9877,7 @@ function convRow(c,extra,act){
 }
 function dmPersonRow(p){
   return `<div class="conv-item" onclick="startDm('${p.id}')">
-    <div class="conv-av" style="background:${dmColor(p.id)}">${esc(String(p.display_name||p.handle||'?')[0].toUpperCase())}</div>
+    <div class="conv-av">${pfpHtml(p.id||p.handle,44)}</div>
     <div class="conv-info"><div class="conv-name">${esc(p.display_name||p.handle)} <span class="post-handle">@${esc(p.handle)}</span></div>
       <div class="conv-preview">tap to message</div></div></div>`;
 }
@@ -9691,6 +9886,7 @@ const DM_FOOT=`<div class="conv-foot">NOT ENCRYPTED &middot; STORED ON THE VOID'
 // a DM), and message bodies already loaded, with the matched term highlighted.
 function renderConvList(){
   const list=document.getElementById('conv-list');if(!list)return;
+  {const cb=document.querySelector('.msg-compose-btn');if(cb&&!cb.querySelector('.vi'))cb.innerHTML=VICON.pen;}
   const qEl=document.getElementById('msg-search');
   const q=(qEl?qEl.value:'').trim().toLowerCase();
   const me=dmMe();
@@ -9718,7 +9914,7 @@ function renderConvList(){
   }else if(!DM_CONVS.length){
     html='<div class="conv-empty">NO CONVERSATIONS<br><br>SEARCH A HANDLE ABOVE TO START ONE</div>';
   }else{
-    html=DM_CONVS.map(c=>convRow(c)).join('');
+    html=pinnedRowHtml()+'<div class="conv-sect">RECENT</div>'+DM_CONVS.map(c=>convRow(c)).join('');
   }
   list.innerHTML=html+DM_FOOT;
   refreshDmBadge();
@@ -9768,8 +9964,8 @@ function openChat(convId){
   if(!c){voidToast('CONVERSATION NOT FOUND');return;}
   if(dmIsBlocked(c.other.id,c.other.handle)){voidToast('YOU BLOCKED THIS ACCOUNT');return;}
   activeChatConv=convId;activeChatUser=c.other.id;
-  document.getElementById('chat-av').textContent=(c.other.name||'?')[0].toUpperCase();
-  document.getElementById('chat-av').style.background=dmColor(c.other.id);
+  document.getElementById('chat-av').innerHTML=pfpHtml(c.other.id||c.other.name,36);
+  document.getElementById('chat-av').style.background='';
   document.getElementById('chat-user-name').textContent=c.other.name+' @'+c.other.handle;
   const st=document.querySelector('#chat-window .chat-user-status');if(st)st.textContent=DM_NOTE;
   renderChat(convId);
@@ -9860,8 +10056,12 @@ function switchMeTab(el){
   document.querySelectorAll('.me-tab').forEach(t=>t.classList.remove('on'));
   document.querySelectorAll('.me-pane').forEach(p=>p.classList.remove('on'));
   el.classList.add('on');
-  document.getElementById('me-pane-'+el.dataset.pane).classList.add('on');
-  if(el.dataset.pane==='messages')renderConvList();
+  const pane=el.dataset.pane;_profTab=pane;
+  const pe=document.getElementById('me-pane-'+pane);if(pe)pe.classList.add('on');
+  // HEARTED is a record of what you did, so it is re-read on every visit: a
+  // heart given on the feed a moment ago belongs at the top of it.
+  if(pane==='hearted')_profHearted=null;
+  renderProfPane(pane);
 }
 setInterval(pullLivePosts,120000);
 // Boot sequence. Two things used to go wrong here:
