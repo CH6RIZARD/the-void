@@ -5683,11 +5683,43 @@ function clearStreamStatus(cell){
 function tileLabel(text,source={}){return `<div class="csg-tile-label"><span class="strip-live-dot"></span> ${esc(text)}</div>`;}
 // Walk a source chain in ONE cell sequentially; first success stops & labels;
 // exhaustion shows the sparkle placeholder. Used for single tiles (wall/search).
+// Fetch each hls candidate's manifest in parallel (3.5s cap) and put the first
+// one that answers at the front of the chain. The serial walk below then almost
+// always connects on its first try instead of burning CONNECT_TIMEOUT (8s) per
+// dead server. An HTTP error or a non-playlist body marks the stream bad for
+// the session; a thrown fetch (CORS, DNS) does NOT - the /hls proxy retry
+// inside attemptSource may still carry that url, so it only loses its place in
+// line. No manifest answering leaves the chain as it was.
+async function raceHlsOrder(sources){
+  const hls=sources.filter(x=>x&&x.type==='hls');
+  if(hls.length<2)return sources;
+  const probe=src=>new Promise(res=>{
+    const ctl=new AbortController();
+    const t=setTimeout(()=>{ctl.abort();res(null);},3500);
+    fetch(src.url,{signal:ctl.signal}).then(r=>{
+      clearTimeout(t);
+      if(!r.ok){markBadStream(src);res(null);return;}
+      r.text().then(tx=>{
+        if(tx&&tx.slice(0,7)==='#EXTM3U')res(src);
+        else{markBadStream(src);res(null);}
+      }).catch(()=>res(null));
+    }).catch(()=>{clearTimeout(t);res(null);});
+  });
+  const winner=await new Promise(res=>{
+    let left=hls.length;
+    hls.forEach(x=>probe(x).then(v=>{if(v)res(v);else if(--left===0)res(null);}));
+  });
+  if(!winner)return sources;
+  return [winner,...sources.filter(x=>x!==winner)];
+}
 function connectTile(cell,sources,onConnected){
   if(getComputedStyle(cell).position==='static')cell.style.position='relative';
   let i=0,cancelled=false;
   cell.__cancel=()=>{cancelled=true;};
-  (async function next(){
+  (async function(){
+    try{sources=await raceHlsOrder(sources);}catch(e){}
+    if(cancelled)return;
+    (async function next(){
     if(cancelled)return;
     // csg-offline matches the country-grid path below, and is what lets the CSS stop
     // this tile's 14 particle animations now that it has nothing left to load.
@@ -5701,6 +5733,7 @@ function connectTile(cell,sources,onConnected){
       if(!cell.dataset.nolabel)cell.insertAdjacentHTML('beforeend',tileLabel(src.label||'LIVE',src));
       if(onConnected)onConnected(src);
     }else next();
+    })();
   })();
   return cell;
 }
