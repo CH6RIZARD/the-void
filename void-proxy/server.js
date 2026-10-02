@@ -748,6 +748,19 @@ function readBody(req, max) {
 // ---------------------------------------------------------------------------
 // HTTP layer.
 // ---------------------------------------------------------------------------
+// Stream health lives in memory and on disk beside the X budget - it survives a
+// restart, and losing it on a redeploy only means re-learning from live traffic.
+const STREAM_HEALTH_FILE = process.env.STREAM_HEALTH_FILE || '/tmp/void-stream-health.json';
+let streamHealth = {};
+try { streamHealth = JSON.parse(fs.readFileSync(STREAM_HEALTH_FILE, 'utf8')) || {}; } catch (_) {}
+let _shT = 0;
+function saveStreamHealth() {
+  clearTimeout(_shT);
+  _shT = setTimeout(() => {
+    try { fs.writeFileSync(STREAM_HEALTH_FILE, JSON.stringify(streamHealth)); } catch (e) {}
+  }, 3000);
+}
+
 function cors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -807,6 +820,47 @@ const server = http.createServer(async (req, res) => {
       const key = `social|${country.toLowerCase()}|${mode}`;
       const all = await cached(key, () => aggregateByCountry({ country, mode, limit: SOCIAL_POOL }));
       return sendJson(res, 200, page(all, offset, limit));
+    }
+
+    // ─── STREAM HEALTH: the pool's vital signs, aggregated from every client ──
+    // Clients POST what actually happened when they tried a stream (ok, needed
+    // the proxy, connect ms); everyone then GETs the aggregate. This is what
+    // lets the wall skip globally-dead streams and lead with globally-fast ones
+    // without any client replaying its own history.
+    if (path === '/streams/report') {
+      if (req.method !== 'POST') return sendJson(res, 405, { error: 'POST only' });
+      let body;
+      try { body = JSON.parse(await readBody(req, 64 * 1024)); } catch (_) { return sendJson(res, 400, { error: 'bad body' }); }
+      const reports = Array.isArray(body && body.reports) ? body.reports.slice(0, 50) : null;
+      if (!reports || !reports.length) return sendJson(res, 400, { error: 'reports: 1-50' });
+      let took = 0;
+      for (const r of reports) {
+        const u = r && typeof r.u === 'string' ? r.u : '';
+        if (!/^https?:\/\//.test(u) || u.length > 500) continue;
+        if (!streamHealth[u] && Object.keys(streamHealth).length >= 4000) continue;
+        const e = streamHealth[u] || (streamHealth[u] = { g: 0, b: 0, v: 0, ms: [], at: 0 });
+        if (r.ok) { e.g++; if (r.v) e.v++; const ms = Math.min(30000, Math.max(0, r.ms | 0)); if (ms) { e.ms.push(ms); if (e.ms.length > 15) e.ms.shift(); } }
+        else e.b++;
+        e.at = Date.now(); took++;
+      }
+      if (took) saveStreamHealth();
+      return sendJson(res, 200, { ok: true, took });
+    }
+
+    if (path === '/streams/health') {
+      const h = {};
+      const cut = Date.now() - 7 * 864e5;
+      for (const u in streamHealth) {
+        const e = streamHealth[u];
+        if (!e || e.at < cut) { delete streamHealth[u]; continue; }
+        const n = e.g + e.b;
+        if (!n) continue;
+        const med = e.ms.length ? e.ms.slice().sort((a, b) => a - b)[e.ms.length >> 1] : 0;
+        h[u] = [Math.round((e.g / n) * 100), e.g ? Math.round((e.v / e.g) * 100) : 0, Math.min(999, n), med];
+      }
+      cors(res);
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=60' });
+      return res.end(JSON.stringify({ h }));
     }
 
     if (path === '/hls') {
@@ -878,7 +932,7 @@ const server = http.createServer(async (req, res) => {
     if (path === '/' || path === '/health') {
       return sendJson(res, 200, {
         ok: true,
-        endpoints: ['/feed?mode=tension&limit=40', '/social?country=<name>&mode=tension&limit=30', '/hls?u=<m3u8 url>', 'POST /translate {texts:[...], target:"en"}'],
+        endpoints: ['/feed?mode=tension&limit=40', '/social?country=<name>&mode=tension&limit=30', '/hls?u=<m3u8 url>', '/streams/health', 'POST /streams/report {reports:[{u,ok,v,ms}]}', 'POST /translate {texts:[...], target:"en"}'],
         providers: PROVIDERS.map((p) => ({ platform: p.platform, enabled: p.enabled !== false })),
         reddit: { auth: redditAuthed() ? 'oauth' : 'keyless', userAgent: REDDIT_UA },
         translate: { provider: DEEPL_KEY ? 'deepl' : 'off', cached: trCache.size },

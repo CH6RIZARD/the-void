@@ -5366,6 +5366,61 @@ const USED_STREAMS_KEY='void_used_stream_sources_v1';
 // attempt; attemptSource, wallSlots and wallCascadeFor already refuse _badStreams.
 const YT_DEAD_CODES=new Set([100,101,150,153]);
 function streamKey(source){return source.type==='youtube'?`youtube:${source.id}`:`${source.type}:${source.url||''}`;}
+// ─── PROVEN STREAMS: what this browser has actually played ─────────────────
+// streamKey -> {ms:int, via:0|1 (1 = needed the proxy), bad:0|1, at:epoch}.
+// Proven-good orders the wall and skips the manifest race; proven-bad (an HTTP
+// refusal or a non-playlist body) is skipped for a day. CORS refusals are NOT
+// bad - the proxy carries those, and via:1 records that it had to.
+// ─── GLOBAL STREAM HEALTH: everyone's outcomes, aggregated by the proxy ─────
+// Every client reports connect outcomes; the proxy aggregates; every client
+// downloads the aggregate once per session. A stream dead for everyone
+// disappears for everyone; one that needs the proxy is known to before the
+// first attempt; and the wall leads with what connects fastest for the
+// population - not for this one browser - so it stays varied while it speeds up.
+let _health={},_healthAt=0;
+async function healthPull(){
+  if(!VOID_PROXY_BASE||Date.now()-_healthAt<10*6e4)return;
+  _healthAt=Date.now();
+  try{
+    const r=await fetch(VOID_PROXY_BASE+'/streams/health');
+    if(r.ok){const d=await r.json();if(d&&d.h)_health=d.h;}
+  }catch(e){}
+}
+// h entry: [okPct, viaPct, reports, medianMs]
+function healthOf(src){const k=src&&src.url;return (k&&_health[k])||null;}
+function healthDead(src){const h=healthOf(src);return !!(h&&h[0]===0&&h[2]>=3);}
+function healthVia(src){const h=healthOf(src);return !!(h&&h[1]>=60&&h[2]>=2);}
+function healthMsBucket(src){const h=healthOf(src);return h&&h[0]>0?Math.round((h[3]||2000)/400):9;}
+let _reportQ=[],_reportT=0;
+function healthReport(src,ok,via,ms){
+  if(!VOID_PROXY_BASE||!src||src.type!=='hls'||!src.url)return;
+  _reportQ.push({u:src.url,ok:ok?1:0,v:via?1:0,ms:Math.min(30000,Math.round(ms||0))});
+  if(_reportQ.length>40)_reportQ=_reportQ.slice(-40);
+  clearTimeout(_reportT);
+  _reportT=setTimeout(()=>{
+    const batch=_reportQ;_reportQ=[];
+    try{fetch(VOID_PROXY_BASE+'/streams/report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reports:batch})}).catch(()=>{});}catch(e){}
+  },2500);
+}
+const PROVEN_KEY='void_proven_v1';
+let _proven=null;
+function provenAll(){
+  if(_proven)return _proven;
+  try{_proven=JSON.parse(localStorage.getItem(PROVEN_KEY)||'{}')||{};}catch(e){_proven={};}
+  const cut=Date.now()-7*864e5;
+  for(const k in _proven)if(!_proven[k]||_proven[k].at<cut)delete _proven[k];
+  return _proven;
+}
+let _provenT=0;
+function provenSave(){
+  clearTimeout(_provenT);
+  _provenT=setTimeout(()=>{try{localStorage.setItem(PROVEN_KEY,JSON.stringify(_proven||{}));}catch(e){}},800);
+}
+function provenOf(src){const k=src&&streamKey(src);return (k&&provenAll()[k])||null;}
+function provenMark(src,ms,via){const k=src&&streamKey(src);if(!k)return;provenAll()[k]={ms:Math.round(ms||0),via:via?1:0,bad:0,at:Date.now()};provenSave();}
+function provenBad(src){const k=src&&streamKey(src);if(!k)return;provenAll()[k]={ms:0,via:0,bad:1,at:Date.now()};provenSave();}
+function provenGood(src,maxAgeMs){const p=provenOf(src);return p&&!p.bad&&Date.now()-p.at<(maxAgeMs||12*36e5)?p:null;}
+function provenDead(src){const p=provenOf(src);return !!(p&&p.bad&&Date.now()-p.at<864e5);}
 function usedStreamKeys(){try{return new Set(JSON.parse(sessionStorage.getItem(USED_STREAMS_KEY)||'[]'));}catch(e){return new Set();}}
 function rememberStream(source){const used=usedStreamKeys();used.add(streamKey(source));try{sessionStorage.setItem(USED_STREAMS_KEY,JSON.stringify([...used].slice(-250)));}catch(e){}}
 function ytApi(){
@@ -5520,10 +5575,11 @@ function attemptSource(cell,source){
             // is unchanged, and a url that fails through the proxy too fails the
             // attempt exactly as before.
             let triedProxy=false;
+            const viaProxy=u=>VOID_PROXY_BASE+'/hls?u='+encodeURIComponent(u);
             const begin=(url)=>{
               const hls=new Hls(liveHlsConfig());
               v.__hls=hls;                      // livePark / liveWake drive this
-              hls.on(Hls.Events.MANIFEST_PARSED,()=>{if(v.play)v.play().catch(()=>{});});
+              hls.on(Hls.Events.MANIFEST_PARSED,()=>{provenMark(source,0,triedProxy?1:0);healthReport(source,true,triedProxy,performance.now()-(v.__t0||performance.now()));if(v.play)v.play().catch(()=>{});});
               // CURSOR #6 — post-PLAYING fatals used to no-op (finish already done)
               // and leave a black cell. Recover in place; only heal on hard death.
               hls.on(Hls.Events.ERROR,(_,d)=>{
@@ -5532,10 +5588,10 @@ function attemptSource(cell,source){
                   if(!triedProxy&&VOID_PROXY_BASE&&d.type===Hls.ErrorTypes.NETWORK_ERROR){
                     triedProxy=true;
                     try{hls.destroy();}catch(e){}
-                    begin(VOID_PROXY_BASE+'/hls?u='+encodeURIComponent(source.url));
+                    begin(viaProxy(source.url));
                     return;
                   }
-                  finish(false);return;
+                  healthReport(source,false,triedProxy,0);finish(false);return;
                 }
                 try{
                   if(d.type===Hls.ErrorTypes.NETWORK_ERROR){hls.startLoad();return;}
@@ -5546,7 +5602,13 @@ function attemptSource(cell,source){
               hls.loadSource(url);hls.attachMedia(v);
               teardown=()=>{try{hls.destroy();}catch(e){}v.remove();};
             };
-            begin(source.url);
+            // Proven to need the proxy: start there. The direct attempt already
+            // failed once in this browser; repeating it is a full failed fetch
+            // plus a retry round-trip on every single mount.
+            v.__t0=performance.now();
+            {const p=provenGood(source,864e5);
+             if(((p&&p.via)||healthVia(source))&&VOID_PROXY_BASE){triedProxy=true;begin(viaProxy(source.url));}
+             else begin(source.url);}
           }).catch(()=>{v.remove();finish(false);});
         }
       }else if(source.type==='mjpeg'){
@@ -5691,17 +5753,22 @@ function tileLabel(text,source={}){return `<div class="csg-tile-label"><span cla
 // inside attemptSource may still carry that url, so it only loses its place in
 // line. No manifest answering leaves the chain as it was.
 async function raceHlsOrder(sources){
-  const hls=sources.filter(x=>x&&x.type==='hls');
+  healthPull();   // async, refreshed per 10 min; the first call races ahead of it
+  // A fresh proven winner needs no race at all: put it first and go.
+  const good=sources.find(x=>x&&x.type==='hls'&&provenGood(x));
+  if(good)return [good,...sources.filter(x=>x!==good)];
+  const hls=sources.filter(x=>x&&x.type==='hls'&&!provenDead(x));
   if(hls.length<2)return sources;
   const probe=src=>new Promise(res=>{
     const ctl=new AbortController();
     const t=setTimeout(()=>{ctl.abort();res(null);},3500);
+    const t0=performance.now();
     fetch(src.url,{signal:ctl.signal}).then(r=>{
       clearTimeout(t);
-      if(!r.ok){markBadStream(src);res(null);return;}
+      if(!r.ok){markBadStream(src);provenBad(src);res(null);return;}
       r.text().then(tx=>{
-        if(tx&&tx.slice(0,7)==='#EXTM3U')res(src);
-        else{markBadStream(src);res(null);}
+        if(tx&&tx.slice(0,7)==='#EXTM3U'){const ms=performance.now()-t0;provenMark(src,ms,0);healthReport(src,true,false,ms);res(src);}
+        else{markBadStream(src);provenBad(src);healthReport(src,false,false,0);res(null);}
       }).catch(()=>res(null));
     }).catch(()=>{clearTimeout(t);res(null);});
   });
@@ -5857,7 +5924,15 @@ function wallSlots(){
   };
   const per=ordered.map(n=>{
     const life=lifeMix([...(CAM_SOURCES[n]||[]),...(RAW_FOOTAGE[n]||[]),...lifeFor(n)].filter(usable),shuffle);
-    const news=shuffle(iptvFor(n).filter(usable));
+    // Proven-fast streams lead their country's list - the shuffle still varies
+    // the rest, but what connects INSTANTLY in this browser goes first, which is
+    // most of what "the wall is fast" means on the second visit.
+    // Fastest first by EVERYONE's measurements (global median ms, bucketed to
+    // 400ms, shuffle deciding inside each bucket) - a personal fast-first here
+    // would replay the same channels every day. The dead, locally or globally,
+    // drop out entirely.
+    const news=shuffle(iptvFor(n).filter(s=>usable(s)&&!provenDead(s)&&!healthDead(s)))
+      .map((x,i)=>[x,healthMsBucket(x),i]).sort((a,b)=>a[1]-b[1]||a[2]-b[2]).map(x=>x[0]);
     return {n,life,news};
   });
   // Round-robin each pool across countries (rank tiers preserved), then sink
@@ -5941,6 +6016,10 @@ async function connectWallCell(cell,name,firstSrc,opts){
     const k=streamKey(firstSrc);
     chain=chain.filter(s=>streamKey(s)!==k).concat(chain.filter(s=>streamKey(s)===k));
   }
+  // Same race the search tiles run: the first manifest to answer in THIS
+  // browser goes first, so the serial walk below is almost always one attempt.
+  try{chain=await raceHlsOrder(chain);}catch(e){}
+  if(!cell.isConnected)return {ok:false};
   for(let i=0;i<chain.length;i++){
     if(!cell.isConnected)return {ok:false};
     // Preface: sparkle only — never channel posters (play-glyph art).
@@ -6043,6 +6122,28 @@ function spawnWallTile(){
 // Keep pulling slots (in waves of WALL_BATCH) until `want` tiles actually
 // connect or the list runs out. MAX_ATTEMPTS bounds work so an all-dead network
 // can't run away. One batch in flight at a time (_wallBusy).
+let _prewarmBusy=false;
+async function prewarmSlots(from,count){
+  if(_prewarmBusy)return;_prewarmBusy=true;
+  try{
+    const todo=_slots.slice(from,from+count).map(s=>s.src)
+      .filter(x=>x&&x.type==='hls'&&!provenOf(x));
+    let i=0;
+    await Promise.all(Array.from({length:Math.min(4,todo.length)},async()=>{
+      while(i<todo.length){
+        const src=todo[i++];
+        await new Promise(res=>{
+          const ctl=new AbortController();const t=setTimeout(()=>{ctl.abort();res();},3500);
+          const t0=performance.now();
+          fetch(src.url,{signal:ctl.signal}).then(r=>{clearTimeout(t);
+            if(!r.ok){provenBad(src);res();return;}
+            r.text().then(tx=>{const ms=performance.now()-t0;if(tx&&tx.slice(0,7)==='#EXTM3U'){provenMark(src,ms,0);healthReport(src,true,false,ms);}else{provenBad(src);healthReport(src,false,false,0);}res();}).catch(()=>res());
+          }).catch(()=>{clearTimeout(t);res();});
+        });
+      }
+    }));
+  }finally{_prewarmBusy=false;}
+}
 async function loadWallBatch(want){
   if(_wallBusy) return; _wallBusy=true;
   const grid=document.getElementById('gl-grid');
@@ -6112,6 +6213,10 @@ async function loadWallBatch(want){
   }));
 
   _wallBusy=false;
+  // Prewarm the NEXT batch: race its manifests quietly (4 at a time) so the
+  // proven table already knows the winners when scrolling mounts those tiles.
+  // Pure fetches - no players, no keys claimed - and best-effort throughout.
+  try{prewarmSlots(_slotIdx,WALL_BATCH);}catch(e){}
   const done=document.getElementById('gl-done');
   if(_slotIdx>=_slots.length && done) done.style.display='block';
   // IntersectionObserver only fires on a state CHANGE. The sentinel starts on
