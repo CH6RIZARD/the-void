@@ -398,5 +398,95 @@
   },
   "since": 1790902852198,
   "why": "status 404"
+ },
+ "https://rds3.desdeparaguay.net/4dmasnoticiastv/4dmasnoticiastv/playlist.m3u8": {
+  "country": "Paraguay",
+  "src": {
+   "type": "hls",
+   "url": "https://rds3.desdeparaguay.net/4dmasnoticiastv/4dmasnoticiastv/playlist.m3u8",
+   "label": "4Dmas Noticias TV"
+  },
+  "since": 1790905643271,
+  "why": "error"
+ },
+ "https://64b16f23efbee.streamlock.net/telegela/telegela/playlist.m3u8": {
+  "country": "Italy",
+  "src": {
+   "type": "hls",
+   "url": "https://64b16f23efbee.streamlock.net/telegela/telegela/playlist.m3u8",
+   "label": "Telegela 647"
+  },
+  "since": 1790905643272,
+  "why": "status 404"
+ },
+ "https://5ff3d9babae13.streamlock.net/wympnqeqts/wympnqeqts/playlist.m3u8": {
+  "country": "Chile",
+  "src": {
+   "type": "hls",
+   "url": "https://5ff3d9babae13.streamlock.net/wympnqeqts/wympnqeqts/playlist.m3u8",
+   "label": "Rocco TV"
+  },
+  "since": 1790905643272,
+  "why": "status 403"
+ },
+ "https://5c3639aa99149.streamlock.net/live_TV/tv/playlist.m3u8": {
+  "country": "South Korea",
+  "src": {
+   "type": "hls",
+   "url": "https://5c3639aa99149.streamlock.net/live_TV/tv/playlist.m3u8",
+   "label": "HLAT-DTV"
+  },
+  "since": 1790905643272,
+  "why": "status 404"
+ },
+ "https://wazobia.live:8333/channel/wmaxph.m3u8": {
+  "country": "Nigeria",
+  "src": {
+   "type": "hls",
+   "url": "https://wazobia.live:8333/channel/wmaxph.m3u8",
+   "label": "Wazobia Max TV Port-Harcourt"
+  },
+  "since": 1790905643272,
+  "why": "status 404"
+ },
+ "https://peer2.tdiradio.com/static/streaming-playlists/hls/7c3ea8d3-49dc-4e1b-8b1e-dc6fab71f5cf/0.m3u8": {
+  "country": "Serbia",
+  "src": {
+   "type": "hls",
+   "url": "https://peer2.tdiradio.com/static/streaming-playlists/hls/7c3ea8d3-49dc-4e1b-8b1e-dc6fab71f5cf/0.m3u8",
+   "label": "Radio Lola TV"
+  },
+  "since": 1790905643273,
+  "why": "status 404"
+ },
+ "https://peer2.tdiradio.com/static/streaming-playlists/hls/4207de1d-52e8-4591-ad9e-218069b864d1/0.m3u8": {
+  "country": "Serbia",
+  "src": {
+   "type": "hls",
+   "url": "https://peer2.tdiradio.com/static/streaming-playlists/hls/4207de1d-52e8-4591-ad9e-218069b864d1/0.m3u8",
+   "label": "Radio Karolina TV"
+  },
+  "since": 1790905643273,
+  "why": "status 404"
+ },
+ "https://peer2.tdiradio.com/static/streaming-playlists/hls/bab99862-ec1c-474f-9a02-4f8c8677d565/0.m3u8": {
+  "country": "Serbia",
+  "src": {
+   "type": "hls",
+   "url": "https://peer2.tdiradio.com/static/streaming-playlists/hls/bab99862-ec1c-474f-9a02-4f8c8677d565/0.m3u8",
+   "label": "Radio Hit FM TV"
+  },
+  "since": 1790905643273,
+  "why": "status 404"
+ },
+ "https://live-fi.tvkaista.net/eveo/live.m3u8?hd=true": {
+  "country": "Finland",
+  "src": {
+   "type": "hls",
+   "url": "https://live-fi.tvkaista.net/eveo/live.m3u8?hd=true",
+   "label": "Eveo"
+  },
+  "since": 1790905643273,
+  "why": "error"
  }
 }
