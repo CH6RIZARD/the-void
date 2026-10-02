@@ -539,7 +539,9 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
     const same = (a: Set<number>, b: Set<number>) => a.size === b.size && [...a].every((x) => b.has(x));
     // Tells only the tiles whose state actually flipped - usually none, and at
     // most a handful as a boundary is crossed.
+    mark('wall:apply');
     applyPlacement(parked, evicted);
+    mark('idle');
   }, [w]);
 
   useEffect(() => {
@@ -752,6 +754,7 @@ interface WallTileProps {
 }
 
 const WallTile = memo(function WallTile({ rec, left, top, width, height, borderColor, registry, lanes, lastGood, onFirstSettled }: WallTileProps) {
+  mark('wall:tile');
   // This tile's own parked/evicted, subscribed by id: a placement pass that does
   // not touch this tile does not re-render it.
   const { parked, evicted } = usePlacement(rec.id);

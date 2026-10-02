@@ -16,6 +16,7 @@
 // comes the playback thread has nothing left to do, so the release returns quickly,
 // and no single frame ever pays for more than one of them.
 import { useEffect, useRef, useState } from 'react';
+import { mark } from '../../core/slow';
 import { createVideoPlayer, type VideoPlayer, type VideoSource } from 'expo-video';
 
 const RELEASE_GAP_MS = 350;
@@ -125,6 +126,7 @@ function stepCreate() {
     /* skipped: its tile unmounted or changed source before its turn */
   }
   if (job) {
+    mark('player:create');
     try {
       job.run();
     } catch {

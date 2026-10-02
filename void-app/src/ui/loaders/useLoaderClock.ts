@@ -12,6 +12,7 @@
 // jammed input for 5 s+ (ANRs 2026-09-21 11:04 and 11:07). Loaders now run only
 // while their screen is focused, their surface is shown, and the app is foregrounded.
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { mark } from '../../core/slow';
 import { Animated, AppState, Easing } from 'react-native';
 import { NavigationContext } from 'expo-router/build/react-navigation/core';
 
@@ -90,6 +91,7 @@ export function useLoaderShown(active = true): boolean {
 export function useLoaderLoop(duration: number, lead: number, running: boolean): Animated.Value {
   const v = useRef(new Animated.Value(0)).current;
   useEffect(() => {
+    mark('loader:loop');
     const from = ((Date.now() + lead) % duration) / duration;
     v.setValue(from);
     if (!running) return;

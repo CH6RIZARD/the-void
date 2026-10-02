@@ -12,6 +12,7 @@
 // The caller (useStreamCascade / WallTile) does the instant refusals and the
 // one-stream-one-place claim before mounting this, and releases the claim on unmount.
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { mark } from '../../core/slow';
 import { Animated, AppState, Easing, Image, PixelRatio, StyleSheet, View } from 'react-native';
 import { VideoView, type VideoPlayer } from 'expo-video';
 import { Image as ExpoImage } from 'expo-image';
@@ -140,6 +141,7 @@ const STALL_DEAD_MS = 15000;
 const EASE = Easing.bezier(0.25, 0.1, 0.25, 1);
 
 export const StreamTile = forwardRef<StreamTileHandle, StreamTileProps>(function StreamTile(props, ref) {
+  mark('tile:render');
   const { tileId, source, loaderLabel = '', parked = false, radius = 6, showLoader = true, tileWidth, surface: surfaceType = 'texture' } = props;
   const audio = useAudioOwner();
   const [playing, setPlaying] = useState(false);

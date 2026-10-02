@@ -9,16 +9,6 @@
   "since": 1790871520273,
   "why": "error"
  },
- "https://e.siar.us/live/tvmu.m3u8": {
-  "country": "Indonesia",
-  "src": {
-   "type": "hls",
-   "url": "https://e.siar.us/live/tvmu.m3u8",
-   "label": "TV Mu"
-  },
-  "since": 1790871520275,
-  "why": "status 404"
- },
  "https://tab.parlament.hu:446/edgelive/smil:mkogytab.smil/playlist.m3u8": {
   "country": "Hungary",
   "src": {
@@ -29,32 +19,12 @@
   "since": 1790877114109,
   "why": "error"
  },
- "https://cdn.adyadigitalteknologi.com:8090/vod/relay.m3u8": {
-  "country": "Indonesia",
-  "src": {
-   "type": "hls",
-   "url": "https://cdn.adyadigitalteknologi.com:8090/vod/relay.m3u8",
-   "label": "Sangaji TV"
-  },
-  "since": 1790877114111,
-  "why": "status 404"
- },
  "https://stream.jogjatv.co.id/jtvlive/stream/index.m3u8": {
   "country": "Indonesia",
   "src": {
    "type": "hls",
    "url": "https://stream.jogjatv.co.id/jtvlive/stream/index.m3u8",
    "label": "Jogja TV"
-  },
-  "since": 1790877114111,
-  "why": "status 404"
- },
- "https://media.streambrothers.com:19360/8036/8036.m3u8": {
-  "country": "Honduras",
-  "src": {
-   "type": "hls",
-   "url": "https://media.streambrothers.com:19360/8036/8036.m3u8",
-   "label": "Maya TV"
   },
   "since": 1790877114111,
   "why": "status 404"
@@ -68,16 +38,6 @@
   },
   "since": 1790877114113,
   "why": "status 403"
- },
- "https://live20.bozztv.com/akamaissh101/ssh101/grandetv2240/playlist.m3u8": {
-  "country": "Venezuela",
-  "src": {
-   "type": "hls",
-   "url": "https://live20.bozztv.com/akamaissh101/ssh101/grandetv2240/playlist.m3u8",
-   "label": "Grande TV"
-  },
-  "since": 1790879903405,
-  "why": "status 404"
  },
  "https://mgstv.siar.us/live/mgstv.m3u8": {
   "country": "Indonesia",
@@ -109,16 +69,6 @@
   "since": 1790879903407,
   "why": "status 404"
  },
- "https://cdn4.skygo.mn/live/disk1/Star/HLSv3-FTA/Star.m3u8": {
-  "country": "Mongolia",
-  "src": {
-   "type": "hls",
-   "url": "https://cdn4.skygo.mn/live/disk1/Star/HLSv3-FTA/Star.m3u8",
-   "label": "Star TV"
-  },
-  "since": 1790879903407,
-  "why": "status 404"
- },
  "https://www.streaming507.net:19360/videofabulosa/videofabulosa.m3u8": {
   "country": "Panama",
   "src": {
@@ -127,36 +77,6 @@
    "label": "Fabulosa Estereo 100.5 FM"
   },
   "since": 1790879903407,
-  "why": "status 404"
- },
- "https://183.bozztv.com/giatv/giatv-AbejalesTV/AbejalesTV/playlist.m3u8": {
-  "country": "Venezuela",
-  "src": {
-   "type": "hls",
-   "url": "https://183.bozztv.com/giatv/giatv-AbejalesTV/AbejalesTV/playlist.m3u8",
-   "label": "AbejalesTV"
-  },
-  "since": 1790882705458,
-  "why": "status 404"
- },
- "https://akativi.siar.us/live/akativi.m3u8": {
-  "country": "Indonesia",
-  "src": {
-   "type": "hls",
-   "url": "https://akativi.siar.us/live/akativi.m3u8",
-   "label": "AKTV"
-  },
-  "since": 1790882705458,
-  "why": "status 404"
- },
- "https://5bf7b725107e5.streamlock.net/bungotv/bungotv/playlist.m3u8": {
-  "country": "Indonesia",
-  "src": {
-   "type": "hls",
-   "url": "https://5bf7b725107e5.streamlock.net/bungotv/bungotv/playlist.m3u8",
-   "label": "Bungo TV"
-  },
-  "since": 1790882705458,
   "why": "status 404"
  },
  "https://5bf7b725107e5.streamlock.net/bantentv/bantentv/playlist.m3u8": {
@@ -188,16 +108,6 @@
   },
   "since": 1790888575379,
   "why": "error"
- },
- "https://tv-trtgenc.medya.trt.com.tr/master.m3u8": {
-  "country": "Turkey",
-  "src": {
-   "type": "hls",
-   "url": "https://tv-trtgenc.medya.trt.com.tr/master.m3u8",
-   "label": "TRT Genc"
-  },
-  "since": 1790891386585,
-  "why": "status 403"
  },
  "https://mdc.ott.alticeusa.net/live4.ott.optimum.net/live4-uploads/N12HH_A1/index_new.m3u8?omap=https": {
   "country": "United States",
@@ -249,16 +159,6 @@
   "since": 1790891386587,
   "why": "status 404"
  },
- "https://59ef525c24caa.streamlock.net/vmtv/soyplancha/playlist.m3u8": {
-  "country": "Costa Rica",
-  "src": {
-   "type": "hls",
-   "url": "https://59ef525c24caa.streamlock.net/vmtv/soyplancha/playlist.m3u8",
-   "label": "SOY Plancha TV"
-  },
-  "since": 1790891386587,
-  "why": "status 403"
- },
  "https://vcp2.myplaytv.com/anzoateguitv/anzoateguitv/playlist.m3u8": {
   "country": "Venezuela",
   "src": {
@@ -308,16 +208,6 @@
   },
   "since": 1790891386589,
   "why": "status 404"
- },
- "https://live.dc.beltelecom.by/vtv/vitebsk.stream/playlist.m3u8": {
-  "country": "Belarus",
-  "src": {
-   "type": "hls",
-   "url": "https://live.dc.beltelecom.by/vtv/vitebsk.stream/playlist.m3u8",
-   "label": "Vitebsk"
-  },
-  "since": 1790891386590,
-  "why": "no-cors"
  },
  "https://dhohotv.siar.us/dhohotv/live/playlist.m3u8": {
   "country": "Indonesia",
@@ -389,14 +279,14 @@
   "since": 1790896954517,
   "why": "status 502"
  },
- "https://live20.bozztv.com/giatv/giatv-chinique100tvenvivo/chinique100tvenvivo/playlist.m3u8": {
-  "country": "Guatemala",
+ "https://cloud37.ecuatel.com/vostv/live/manifest.m3u8": {
+  "country": "Ecuador",
   "src": {
    "type": "hls",
-   "url": "https://live20.bozztv.com/giatv/giatv-chinique100tvenvivo/chinique100tvenvivo/playlist.m3u8",
-   "label": "Canal 100 Chinique"
+   "url": "https://cloud37.ecuatel.com/vostv/live/manifest.m3u8",
+   "label": "Vos y TV"
   },
-  "since": 1790896954518,
+  "since": 1790899793957,
   "why": "status 404"
  }
 }

@@ -11,6 +11,7 @@
 //   14 particles: left random 0-100%, bottom random 0-40px, duration 2.5-6.5s,
 //   delay -(0-6)s (always mid-flight), animation ignores prefers-reduced-motion.
 import React, { memo, useMemo, useRef } from 'react';
+import { mark } from '../core/slow';
 import { Animated, Platform, Pressable, StyleSheet, type StyleProp, type ViewStyle, View } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
 import { FONTS, em } from '../theme/palettes';
@@ -86,6 +87,7 @@ function makeParticles(): Particle[] {
 // a future React Native drops them this falls back by deleting the branch, and
 // iOS - where setTransformProperty has no equivalent cost - keeps transform now.
 const Dot = memo(function Dot({ p, running, color }: { p: Particle; running: boolean; color: string }) {
+  mark('loader:dot');
   const t = useLoaderLoop(p.duration, p.lead, running);
   const style = useMemo(
     () => ({
@@ -130,6 +132,7 @@ export interface SparkleLoaderProps {
 }
 
 export const SparkleLoader = memo(function SparkleLoader({ label, onPress, radius, surface = 'media', absolute = true, animate = true, style }: SparkleLoaderProps) {
+  mark('loader:render');
   const theme = useTheme();
   // BUILT ONCE, ON FIRST SIGHT, AND KEPT.
   // Every instance mounted its full set of Animated.Views whether or not anyone
