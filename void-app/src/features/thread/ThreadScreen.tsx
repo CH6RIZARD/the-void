@@ -8,7 +8,8 @@
 // with a 60ms stagger from T+120. Closing reverses it and hands the card back.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BackHandler, Dimensions, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from 'react-native';
-import Animated, { Easing, ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, { runOnJS, Easing, ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -222,6 +223,14 @@ function Thread({ post: p }: { post: Post }) {
   roStackRef.current = roStack;
 
   // ─── animated styles ─────────────────────────────────────────────────────
+  const swipeOut = Gesture.Pan()
+    .activeOffsetX([-9999, 24])
+    .failOffsetY([-14, 14])
+    .onEnd((e) => {
+      'worklet';
+      // A deliberate push to the right, not a stray drift while scrolling.
+      if (e.translationX > 80 && e.velocityX > 0) runOnJS(close)();
+    });
   const scrimStyle = useAnimatedStyle(() => ({ opacity: scrim.value }));
   const popStyle = useAnimatedStyle(() => ({ opacity: pop.value, transform: [{ translateY: (1 - pop.value) * 12 }] }));
   const chromeStyle = useAnimatedStyle(() => ({ opacity: chrome.value }));
@@ -332,6 +341,14 @@ function Thread({ post: p }: { post: Post }) {
         <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(2,1,8,0.7)' }]} onPress={() => close()} accessibilityLabel="Close thread" />
       </Animated.View>
 
+      {/* SWIPE RIGHT TO LEAVE.
+          The route is declared gestureEnabled:false - it is a transparentModal
+          with animation:'none', so the navigator's own back gesture would dismiss
+          it with no animation and skip the close choreography that flips the
+          thread back onto its card. This gesture runs that choreography instead.
+          activeOffsetX keeps it off the vertical scroll, and failOffsetY means a
+          finger that starts reading never starts leaving. */}
+      <GestureDetector gesture={swipeOut}>
       <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined} pointerEvents="box-none">
         <ScrollView
           ref={scroll}
@@ -414,7 +431,7 @@ function Thread({ post: p }: { post: Post }) {
                 {/* .thread-acts */}
                 <View style={styles.acts}>
                   <Pressable onPress={() => fireBolt(p.id)} style={styles.act} hitSlop={8}>
-                    <Icon name={r.mf ? 'boltFill' : 'bolt'} size={13} color={r.mf ? colors.gold : colors.navDim} />
+                    <Icon name={r.mf ? 'heartFill' : 'heart'} size={13} color={r.mf ? colors.gold : colors.navDim} />
                     <VText style={[styles.actT, { color: r.mf ? colors.gold : colors.navDim }]}>{fmt(boltCount(p.score, r))}</VText>
                   </Pressable>
                   <View style={styles.act}>
@@ -503,6 +520,7 @@ function Thread({ post: p }: { post: Post }) {
           </Animated.View>
         </Animated.View>
       </KeyboardAvoidingView>
+      </GestureDetector>
 
       <ReplyOverlay postId={p.id} stack={roStack} onOpen={openReplies} onBack={closeReplies} onCloseAll={closeAllReplies} focusKey={roFocus} instant={roInstant} />
       <ModerationHost />

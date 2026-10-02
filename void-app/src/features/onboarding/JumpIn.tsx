@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FONTS, em } from '../../theme/palettes';
 import { VText } from '../../ui/Text';
 import { t } from './copy';
-import { PLACES, WINDOW_COUNT, type LivePlace } from './places';
+import { MARQUEE_PLACES, WINDOW_COUNT, type LivePlace } from './places';
 import { BlinkDot, CTA, Enter, GOLD, Logo, Mono, RED, Serif, WHITE } from './parts';
 
 const TILE_W = 164,
@@ -19,7 +19,10 @@ const TILE_W = 164,
 function Tile({ p }: { p: LivePlace }) {
   return (
     <View style={s.tile}>
-      <Image source={{ uri: p.thumb }} style={[StyleSheet.absoluteFill, { opacity: 0.85 }]} contentFit="cover" cachePolicy="memory-disk" recyclingKey={p.thumb} transition={200} />
+      {/* A tile whose thumbnail has not arrived yet sits on this rather than on
+          flat #0d0820, so it reads as a dim window instead of an empty block. */}
+      <LinearGradient colors={['#1a1030', '#0d0820']} style={StyleSheet.absoluteFill} />
+      <Image source={{ uri: p.thumb }} style={[StyleSheet.absoluteFill, { opacity: 0.85 }]} contentFit="cover" cachePolicy="memory-disk" recyclingKey={p.thumb} transition={200} priority="high" />
       <View style={s.liveChip}>
         <View style={s.liveDot} />
         <VText style={{ fontFamily: FONTS.mono, fontSize: 6.5, letterSpacing: em(6.5, 0.12), color: RED }}>{t('s1.tile.live')}</VText>
@@ -55,8 +58,8 @@ function Row({ places, seconds, reverse }: { places: LivePlace[]; seconds: numbe
 export function JumpIn({ onNext, onSignIn }: { onNext: () => void; onSignIn: () => void }) {
   const insets = useSafeAreaInsets();
   const rows = useMemo(() => {
-    const pick = (idx: number[]) => idx.map((i) => PLACES[i]).filter(Boolean) as LivePlace[];
-    return [PLACES.slice(0, 7), PLACES.slice(7, 14), pick([2, 9, 5, 0, 12, 3, 11])];
+    const M = MARQUEE_PLACES;
+    return [M.slice(0, 7), M.slice(7, 14), M.slice(14, 21)];
   }, []);
   return (
     <Enter style={StyleSheet.absoluteFill}>

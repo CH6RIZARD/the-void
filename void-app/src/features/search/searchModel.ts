@@ -1,9 +1,11 @@
 // Data half of renderSearch(q) from void2-final.html. Pure over core state; the
 // screen renders what this returns. The moderation wrapper on surfaceFree (hidden
 // posts are never free anywhere) is folded in via moderation.hidden.
+import { env } from '../../core/env';
 import {
   BIO,
   LIVE_CHANNELS,
+  NEWS_SOURCES,
   _surfKeys,
   allPosts,
   moderation,
@@ -36,7 +38,64 @@ export interface LiveChannelRef {
   vid?: string;
 }
 
-export const channels = (): LiveChannelRef[] => LIVE_CHANNELS as unknown as LiveChannelRef[];
+// ─── TWELVE CHANNELS IS NOT A WORLD ──────────────────────────────────────
+// LIVE NOW drew from LIVE_CHANNELS, which is a hard-coded list of twelve. With
+// nine slots on screen there was barely a pool to draw from: DW NEWS sat at
+// index 0 and so was the featured tile on every single open, and the same
+// handful filled the rows underneath it for ever.
+//
+// The app already carries twenty-eight more live news channels in NEWS_SOURCES,
+// each with its own name, and never showed any of them here. They are the same
+// kind of thing - a live YouTube feed with a label - so the pool is both lists.
+// Forty channels against nine slots is a screen that can actually differ from
+// itself.
+const YT_ID = /^[\w-]{11}$/;
+const CHANNEL_ID = /^UC[\w-]{20,}$/;
+
+/** NEWS_SOURCES, as channels, deduped against the curated twelve and each other. */
+function newsChannels(): LiveChannelRef[] {
+  const seen = new Set<string>((LIVE_CHANNELS as unknown as LiveChannelRef[]).map((c) => c.id));
+  const out: LiveChannelRef[] = [];
+  for (const list of Object.values(NEWS_SOURCES || {})) {
+    for (const src of list || []) {
+      if (src.type !== 'youtube' || !src.id) continue;
+      if (!YT_ID.test(src.id) && !CHANNEL_ID.test(src.id)) continue;
+      if (seen.has(src.id)) continue;
+      seen.add(src.id);
+      // The label is the broadcaster's own name, often with its native-script
+      // name in brackets after it; the tile has one line, so take the first part.
+      const n = (src.label || '').split(/\s+[-–(]/)[0].trim().toUpperCase();
+      if (!n) continue;
+      out.push({ n, id: src.id } as LiveChannelRef);
+    }
+  }
+  return out;
+}
+
+let allChannels: LiveChannelRef[] | null = null;
+export const channels = (): LiveChannelRef[] => {
+  if (!allChannels) allChannels = [...(LIVE_CHANNELS as unknown as LiveChannelRef[]), ...newsChannels()];
+  return allChannels;
+};
+
+// ─── LIVE NOW IS NOT THE SAME SEVEN CHANNELS FOR EVER ────────────────────
+// The blocks below took fixed slices - LC[0], LC.slice(1,3), (3,5), (5,7) - so search
+// showed the first seven channels of the list on every open, every launch, while the
+// rest of the pool was never seen. The list is now read through a rotating window:
+// where it starts is chosen once per launch, and advances each time LIVE NOW is built,
+// so the section refreshes as you come back to it and every channel gets its turn.
+let liveCursor = Math.floor(env.random() * 997);
+/** `n` channels from the rotating window, wrapping, without repeats inside one render. */
+function liveWindow(all: LiveChannelRef[], n: number): LiveChannelRef[] {
+  if (all.length <= n) return all.slice();
+  const out: LiveChannelRef[] = [];
+  for (let i = 0; i < n; i++) out.push(all[(liveCursor + i) % all.length]);
+  return out;
+}
+/** Move the window on, so the next visit is a different set. */
+function advanceLive(all: LiveChannelRef[], by: number): void {
+  if (all.length) liveCursor = (liveCursor + by) % all.length;
+}
 
 export type SearchBlock =
   | { kind: 'label'; key: string; text: string; live?: boolean }
@@ -64,14 +123,16 @@ export function buildSearch(q: string, filter: SearchFilter): SearchRender {
   const LC = channels();
   const lq = String(q || '').trim().toLowerCase();
   if (filter === 'live') {
+    const win = liveWindow(LC, 7);
+    advanceLive(LC, 7);
     return {
-      sig: 'live|' + q,
+      sig: 'live|' + q + '|' + win[0].id,
       blocks: [
         { kind: 'label', key: 'lbl:live', text: 'LIVE NOW', live: true },
-        { kind: 'feat', key: 'feat:' + LC[0].id, ch: LC[0] },
-        row('a', LC.slice(1, 3)),
-        row('b', LC.slice(3, 5)),
-        row('c', LC.slice(5, 7)),
+        { kind: 'feat', key: 'feat:' + win[0].id, ch: win[0] },
+        row('a', win.slice(1, 3)),
+        row('b', win.slice(3, 5)),
+        row('c', win.slice(5, 7)),
       ],
     };
   }
@@ -107,14 +168,22 @@ export function buildSearch(q: string, filter: SearchFilter): SearchRender {
     posts.push(p);
   }
   if (!lq && free < 24) pullSearchDiscovery().catch(() => 0); // keep discovery stocked ahead of the exclusions
-  const sig = filter + '|' + q + '|' + posts.map((p) => p.id).join(',');
+  const sig = filter + '|' + q + '|' + liveCursor + '|' + posts.map((p) => p.id).join(',');
   posts.forEach((p) => surfaceClaim(p, 'search'));
   if (filter !== 'all') posts = posts.filter((p) => matchesFilter(p, filter));
 
+  // THIS is the view search opens on, and it was the one still pinned.
+  // The rotating window went in for the 'live' filter only; here the featured
+  // channel stayed hard-coded to LC[0] and the cursor was never advanced, so the
+  // default search screen showed the same channel and the same two tiles on every
+  // open, every launch, for ever - which is exactly what was reported, after this
+  // was called fixed.
+  const win = liveWindow(LC, 3);
+  advanceLive(LC, 3);
   const blocks: SearchBlock[] = [
     { kind: 'label', key: 'lbl:live', text: 'LIVE NOW', live: true },
-    { kind: 'feat', key: 'feat:' + LC[0].id, ch: LC[0] },
-    row('a', LC.slice(1, 3)),
+    { kind: 'feat', key: 'feat:' + win[0].id, ch: win[0] },
+    row('a', win.slice(1, 3)),
   ];
   if (posts.length) {
     blocks.push({ kind: 'label', key: 'lbl:signal', text: 'SIGNAL FEED' });

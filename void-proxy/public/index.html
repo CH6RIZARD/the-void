@@ -2511,10 +2511,7 @@ function buildYtTail(name){
 }
 // Guaranteed-connectable, CORS-enabled HLS — pads thin countries and is the
 // ultimate placeholder so a grid is never fully empty.
-const GLOBAL_POOL = [
-  {type:'hls', url:'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8', label:'GLOBAL FEED'},
-  {type:'hls', url:'https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8', label:'GLOBAL FEED 2'},
-];
+const GLOBAL_POOL=[];
 // Country-section chain: LIVE cams -> RECENT raw footage -> nation news ->
 // generic news tail -> global pool. News is demoted below cams+raw, never first.
 function getCountrySources(name){

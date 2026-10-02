@@ -7,7 +7,7 @@ import Svg, { Path } from 'react-native-svg';
 import * as SparkleModule from '../../ui/SparkleLoader';
 import { em, useLiveTheme } from './liveTheme';
 
-const SparkleLoader: React.ComponentType<{ label?: string; style?: ViewStyle }> =
+const SparkleLoader: React.ComponentType<{ label?: string; style?: ViewStyle; animate?: boolean }> =
   (SparkleModule as any).SparkleLoader ?? (SparkleModule as any).default;
 
 /** .strip-live-dot{width:5px;height:5px;border-radius:50%;background:var(--red);animation:blink 1.3s infinite} */
@@ -81,8 +81,25 @@ export function AudioRing({ radius = 6 }: { radius?: number }) {
  * sparkleTile(cell,label) — .sparkle-fallback{inset:0;z-index:3;background:rgba(3,1,10,.97)}
  * The hard-locked SparkleLoader from src/ui owns the particles; this only positions it
  * and fades it out (.45s) once the tile is PLAYING, like finish(true) does.
+ *
+ * `animate` (default true): false holds the particles still - for a tile that is off
+ * screen or has settled on NO SIGNAL, where a moving loader is work nobody sees or
+ * waits on. The particles also stop while the loader fades out.
  */
-export function TileLoader({ label, visible, zIndex = 3 }: { label?: string; visible: boolean; zIndex?: number }) {
+export function TileLoader({
+  label,
+  visible,
+  zIndex = 3,
+  animate = true,
+  over = false,
+}: {
+  label?: string;
+  visible: boolean;
+  zIndex?: number;
+  animate?: boolean;
+  /** true when a poster sits under the loader: the panel turns see-through so it shows. */
+  over?: boolean;
+}) {
   const o = useRef(new Animated.Value(visible ? 1 : 0)).current;
   const [mounted, setMounted] = React.useState(visible);
   useEffect(() => {
@@ -97,11 +114,27 @@ export function TileLoader({ label, visible, zIndex = 3 }: { label?: string; vis
   }, [visible, o]);
   if (!mounted) return null;
   return (
-    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { zIndex, opacity: o, backgroundColor: 'rgba(3,1,10,0.97)', overflow: 'hidden' }]}>
-      {SparkleLoader ? <SparkleLoader label={label} style={StyleSheet.absoluteFill as ViewStyle} /> : null}
+    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { zIndex, opacity: o, backgroundColor: OVER_BG, overflow: 'hidden' }]}>
+      {/* A PANEL, NEVER A HOLE.
+
+          This painted rgba(3,1,10,0.97) - opaque - whenever there was no poster
+          behind it, and a poster only ever existed for YouTube sources. The wall
+          is mostly HLS, so almost every tile that was connecting, parked or
+          evicted was a BLACK BOX with sparkles on it. "The wall never looks
+          full" was that, not slow connections.
+
+          Half-transparent now, over a deterministic gradient (below), so the grid
+          reads as a grid of panels waiting for pictures rather than a field of
+          holes. Costs nothing: no image, no decode, no file descriptor. */}
+      {SparkleLoader ? (
+        <SparkleLoader label={label} animate={visible && animate} style={[StyleSheet.absoluteFill, over ? { backgroundColor: 'transparent' } : null] as unknown as ViewStyle} />
+      ) : null}
     </Animated.View>
   );
 }
+
+/** Loader panel over a poster: dark enough for the particles and label, light enough to see the picture. */
+const OVER_BG = 'rgba(3,1,10,0.5)';
 
 const styles = StyleSheet.create({
   label: { position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 4, paddingTop: 4, paddingHorizontal: 6, paddingBottom: 5 },

@@ -31,12 +31,14 @@ import {
   refreshVoidFeed,
   type Post,
 } from '../../core';
+import { timed } from '../../core/slow';
 import { useTheme } from '../../theme/ThemeProvider';
 import { FONTS, em } from '../../theme/palettes';
 import { SparkleLoader } from '../../ui/SparkleLoader';
 import { VText } from '../../ui/Text';
 import { voidToast } from '../../ui/Toast';
 import { ROUTES } from '../../nav/routes';
+import { onTabReselect } from '../../nav/reselect';
 import { ModerationHost } from './ModerationSheet';
 import { PostCard } from './PostCard';
 import { isPostHidden, useModerationVersion, useTick } from './stores';
@@ -84,7 +86,7 @@ export default function VoidFeedScreen() {
   }, []);
 
   // renderFeed(): append whatever is fresh, then window the list.
-  const append = useCallback(() => {
+  const append = useCallback(() => timed('feed.append', () => {
     let held: Set<string> | undefined;
     if (dealt.length) {
       if (Date.now() - firstAt.current < FEED_SETTLE_MS) {
@@ -118,7 +120,7 @@ export default function VoidFeedScreen() {
       return next;
     });
     setStatus('idle');
-  }, [replaceAll]);
+  }), [replaceAll]);
 
   const pull = useCallback(async () => {
     const res = await pullVoidFeed();
@@ -187,6 +189,9 @@ export default function VoidFeedScreen() {
     }
   }, [refreshing]);
 
+  // Tapping THE VOID while already on it refreshes the feed, the same as a pull.
+  useEffect(() => onTabReselect('void', () => { void onRefresh(); }), [onRefresh]);
+
   const retry = useCallback(() => {
     setStatus('scanning');
     pull();
@@ -212,9 +217,19 @@ export default function VoidFeedScreen() {
 
   return (
     <View style={[styles.fill, { backgroundColor: 'transparent' }]}>
-      {/* Measured 2026-09-20: windowSize 7 kept ~7 screens of cards — with their decoded
-          images — mounted, for 162 MB of graphics memory and a UI thread at ~90%. Three
-          screens still leaves a screen of runway either side of the viewport. */}
+      {/* HOW MUCH FEED STAYS ALIVE BEHIND YOU.
+
+          windowSize 7 was measured at 162 MB of graphics memory and a UI thread at
+          ~90%, so I cut it to 3. That is ONE SCREEN of runway either side, and it
+          shows: scroll down past a few cards and back up, and the ones you passed
+          have been unmounted and have to load again - streams included. The feed
+          used to hold them.
+
+          5 is two screens either side, which covers the scroll-back people actually
+          do, at roughly two thirds of what 7 cost. The budget for it is real rather
+          than hoped for: the app now measures 74 MB native and 36 MB of GL on this
+          phone, against the 933 MB that was getting it killed, because the decoder
+          caps and the image work landed in between. */}
       <FlatList
         ref={listRef}
         data={visible}
@@ -228,9 +243,9 @@ export default function VoidFeedScreen() {
         ListEmptyComponent={empty}
         contentContainerStyle={{ paddingTop: 46 + insets.top, paddingBottom: 90 + 58 + insets.bottom }}
         maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
-        windowSize={3}
-        initialNumToRender={4}
-        maxToRenderPerBatch={4}
+        windowSize={5}
+        initialNumToRender={6}
+        maxToRenderPerBatch={6}
         updateCellsBatchingPeriod={60}
         removeClippedSubviews
         showsVerticalScrollIndicator={false}

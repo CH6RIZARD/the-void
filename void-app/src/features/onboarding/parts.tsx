@@ -49,7 +49,16 @@ export function CTA({ label, onPress, disabled, ghost, style }: { label: string;
       ]}
     >
       {ghost ? null : <LinearGradient colors={[GOLD, '#a8873a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, { borderRadius: 26 }]} />}
-      <VText numberOfLines={1} style={{ fontFamily: FONTS.sansExtraBold, fontSize: 13, letterSpacing: em(13, 0.3), color: ghost ? LAV : INK }}>
+      {/* SHOW ME EVERYTHING did not fit and came out as 'SHOW ME EVERYTHI…'.
+          At 13px with 0.3em tracking it runs past the pill on a 360dp screen,
+          and numberOfLines={1} then ate the end of it. Shrinking beats clipping:
+          short labels are untouched, long ones step down until they fit. */}
+      <VText
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.7}
+        style={{ fontFamily: FONTS.sansExtraBold, fontSize: 13, letterSpacing: em(13, 0.3), color: ghost ? LAV : INK }}
+      >
         {label}
       </VText>
     </Pressable>

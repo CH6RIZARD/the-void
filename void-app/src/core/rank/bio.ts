@@ -74,9 +74,29 @@ export const BIO = {
     this.score = Math.min(100, this.score + w * 3); this.dirty = true; this.mapDirty = true;
   },
   react(id: string, type: string, tags?: string[]) {
-    const w = ({ fire: 15, rank: 10, slash: 5 } as Record<string, number>)[type] || 5;
+    const w = REACT_W[type] || 5;
     (tags || []).forEach(t => { if (this.tags[t] !== undefined) this.tags[t] = Math.min(100, this.tags[t] + w); });
     this.score = Math.min(100, this.score + w / 2); this.dirty = true; this.mapDirty = true;
+  },
+  /**
+   * Take a reaction back off.
+   *
+   * Un-hearting used to teach nothing, so a mis-tap was permanent: the weight
+   * went on, the reader undid it on screen, and the feed kept leaning that way
+   * for the rest of the session. Reactions are the heaviest signal the model
+   * takes (a heart is +15 on every tag of the post, against a full dwell's +1.5)
+   * so that is not a rounding error.
+   *
+   * Symmetric with react(), and floored the same way decay() floors: an interest
+   * the reader chose outright at Ignite cannot be undone below its floor by
+   * un-hearting something that happened to carry the tag.
+   */
+  unreact(id: string, type: string, tags?: string[]) {
+    const w = REACT_W[type] || 5;
+    (tags || []).forEach(t => {
+      if (this.tags[t] !== undefined) this.tags[t] = Math.max(this.floors[t] || 0, this.tags[t] - w);
+    });
+    this.score = Math.max(0, this.score - w / 2); this.dirty = true; this.mapDirty = true;
   },
   /** Web: every 5s. */
   /** Interests the reader chose outright (Jump In "Ignite"). Learned weight decays
@@ -84,8 +104,8 @@ export const BIO = {
    *  isn't forgotten ~12 minutes into the first session. Empty = web behaviour. */
   floors: {} as Record<string, number>,
   decay() { Object.keys(this.tags).forEach(t => { this.tags[t] = Math.max(this.floors[t] || 0, this.tags[t] * .995); }); },
-  bumpRegion(country: string | undefined, w: number) { if (!country) return; this.regions[country] = Math.min(100, (this.regions[country] || 0) + w); this.dirty = true; },
-  bumpFormat(style: string | undefined, w: number) { if (!style) return; this.formats[style] = Math.min(100, (this.formats[style] || 0) + w); this.dirty = true; },
+  bumpRegion(country: string | undefined, w: number) { if (!country) return; this.regions[country] = Math.max(0, Math.min(100, (this.regions[country] || 0) + w)); this.dirty = true; },
+  bumpFormat(style: string | undefined, w: number) { if (!style) return; this.formats[style] = Math.max(0, Math.min(100, (this.formats[style] || 0) + w)); this.dirty = true; },
   /** Web: idle flush every 15s + pagehide/visibilitychange. */
   save() { if (!this.dirty) return; this.dirty = false; try { env.storage.setItem('void_bio', JSON.stringify({ tags: this.tags, regions: this.regions, formats: this.formats, score: this.score, floors: this.floors })); } catch { /* */ } },
   load() { try { const d = JSON.parse(env.storage.getItem('void_bio') || 'null'); if (d) { Object.assign(this.tags, d.tags || {}); this.regions = d.regions || {}; this.formats = d.formats || {}; this.score = d.score || 0; this.floors = d.floors || {}; } } catch { /* */ } },
@@ -118,14 +138,30 @@ export const BIO = {
 BIO.load();
 onConfigure(() => { BIO.reset(); BIO.load(); });
 
+// What each interaction is worth to the model.
+//
+// A reply outweighs a heart because it costs more: hearting is one tap on the
+// way past, replying is stopping to write. The web had no reply weight at all -
+// the strongest thing a reader can do taught the feed nothing - and that is the
+// gap this closes.
+const REACT_W: Record<string, number> = { reply: 20, fire: 15, rank: 10, slash: 5 };
+
 /** Dwell learning as setupDwellTracking did it: ignore < 500ms, weight by time. */
 export function learnDwell(post: Post, ms: number): void {
   if (!post || ms <= 500) return;
   const w = Math.min(ms / 2000, 1.5);
   BIO.recordDwell(post.id, ms, post.tags); BIO.bumpRegion(post.country, w * 4); BIO.bumpFormat(post.style, w * 3);
 }
-/** Reaction learning as react() did it — only when the reaction turns ON. */
-export function learnReact(post: Post | undefined, id: string, type: 'fire' | 'rank' | 'slash'): void {
+export type ReactKind = 'reply' | 'fire' | 'rank' | 'slash';
+
+/** Reaction learning as react() did it — when the reaction turns ON. */
+export function learnReact(post: Post | undefined, id: string, type: ReactKind): void {
   BIO.react(id, type, (post && post.tags) || []);
-  if (post) { BIO.bumpRegion(post.country, 8); BIO.bumpFormat(post.style, 6); }
+  if (post) { BIO.bumpRegion(post.country, type === 'reply' ? 10 : 8); BIO.bumpFormat(post.style, type === 'reply' ? 8 : 6); }
+}
+
+/** The same weights, taken back off, when a reaction turns OFF. */
+export function unlearnReact(post: Post | undefined, id: string, type: ReactKind): void {
+  BIO.unreact(id, type, (post && post.tags) || []);
+  if (post) { BIO.bumpRegion(post.country, -8); BIO.bumpFormat(post.style, -6); }
 }

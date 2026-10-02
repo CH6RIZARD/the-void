@@ -35,6 +35,13 @@ function toXYZ(lat: number, lon: number, r: number): [number, number, number] {
 
 // Facing factor shared by every layer: 1 where the surface looks at the camera,
 // 0 at the limb and beyond. Perspective-correct (uses the real view vector).
+// GLSL needs these on their own lines, so the newlines are escapes in one string
+// rather than a multi-line literal. highp where the device has it, mediump where
+// it does not - the renderer asks for mediump globally, which is not enough for
+// the limb test below.
+const PREC =
+  '#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\nprecision mediump float;\n#endif\n';
+
 const FACING = 'float facing(vec3 objNormal, vec4 mv){vec3 n=normalize(normalMatrix*objNormal);return dot(n,normalize(-mv.xyz));}';
 
 // The mock's own shaders, unchanged, so the picture matches the design exactly:
@@ -48,13 +55,27 @@ const RIM_VS = 'varying vec3 vN;void main(){vN=normalize(normalMatrix*normal);gl
 const ATMO_VS =
   'varying vec3 vN;varying vec3 vPos;varying vec3 vCtr;' +
   'void main(){vN=normalize(normalMatrix*normal);vec4 mv=modelViewMatrix*vec4(position,1.0);vPos=mv.xyz;vCtr=(modelViewMatrix*vec4(0.0,0.0,0.0,1.0)).xyz;gl_Position=projectionMatrix*mv;}';
+// WHY highp, AND WHY NO HARD DISCARD.
+// The renderer asks for mediump, and this test decides a pixel by the sign of
+// b*b-c. At the limb that quantity passes through zero, while b*b is around 8 -
+// so in mediump the rounding error swamps the answer and neighbouring pixels
+// fall on opposite sides at random. On the phone that read as a speckled, torn
+// fringe where the glow meets the planet. highp gives the test the headroom to
+// be right, and instead of an all-or-nothing discard the hit now fades over a
+// narrow band (EDGE_SOFT, in the same units as the test), so the boundary is
+// smooth on a device with no multisampling to smooth it for us.
+const EDGE_SOFT = 0.02;
 const ATMO_FS =
+  PREC +
   'varying vec3 vN;varying vec3 vPos;varying vec3 vCtr;' +
   'void main(){vec3 d=normalize(vPos);float b=dot(d,vCtr);float c=dot(vCtr,vCtr)-' +
   (BODY_R * BODY_R).toFixed(5) +
-  ';if(b*b-c>0.0)discard;' +
-  'float i=pow(0.72-dot(vN,vec3(0.0,0.0,1.0)),3.5);gl_FragColor=vec4(vec3(0.79,0.66,0.30)*i*0.9+vec3(0.35,0.18,0.7)*i*0.5,i);}';
-const RIM_FS = 'varying vec3 vN;void main(){float i=pow(1.0-abs(dot(vN,vec3(0.0,0.0,1.0))),4.0);gl_FragColor=vec4(vec3(0.49,0.36,0.93)*i,i*0.55);}';
+  ';float hit=b*b-c;' +
+  'float cover=smoothstep(' + EDGE_SOFT.toFixed(4) + ',-' + EDGE_SOFT.toFixed(4) + ',hit);' +
+  'if(cover<=0.002)discard;' +
+  'float i=pow(0.72-dot(vN,vec3(0.0,0.0,1.0)),3.5);i*=cover;' +
+  'gl_FragColor=vec4(vec3(0.79,0.66,0.30)*i*0.9+vec3(0.35,0.18,0.7)*i*0.5,i);}';
+const RIM_FS = PREC + 'varying vec3 vN;void main(){float i=pow(1.0-abs(dot(vN,vec3(0.0,0.0,1.0))),4.0);gl_FragColor=vec4(vec3(0.49,0.36,0.93)*i,i*0.55);}';
 
 const LAND_VS = `uniform float uSize;uniform float uScale;varying float vVis;${FACING}
 void main(){vec4 mv=modelViewMatrix*vec4(position,1.0);vVis=smoothstep(0.0,0.3,facing(position,mv));gl_PointSize=max(1.0,uSize*(uScale/-mv.z));gl_Position=projectionMatrix*mv;}`;
@@ -91,7 +112,7 @@ export function buildGlobe(T: THREE, W: number, H: number, pr: number, land: Flo
     );
 
   // Body first (opaque), then everything else painted over it in order.
-  const body = new T.Mesh(new T.SphereGeometry(BODY_R, 48, 48), new T.MeshBasicMaterial({ color: 0x07031a, depthTest: false }));
+  const body = new T.Mesh(new T.SphereGeometry(BODY_R, 96, 96), new T.MeshBasicMaterial({ color: 0x07031a, depthTest: false }));
   body.renderOrder = 0;
   group.add(body);
 

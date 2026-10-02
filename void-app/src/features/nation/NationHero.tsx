@@ -6,9 +6,10 @@
 // hidden inside the hero (.nation-hero .sparkle-fallback-label{display:none}).
 // Tap: a PLAYING stage takes the tap for sound (capture-phase handler in the web);
 // otherwise nationHeroTap() opens the reels seeded nation-first.
-import React, { memo, useRef } from 'react';
+import React, { memo, useCallback, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect } from 'expo-router';
 import { nationHeroMeta } from '../../core';
 import type { Country } from '../../core/types';
 import { FONTS, em } from '../../theme/palettes';
@@ -21,6 +22,27 @@ export const NATION_HERO_TILE_ID = 'nation-hero';
 export const NationHero = memo(function NationHero({ c, onOpenReels }: { c: Country; onOpenReels: () => void }) {
   const hero = useNationHero(c);
   const player = useRef<StreamTileHandle>(null);
+  // ─── A COVERED NATION SCREEN IS NOT WATCHING A STREAM ───────────────────
+  // This tile had no active, parked or focus prop of any kind - unlike the wall
+  // (active={globeVisible}) and search (active={focused}). nation/[iso] is a
+  // root-stacked route, so every nation opened and not popped held a live player
+  // for the rest of the session: a YouTube WebView with its own sockets, renderer
+  // and codec, roughly ten to thirty file descriptors each. This ROM aborts the
+  // process the moment any descriptor number reaches 1024 - measured twice on
+  // device at fd 1160 and fd 1801 - so a browse loop through a few nations is a
+  // straight path to the crash.
+  //
+  // It is unmounted rather than parked, deliberately: parking a YouTube tile only
+  // posts pauseVideo (StreamTile.tsx), and the WebView, its renderer process and
+  // every socket it holds survive that. constants.ts says so outright. Only not
+  // being in the tree frees them.
+  const [focused, setFocused] = useState(true);
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, []),
+  );
   if (hero.hidden) return null;
   const meta = nationHeroMeta(hero.metaSrc, c);
   const a = hero.attempt;
@@ -35,7 +57,7 @@ export const NationHero = memo(function NationHero({ c, onOpenReels }: { c: Coun
       style={styles.hero}
     >
       <View style={styles.stage} pointerEvents="none">
-        {a ? (
+        {a && focused ? (
           <StreamTile
             key={a.key}
             ref={player}

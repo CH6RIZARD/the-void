@@ -66,6 +66,9 @@ export interface ReelsViewProps {
 
 /** Near the end when fewer than three screens remain below (ct.scrollTop + clientHeight*3 > scrollHeight). */
 const nearEnd = (idx: number, len: number) => len - idx < 3;
+/** Nothing to show after this long: say NO SIGNAL and offer a retry (never a spinner forever). */
+const STALL_MS = 12000;
+const STALL_RETRY_MS = 15000;
 
 export function ReelsView({ active, nation, postId, overlay: overlayProp, onClose }: ReelsViewProps) {
   const { colors } = useTheme();
@@ -165,6 +168,35 @@ export function ReelsView({ active, nation, postId, overlay: overlayProp, onClos
     });
   }, [mode, live, append]);
 
+  // NEVER A PERMANENT SPINNER. Every source can fail (offline, a blocked media host,
+  // a dry pool) and pullReelPage then returns without emitting anything, so the surface
+  // used to sit on "PULLING SIGNAL…" for the rest of the session with nothing to tap.
+  // After STALL_MS with nothing, it says so, retries by itself, and takes a tap.
+  const [stalled, setStalled] = useState(false);
+  const retry = useCallback(() => {
+    const picks = seedInline();
+    if (picks.length) {
+      setItems(picks);
+      setPulling(false);
+      setStalled(false);
+    }
+    return picks.length > 0;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (mode !== 'inline' || !live || items.length) {
+      setStalled(false);
+      return;
+    }
+    const t = setTimeout(() => setStalled(true), STALL_MS);
+    return () => clearTimeout(t);
+  }, [mode, live, items.length]);
+  useEffect(() => {
+    if (!stalled) return;
+    const iv = setInterval(retry, STALL_RETRY_MS);
+    return () => clearInterval(iv);
+  }, [stalled, retry]);
+
   // ── moderation sweep (hidden posts leave every surface) ────────────
   const sweep = useCallback(() => {
     setItems((prev) => prev.filter(reelVisible));
@@ -263,7 +295,19 @@ export function ReelsView({ active, nation, postId, overlay: overlayProp, onClos
         height={h}
         current={index === cur}
         want={live && index === cur}
-        attached={Math.abs(index - cur) <= 2}
+        // THE HIDDEN SIDE WARMS ONE CLIP, NOT THREE.
+        //
+        // Attached meant a player exists - the web's window: the card in view
+        // plus two ahead, warming so the next flick is instant. That window
+        // stayed open while the REELS side was hidden behind the globe, so
+        // three ExoPlayers sat attached and prepared on the side nobody was
+        // looking at, holding decoders the wall under the globe was giving up
+        // tiles for want of.
+        //
+        // The current card stays attached while hidden, so the toggle to REELS
+        // is as instant as it was; the two ahead attach the moment the side is
+        // live, which is the only moment a flick can happen.
+        attached={index === cur || (live && Math.abs(index - cur) <= 2)}
         viewed={viewed.has(item._vid || item.id)}
         railBottom={railBottom}
         soundOn={soundOn}
@@ -316,6 +360,12 @@ export function ReelsView({ active, nation, postId, overlay: overlayProp, onClos
         overlay ? (
           // openReel with nothing seeded: the video surface shows the original sparkle/float
           <SparkleLoader surface="media" label="" />
+        ) : stalled ? (
+          <Pressable onPress={retry} hitSlop={16}>
+            <Text allowFontScaling={false} style={[styles.empty, { color: colors.muted }]}>
+              NO SIGNAL · TAP TO RETRY
+            </Text>
+          </Pressable>
         ) : (
           <Text allowFontScaling={false} style={[styles.empty, { color: colors.muted }]}>
             PULLING SIGNAL{'…'}

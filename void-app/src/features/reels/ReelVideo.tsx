@@ -13,7 +13,7 @@
 import React, { memo, useEffect } from 'react';
 import { StyleSheet } from 'react-native';
 import { VideoView } from 'expo-video';
-import { usePacedPlayer } from '../live/pacedPlayer';
+import { isReleasedPlayer, usePacedPlayer } from '../live/pacedPlayer';
 
 export interface ReelVideoProps {
   uri: string;
@@ -38,6 +38,7 @@ export const ReelVideo = memo(function ReelVideo({ uri, want, muted, onMediaRead
   const wantRef = useWantRef(want);
 
   useEffect(() => {
+    if (!player) return; // paced creation: not built yet
     const clear = () => onMediaReady();
     const subStatus = player.addListener('statusChange', (e: any) => {
       const st = e && e.status;
@@ -68,19 +69,22 @@ export const ReelVideo = memo(function ReelVideo({ uri, want, muted, onMediaRead
   // vwPlay / vwPause
   useEffect(() => {
     try {
+      // A released player aborts the process if touched (see pacedPlayer).
+      if (!player || isReleasedPlayer(player)) return;
       if (want) player.play();
       else player.pause();
     } catch {}
   }, [want, player]);
 
   useEffect(() => {
+    if (!player) return;
     try {
       player.muted = muted;
       if (!muted) player.volume = 1;
     } catch {}
   }, [muted, player]);
 
-  return <VideoView player={player} style={[StyleSheet.absoluteFill, styles.vid]} contentFit="cover" nativeControls={false} allowsPictureInPicture={false} />;
+  return player ? <VideoView player={player} style={[StyleSheet.absoluteFill, styles.vid]} contentFit="cover" nativeControls={false} allowsPictureInPicture={false} /> : null;
 });
 
 function useWantRef(want: boolean) {

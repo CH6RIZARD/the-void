@@ -5,10 +5,11 @@
 // DROPS render as <PostCard surface="profile"> in a FlatList with usePostViewability('profile')
 // and one <ModerationHost/> for the ⋯ sheets.
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, Share, StyleSheet, View } from 'react-native';
+import { FlatList, Image, Pressable, RefreshControl, Share, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { moderation, VoidAPI, type Post } from '../../core';
+import { moderation, readJSON, VoidAPI, writeJSON, type Post } from '../../core';
 import { useTheme } from '../../theme';
 import { FONTS, em, type RadialSpec } from '../../theme/palettes';
 import { RadialFill } from '../../ui/Surface';
@@ -22,14 +23,12 @@ import { ensureCore, useIdentity } from '../auth/coreBridge';
 import { stripHandle } from '../auth/handles';
 import { onDropPosted } from '../composer/drop';
 import { usePendingDrops } from '../composer/dropStore';
-import { ConvRow } from '../messages/ConvRow';
-import { chatRoute, openDmWith } from '../messages/MessagesScreen';
-import { loadConversations, useDmStore } from '../messages/dmStore';
+import { openDmWith } from '../messages/MessagesScreen';
 import { MiniIcon } from '../settings/vmod';
 import { AccountSheet, voidAuthor } from './AccountSheet';
 import { EditProfileSheet } from './EditProfileSheet';
 import { ProfileAvatar } from './ProfileAvatar';
-import { fetchDrops, fetchMyProfile, fetchProfileByHandle, getLocalAvatar, type ProfileRow } from './profileApi';
+import { fetchDrops, fetchHearted, fetchMyProfile, fetchProfileByHandle, fetchReplies, getLocalAvatar, type ProfileRow } from './profileApi';
 
 /** --prof-glow (VOID): radial-gradient(110% 45% at 50% 0%,#120830 0%,#04020c 58%) */
 const PROF_GLOW: RadialSpec = { rx: 110, ry: 45, cx: 50, cy: 0, stops: [{ color: '#120830', offset: 0 }, { color: '#04020c', offset: 0.58 }] };
@@ -39,6 +38,64 @@ function Empty({ text, pad = 30 }: { text: string; pad?: number }) {
   const { colors } = useTheme();
   return <VText align="center" style={{ fontFamily: FONTS.mono, fontSize: 9, letterSpacing: em(9, 0.12), color: colors.muted, padding: pad }}>{text}</VText>;
 }
+
+const TILE_KEY = 'void.profile.layout';
+type ProfTab = 'drops' | 'hearted' | 'replies';
+type ProfLayout = 'scroll' | 'tiles';
+
+/**
+ * One square of the tile grid.
+ *
+ * Every drop kind has to read at a third of the screen width, where there is no
+ * room for a card. Media fills the square; a clip and a gallery say which they
+ * are with a corner glyph rather than a label; a voice drop draws its waveform,
+ * because a voice post with its media hidden is otherwise indistinguishable from
+ * an empty one; and a text drop shows its first lines, which is all it has.
+ */
+const ProfileTile = React.memo(function ProfileTile({ post, size, onPress }: { post: Post; size: number; onPress: () => void }) {
+  const { colors } = useTheme();
+  const img = post._img || (post._imgs && post._imgs[0]) || null;
+  const isVoice = post.style === 'audio' || !!post._audio;
+  const isClip = post.style === 'video' || !!post._video;
+  const isGallery = post.style === 'carousel' || (post._imgs ? post._imgs.length > 1 : false);
+  const isLive = post.style === 'link_live';
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={post.body ? post.body.slice(0, 60) : 'Drop'}
+      style={[st.tile, { width: size, height: size, borderColor: colors.hairline }]}
+    >
+      {img ? (
+        <Image source={{ uri: img }} style={st.tileImg} resizeMode="cover" />
+      ) : isVoice ? (
+        <View style={st.tileVoice}>
+          {/* Deterministic per post, so a drop keeps the same waveform between
+              renders and between the two layouts. */}
+          {Array.from({ length: 13 }, (_, i) => {
+            const seed = (post.id.charCodeAt(i % post.id.length) * 31 + i * 17) % 100;
+            return <View key={i} style={[st.tileBar, { height: 6 + (seed / 100) * 26 }]} />;
+          })}
+        </View>
+      ) : (
+        <View style={st.tileText}>
+          <VText numberOfLines={3} style={{ fontFamily: FONTS.sans, fontSize: 11, lineHeight: 15, color: colors.muted }}>
+            {(post.body || '').trim() || '—'}
+          </VText>
+        </View>
+      )}
+      {isLive ? (
+        <View style={st.tilePill}>
+          <VText style={{ fontFamily: FONTS.mono, fontSize: 7, letterSpacing: em(7, 0.16), color: '#fff' }}>LIVE</VText>
+        </View>
+      ) : isClip ? (
+        <View style={st.tileGlyph}><Icon name="play" size={13} color="#fff" /></View>
+      ) : isGallery ? (
+        <View style={st.tileGlyph}><Icon name="stack" size={12} color="#fff" /></View>
+      ) : null}
+    </Pressable>
+  );
+});
 
 export default function ProfileScreen({ handle: handleProp }: { handle?: string }) {
   const params = useLocalSearchParams<{ handle?: string }>();
@@ -51,16 +108,27 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
   const viewability = usePostViewability('profile');
 
   const [other, setOther] = useState<ProfileRow | null | undefined>(undefined);
+  // My own row. It was fetched and thrown away except for the avatar; the banner
+  // and the join date are on it too.
+  const [me, setMe] = useState<ProfileRow | null>(null);
   const [avatar, setAvatar] = useState<string | null>(null);
   const [drops, setDrops] = useState<Post[] | null>(null);
   const [counts, setCounts] = useState<{ following: number; followers: number } | null>(null);
-  const [tab, setTab] = useState<'drops' | 'messages'>('drops');
+  // DROPS / HEARTED / REPLIES, per the handoff notes. Messages moved off the
+  // profile: it is a tab of its own in the nav, and the notes' tab row has no
+  // room for it.
+  const [tab, setTab] = useState<ProfTab>('drops');
+  const [hearted, setHearted] = useState<Post[] | null>(null);
+  const [replies, setReplies] = useState<Post[] | null>(null);
+  // Per-user and persisted, as the patch notes ask: whichever way you last chose
+  // to look at a profile is how it opens next time.
+  const [layout, setLayout] = useState<ProfLayout>(() => (readJSON<ProfLayout>(TILE_KEY, 'scroll') === 'tiles' ? 'tiles' : 'scroll'));
+  const win = useWindowDimensions();
   const [editing, setEditing] = useState(false);
   const [acct, setAcct] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [, bump] = useState(0);
   const pending = usePendingDrops();
-  const { convs } = useDmStore();
 
   const load = useCallback(async () => {
     await ensureCore();
@@ -77,6 +145,7 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
       } else setDrops([]);
     } else {
       const [p, local] = await Promise.all([fetchMyProfile(), getLocalAvatar()]);
+      setMe(p);
       setAvatar((p && p.avatar_url) || local);
       setDrops(await fetchDrops(VoidAPI._uid()));
     }
@@ -85,7 +154,6 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
   useFocusEffect(
     useCallback(() => {
       load();
-      if (!isOther) loadConversations();
     }, [load, isOther]),
   );
   useEffect(() => onDropPosted(() => load()), [load]);
@@ -125,7 +193,35 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
 
   const dim = themeName === 'void' ? '#8d7cc0' : colors.dim;
   const statDivider = isLight ? colors.hairline : 'rgba(255,255,255,0.08)';
-  const showDrops = tab === 'drops' || isOther;
+  // Each list is fetched the first time its tab is opened, not on mount: most
+  // visits never leave DROPS, and these are two more round trips.
+  const authorId = isOther ? (other && other.id) || null : VoidAPI._uid();
+  useEffect(() => {
+    let live = true;
+    if (tab === 'hearted' && hearted === null) {
+      fetchHearted(authorId).then((r) => { if (live) setHearted(r); });
+    } else if (tab === 'replies' && replies === null) {
+      fetchReplies(authorId).then((r) => { if (live) setReplies(r); });
+    }
+    return () => { live = false; };
+  }, [tab, authorId, hearted, replies]);
+
+  // JOINED and N NATIONS, from what the row already carries.
+  const bannerUrl = (isOther ? (other as any)?.banner_url : (me as any)?.banner_url) || null;
+  const joinedLabel = (() => {
+    const raw = isOther ? (other as any)?.created_at : (me as any)?.created_at;
+    const d = raw ? new Date(raw) : null;
+    if (!d || isNaN(d.getTime())) return ''; // no date is no claim
+    return 'JOINED ' + d.toLocaleString('en', { month: 'short' }).toUpperCase() + ' ' + d.getFullYear();
+  })();
+  // How many nations this account has actually dropped from.
+  const nationCount = useMemo(() => new Set((drops || []).map((p) => p.iso || p.country).filter(Boolean)).size, [drops]);
+
+  const listFor = (t: ProfTab): Post[] | null => (t === 'drops' ? shownDrops : t === 'hearted' ? hearted : replies);
+  const current = listFor(tab);
+  const tiles = layout === 'tiles';
+  // Three across, inside the same 10px gutter the cards sit in.
+  const tileSize = Math.floor((win.width - 20 - 6) / 3);
 
   const header =
     isOther && other === null ? (
@@ -134,64 +230,106 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
       </View>
     ) : (
       <View style={st.monument}>
-        <View style={st.id}>
-          <ProfileAvatar name={name} url={isOther ? other?.avatar_url : avatar} />
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <VText style={{ fontFamily: FONTS.serif, fontSize: 25, lineHeight: 25 * 1.1, color: colors.white }}>{name}</VText>
-            <VText style={{ fontFamily: FONTS.mono, fontSize: 9.5, letterSpacing: em(9.5, 0.14), color: colors.gold, marginTop: 4 }}>
-              {handle}
-              {otherBlocked ? ' · BLOCKED' : ''}
-            </VText>
-            {bio ? <VText style={{ fontFamily: FONTS.serifItalic, fontSize: 13.5, color: dim, marginTop: 7 }}>{bio}</VText> : null}
+        {/* THE BANNER SITS BEHIND THE HEADER AND THE AVATAR ROW.
+            Absolutely positioned so nothing above it has to move or change:
+            it is a backdrop, not a row in the stack. The gradient over it is
+            what keeps the handle and the stats readable on any photo. */}
+        {/* Only when there IS one. Painting the placeholder regardless left a flat
+            purple slab cutting across the avatar - a banner's backdrop with no
+            banner in it, which reads as a rendering fault rather than a design. */}
+        {bannerUrl ? (
+          <View pointerEvents="none" style={st.banner}>
+            <Image source={{ uri: bannerUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+            <LinearGradient
+              colors={['rgba(4,2,12,0.78)', 'rgba(4,2,12,0.68)', 'rgba(4,2,12,0.85)']}
+              style={StyleSheet.absoluteFill}
+            />
+          </View>
+        ) : null}
+
+        {/* The handle. Settings lives in the pinned bar above - one gear, not two:
+            adding this row without taking that bar away put a second gear on the
+            screen and the word PROFILE over the top of the handle. */}
+        <View style={st.headRow}>
+          <VText style={{ flex: 1, fontFamily: FONTS.mono, fontSize: 10, letterSpacing: em(10, 0.14), color: colors.gold }}>
+            {handle}
+            {otherBlocked ? ' · BLOCKED' : ''}
+          </VText>
+        </View>
+
+        <View style={st.idRow}>
+          <View style={st.avRing}>
+            <ProfileAvatar name={name} url={isOther ? other?.avatar_url : avatar} size={108} />
+          </View>
+          <View style={st.statsRow}>
+            {(['DROPS', 'FOLLOWERS', 'FOLLOWING'] as const).map((lbl, i) => (
+              <View key={lbl} style={st.stat}>
+                <VText style={{ fontFamily: FONTS.sansExtraBold, fontSize: 22, color: colors.white }}>{stats[i]}</VText>
+                <VText style={{ fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.14), color: '#8d7cc0', marginTop: 3 }}>{lbl}</VText>
+              </View>
+            ))}
           </View>
         </View>
 
-        <View style={st.stats}>
-          {(['DROPS', 'FOLLOWING', 'VOICES'] as const).map((lbl, i) => (
-            <View key={lbl} style={st.stat}>
-              {i > 0 ? <View style={[st.divider, { backgroundColor: statDivider }]} /> : null}
-              <VText style={{ fontFamily: FONTS.sansBold, fontSize: 15, color: colors.white }}>{stats[i]}</VText>
-              <VText style={{ fontFamily: FONTS.mono, fontSize: 7, letterSpacing: em(7, 0.18), color: colors.navDim, marginTop: 3 }}>{lbl}</VText>
-            </View>
-          ))}
-        </View>
+        {/* Name, bio, and the two lines that say how long and how far. */}
+        <VText style={{ fontFamily: FONTS.sansBold, fontSize: 19, color: colors.white, marginTop: 14 }}>{name}</VText>
+        {bio ? <VText style={{ fontFamily: FONTS.sans, fontSize: 13.5, color: '#c9bfe8', marginTop: 5 }}>{bio}</VText> : null}
+        {/* The row only exists if there is something true to put in it. A bare
+            word JOINED with no date is worse than no line at all. */}
+        {joinedLabel || nationCount ? (
+          <VText style={{ fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.16), color: '#6a58a0', marginTop: 8 }}>
+            {joinedLabel}
+            {joinedLabel && nationCount ? '  ·  ' : ''}
+            {nationCount ? nationCount + ' NATIONS' : ''}
+          </VText>
+        ) : null}
 
+        {/* Two equal buttons, as the notes have them - not one wide and one square. */}
         <View style={st.actions}>
           <Pressable
             onPress={isOther ? message : () => setEditing(true)}
-            style={({ pressed }) => [st.edit, { backgroundColor: isLight ? colors.white : 'rgba(244,240,255,0.94)', opacity: pressed ? 0.9 : 1 }]}
+            style={({ pressed }) => [st.act, { opacity: pressed ? 0.8 : 1 }]}
           >
-            <VText style={{ fontFamily: FONTS.sansBold, fontSize: 11, letterSpacing: em(11, 0.08), color: isLight ? colors.card : '#04020c' }}>{isOther ? 'MESSAGE' : 'EDIT PROFILE'}</VText>
+            <VText style={{ fontFamily: FONTS.sansBold, fontSize: 12.5, color: colors.white }}>{isOther ? 'Message' : 'Edit profile'}</VText>
           </Pressable>
-          <Pressable accessibilityLabel="Share profile" onPress={share} style={[st.share, { boxShadow: `inset 0px 0px 0px 1px ${isLight ? colors.hairline : 'rgba(255,255,255,0.12)'}` }]}>
-            <Icon name="share" size={14} color={dim} />
+          <Pressable accessibilityLabel="Share profile" onPress={share} style={({ pressed }) => [st.act, { opacity: pressed ? 0.8 : 1 }]}>
+            <VText style={{ fontFamily: FONTS.sansBold, fontSize: 12.5, color: colors.white }}>Share profile</VText>
           </Pressable>
         </View>
 
         <View style={st.tabs}>
-          {(isOther ? (['drops'] as const) : (['drops', 'messages'] as const)).map((t) => {
+          {(['drops', 'hearted', 'replies'] as const).map((t) => {
             const on = tab === t;
             return (
               <Pressable
                 key={t}
-                onPress={() => {
-                  setTab(t);
-                  if (t === 'messages') loadConversations();
-                }}
+                onPress={() => setTab(t)}
                 style={[st.tab, { borderBottomColor: on ? 'rgba(201,168,76,0.6)' : 'transparent' }]}
               >
                 <VText style={{ fontFamily: FONTS.mono, fontSize: 8.5, letterSpacing: em(8.5, 0.18), color: on ? colors.white : colors.navDim }}>{t.toUpperCase()}</VText>
               </Pressable>
             );
           })}
+          <View style={{ flex: 1 }} />
+          <Pressable
+            onPress={() => {
+              const next: ProfLayout = layout === 'tiles' ? 'scroll' : 'tiles';
+              setLayout(next);
+              writeJSON(TILE_KEY, next);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={layout === 'tiles' ? 'Show drops as a list' : 'Show drops as a grid'}
+            hitSlop={10}
+            style={st.layoutBtn}
+          >
+            <Icon name={layout === 'tiles' ? 'rows' : 'grid'} size={14} color={colors.navDim} />
+          </Pressable>
         </View>
         <View style={{ height: 20 }} />
       </View>
     );
 
-  const footer = showDrops ? null : (
-    <View style={st.pane}>{convs.length ? convs.map((c) => <ConvRow key={c.id} c={c} onPress={() => router.push(chatRoute(c.id) as any)} />) : <Empty text="NO CONVERSATIONS" pad={26} />}</View>
-  );
+
 
   return (
     <View style={[st.fill, { backgroundColor: colors.bg }]}>
@@ -220,13 +358,44 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
 
       <FlatList
         style={st.fill}
-        data={showDrops && !(isOther && other === null) ? shownDrops : []}
+        // numColumns cannot change on a live FlatList, so the layout is part of
+        // the key: switching rebuilds the list rather than throwing.
+        key={tiles ? 'tiles' : 'scroll'}
+        numColumns={tiles ? 3 : 1}
+        data={!(isOther && other === null) && current ? current : []}
         keyExtractor={(p) => p.id}
-        renderItem={({ item, index }) => <PostCard post={item} index={index} surface="profile" />}
+        // The same window the void feed uses (VoidFeedScreen.tsx). Without it this
+        // list keeps every card it has scrolled past mounted, with their decoded
+        // images and their video players, and nothing here ever unmounts.
+        // removeClippedSubviews is deliberately NOT set: on Android it misplaces
+        // cells under a tall ListHeaderComponent, and this header is the whole
+        // profile monument. The window is the part that matters.
+        windowSize={3}
+        initialNumToRender={4}
+        maxToRenderPerBatch={4}
+        updateCellsBatchingPeriod={60}
+        renderItem={({ item, index }) =>
+          tiles ? (
+            <ProfileTile post={item} size={tileSize} onPress={() => router.push(ROUTES.thread(item.id) as any)} />
+          ) : (
+            <PostCard post={item} index={index} surface="profile" />
+          )
+        }
         viewabilityConfigCallbackPairs={viewability}
         ListHeaderComponent={header}
-        ListFooterComponent={footer}
-        ListEmptyComponent={showDrops && drops !== null && !(isOther && other === null) ? <Empty text="NO DROPS YET · JOIN THE THREAD" /> : null}
+        ListEmptyComponent={
+          (isOther && other === null) || current === null ? null : (
+            <Empty
+              text={
+                tab === 'drops'
+                  ? 'NO DROPS YET · JOIN THE THREAD'
+                  : tab === 'hearted'
+                    ? 'NOTHING HEARTED YET'
+                    : 'NO REPLIES YET'
+              }
+            />
+          )
+        }
         contentContainerStyle={{ paddingBottom: isOther ? 24 + insets.bottom : navSpace + 24 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.gold} />}
       />
@@ -260,6 +429,25 @@ const st = StyleSheet.create({
   actions: { flexDirection: 'row', alignItems: 'stretch', gap: 10, marginTop: 20 },
   edit: { flex: 1, padding: 11, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   share: { width: 46, minHeight: 36, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  banner: { position: 'absolute', top: 0, left: 12, right: 12, height: 190, borderRadius: 18, overflow: 'hidden', backgroundColor: '#120830' },
+  headRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 2, paddingBottom: 16 },
+  gearBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },
+  idRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  // 0 0 0 2px bg then 0 0 0 4px gold: a dark gap, then the ring.
+  // borderWidth, not boxShadow: the two-stop shadow drew as one thin gold circle
+  // sitting well clear of the avatar, which looked like a mistake. A real border
+  // hugs the image, and the dark gap is the padding inside it.
+  avRing: { padding: 2, borderRadius: 60, borderWidth: 2, borderColor: '#c9a84c', backgroundColor: '#04020c' },
+  statsRow: { flex: 1, flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' },
+  act: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.08)' },
+  tile: { margin: 1, overflow: 'hidden', borderRadius: 3, borderWidth: StyleSheet.hairlineWidth, backgroundColor: 'rgba(255,255,255,0.03)' },
+  tileImg: { width: '100%', height: '100%' },
+  tileText: { flex: 1, padding: 8, justifyContent: 'center' },
+  tileVoice: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3 },
+  tileBar: { width: 3, borderRadius: 2, backgroundColor: '#7a5cc4' },
+  tileGlyph: { position: 'absolute', top: 5, right: 5 },
+  tilePill: { position: 'absolute', top: 5, left: 5, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 3, backgroundColor: 'rgba(210,60,60,0.9)' },
+  layoutBtn: { paddingHorizontal: 8, paddingVertical: 6 },
   tabs: { flexDirection: 'row', gap: 26, paddingTop: 26 },
   tab: { paddingBottom: 9, borderBottomWidth: 1 },
   pane: { paddingTop: 0, paddingHorizontal: 24 },

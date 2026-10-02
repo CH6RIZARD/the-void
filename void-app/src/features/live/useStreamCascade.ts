@@ -9,13 +9,13 @@
 //   c.cancel()                → dispose (web disposeCell): unmounts + releases the claim
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { claimLiveKey, iframeAllowed, releaseLiveKey } from './constants';
-import { isBadStream, liveVidFor, type StreamSource } from './core';
+import { isBadStream, isBannedStream, liveVidFor, type StreamSource } from './core';
 
 export interface CascadeAttempt {
   key: string;
   src: StreamSource;
   index: number;
-  /** '● CONNECTING' for the first candidate, '● RETRYING' after. */
+  /** Empty. A tile that is working on it says nothing; see the loader. */
   label: string;
 }
 
@@ -29,6 +29,8 @@ let attemptSeq = 0;
 /** attemptSource's synchronous refusals (resolve(false) before anything mounts). */
 export function refuseInstantly(src: StreamSource): boolean {
   if (!src) return true;
+  // Never, on any surface, by any route.
+  if (isBannedStream(src)) return true;
   // Not confirmed live → refuse in 0ms so dead channels never occupy a lane.
   if (src.type === 'youtube' && liveVidFor(src) === undefined) return true;
   if (isBadStream(src)) return true;
@@ -63,7 +65,11 @@ export function useStreamCascade(onResult: (r: CascadeResult) => void) {
         claimed.current = src;
         const key = `a${++attemptSeq}`;
         curKey.current = key;
-        setAttempt({ key, src, index: i, label: i === 0 ? '● CONNECTING' : '● RETRYING' });
+        // RETRYING was in the original port and nobody asked for it. A tile that is
+        // working through its sources is still loading, and the sparkle already says
+        // so; announcing the attempt number only tells the viewer the app is
+        // struggling. One label, until it plays or gives up.
+        setAttempt({ key, src, index: i, label: '' });
         return;
       }
       curKey.current = null;
