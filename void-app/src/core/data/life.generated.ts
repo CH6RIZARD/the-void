@@ -217,8 +217,7 @@ export const LIFE_POOL: Record<string, StreamSource[]> = {
     {"type":"youtube","id":"2sEWOddQT1w","label":"ACCRA,GHANA CITY WALK | Real 4K Walking Tour","kind":"walk"},
     {"type":"youtube","id":"-ZL6qbmiiDg","label":"Explore Dansoman, Accra on Foot | Relaxing 4K Walking Tour…","kind":"walk"},
     {"type":"youtube","id":"m2ARUsaR_Xc","label":"(4K) LOCAL STREET MARKET WALK GHANA ACCRA, AFRICA","kind":"walk"},
-    {"type":"youtube","id":"MXMFFD_JaHw","label":"Relaxing 4K Night Walk Through Sakumono & Spintex | Accra…","kind":"walk"},
-    {"type":"youtube","id":"WUAuTWNNkWg","label":"life in my 20s living in Ghana , get back into routine with me","kind":"life"}
+    {"type":"youtube","id":"MXMFFD_JaHw","label":"Relaxing 4K Night Walk Through Sakumono & Spintex | Accra…","kind":"walk"}
   ],
   "Greece": [
     {"type":"youtube","id":"MBfo2GhCk0Y","label":"ATHENS AS IT IS: Athens, Greece walking tour 4K 60 FPS 2025","kind":"walk"},
@@ -289,7 +288,6 @@ export const LIFE_POOL: Record<string, StreamSource[]> = {
     {"type":"youtube","id":"2nEraFhA1DA","label":"Rome, Italy – This Is Rome Right Now (November 2025) | 4K","kind":"walk"},
     {"type":"youtube","id":"djFJaNsVWNY","label":"Rome Italy 4K Walk | Colosseo, Trevi Fountain & Navona","kind":"walk"},
     {"type":"youtube","id":"0rU_V7h7Ayc","label":"Rome, Italy – Summer 2025 | 4K HDR Walking Tour","kind":"walk"},
-    {"type":"youtube","id":"Kmf_wiTFuXY","label":"4k Venice Italy Live Cam - Rialto Bridge Live Streaming","kind":"livecam"},
     {"type":"youtube","id":"OeAru94E1jI","label":"What My Life in Southern Italy is Like | A Day in Dasà","kind":"life"}
   ],
   "Japan": [
@@ -421,7 +419,6 @@ export const LIFE_POOL: Record<string, StreamSource[]> = {
     {"type":"youtube","id":"koPMMTk-Plg","label":"Your Life As North Korean","kind":"life"}
   ],
   "Norway": [
-    {"type":"youtube","id":"ES9-xYLN2i0","label":"OSLO: -20°C STREET WALK","kind":"walk"},
     {"type":"youtube","id":"jgNeXBzHvJk","label":"Oslo, Norway Walking Tour - 4K Downtown tour｜Jul 2025","kind":"walk"},
     {"type":"youtube","id":"lNOjxsgsWjs","label":"OSLO, Norway The Most Underrated Capital in Europe? | 4K","kind":"walk"},
     {"type":"youtube","id":"PuRHklMKmxE","label":"Oslo, Norway Summer Walking Tour 4K 60FPS","kind":"walk"},
@@ -480,7 +477,6 @@ export const LIFE_POOL: Record<string, StreamSource[]> = {
     {"type":"youtube","id":"4egq77o-3bE","label":"Moscow Russia Downtown Walking Tour 4K HDR | Kuznetsky Most, Lubyanka, Pokrovka","kind":"walk"},
     {"type":"youtube","id":"rmW4B-l9yKs","label":"A Day in the Life of an Ordinary Russian (Feb 2026 / Deep in Siberia )","kind":"life"},
     {"type":"youtube","id":"1j7EFZK_q1U","label":"Moscow 4K Walking Tour | City Center, Red Square & Zaryadye Park","kind":"walk"},
-    {"type":"youtube","id":"H-ACTPS1rf8","label":"Moscow Live: The Ultimate 24/7 Study & Chill Stream","kind":"livecam"},
     {"type":"youtube","id":"b5O_4xfaig4","label":"Moscow - Walking Tour - Part 2 - Russia - 4K 60fps- City Walk With Real Ambient Sounds","kind":"walk"},
     {"type":"youtube","id":"54Q49yehzWg","label":"A Day in My Life in Russia | Real life, NO Filters.","kind":"life"}
   ],
