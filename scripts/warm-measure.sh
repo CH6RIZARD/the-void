@@ -12,5 +12,5 @@ sleep 60
 echo "=== warm stages (≈150s after launch) ==="
 cd /d/void-audit && for s in globe wall reels; do node scripts/stage-of.mjs $s 2>&1 | grep -v '^JSON'; sleep 2; done
 if "$ADB" -s $S shell dumpsys activity activities 2>/dev/null | grep -m1 mResumedActivity | grep -q com.thevoid.app; then
-  "$ADB" -s $S exec-out screencap -p > /d/void-audit/scripts/device-watch-shots/warm.png 2>/dev/null && echo "screenshot: scripts/device-watch-shots/warm.png"
+  bash /d/void-audit/scripts/shot-if-void.sh /d/void-audit/scripts/device-watch-shots/warm.png "screenshot: scripts/device-watch-shots/warm.png"
 fi

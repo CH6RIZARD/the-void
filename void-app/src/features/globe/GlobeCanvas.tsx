@@ -276,7 +276,21 @@ export function GlobeCanvas({ running, onOpenCountry, refreshNonce = 0, gestureR
               is also running the live wall's decoders directly underneath.
 
               The renderer flag was the wrong knob; this is the right one. */}
-          <GLView key={glAttempt} style={StyleSheet.absoluteFill} onContextCreate={onContextCreate} msaaSamples={0} />
+          {/* OPAQUE, BECAUSE IT IS.
+
+              expo-gl's GLView is a TextureView hard-marked isOpaque=false, so
+              HWUI alpha-blends its whole 720x640 area into the window every
+              frame it is on screen - a read-modify-write over the largest
+              layer on this screen, including while the globe is holding still
+              during a wall scroll. The scene clears to solid 0x04020c (alpha 1,
+              globeScene.ts); there is no transparent pixel to blend. Warm, the
+              globe is the worst surface in the app and its cost is the GPU
+              stage alone (p50 14.6ms of a 16.7ms frame). This is the one lever
+              that removes work from that stage without touching the look.
+
+              `opaque` is a prop this app adds to expo-gl (patches/expo-gl); the
+              onboarding globe clears to alpha 0 and must not set it. */}
+          <GLView key={glAttempt} style={StyleSheet.absoluteFill} onContextCreate={onContextCreate} msaaSamples={0} opaque />
         </View>
       </GestureDetector>
 

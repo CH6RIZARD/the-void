@@ -11,12 +11,13 @@
 //   14 particles: left random 0-100%, bottom random 0-40px, duration 2.5-6.5s,
 //   delay -(0-6)s (always mid-flight), animation ignores prefers-reduced-motion.
 import React, { memo, useMemo, useRef } from 'react';
+import Reanimated, { type CSSAnimationKeyframes } from 'react-native-reanimated';
 import { mark } from '../core/slow';
-import { Animated, Platform, Pressable, StyleSheet, type StyleProp, type ViewStyle, View } from 'react-native';
+import { Pressable, StyleSheet, type StyleProp, type ViewStyle, View } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
 import { FONTS, em } from '../theme/palettes';
 import { VText } from './Text';
-import { useLoaderLoop, useLoaderShown } from './loaders/useLoaderClock';
+import { useLoaderShown } from './loaders/useLoaderClock';
 
 /**
  * FOURTEEN, EVERYWHERE, ALWAYS. THIS IS A DESIGN LOCK.
@@ -55,60 +56,62 @@ function makeParticles(): Particle[] {
   return out;
 }
 
-// Each particle is its own linear ramp on the native driver (see useLoaderLoop):
-// t = ((now + lead) % duration) / duration; opacity .4 -> 0, translate (0,0) -> (15,-70).
+// EACH PARTICLE IS THE WEB'S @keyframes pfloat, RUN BY REANIMATED'S CSS ENGINE.
 //
-// MOVED BY translateX/translateY, NOT BY transform - ON ANDROID.
+// This was fourteen RN Animated.Views per loader, each building an
+// Animated.Value, three interpolations and an attached props node in render,
+// then starting a native-driver timing in an effect - roughly ten
+// NativeAnimatedModule calls per dot, every one a synchronous hop out of JS.
+// A wall batch mounts six tiles, so one commit paid for that about ninety
+// times over. Measured on the phone with breadcrumbs on each step, in the 75
+// seconds after opening the globe tab: ~24 seconds of blocked JS thread
+// attributed to loader:render, loader:dot and loader:loop - 845ms with the
+// breadcrumb 2ms old, 2651ms with it 117ms old. The single largest cost in
+// the app, and it sat on the one thread that everything else waits for.
 //
-// The look is locked at fourteen particles and the cost of fourteen was real, so
-// it has to come out of HOW a dot is moved. It was moved by the `transform`
-// prop, and on Android that prop is expensive out of all proportion to a dot
-// travelling in a straight line: BaseViewManager.setTransformProperty builds a
-// 4x4 matrix, runs MatrixMathHelper.decomposeMatrix over it - solving for
-// rotation, scale, skew and perspective, with the square roots that implies -
-// and then writes up to eight RenderNode properties, each able to invalidate.
-// Per dot. Per frame. Fourteen dots across a dozen mounted tiles is on the order
-// of ten thousand matrix decompositions a second on the UI thread, to slide some
-// two-pixel dots up and to the right.
+// The look is locked, so the cost had to come out of HOW fourteen particles
+// are driven. This is the exact animation the lock is written against -
 //
-// translateX and translateY are separate props, and they are on the native
-// driver's allowlist (NativeAnimatedAllowlist.js:60) so they still never touch
-// JS. BaseViewManagerDelegate dispatches them to setTranslateX/setTranslateY,
-// which are `view.setTranslationX(PixelUtil.toPixelFromDIP(v))` - the exact call
-// the transform path ends in, with the exact same v. No matrix, no decomposition,
-// two property writes instead of eight.
+//   @keyframes pfloat{0%{opacity:.4;transform:translateY(0) translateX(0)}
+//                     100%{opacity:0;transform:translateY(-70px) translateX(15px)}}
+//   animation: pfloat <2.5-6.5s> linear -<0-6s> infinite
 //
-// So this is not an approximation of the locked animation. The View ends each
-// frame in the same state it would have been in; the arithmetic that got it there
-// is shorter. Nothing about the geometry, the colour, the ramp or the count
-// changes, which is the only kind of saving this component is allowed to make.
+// - expressed as a CSS animation that Reanimated 4 runs natively: one style
+// prop per dot, registered once at mount in C++, stepped on the UI thread
+// with no JS node graph, no effect, and no per-dot bridge traffic. A negative
+// animationDelay starts mid-flight exactly as the CSS does (Reanimated's
+// AnimationProgressProvider handles it explicitly). translateX/translateY are
+// top-level interpolators in its registry, so no transform matrix is built.
 //
-// Android only. The two props are marked deprecated in favour of transform, so if
-// a future React Native drops them this falls back by deleting the branch, and
-// iOS - where setTransformProperty has no equivalent cost - keeps transform now.
+// Pausing is animationPlayState - the web's own mechanism for a parked tile
+// (`animation-play-state: paused`), and the one the web file chose over
+// freezing or thinning the particles. A paused dot holds its place and resumes
+// from it; a loader that comes back after a long absence resumes where it was
+// rather than re-syncing to the wall clock, which is what the reference does.
+const PFLOAT: CSSAnimationKeyframes = {
+  from: { opacity: 0.4, translateX: 0, translateY: 0 },
+  to: { opacity: 0, translateX: 15, translateY: -70 },
+};
 const Dot = memo(function Dot({ p, running, color }: { p: Particle; running: boolean; color: string }) {
   mark('loader:dot');
-  const t = useLoaderLoop(p.duration, p.lead, running);
-  const style = useMemo(
-    () => ({
-      opacity: t.interpolate({ inputRange: [0, 1], outputRange: [0.4, 0] }),
-      ...(Platform.OS === 'android'
-        ? {
-            translateY: t.interpolate({ inputRange: [0, 1], outputRange: [0, -70] }),
-            translateX: t.interpolate({ inputRange: [0, 1], outputRange: [0, 15] }),
-          }
-        : {
-            transform: [
-              { translateY: t.interpolate({ inputRange: [0, 1], outputRange: [0, -70] }) },
-              { translateX: t.interpolate({ inputRange: [0, 1], outputRange: [0, 15] }) },
-            ],
-          }),
-    }),
-    [t],
+  return (
+    <Reanimated.View
+      pointerEvents="none"
+      style={[
+        styles.particle,
+        { left: p.left, bottom: p.bottom, backgroundColor: color },
+        {
+          animationName: PFLOAT,
+          animationDuration: p.duration,
+          animationDelay: -p.lead,
+          animationIterationCount: 'infinite',
+          animationTimingFunction: 'linear',
+          animationPlayState: running ? 'running' : 'paused',
+        },
+      ]}
+    />
   );
-  return <Animated.View pointerEvents="none" style={[styles.particle, { left: p.left, bottom: p.bottom, backgroundColor: color }, style]} />;
 });
-
 export interface SparkleLoaderProps {
   /** Mono label, e.g. '● NO SIGNAL'. Omit for none (sparkleMarkup without label). */
   label?: string;

@@ -6,7 +6,7 @@ T0=$(date +%s)
 ( timeout 115 "$ADB" -s $S logcat 2>/dev/null | grep -E "\[boot\]|\[fill\]|\[block\]|\[slow\]|\[fd\]" > /d/void-patch/boot.log ) &
 for t in 8 30 60 90; do
   while [ $(( $(date +%s) - T0 )) -lt $t ]; do sleep 1; done
-  "$ADB" -s $S exec-out screencap -p > "$SH/boot-plus-${t}s.png" 2>/dev/null && echo "shot +${t}s"
+  bash /d/void-audit/scripts/shot-if-void.sh "$SH/boot-plus-${t}s.png" "shot +${t}s"
 done
 wait
 echo "=== breadcrumbs (first 115s, relative to launch) ==="
