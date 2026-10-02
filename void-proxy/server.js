@@ -809,10 +809,76 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, page(all, offset, limit));
     }
 
+    if (path === '/hls') {
+      // A CORS shim for the wall, not an open proxy: the pool is probed server
+      // side where CORS does not exist, so a share of its streams can never be
+      // fetched by hls.js directly. This fetches one url, adds CORS, and - when
+      // the body is an M3U8 - rewrites every URI line and URI="..." attribute to
+      // come back through here, so segments and keys follow without the client
+      // knowing anything beyond the one rewritten url it retried.
+      if (req.method !== 'GET') return sendJson(res, 405, { error: 'GET only' });
+      const raw = u.searchParams.get('u') || '';
+      let target;
+      try { target = new URL(raw); } catch (_) { return sendJson(res, 400, { error: 'bad url' }); }
+      if (target.protocol !== 'http:' && target.protocol !== 'https:') return sendJson(res, 400, { error: 'http(s) only' });
+      // SSRF guard: never fetch into the network this proxy stands in.
+      const host = target.hostname.toLowerCase();
+      if (host === 'localhost' || host === '0.0.0.0' || /^127\./.test(host) || /^10\./.test(host) || /^192\.168\./.test(host) ||
+          /^172\.(1[6-9]|2\d|3[01])\./.test(host) || /^169\.254\./.test(host) || host === '::1' || /^\[?f[cd][0-9a-f]{2}:/.test(host)) {
+        return sendJson(res, 400, { error: 'refused host' });
+      }
+      const ctl = new AbortController();
+      const kill = setTimeout(() => ctl.abort(), 12000);
+      let r;
+      try {
+        const h = { 'User-Agent': 'void-proxy/1.1 hls', Accept: '*/*' };
+        if (req.headers.range) h.Range = String(req.headers.range); // segments seek
+        r = await fetch(target.href, { headers: h, redirect: 'follow', signal: ctl.signal });
+      } catch (e) {
+        clearTimeout(kill);
+        return sendJson(res, 502, { error: 'upstream unreachable' });
+      }
+      const ct = String(r.headers.get('content-type') || '').toLowerCase();
+      const finalUrl = r.url || target.href;
+      const looksM3u8 = /\.m3u8(\?|$)/i.test(finalUrl) || ct.includes('mpegurl') || ct.includes('vnd.apple');
+      cors(res);
+      if (looksM3u8) {
+        // Playlists are small text; 2MB is already absurd for one.
+        let text;
+        try { text = await r.text(); } catch (e) { clearTimeout(kill); return sendJson(res, 502, { error: 'upstream read failed' }); }
+        clearTimeout(kill);
+        if (text.length > 2 * 1024 * 1024 || text.slice(0, 7) !== '#EXTM3U') return sendJson(res, 502, { error: 'not a playlist' });
+        const abs = (ref) => { try { return new URL(ref, finalUrl).href; } catch (_) { return ref; } };
+        const via = (href) => '/hls?u=' + encodeURIComponent(href);
+        const out = text.split('\n').map((line) => {
+          const t = line.trim();
+          if (!t) return line;
+          // Key/map/media/part tags carry their url in URI="...".
+          if (t.startsWith('#')) return line.replace(/URI="([^"]+)"/g, (_, ref) => 'URI="' + via(abs(ref)) + '"');
+          return via(abs(t));
+        }).join('\n');
+        res.writeHead(r.status, { 'Content-Type': 'application/vnd.apple.mpegurl', 'Cache-Control': 'no-store' });
+        return res.end(out);
+      }
+      // Segments, keys, anything else: stream the bytes through untouched.
+      const head = { 'Cache-Control': 'public, max-age=10' };
+      if (ct) head['Content-Type'] = ct;
+      const len = r.headers.get('content-length'); if (len) head['Content-Length'] = len;
+      const cr = r.headers.get('content-range'); if (cr) head['Content-Range'] = cr;
+      res.writeHead(r.status, head);
+      try {
+        if (r.body) { for await (const chunk of r.body) res.write(chunk); }
+        res.end();
+      } catch (e) {
+        try { res.destroy(); } catch (_) {}
+      } finally { clearTimeout(kill); }
+      return;
+    }
+
     if (path === '/' || path === '/health') {
       return sendJson(res, 200, {
         ok: true,
-        endpoints: ['/feed?mode=tension&limit=40', '/social?country=<name>&mode=tension&limit=30', 'POST /translate {texts:[...], target:"en"}'],
+        endpoints: ['/feed?mode=tension&limit=40', '/social?country=<name>&mode=tension&limit=30', '/hls?u=<m3u8 url>', 'POST /translate {texts:[...], target:"en"}'],
         providers: PROVIDERS.map((p) => ({ platform: p.platform, enabled: p.enabled !== false })),
         reddit: { auth: redditAuthed() ? 'oauth' : 'keyless', userAgent: REDDIT_UA },
         translate: { provider: DEEPL_KEY ? 'deepl' : 'off', cached: trCache.size },

@@ -3104,7 +3104,10 @@ addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')
 // ─── SOCIAL PROXY (backend) — pulls X/Reddit/Threads controversy ─────────
 // Set via ?proxy=<url> once, or localStorage 'void_proxy'. There is no direct
 // browser fallback: every displayed feed item must be authenticated by proxy provenance.
-const VOID_PROXY_BASE=(new URLSearchParams(location.search).get('proxy'))||localStorage.getItem('void_proxy')||'';
+// Default to the production proxy: the deployed page shipped with '' here, so
+// /feed, /social, translate and stream rescue were all silently off unless
+// someone passed ?proxy=. ?proxy= and localStorage still override.
+const VOID_PROXY_BASE=((new URLSearchParams(location.search).get('proxy'))||localStorage.getItem('void_proxy')||'https://void-proxy-production.up.railway.app').replace(/\/$/,'');
 if(new URLSearchParams(location.search).get('proxy'))localStorage.setItem('void_proxy',VOID_PROXY_BASE);
 let feedOffset=0, feedLoading=false;
 function proxyPostToApp(p){
@@ -5510,22 +5513,42 @@ function attemptSource(cell,source){
             // 180px wall tile decoded the stream's TOP rendition (720p/1080p - the
             // IPTV urls even ask for ?hd=1). backBufferLength defaulted to Infinity,
             // so a player that never stops grew its buffer for the whole session.
-            const hls=new Hls(liveHlsConfig());
-            v.__hls=hls;                      // livePark / liveWake drive this
-            hls.on(Hls.Events.MANIFEST_PARSED,()=>{if(v.play)v.play().catch(()=>{});});
-            // CURSOR #6 — post-PLAYING fatals used to no-op (finish already done)
-            // and leave a black cell. Recover in place; only heal on hard death.
-            hls.on(Hls.Events.ERROR,(_,d)=>{
-              if(!d||!d.fatal)return;
-              if(!done){finish(false);return;}
-              try{
-                if(d.type===Hls.ErrorTypes.NETWORK_ERROR){hls.startLoad();return;}
-                if(d.type===Hls.ErrorTypes.MEDIA_ERROR){hls.recoverMediaError();return;}
-              }catch(e){}
-              cell.__needsHeal=true;
-            });
-            hls.loadSource(source.url);hls.attachMedia(v);
-            teardown=()=>{try{hls.destroy();}catch(e){}v.remove();};
+            // A connect-time NETWORK_ERROR is what a CORS refusal looks like from
+            // here: the pool was probed server side, where CORS does not exist, so
+            // a share of it can never load directly in a browser. Those urls get
+            // ONE retry through the proxy's /hls passthrough, whose playlist
+            // rewrite carries the segments and keys through as well. Everything
+            // else about the attempt - the timer, the frame judge, the key claim -
+            // is unchanged, and a url that fails through the proxy too fails the
+            // attempt exactly as before.
+            let triedProxy=false;
+            const begin=(url)=>{
+              const hls=new Hls(liveHlsConfig());
+              v.__hls=hls;                      // livePark / liveWake drive this
+              hls.on(Hls.Events.MANIFEST_PARSED,()=>{if(v.play)v.play().catch(()=>{});});
+              // CURSOR #6 — post-PLAYING fatals used to no-op (finish already done)
+              // and leave a black cell. Recover in place; only heal on hard death.
+              hls.on(Hls.Events.ERROR,(_,d)=>{
+                if(!d||!d.fatal)return;
+                if(!done){
+                  if(!triedProxy&&VOID_PROXY_BASE&&d.type===Hls.ErrorTypes.NETWORK_ERROR){
+                    triedProxy=true;
+                    try{hls.destroy();}catch(e){}
+                    begin(VOID_PROXY_BASE+'/hls?u='+encodeURIComponent(source.url));
+                    return;
+                  }
+                  finish(false);return;
+                }
+                try{
+                  if(d.type===Hls.ErrorTypes.NETWORK_ERROR){hls.startLoad();return;}
+                  if(d.type===Hls.ErrorTypes.MEDIA_ERROR){hls.recoverMediaError();return;}
+                }catch(e){}
+                cell.__needsHeal=true;
+              });
+              hls.loadSource(url);hls.attachMedia(v);
+              teardown=()=>{try{hls.destroy();}catch(e){}v.remove();};
+            };
+            begin(source.url);
           }).catch(()=>{v.remove();finish(false);});
         }
       }else if(source.type==='mjpeg'){
@@ -5790,6 +5813,13 @@ function wallSlots(){
   const used=usedStreamKeys(), taken=new Set();
   const usable=s=>{
     if(!s||isBadStream(s))return false;             // bars/slate or removed/embed-disabled VOD
+    // THE WALL IS HLS ONLY. A YouTube entry here becomes an iframe with YouTube
+    // chrome on it, which this wall must never show - said and re-said for weeks.
+    // The life pools are YouTube-heavy, so this mostly empties them; the news
+    // pool (2,500+ probed .m3u8) fills whatever the mix cannot, which the
+    // round-robin below already does. Country sections and the nation cinema
+    // keep their own chains - this rule is the wall's alone.
+    if(s.type!=='hls')return false;
     const k=streamKey(s);
     if(!k||taken.has(k))return false;
     taken.add(k);return true;
