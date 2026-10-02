@@ -161,9 +161,158 @@ const PLACES = {
   'Vietnam': ['Hanoi', 'Ho Chi Minh', 'Saigon', 'Viet Nam'],
   'Yemen': ['Sanaa', "Sana'a", 'Aden'],
   'Zimbabwe': ['Harare', 'Bulawayo'],
+  // Nations added to the globe after the first pool was built (the C array grew
+  // 82 -> 199). First alias is the search city; where a capital's name is shared
+  // with somewhere better known (San Jose, Kingston, Georgetown, Nassau, Panama
+  // City) it is qualified with the country so the query lands, and NOT_PLACE
+  // below rejects the other place. Short names (<= 4 letters) are matched on
+  // word boundaries by relevant(), longer ones as substrings — which is why
+  // 'Split', 'Male' and 'Galle' are not aliases.
+  'Andorra': ['Andorra la Vella'],
+  'Antigua and Barbuda': ["St John's Antigua", 'Antigua'],
+  'Bahamas': ['Nassau Bahamas', 'Nassau'],
+  'Bahrain': ['Manama'],
+  'Barbados': ['Bridgetown'],
+  'Belize': ['Belize City', 'San Pedro Belize', 'Caye Caulker'],
+  'Benin': ['Cotonou', 'Porto-Novo', 'Porto Novo'],
+  'Bhutan': ['Thimphu', 'Paro'],
+  'Bosnia and Herzegovina': ['Sarajevo', 'Bosnia', 'Mostar'],
+  'Botswana': ['Gaborone', 'Maun'],
+  'Brunei': ['Bandar Seri Begawan'],
+  'Burkina Faso': ['Ouagadougou', 'Bobo-Dioulasso', 'Burkina'],
+  'Burundi': ['Bujumbura', 'Gitega'],
+  'Cameroon': ['Douala', 'Yaounde', 'Yaoundé'],
+  'Cape Verde': ['Praia', 'Cabo Verde', 'Mindelo'],
+  'Central African Republic': ['Bangui'],
+  'Chad': ["N'Djamena", 'Ndjamena'],
+  'Comoros': ['Moroni'],
+  'Congo': ['Brazzaville', 'Pointe-Noire', 'Pointe Noire'],
+  'Costa Rica': ['San Jose Costa Rica', 'San José Costa Rica', 'Tamarindo', 'Puntarenas'],
+  "Cote d'Ivoire": ['Abidjan', 'Ivory Coast', 'Yamoussoukro'],
+  'Croatia': ['Zagreb', 'Dubrovnik', 'Split Croatia', 'Zadar'],
+  'Cyprus': ['Nicosia', 'Limassol', 'Larnaca', 'Paphos'],
+  'Czechia': ['Prague', 'Czech Republic', 'Czech', 'Brno', 'Praha'],
+  'Denmark': ['Copenhagen', 'Aarhus', 'København'],
+  'Djibouti': ['Djibouti City'],
+  'Dominica': ['Roseau'],
+  'Dominican Republic': ['Santo Domingo', 'Punta Cana', 'Dominicana'],
+  'Ecuador': ['Quito', 'Guayaquil'],
+  'El Salvador': ['San Salvador', 'Santa Ana El Salvador'],
+  'Equatorial Guinea': ['Malabo', 'Bata'],
+  'Eritrea': ['Asmara'],
+  'Estonia': ['Tallinn', 'Tartu'],
+  'Eswatini': ['Mbabane', 'Swaziland', 'Manzini'],
+  'Fiji': ['Suva', 'Nadi'],
+  'Finland': ['Helsinki', 'Tampere', 'Turku'],
+  'Gabon': ['Libreville'],
+  'Gambia': ['Banjul', 'Serekunda'],
+  'Georgia': ['Tbilisi', 'Batumi', 'Kutaisi'],
+  'Greenland': ['Nuuk', 'Ilulissat'],
+  'Grenada': ["St George's Grenada"],
+  'Guatemala': ['Guatemala City', 'Antigua Guatemala'],
+  'Guinea': ['Conakry'],
+  'Guinea-Bissau': ['Bissau'],
+  'Guyana': ['Georgetown Guyana', 'Georgetown'],
+  'Honduras': ['Tegucigalpa', 'San Pedro Sula', 'Roatan'],
+  'Hong Kong': ['Kowloon', 'Mong Kok', 'Tsim Sha Tsui', 'Central Hong Kong'],
+  'Hungary': ['Budapest', 'Debrecen'],
+  'Iceland': ['Reykjavik', 'Reykjavík'],
+  'Jamaica': ['Kingston Jamaica', 'Montego Bay', 'Ocho Rios'],
+  'Kiribati': ['Tarawa'],
+  'Kosovo': ['Pristina', 'Prishtina', 'Prizren'],
+  'Kuwait': ['Kuwait City'],
+  'Kyrgyzstan': ['Bishkek', 'Osh'],
+  'Laos': ['Vientiane', 'Luang Prabang'],
+  'Latvia': ['Riga', 'Rīga'],
+  'Lesotho': ['Maseru'],
+  'Liberia': ['Monrovia'],
+  'Liechtenstein': ['Vaduz'],
+  'Lithuania': ['Vilnius', 'Kaunas'],
+  'Luxembourg': ['Luxembourg City'],
+  'Madagascar': ['Antananarivo', 'Nosy Be'],
+  'Malawi': ['Lilongwe', 'Blantyre'],
+  'Maldives': ['Maldives', 'Hulhumale', 'Addu'],
+  'Malta': ['Valletta', 'Sliema', 'Mdina'],
+  'Marshall Islands': ['Majuro'],
+  'Mauritania': ['Nouakchott'],
+  'Mauritius': ['Port Louis'],
+  'Micronesia': ['Pohnpei', 'Chuuk', 'Kolonia'],
+  'Moldova': ['Chisinau', 'Chișinău'],
+  'Monaco': ['Monte Carlo', 'Monte-Carlo'],
+  'Mongolia': ['Ulaanbaatar', 'Ulan Bator'],
+  'Montenegro': ['Podgorica', 'Kotor', 'Budva'],
+  'Mozambique': ['Maputo'],
+  'Namibia': ['Windhoek', 'Swakopmund'],
+  'Nauru': ['Yaren'],
+  'Nicaragua': ['Managua', 'Granada Nicaragua', 'Leon Nicaragua'],
+  'Niger': ['Niamey'],
+  'North Macedonia': ['Skopje', 'Macedonia', 'Ohrid'],
+  'Oman': ['Muscat', 'Salalah'],
+  'Palau': ['Koror'],
+  'Palestine': ['Ramallah', 'Gaza', 'Hebron', 'Nablus', 'Bethlehem'],
+  'Panama': ['Panama City Panama', 'Casco Viejo', 'Panama City'],
+  'Papua New Guinea': ['Port Moresby', 'Lae'],
+  'Paraguay': ['Asuncion', 'Asunción'],
+  'Puerto Rico': ['San Juan Puerto Rico', 'Old San Juan', 'San Juan', 'Ponce'],
+  'Qatar': ['Doha'],
+  'Rwanda': ['Kigali'],
+  'Saint Kitts and Nevis': ['Basseterre', 'St Kitts', 'St. Kitts', 'Nevis'],
+  'Saint Lucia': ['Castries', 'St Lucia', 'St. Lucia'],
+  'Saint Vincent and the Grenadines': ['Kingstown', 'St Vincent', 'St. Vincent', 'Bequia'],
+  'Samoa': ['Apia'],
+  'San Marino': ['San Marino'],
+  'Sao Tome and Principe': ['Sao Tome', 'São Tomé'],
+  'Senegal': ['Dakar'],
+  'Seychelles': ['Victoria Seychelles', 'Mahe', 'Mahé'],
+  'Sierra Leone': ['Freetown'],
+  'Singapore': ['Marina Bay', 'Orchard Road', 'Chinatown Singapore'],
+  'Slovakia': ['Bratislava', 'Kosice', 'Košice'],
+  'Slovenia': ['Ljubljana', 'Maribor', 'Bled'],
+  'Solomon Islands': ['Honiara'],
+  'South Sudan': ['Juba'],
+  'Sri Lanka': ['Colombo', 'Kandy'],
+  'Suriname': ['Paramaribo'],
+  'Switzerland': ['Zurich', 'Zürich', 'Geneva', 'Bern', 'Lucerne'],
+  'Tajikistan': ['Dushanbe', 'Khujand'],
+  'Tanzania': ['Dar es Salaam', 'Zanzibar', 'Arusha', 'Dodoma'],
+  'Timor-Leste': ['Dili', 'East Timor', 'Timor Leste'],
+  'Togo': ['Lome', 'Lomé'],
+  'Tonga': ["Nuku'alofa", 'Nukualofa'],
+  'Trinidad and Tobago': ['Port of Spain', 'Trinidad', 'Tobago'],
+  'Turkmenistan': ['Ashgabat'],
+  'Tuvalu': ['Funafuti'],
+  'Uruguay': ['Montevideo', 'Punta del Este'],
+  'Uzbekistan': ['Tashkent', 'Samarkand', 'Bukhara'],
+  'Vanuatu': ['Port Vila'],
+  'Zambia': ['Lusaka'],
 };
 /** Title matches that name the WRONG place despite containing an alias. */
-const NOT_PLACE = { 'South Korea': /north korea/, 'Libya': /lebanon/ };
+const NOT_PLACE = {
+  'South Korea': /north korea/,
+  'Libya': /lebanon/,
+  'Sudan': /south sudan|juba/,
+  // Substring aliases that live inside another place's name, and capitals that
+  // share a name with a better-known city elsewhere.
+  'Georgia': /atlanta|savannah|augusta|\busa\b|united states|america|georgia state|south georgia|georgia tech|\bga\b|england|lioness|midfielder|footballer/,
+  'Guinea': /papua|equatorial|bissau|new guinea|guinea pig/,
+  'Niger': /nigeria|lagos|abuja|kano|niger delta|niger state|guinea|conakry/,
+  'Congo': /kinshasa|dr congo|\bdrc\b|democratic|lubumbashi|goma/,
+  'Dominica': /dominican|santo domingo|punta cana/,
+  'Samoa': /american samoa|pago pago/,
+  'Antigua and Barbuda': /guatemala/,
+  'Costa Rica': /california|silicon valley|san jose ca\b/,
+  'El Salvador': /bahia|brazil|brasil/,
+  'Jamaica': /ontario|canada|new york|queens|jamaica plain/,
+  'Bahamas': /long island|new york|nassau county/,
+  'Guyana': /penang|malaysia|washington|\bdc\b|texas|south carolina/,
+  'Panama': /florida|panama city beach/,
+  'Puerto Rico': /argentina|philippines|manila/,
+  'Liberia': /costa rica|guanacaste/,
+  'Mongolia': /inner mongolia|hohhot|china/,
+  'North Macedonia': /thessaloniki|greece|greek/,
+  'Monaco': /grand prix|f1|formula/,
+  'Palestine': /texas|palestine tx/,
+};
 
 const KIND_WORDS = /walk|tour|stroll|life|daily|cam|webcam|live|street|4k|market|downtown|city center|night/;
 const JUNK = /#shorts|reaction|trailer|podcast|prank|lyrics|music video|official video|gameplay|minecraft|gta|flight simulator|\bmovie\b/;
@@ -181,7 +330,9 @@ function appCountries(html) {
     else if (html[k] === ']') { depth--; if (!depth) break; }
   }
   const names = [];
-  for (const m of html.slice(j, k + 1).matchAll(/n:\s*['"]([^'"]+)['"]/g)) names.push(m[1]);
+  // Quote-aware: "Cote d'Ivoire" has an apostrophe inside double quotes, and a
+  // [^'"] class ended the match at it (the C array read as "Cote d").
+  for (const m of html.slice(j, k + 1).matchAll(/n:\s*(?:"([^"]+)"|'([^']+)')/g)) names.push(m[1] || m[2]);
   return names;
 }
 
@@ -269,13 +420,17 @@ class Blocked extends Error {}
 const stats = { searches: 0, searchFail: 0, verified: 0, verifyFail: 0, verifyErr: 0 };
 
 async function fetchText(url, opts = {}) {
-  for (let attempt = 0; attempt < 2; attempt++) {
+  // Connection-level failures ("fetch failed", ECONNRESET, timeouts) come in bursts
+  // during a long sweep and clear within seconds; one 2s retry was turning whole
+  // countries into "0 candidates". Back off 2s / 5s / 10s / 20s before giving up.
+  const backoff = [2000, 5000, 10000, 20000];
+  for (let attempt = 0; ; attempt++) {
     try {
       const r = await fetch(url, { signal: AbortSignal.timeout(FETCH_MS), redirect: 'follow', ...opts });
       return { status: r.status, url: r.url, text: await r.text() };
     } catch (e) {
-      if (attempt) throw e;
-      await sleep(2000);
+      if (attempt >= backoff.length) throw e;
+      await sleep(backoff[attempt]);
     }
   }
 }

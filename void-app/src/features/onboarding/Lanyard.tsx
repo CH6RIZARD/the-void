@@ -12,7 +12,8 @@
 // the only thing that passes through the hole.
 import React from 'react';
 import { StyleSheet } from 'react-native';
-import Svg, { ClipPath, Defs, G, LinearGradient as SvgGrad, Path, Pattern, Rect, Stop } from 'react-native-svg';
+import Svg, { ClipPath, Defs, G, LinearGradient as SvgGrad, Path, Pattern, Rect, Stop, Text as SvgText, TextPath } from 'react-native-svg';
+import { FONTS } from '../../theme/palettes';
 
 export const LANYARD_W = 402;
 export const LANYARD_H = 874;
@@ -53,7 +54,8 @@ const GOLDR = ['#7a5a1c', '#c9a84c', '#e2c56a', '#c9a84c', '#7a5a1c'];
  * tape: the stitch is drawn wide, then covered back to a hairline at each edge by
  * re-drawing the body over it.
  */
-function Ribbon({ d, uid, gold }: { d: string; uid: string; gold?: boolean }) {
+function Ribbon({ d, uid, gold, pid }: { d: string; uid: string; gold?: boolean; pid: string }) {
+  const ink = gold ? '#2a1060' : '#c9a84c';
   return (
     <G>
       <Path d={d} stroke="rgba(0,0,0,0.38)" strokeWidth={19} fill="none" strokeLinecap="butt" translateX={1} translateY={3} />
@@ -71,6 +73,11 @@ function Ribbon({ d, uid, gold }: { d: string; uid: string; gold?: boolean }) {
       {/* Covers the stitch back to a 1.5px line down each edge. */}
       <Path d={d} stroke={`url(#rib${uid})`} strokeWidth={12} fill="none" strokeLinecap="butt" />
       <Path d={d} stroke={`url(#weave${uid})`} strokeWidth={12} fill="none" strokeLinecap="butt" />
+      {/* The print, riding the same path; starts 2% in so it never clips at
+          the crimp. Gold on the purple ribbon, purple on the gold one. */}
+      <SvgText fontFamily={FONTS.sansExtraBold} fontSize={6} fontWeight="800" letterSpacing={1.4} fill={ink} fillOpacity={0.9} alignmentBaseline="central">
+        <TextPath href={`#${pid}`} startOffset="2%">{'THE ⬡ VOID · '.repeat(48)}</TextPath>
+      </SvgText>
     </G>
   );
 }
@@ -159,6 +166,9 @@ export function Lanyard({ idx, slot, uid, over = false, opacity = 1 }: { idx: nu
           <Stop offset="0.5" stopColor="#ffffff" stopOpacity={0.28} />
           <Stop offset="1" stopColor="#ffffff" stopOpacity={0.08} />
         </SvgGrad>
+        {/* The ribbon paths by id, for the print's textPath. */}
+        <Path id={`rpl${uid}`} d={flow.l(cx, cy)} fill="none" />
+        <Path id={`rpr${uid}`} d={flow.r(cx, cy)} fill="none" />
         {over ? (
           <ClipPath id={`band${uid}`}>
             <Rect x={0} y={slot.tagTop} width={LANYARD_W} height={Math.max(0, slot.y - slot.tagTop)} />
@@ -171,8 +181,8 @@ export function Lanyard({ idx, slot, uid, over = false, opacity = 1 }: { idx: nu
         </G>
       ) : (
         <G>
-          <Ribbon d={flow.l(cx, cy)} uid={uid} gold={flow.gold} />
-          <Ribbon d={flow.r(cx, cy)} uid={uid} gold={flow.gold} />
+          <Ribbon d={flow.l(cx, cy)} uid={uid} gold={flow.gold} pid={`rpl${uid}`} />
+          <Ribbon d={flow.r(cx, cy)} uid={uid} gold={flow.gold} pid={`rpr${uid}`} />
           <Clip cx={cx} cy={cy} slotY={slot.y} uid={uid} />
           <Hardware cx={cx} cy={cy} uid={uid} />
         </G>

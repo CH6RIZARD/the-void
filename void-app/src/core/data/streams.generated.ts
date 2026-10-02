@@ -161,7 +161,6 @@ export const RAW_FOOTAGE: Record<string, StreamSource[]> = {
     {"type":"youtube","id":"atoLEPYDQPE","label":"Moscow 2026 Night Walking Tour City Center 4K HDR"},
     {"type":"youtube","id":"q6xhcNuazj4","label":"Moscow 2026 Night Walking Tour New Riverside Quarters 4K"},
     {"type":"youtube","id":"2H9yLHArhGg","label":"What's It Like Walking Through Moscow in 2026?"},
-    {"type":"youtube","id":"_geC9ZollaQ","label":"This is Modern Russia NOW | Moscow City 4K HDR Walking Tour"},
     {"type":"youtube","id":"ha88Kg_uGFs","label":"Moscow-City 2025 Business District Walking Tour 4K HDR"},
     {"type":"youtube","id":"PLp7256Y972SStmSIf3tWkhCNHx8uBllgx","label":"RUSSIA 4K WALKING TOUR (playlist)"}
   ],
