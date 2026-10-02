@@ -1,28 +1,28 @@
 {
- "_verifiedAt": "2026-09-13T21:18:59.942Z",
- "_elapsedMs": 11163,
+ "_verifiedAt": "2026-10-02T01:49:28.512Z",
+ "_elapsedMs": 9024,
  "lifeJsonPresent": true,
  "totals": {
   "all": {
-   "alive": 681,
-   "dead": 39,
-   "unknown": 4,
+   "alive": 675,
+   "dead": 1,
+   "unknown": 5,
    "unchecked": 3
   },
   "CAM_SOURCES": {
-   "alive": 47,
-   "dead": 29,
-   "unknown": 4,
+   "alive": 46,
+   "dead": 0,
+   "unknown": 5,
    "unchecked": 3
   },
   "RAW_FOOTAGE": {
-   "alive": 147,
-   "dead": 10,
+   "alive": 146,
+   "dead": 1,
    "unknown": 0,
    "unchecked": 0
   },
   "LIFE_JSON": {
-   "alive": 487,
+   "alive": 483,
    "dead": 0,
    "unknown": 0,
    "unchecked": 0
@@ -32,13 +32,13 @@
   "Ukraine": {
    "CAM_SOURCES": {
     "alive": 2,
-    "dead": 2,
+    "dead": 0,
     "unknown": 0,
     "unchecked": 0
    },
    "RAW_FOOTAGE": {
     "alive": 5,
-    "dead": 1,
+    "dead": 0,
     "unknown": 0,
     "unchecked": 0
    },
@@ -53,28 +53,28 @@
   "Russia": {
    "CAM_SOURCES": {
     "alive": 3,
-    "dead": 1,
+    "dead": 0,
     "unknown": 0,
     "unchecked": 0
    },
    "RAW_FOOTAGE": {
-    "alive": 6,
-    "dead": 0,
+    "alive": 5,
+    "dead": 1,
     "unknown": 0,
     "unchecked": 0
    },
    "LIFE_JSON": {
-    "alive": 6,
+    "alive": 5,
     "dead": 0,
     "unknown": 0,
     "unchecked": 0
    },
-   "alive": 15
+   "alive": 13
   },
   "Israel": {
    "CAM_SOURCES": {
     "alive": 2,
-    "dead": 2,
+    "dead": 0,
     "unknown": 0,
     "unchecked": 0
    },
@@ -95,13 +95,13 @@
   "Palestinian Territories": {
    "CAM_SOURCES": {
     "alive": 1,
-    "dead": 2,
+    "dead": 0,
     "unknown": 0,
     "unchecked": 0
    },
    "RAW_FOOTAGE": {
     "alive": 4,
-    "dead": 2,
+    "dead": 0,
     "unknown": 0,
     "unchecked": 0
    },
@@ -137,7 +137,7 @@
   "Lebanon": {
    "CAM_SOURCES": {
     "alive": 3,
-    "dead": 1,
+    "dead": 0,
     "unknown": 0,
     "unchecked": 0
    },
@@ -158,13 +158,13 @@
   "Iran": {
    "CAM_SOURCES": {
     "alive": 2,
-    "dead": 1,
+    "dead": 0,
     "unknown": 0,
     "unchecked": 0
    },
    "RAW_FOOTAGE": {
     "alive": 5,
-    "dead": 1,
+    "dead": 0,
     "unknown": 0,
     "unchecked": 0
    },
@@ -179,7 +179,7 @@
   "Iraq": {
    "CAM_SOURCES": {
     "alive": 1,
-    "dead": 2,
+    "dead": 0,
     "unknown": 0,
     "unchecked": 0
    },
@@ -200,7 +200,7 @@
   "Ethiopia": {
    "CAM_SOURCES": {
     "alive": 2,
-    "dead": 1,
+    "dead": 0,
     "unknown": 0,
     "unchecked": 0
    },
@@ -241,34 +241,13 @@
   },
   "Myanmar": {
    "CAM_SOURCES": {
-    "alive": 1,
-    "dead": 0,
-    "unknown": 0,
-    "unchecked": 0
-   },
-   "RAW_FOOTAGE": {
-    "alive": 6,
-    "dead": 0,
-    "unknown": 0,
-    "unchecked": 0
-   },
-   "LIFE_JSON": {
-    "alive": 6,
-    "dead": 0,
-    "unknown": 0,
-    "unchecked": 0
-   },
-   "alive": 13
-  },
-  "Pakistan": {
-   "CAM_SOURCES": {
     "alive": 0,
-    "dead": 2,
-    "unknown": 0,
+    "dead": 0,
+    "unknown": 1,
     "unchecked": 0
    },
    "RAW_FOOTAGE": {
-    "alive": 7,
+    "alive": 6,
     "dead": 0,
     "unknown": 0,
     "unchecked": 0
@@ -279,12 +258,12 @@
     "unknown": 0,
     "unchecked": 0
    },
-   "alive": 13
+   "alive": 12
   },
   "Taiwan": {
    "CAM_SOURCES": {
     "alive": 2,
-    "dead": 2,
+    "dead": 0,
     "unknown": 0,
     "unchecked": 0
    },
@@ -305,7 +284,7 @@
   "South Korea": {
    "CAM_SOURCES": {
     "alive": 2,
-    "dead": 2,
+    "dead": 0,
     "unknown": 0,
     "unchecked": 1
    },
@@ -347,13 +326,13 @@
   "Azerbaijan": {
    "CAM_SOURCES": {
     "alive": 2,
-    "dead": 2,
+    "dead": 0,
     "unknown": 0,
     "unchecked": 0
    },
    "RAW_FOOTAGE": {
     "alive": 4,
-    "dead": 1,
+    "dead": 0,
     "unknown": 0,
     "unchecked": 0
    },
@@ -368,7 +347,7 @@
   "Turkey": {
    "CAM_SOURCES": {
     "alive": 1,
-    "dead": 1,
+    "dead": 0,
     "unknown": 4,
     "unchecked": 0
    },
@@ -389,7 +368,7 @@
   "United States": {
    "CAM_SOURCES": {
     "alive": 5,
-    "dead": 1,
+    "dead": 0,
     "unknown": 0,
     "unchecked": 0
    },
@@ -431,7 +410,7 @@
   "France": {
    "CAM_SOURCES": {
     "alive": 2,
-    "dead": 1,
+    "dead": 0,
     "unknown": 0,
     "unchecked": 1
    },
@@ -452,13 +431,13 @@
   "Germany": {
    "CAM_SOURCES": {
     "alive": 2,
-    "dead": 2,
+    "dead": 0,
     "unknown": 0,
     "unchecked": 0
    },
    "RAW_FOOTAGE": {
     "alive": 4,
-    "dead": 1,
+    "dead": 0,
     "unknown": 0,
     "unchecked": 0
    },
@@ -473,13 +452,13 @@
   "Japan": {
    "CAM_SOURCES": {
     "alive": 3,
-    "dead": 2,
+    "dead": 0,
     "unknown": 0,
     "unchecked": 0
    },
    "RAW_FOOTAGE": {
     "alive": 3,
-    "dead": 3,
+    "dead": 0,
     "unknown": 0,
     "unchecked": 0
    },
@@ -494,7 +473,7 @@
   "Australia": {
    "CAM_SOURCES": {
     "alive": 3,
-    "dead": 2,
+    "dead": 0,
     "unknown": 0,
     "unchecked": 0
    },
@@ -584,7 +563,7 @@
    },
    "RAW_FOOTAGE": {
     "alive": 5,
-    "dead": 1,
+    "dead": 0,
     "unknown": 0,
     "unchecked": 0
    },
@@ -595,6 +574,27 @@
     "unchecked": 0
    },
    "alive": 11
+  },
+  "Pakistan": {
+   "CAM_SOURCES": {
+    "alive": 0,
+    "dead": 0,
+    "unknown": 0,
+    "unchecked": 0
+   },
+   "RAW_FOOTAGE": {
+    "alive": 7,
+    "dead": 0,
+    "unknown": 0,
+    "unchecked": 0
+   },
+   "LIFE_JSON": {
+    "alive": 6,
+    "dead": 0,
+    "unknown": 0,
+    "unchecked": 0
+   },
+   "alive": 13
   },
   "North Korea": {
    "CAM_SOURCES": {
@@ -1030,12 +1030,12 @@
     "unchecked": 0
    },
    "LIFE_JSON": {
-    "alive": 6,
+    "alive": 5,
     "dead": 0,
     "unknown": 0,
     "unchecked": 0
    },
-   "alive": 6
+   "alive": 5
   },
   "Greece": {
    "CAM_SOURCES": {
@@ -1135,12 +1135,12 @@
     "unchecked": 0
    },
    "LIFE_JSON": {
-    "alive": 6,
+    "alive": 5,
     "dead": 0,
     "unknown": 0,
     "unchecked": 0
    },
-   "alive": 6
+   "alive": 5
   },
   "Jordan": {
    "CAM_SOURCES": {
@@ -1387,12 +1387,12 @@
     "unchecked": 0
    },
    "LIFE_JSON": {
-    "alive": 6,
+    "alive": 5,
     "dead": 0,
     "unknown": 0,
     "unchecked": 0
    },
-   "alive": 6
+   "alive": 5
   },
   "Peru": {
    "CAM_SOURCES": {
@@ -1774,357 +1774,134 @@
   }
  },
  "zeroAlive": [],
- "noEntries": [],
+ "noEntries": [
+  "Andorra",
+  "Antigua and Barbuda",
+  "Bahamas",
+  "Bahrain",
+  "Barbados",
+  "Belize",
+  "Benin",
+  "Bhutan",
+  "Bosnia and Herzegovina",
+  "Botswana",
+  "Brunei",
+  "Burkina Faso",
+  "Burundi",
+  "Cameroon",
+  "Cape Verde",
+  "Central African Republic",
+  "Chad",
+  "Comoros",
+  "Congo",
+  "Costa Rica",
+  "Cote d'Ivoire",
+  "Croatia",
+  "Cyprus",
+  "Czechia",
+  "Denmark",
+  "Djibouti",
+  "Dominica",
+  "Dominican Republic",
+  "Ecuador",
+  "El Salvador",
+  "Equatorial Guinea",
+  "Eritrea",
+  "Estonia",
+  "Eswatini",
+  "Fiji",
+  "Finland",
+  "Gabon",
+  "Gambia",
+  "Georgia",
+  "Greenland",
+  "Grenada",
+  "Guatemala",
+  "Guinea",
+  "Guinea-Bissau",
+  "Guyana",
+  "Honduras",
+  "Hong Kong",
+  "Hungary",
+  "Iceland",
+  "Jamaica",
+  "Kiribati",
+  "Kosovo",
+  "Kuwait",
+  "Kyrgyzstan",
+  "Laos",
+  "Latvia",
+  "Lesotho",
+  "Liberia",
+  "Liechtenstein",
+  "Lithuania",
+  "Luxembourg",
+  "Madagascar",
+  "Malawi",
+  "Maldives",
+  "Malta",
+  "Marshall Islands",
+  "Mauritania",
+  "Mauritius",
+  "Micronesia",
+  "Moldova",
+  "Monaco",
+  "Mongolia",
+  "Montenegro",
+  "Mozambique",
+  "Namibia",
+  "Nauru",
+  "Nicaragua",
+  "Niger",
+  "North Macedonia",
+  "Oman",
+  "Palau",
+  "Palestine",
+  "Panama",
+  "Papua New Guinea",
+  "Paraguay",
+  "Puerto Rico",
+  "Qatar",
+  "Rwanda",
+  "Saint Kitts and Nevis",
+  "Saint Lucia",
+  "Saint Vincent and the Grenadines",
+  "Samoa",
+  "San Marino",
+  "Sao Tome and Principe",
+  "Senegal",
+  "Seychelles",
+  "Sierra Leone",
+  "Singapore",
+  "Slovakia",
+  "Slovenia",
+  "Solomon Islands",
+  "South Sudan",
+  "Sri Lanka",
+  "Suriname",
+  "Switzerland",
+  "Tajikistan",
+  "Tanzania",
+  "Timor-Leste",
+  "Togo",
+  "Tonga",
+  "Trinidad and Tobago",
+  "Turkmenistan",
+  "Tuvalu",
+  "Uruguay",
+  "Uzbekistan",
+  "Vanuatu",
+  "Zambia"
+ ],
  "dead": [
   {
-   "source": "CAM_SOURCES",
-   "country": "Ukraine",
-   "type": "youtube",
-   "id": "aD7IIezTPb4",
-   "label": "Ukraine Live Camera 24/7 (Kyiv, Kharkiv, Odesa)",
-   "reason": "removed or private (oEmbed 404)",
-   "http": 404
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Ukraine",
-   "type": "iframe",
-   "url": "https://www.skylinewebcams.com/en/webcam/ukraine/kyiv-city-council/kyiv/panorama.html",
-   "label": "SkylineWebcams Kyiv panorama",
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN",
-   "http": 200
-  },
-  {
-   "source": "CAM_SOURCES",
+   "source": "RAW_FOOTAGE",
    "country": "Russia",
-   "type": "iframe",
-   "url": "https://www.skylinewebcams.com/en/webcam/russia/central-federal-district/moscow/panorama.html",
-   "label": "SkylineWebcams Moscow panorama",
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN",
-   "http": 200
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Israel",
    "type": "youtube",
-   "id": "wyMx0d7q0mo",
-   "label": "SkylineWebcams - Western Wall Real-Time Cam",
-   "reason": "embedding disabled (oEmbed 401)",
-   "http": 401
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Israel",
-   "type": "iframe",
-   "url": "https://www.skylinewebcams.com/en/webcam/israel/tel-aviv/tel-aviv/tel-aviv.html",
-   "label": "SkylineWebcams - Tel Aviv Marina & Gordon Beach",
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN",
-   "http": 200
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Palestinian Territories",
-   "type": "iframe",
-   "url": "https://www.skylinewebcams.com/en/webcam/palestine/gaza/gaza/gaza.html",
-   "label": "SkylineWebcams - Gaza skyline & Mediterranean coast",
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN",
-   "http": 200
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Palestinian Territories",
-   "type": "iframe",
-   "url": "https://www.webcamtaxi.com/en/palestine.html",
-   "label": "WebcamTaxi - Palestine live cams (Bethlehem, Nablus, Hebron)",
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN",
-   "http": 403
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Lebanon",
-   "type": "iframe",
-   "url": "https://www.skylinewebcams.com/en/webcam/lebanon/beirut/beirut/beirut.html",
-   "label": "Beirut Panorama - SkylineWebcams",
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN",
-   "http": 200
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Iran",
-   "type": "iframe",
-   "url": "https://www.skylinewebcams.com/en/webcam/iran.html",
-   "label": "SkylineWebcams - Iran live cams portal",
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN",
-   "http": 200
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Iraq",
-   "type": "iframe",
-   "url": "https://www.skylinewebcams.com/en/webcam/iraq/karbala-governorate/karbala/holy-shrines-of-imam-hussain-and-abbas.html",
-   "label": "SkylineWebcams - Karbala holy shrines live cam",
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN",
-   "http": 200
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Iraq",
-   "type": "iframe",
-   "url": "https://www.skylinewebcams.com/en/webcam/iraq.html",
-   "label": "SkylineWebcams - Iraq live cams portal",
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN",
-   "http": 200
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Ethiopia",
-   "type": "youtube",
-   "id": "UC_addis22",
-   "label": "AddisAbaba Live Webcam channel (@addis22)",
-   "reason": "malformed youtube id"
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Pakistan",
-   "type": "iframe",
-   "url": "https://www.skylinewebcams.com/en/webcam/pakistan/islamabad-capital-territory/islamabad/islamabad.html",
-   "label": "Islamabad panorama - SkylineWebcams (Blue Area)",
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN",
-   "http": 200
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Pakistan",
-   "type": "iframe",
-   "url": "https://worldcam.eu/webcams/asia/pakistan",
-   "label": "Pakistan live webcams portal (cities/weather)",
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN",
-   "http": 200
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Taiwan",
-   "type": "youtube",
-   "id": "JLEmtG9heG0",
-   "label": "Taipei City Official Live Camera",
-   "reason": "embedding disabled (oEmbed 401)",
-   "http": 401
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Taiwan",
-   "type": "iframe",
-   "url": "https://tw.live/en/",
-   "label": "Taiwan Live Travel Cams Portal",
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN",
-   "http": 200
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "South Korea",
-   "type": "youtube",
-   "id": "eiTmW0ArFtM",
-   "label": "Seoul Banpo Bridge Live Cam 4K — River View",
-   "reason": "oEmbed 403, watch page LOGIN_REQUIRED \"Private video\"",
-   "http": 403
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "South Korea",
-   "type": "youtube",
-   "id": "-LTboWlCA18",
-   "label": "Seoul Han River 4K LIVE — Banpo Park",
-   "reason": "oEmbed 403, watch page LOGIN_REQUIRED \"Private video\"",
-   "http": 403
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Azerbaijan",
-   "type": "iframe",
-   "url": "https://www.skylinewebcams.com/en/webcam/azerbaijan/absheron-district/baku/panorama.html",
-   "label": "Baku Panorama Live Cam (SkylineWebcams)",
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN",
-   "http": 200
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Azerbaijan",
-   "type": "iframe",
-   "url": "https://www.webcamtaxi.com/en/azerbaijan/baku-region/jeyhun-salimov-street-cam.html",
-   "label": "Jeyhun Salimov Street Cam, Baku",
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN",
-   "http": 403
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Turkey",
-   "type": "iframe",
-   "url": "https://earthlive24.com/camera/cam_010",
-   "label": "Istanbul Bosphorus Live (EarthLive24)",
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN, SAMEORIGIN",
-   "http": 200
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "United States",
-   "type": "youtube",
-   "id": "W7oKAL1E8uU",
-   "label": "Venice Beach Boardwalk LIVE 24/7",
-   "reason": "oEmbed 403, watch page LOGIN_REQUIRED \"Private video\"",
-   "http": 403
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "France",
-   "type": "iframe",
-   "url": "https://www.skylinewebcams.com/en/webcam/france/ile-de-france/paris/tour-eiffel.html",
-   "label": "Eiffel Tower live cam (SkylineWebcams)",
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN",
-   "http": 200
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Germany",
-   "type": "youtube",
-   "id": "rV0QpaPYzl8",
-   "label": "Brandenburg Gate live cam (earthTV)",
-   "reason": "embedding disabled (oEmbed 401)",
-   "http": 401
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Germany",
-   "type": "iframe",
-   "url": "https://www.skylinewebcams.com/en/webcam/deutschland/north-rhine-westphalia/cologne/cathedral.html",
-   "label": "Cologne Cathedral live cam (SkylineWebcams)",
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN",
-   "http": 200
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Japan",
-   "type": "youtube",
-   "id": "tujkoXI8rWM",
-   "label": "Shibuya Scramble Crossing Live Cam (ANN/TV Asahi)",
-   "reason": "oEmbed 403, watch page LOGIN_REQUIRED \"Private video\"",
-   "http": 403
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Japan",
-   "type": "iframe",
-   "url": "https://www.skylinewebcams.com/en/webcam/japan/kanto/tokyo/tokyo-shibuya-scramble-crossing.html",
-   "label": "SkylineWebcams - Shibuya Scramble Crossing",
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN",
-   "http": 200
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Australia",
-   "type": "iframe",
-   "url": "https://www.skylinewebcams.com/en/webcam/australia/victoria/melbourne/panorama-of-melbourne.html",
-   "label": "SkylineWebcams - Panorama of Melbourne",
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN",
-   "http": 200
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Australia",
-   "type": "iframe",
-   "url": "https://www.skylinewebcams.com/en/webcam/australia/new-south-wales/sydney/sydney.html",
-   "label": "SkylineWebcams - Sydney",
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN",
-   "http": 200
-  },
-  {
-   "source": "RAW_FOOTAGE",
-   "country": "Ukraine",
-   "type": "youtube",
-   "id": "3vXk5i_CHH4",
-   "label": "This Is What Kyiv Looks Like Today | 4K Documentary",
-   "reason": "embedding disabled (oEmbed 401)",
-   "http": 401
-  },
-  {
-   "source": "RAW_FOOTAGE",
-   "country": "Palestinian Territories",
-   "type": "youtube",
-   "id": "rgD4CjE7qIs",
-   "label": "Gaza Market Tour - life amidst ruins | 4K HDR 60fps",
+   "id": "_geC9ZollaQ",
+   "label": "This is Modern Russia NOW | Moscow City 4K HDR Walking Tour",
    "reason": "removed or private (oEmbed 404)",
    "http": 404
-  },
-  {
-   "source": "RAW_FOOTAGE",
-   "country": "Palestinian Territories",
-   "type": "youtube",
-   "id": "lI5FPstdLvI",
-   "label": "Gaza City Walking Tour - 4K HDR 60fps",
-   "reason": "removed or private (oEmbed 404)",
-   "http": 404
-  },
-  {
-   "source": "RAW_FOOTAGE",
-   "country": "Iran",
-   "type": "youtube",
-   "id": "hB5JPu-POV4",
-   "label": "Tehran 2026 walking tour - Tajrish Bazaar, markets & street food after the war 4K",
-   "reason": "removed or private (oEmbed 404)",
-   "http": 404
-  },
-  {
-   "source": "RAW_FOOTAGE",
-   "country": "Haiti",
-   "type": "youtube",
-   "id": "pfkIkHdxOtw",
-   "label": "Pétion-Ville Street Market on a $10 budget",
-   "reason": "embedding disabled (oEmbed 401)",
-   "http": 401
-  },
-  {
-   "source": "RAW_FOOTAGE",
-   "country": "Azerbaijan",
-   "type": "youtube",
-   "id": "FJYIkjMpv98",
-   "label": "Spring Walking Tour in Baku / Novruz 4K",
-   "reason": "embedding disabled (oEmbed 401)",
-   "http": 401
-  },
-  {
-   "source": "RAW_FOOTAGE",
-   "country": "Germany",
-   "type": "youtube",
-   "id": "VZ-ELau0dK4",
-   "label": "Berlin 2025 4K walking tour, sunny downtown",
-   "reason": "oEmbed 403, watch page LOGIN_REQUIRED \"Private video\"",
-   "http": 403
-  },
-  {
-   "source": "RAW_FOOTAGE",
-   "country": "Japan",
-   "type": "youtube",
-   "id": "tKwFM86zs1k",
-   "label": "Tokyo Asakusa Evening Walking Tour | Summer 2026 4K HDR",
-   "reason": "embedding disabled (oEmbed 401)",
-   "http": 401
-  },
-  {
-   "source": "RAW_FOOTAGE",
-   "country": "Japan",
-   "type": "youtube",
-   "id": "x8lRB2KzHrM",
-   "label": "Shinjuku City Walking Tour at Dusk | Spring 2026 4K",
-   "reason": "embedding disabled (oEmbed 401)",
-   "http": 401
-  },
-  {
-   "source": "RAW_FOOTAGE",
-   "country": "Japan",
-   "type": "youtube",
-   "id": "227L7cFOtyc",
-   "label": "Tokyo Asakusa Evening Walking Tour | Winter 2026 4K HDR",
-   "reason": "embedding disabled (oEmbed 401)",
-   "http": 401
   }
  ],
  "results": [
@@ -2143,35 +1920,12 @@
    "source": "CAM_SOURCES",
    "country": "Ukraine",
    "type": "youtube",
-   "id": "aD7IIezTPb4",
-   "label": "Ukraine Live Camera 24/7 (Kyiv, Kharkiv, Odesa)",
-   "status": "dead",
-   "http": 404,
-   "kind": "video",
-   "reason": "removed or private (oEmbed 404)"
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Ukraine",
-   "type": "youtube",
    "id": "BIecBekaeuE",
    "label": "Kyiv skyline live view",
    "status": "alive",
    "http": 200,
    "title": "WATCH LIVE: View of the Kyiv skyline, Ukraine",
    "kind": "video"
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Ukraine",
-   "type": "iframe",
-   "url": "https://www.skylinewebcams.com/en/webcam/ukraine/kyiv-city-council/kyiv/panorama.html",
-   "label": "SkylineWebcams Kyiv panorama",
-   "status": "dead",
-   "http": 200,
-   "xfo": "SAMEORIGIN",
-   "frameAncestors": null,
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN"
   },
   {
    "source": "CAM_SOURCES",
@@ -2194,18 +1948,6 @@
    "http": 200,
    "title": "🕹 LIVE CAMERA Russia Saint Petersburg interactive PTZ control real sound Moscow time online",
    "kind": "video"
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Russia",
-   "type": "iframe",
-   "url": "https://www.skylinewebcams.com/en/webcam/russia/central-federal-district/moscow/panorama.html",
-   "label": "SkylineWebcams Moscow panorama",
-   "status": "dead",
-   "http": 200,
-   "xfo": "SAMEORIGIN",
-   "frameAncestors": null,
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN"
   },
   {
    "source": "CAM_SOURCES",
@@ -2239,53 +1981,6 @@
    "http": 200,
    "title": "Tel Aviv Live - Tel Aviv Skyline Cam",
    "kind": "video"
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Israel",
-   "type": "youtube",
-   "id": "wyMx0d7q0mo",
-   "label": "SkylineWebcams - Western Wall Real-Time Cam",
-   "status": "dead",
-   "http": 401,
-   "kind": "video",
-   "reason": "embedding disabled (oEmbed 401)"
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Israel",
-   "type": "iframe",
-   "url": "https://www.skylinewebcams.com/en/webcam/israel/tel-aviv/tel-aviv/tel-aviv.html",
-   "label": "SkylineWebcams - Tel Aviv Marina & Gordon Beach",
-   "status": "dead",
-   "http": 200,
-   "xfo": "SAMEORIGIN",
-   "frameAncestors": null,
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN"
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Palestinian Territories",
-   "type": "iframe",
-   "url": "https://www.skylinewebcams.com/en/webcam/palestine/gaza/gaza/gaza.html",
-   "label": "SkylineWebcams - Gaza skyline & Mediterranean coast",
-   "status": "dead",
-   "http": 200,
-   "xfo": "SAMEORIGIN",
-   "frameAncestors": null,
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN"
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Palestinian Territories",
-   "type": "iframe",
-   "url": "https://www.webcamtaxi.com/en/palestine.html",
-   "label": "WebcamTaxi - Palestine live cams (Bethlehem, Nablus, Hebron)",
-   "status": "dead",
-   "http": 403,
-   "xfo": "SAMEORIGIN",
-   "frameAncestors": null,
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN"
   },
   {
    "source": "CAM_SOURCES",
@@ -2330,18 +2025,6 @@
    "http": 200,
    "title": "LIVE: View from Damascus, Syria",
    "kind": "video"
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Lebanon",
-   "type": "iframe",
-   "url": "https://www.skylinewebcams.com/en/webcam/lebanon/beirut/beirut/beirut.html",
-   "label": "Beirut Panorama - SkylineWebcams",
-   "status": "dead",
-   "http": 200,
-   "xfo": "SAMEORIGIN",
-   "frameAncestors": null,
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN"
   },
   {
    "source": "CAM_SOURCES",
@@ -2400,18 +2083,6 @@
   },
   {
    "source": "CAM_SOURCES",
-   "country": "Iran",
-   "type": "iframe",
-   "url": "https://www.skylinewebcams.com/en/webcam/iran.html",
-   "label": "SkylineWebcams - Iran live cams portal",
-   "status": "dead",
-   "http": 200,
-   "xfo": "SAMEORIGIN",
-   "frameAncestors": null,
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN"
-  },
-  {
-   "source": "CAM_SOURCES",
    "country": "Iraq",
    "type": "youtube",
    "id": "yI8cSpcQeM0",
@@ -2423,30 +2094,6 @@
   },
   {
    "source": "CAM_SOURCES",
-   "country": "Iraq",
-   "type": "iframe",
-   "url": "https://www.skylinewebcams.com/en/webcam/iraq/karbala-governorate/karbala/holy-shrines-of-imam-hussain-and-abbas.html",
-   "label": "SkylineWebcams - Karbala holy shrines live cam",
-   "status": "dead",
-   "http": 200,
-   "xfo": "SAMEORIGIN",
-   "frameAncestors": null,
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN"
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Iraq",
-   "type": "iframe",
-   "url": "https://www.skylinewebcams.com/en/webcam/iraq.html",
-   "label": "SkylineWebcams - Iraq live cams portal",
-   "status": "dead",
-   "http": 200,
-   "xfo": "SAMEORIGIN",
-   "frameAncestors": null,
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN"
-  },
-  {
-   "source": "CAM_SOURCES",
    "country": "Ethiopia",
    "type": "youtube",
    "id": "phgndoqNNOY",
@@ -2455,15 +2102,6 @@
    "http": 200,
    "title": "Soft Piano Music  Churchil road, Addis ababa, ETHIOPIA 24Hr",
    "kind": "video"
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Ethiopia",
-   "type": "youtube",
-   "id": "UC_addis22",
-   "label": "AddisAbaba Live Webcam channel (@addis22)",
-   "status": "dead",
-   "reason": "malformed youtube id"
   },
   {
    "source": "CAM_SOURCES",
@@ -2491,34 +2129,11 @@
    "type": "iframe",
    "url": "https://city-webcams.com/live?streaming=myanmar-v&webcam=Yangon&l=en",
    "label": "Yangon live city webcam (aggregator)",
-   "status": "alive",
-   "http": 200,
+   "status": "unknown",
+   "http": 503,
    "xfo": null,
-   "frameAncestors": null
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Pakistan",
-   "type": "iframe",
-   "url": "https://www.skylinewebcams.com/en/webcam/pakistan/islamabad-capital-territory/islamabad/islamabad.html",
-   "label": "Islamabad panorama - SkylineWebcams (Blue Area)",
-   "status": "dead",
-   "http": 200,
-   "xfo": "SAMEORIGIN",
    "frameAncestors": null,
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN"
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Pakistan",
-   "type": "iframe",
-   "url": "https://worldcam.eu/webcams/asia/pakistan",
-   "label": "Pakistan live webcams portal (cities/weather)",
-   "status": "dead",
-   "http": 200,
-   "xfo": "SAMEORIGIN",
-   "frameAncestors": null,
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN"
+   "reason": "HTTP 503"
   },
   {
    "source": "CAM_SOURCES",
@@ -2534,17 +2149,6 @@
   {
    "source": "CAM_SOURCES",
    "country": "Taiwan",
-   "type": "youtube",
-   "id": "JLEmtG9heG0",
-   "label": "Taipei City Official Live Camera",
-   "status": "dead",
-   "http": 401,
-   "kind": "video",
-   "reason": "embedding disabled (oEmbed 401)"
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Taiwan",
    "type": "iframe",
    "url": "https://worldcams.tv/china/taiwan/kaohsiung-city-views",
    "label": "Kaohsiung City Views Live Cam",
@@ -2552,18 +2156,6 @@
    "http": 200,
    "xfo": null,
    "frameAncestors": null
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Taiwan",
-   "type": "iframe",
-   "url": "https://tw.live/en/",
-   "label": "Taiwan Live Travel Cams Portal",
-   "status": "dead",
-   "http": 200,
-   "xfo": "SAMEORIGIN",
-   "frameAncestors": null,
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN"
   },
   {
    "source": "CAM_SOURCES",
@@ -2580,32 +2172,10 @@
    "source": "CAM_SOURCES",
    "country": "South Korea",
    "type": "youtube",
-   "id": "eiTmW0ArFtM",
-   "label": "Seoul Banpo Bridge Live Cam 4K — River View",
-   "status": "dead",
-   "http": 403,
-   "kind": "video",
-   "reason": "oEmbed 403, watch page LOGIN_REQUIRED \"Private video\""
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "South Korea",
-   "type": "youtube",
    "id": "UCQKQTgZJo3PlxA-9V1Z51XA",
    "label": "Daily Seoul Live Camera — Hangang",
    "status": "unchecked",
    "reason": "channel (not checked)"
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "South Korea",
-   "type": "youtube",
-   "id": "-LTboWlCA18",
-   "label": "Seoul Han River 4K LIVE — Banpo Park",
-   "status": "dead",
-   "http": 403,
-   "kind": "video",
-   "reason": "oEmbed 403, watch page LOGIN_REQUIRED \"Private video\""
   },
   {
    "source": "CAM_SOURCES",
@@ -2664,30 +2234,6 @@
   },
   {
    "source": "CAM_SOURCES",
-   "country": "Azerbaijan",
-   "type": "iframe",
-   "url": "https://www.skylinewebcams.com/en/webcam/azerbaijan/absheron-district/baku/panorama.html",
-   "label": "Baku Panorama Live Cam (SkylineWebcams)",
-   "status": "dead",
-   "http": 200,
-   "xfo": "SAMEORIGIN",
-   "frameAncestors": null,
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN"
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Azerbaijan",
-   "type": "iframe",
-   "url": "https://www.webcamtaxi.com/en/azerbaijan/baku-region/jeyhun-salimov-street-cam.html",
-   "label": "Jeyhun Salimov Street Cam, Baku",
-   "status": "dead",
-   "http": 403,
-   "xfo": "SAMEORIGIN",
-   "frameAncestors": null,
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN"
-  },
-  {
-   "source": "CAM_SOURCES",
    "country": "Turkey",
    "type": "youtube",
    "id": "qXRYokWh3rU",
@@ -2704,7 +2250,8 @@
    "url": "https://livestream.ibb.gov.tr/ibb_live/taksimhq.stream/playlist.m3u8",
    "label": "Taksim Square Live (İBB)",
    "status": "unknown",
-   "reason": "network: UNABLE_TO_VERIFY_LEAF_SIGNATURE"
+   "http": 503,
+   "reason": "HTTP 503"
   },
   {
    "source": "CAM_SOURCES",
@@ -2713,7 +2260,8 @@
    "url": "https://livestream.ibb.gov.tr/ibb_live/galatahq.stream/playlist.m3u8",
    "label": "Galata Tower Live (İBB)",
    "status": "unknown",
-   "reason": "network: UNABLE_TO_VERIFY_LEAF_SIGNATURE"
+   "http": 503,
+   "reason": "HTTP 503"
   },
   {
    "source": "CAM_SOURCES",
@@ -2722,7 +2270,8 @@
    "url": "https://livestream.ibb.gov.tr/ibb_live/sultanahmet2hq.stream/playlist.m3u8",
    "label": "Sultanahmet Live (İBB)",
    "status": "unknown",
-   "reason": "network: UNABLE_TO_VERIFY_LEAF_SIGNATURE"
+   "http": 503,
+   "reason": "HTTP 503"
   },
   {
    "source": "CAM_SOURCES",
@@ -2731,19 +2280,8 @@
    "url": "https://livestream.ibb.gov.tr/ibb_live/istiklalcadhq.stream/playlist.m3u8",
    "label": "İstiklal Caddesi Live (İBB)",
    "status": "unknown",
-   "reason": "network: UNABLE_TO_VERIFY_LEAF_SIGNATURE"
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Turkey",
-   "type": "iframe",
-   "url": "https://earthlive24.com/camera/cam_010",
-   "label": "Istanbul Bosphorus Live (EarthLive24)",
-   "status": "dead",
-   "http": 200,
-   "xfo": "SAMEORIGIN, SAMEORIGIN",
-   "frameAncestors": null,
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN, SAMEORIGIN"
+   "http": 503,
+   "reason": "HTTP 503"
   },
   {
    "source": "CAM_SOURCES",
@@ -2777,17 +2315,6 @@
    "http": 200,
    "title": "EarthCam Live:  Times Square North 4K",
    "kind": "video"
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "United States",
-   "type": "youtube",
-   "id": "W7oKAL1E8uU",
-   "label": "Venice Beach Boardwalk LIVE 24/7",
-   "status": "dead",
-   "http": 403,
-   "kind": "video",
-   "reason": "oEmbed 403, watch page LOGIN_REQUIRED \"Private video\""
   },
   {
    "source": "CAM_SOURCES",
@@ -2868,18 +2395,6 @@
    "source": "CAM_SOURCES",
    "country": "France",
    "type": "iframe",
-   "url": "https://www.skylinewebcams.com/en/webcam/france/ile-de-france/paris/tour-eiffel.html",
-   "label": "Eiffel Tower live cam (SkylineWebcams)",
-   "status": "dead",
-   "http": 200,
-   "xfo": "SAMEORIGIN",
-   "frameAncestors": null,
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN"
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "France",
-   "type": "iframe",
    "url": "https://www.earthtv.com/en/webcam/paris-eiffel-tower",
    "label": "Paris Eiffel Tower / Peninsula rooftop cam (earthTV)",
    "status": "alive",
@@ -2902,46 +2417,12 @@
    "source": "CAM_SOURCES",
    "country": "Germany",
    "type": "youtube",
-   "id": "rV0QpaPYzl8",
-   "label": "Brandenburg Gate live cam (earthTV)",
-   "status": "dead",
-   "http": 401,
-   "kind": "video",
-   "reason": "embedding disabled (oEmbed 401)"
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Germany",
-   "type": "youtube",
    "id": "Li3Dvqlo5uE",
    "label": "Destination Deutschland - 24/7 Germany webcams",
    "status": "alive",
    "http": 200,
    "title": "🔴 Destination Deutschland – 24/7 LIVE Stream Webcams Germany",
    "kind": "video"
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Germany",
-   "type": "iframe",
-   "url": "https://www.skylinewebcams.com/en/webcam/deutschland/north-rhine-westphalia/cologne/cathedral.html",
-   "label": "Cologne Cathedral live cam (SkylineWebcams)",
-   "status": "dead",
-   "http": 200,
-   "xfo": "SAMEORIGIN",
-   "frameAncestors": null,
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN"
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Japan",
-   "type": "youtube",
-   "id": "tujkoXI8rWM",
-   "label": "Shibuya Scramble Crossing Live Cam (ANN/TV Asahi)",
-   "status": "dead",
-   "http": 403,
-   "kind": "video",
-   "reason": "oEmbed 403, watch page LOGIN_REQUIRED \"Private video\""
   },
   {
    "source": "CAM_SOURCES",
@@ -2978,18 +2459,6 @@
   },
   {
    "source": "CAM_SOURCES",
-   "country": "Japan",
-   "type": "iframe",
-   "url": "https://www.skylinewebcams.com/en/webcam/japan/kanto/tokyo/tokyo-shibuya-scramble-crossing.html",
-   "label": "SkylineWebcams - Shibuya Scramble Crossing",
-   "status": "dead",
-   "http": 200,
-   "xfo": "SAMEORIGIN",
-   "frameAncestors": null,
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN"
-  },
-  {
-   "source": "CAM_SOURCES",
    "country": "Australia",
    "type": "youtube",
    "id": "Fy8_xLMkAXc",
@@ -3020,41 +2489,6 @@
    "http": 200,
    "title": "People Watching Beach Cam 🏖️ Live Action Surfers Paradise - Gold Coast Australia",
    "kind": "video"
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Australia",
-   "type": "iframe",
-   "url": "https://www.skylinewebcams.com/en/webcam/australia/victoria/melbourne/panorama-of-melbourne.html",
-   "label": "SkylineWebcams - Panorama of Melbourne",
-   "status": "dead",
-   "http": 200,
-   "xfo": "SAMEORIGIN",
-   "frameAncestors": null,
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN"
-  },
-  {
-   "source": "CAM_SOURCES",
-   "country": "Australia",
-   "type": "iframe",
-   "url": "https://www.skylinewebcams.com/en/webcam/australia/new-south-wales/sydney/sydney.html",
-   "label": "SkylineWebcams - Sydney",
-   "status": "dead",
-   "http": 200,
-   "xfo": "SAMEORIGIN",
-   "frameAncestors": null,
-   "reason": "unframeable: X-Frame-Options SAMEORIGIN"
-  },
-  {
-   "source": "RAW_FOOTAGE",
-   "country": "Ukraine",
-   "type": "youtube",
-   "id": "3vXk5i_CHH4",
-   "label": "This Is What Kyiv Looks Like Today | 4K Documentary",
-   "status": "dead",
-   "http": 401,
-   "kind": "video",
-   "reason": "embedding disabled (oEmbed 401)"
   },
   {
    "source": "RAW_FOOTAGE",
@@ -3150,10 +2584,10 @@
    "type": "youtube",
    "id": "_geC9ZollaQ",
    "label": "This is Modern Russia NOW | Moscow City 4K HDR Walking Tour",
-   "status": "alive",
-   "http": 200,
-   "title": "🔥 This is Modern Russia NOW | Moscow City 4K HDR Complete Walking Tour",
-   "kind": "video"
+   "status": "dead",
+   "http": 404,
+   "kind": "video",
+   "reason": "removed or private (oEmbed 404)"
   },
   {
    "source": "RAW_FOOTAGE",
@@ -3220,28 +2654,6 @@
    "http": 200,
    "title": "TEL AVIV 2026: The Reality of Life in Israel. Promenade Walking Tour 🇮🇱 4K",
    "kind": "video"
-  },
-  {
-   "source": "RAW_FOOTAGE",
-   "country": "Palestinian Territories",
-   "type": "youtube",
-   "id": "rgD4CjE7qIs",
-   "label": "Gaza Market Tour - life amidst ruins | 4K HDR 60fps",
-   "status": "dead",
-   "http": 404,
-   "kind": "video",
-   "reason": "removed or private (oEmbed 404)"
-  },
-  {
-   "source": "RAW_FOOTAGE",
-   "country": "Palestinian Territories",
-   "type": "youtube",
-   "id": "lI5FPstdLvI",
-   "label": "Gaza City Walking Tour - 4K HDR 60fps",
-   "status": "dead",
-   "http": 404,
-   "kind": "video",
-   "reason": "removed or private (oEmbed 404)"
   },
   {
    "source": "RAW_FOOTAGE",
@@ -3451,17 +2863,6 @@
    "http": 200,
    "title": "🇮🇷 Tehran, Iran During the War 2026 (4K Walking Tour) | Tajrish Bazaar, Markets & Street Food",
    "kind": "video"
-  },
-  {
-   "source": "RAW_FOOTAGE",
-   "country": "Iran",
-   "type": "youtube",
-   "id": "hB5JPu-POV4",
-   "label": "Tehran 2026 walking tour - Tajrish Bazaar, markets & street food after the war 4K",
-   "status": "dead",
-   "http": 404,
-   "kind": "video",
-   "reason": "removed or private (oEmbed 404)"
   },
   {
    "source": "RAW_FOOTAGE",
@@ -3874,17 +3275,6 @@
    "source": "RAW_FOOTAGE",
    "country": "Haiti",
    "type": "youtube",
-   "id": "pfkIkHdxOtw",
-   "label": "Pétion-Ville Street Market on a $10 budget",
-   "status": "dead",
-   "http": 401,
-   "kind": "video",
-   "reason": "embedding disabled (oEmbed 401)"
-  },
-  {
-   "source": "RAW_FOOTAGE",
-   "country": "Haiti",
-   "type": "youtube",
    "id": "tRyDtOYKu0Y",
    "label": "Port-au-Prince Street Tour — Walking the Real Haiti",
    "status": "alive",
@@ -4292,17 +3682,6 @@
    "source": "RAW_FOOTAGE",
    "country": "Azerbaijan",
    "type": "youtube",
-   "id": "FJYIkjMpv98",
-   "label": "Spring Walking Tour in Baku / Novruz 4K",
-   "status": "dead",
-   "http": 401,
-   "kind": "video",
-   "reason": "embedding disabled (oEmbed 401)"
-  },
-  {
-   "source": "RAW_FOOTAGE",
-   "country": "Azerbaijan",
-   "type": "youtube",
    "id": "hnqcvqllJHc",
    "label": "Baku City Life — Downtown Walking Tour 4K",
    "status": "alive",
@@ -4611,17 +3990,6 @@
    "source": "RAW_FOOTAGE",
    "country": "Germany",
    "type": "youtube",
-   "id": "VZ-ELau0dK4",
-   "label": "Berlin 2025 4K walking tour, sunny downtown",
-   "status": "dead",
-   "http": 403,
-   "kind": "video",
-   "reason": "oEmbed 403, watch page LOGIN_REQUIRED \"Private video\""
-  },
-  {
-   "source": "RAW_FOOTAGE",
-   "country": "Germany",
-   "type": "youtube",
    "id": "VHJI4ssBYG8",
    "label": "Munich 4K downtown & Marienplatz walking tour",
    "status": "alive",
@@ -4644,17 +4012,6 @@
    "source": "RAW_FOOTAGE",
    "country": "Japan",
    "type": "youtube",
-   "id": "tKwFM86zs1k",
-   "label": "Tokyo Asakusa Evening Walking Tour | Summer 2026 4K HDR",
-   "status": "dead",
-   "http": 401,
-   "kind": "video",
-   "reason": "embedding disabled (oEmbed 401)"
-  },
-  {
-   "source": "RAW_FOOTAGE",
-   "country": "Japan",
-   "type": "youtube",
    "id": "hK8Z3O6Bif0",
    "label": "Tokyo Nakano Walking Tour 4K HDR",
    "status": "alive",
@@ -4666,34 +4023,12 @@
    "source": "RAW_FOOTAGE",
    "country": "Japan",
    "type": "youtube",
-   "id": "x8lRB2KzHrM",
-   "label": "Shinjuku City Walking Tour at Dusk | Spring 2026 4K",
-   "status": "dead",
-   "http": 401,
-   "kind": "video",
-   "reason": "embedding disabled (oEmbed 401)"
-  },
-  {
-   "source": "RAW_FOOTAGE",
-   "country": "Japan",
-   "type": "youtube",
    "id": "Pm7yauSYmRw",
    "label": "Tokyo 2026 4K Ultra HD Drone Footage",
    "status": "alive",
    "http": 200,
    "title": "Tokyo, Japan 🇯🇵 2026 4K ULTRA HD | Drone Footage",
    "kind": "video"
-  },
-  {
-   "source": "RAW_FOOTAGE",
-   "country": "Japan",
-   "type": "youtube",
-   "id": "227L7cFOtyc",
-   "label": "Tokyo Asakusa Evening Walking Tour | Winter 2026 4K HDR",
-   "status": "dead",
-   "http": 401,
-   "kind": "video",
-   "reason": "embedding disabled (oEmbed 401)"
   },
   {
    "source": "RAW_FOOTAGE",
@@ -6013,7 +5348,7 @@
    "kind": "video",
    "status": "alive",
    "http": 200,
-   "title": "🔴 LIVE SHANGHAI 4K【上海即時影像】東方明珠 24/7 直播｜黃浦江與外白渡橋全景・即時天氣資訊｜Shanghai Skyline Live Cam"
+   "title": "🔴 LIVE SHANGHAI【上海即時影像】東方明珠 24/7 直播｜黃浦江與外白渡橋全景・即時天氣資訊｜Shanghai Skyline Live Cam"
   },
   {
    "source": "LIFE_JSON",
@@ -6545,17 +5880,6 @@
   },
   {
    "source": "LIFE_JSON",
-   "country": "Ghana",
-   "type": "youtube",
-   "id": "WUAuTWNNkWg",
-   "label": "life in my 20s living in Ghana , get back into routine with me",
-   "kind": "video",
-   "status": "alive",
-   "http": 200,
-   "title": "life in my 20s living in Ghana , get back into routine with me 🌱 "
-  },
-  {
-   "source": "LIFE_JSON",
    "country": "Greece",
    "type": "youtube",
    "id": "MBfo2GhCk0Y",
@@ -6717,7 +6041,7 @@
    "kind": "video",
    "status": "alive",
    "http": 200,
-   "title": "How's Life in South Mumbai After 5PM 🇮🇳, Walk Through India's Most Populous Megacity [4K]"
+   "title": "How's Life in MUMBAI After 5PM 🇮🇳, Walk Through India's Most Populous Megacity [4K]"
   },
   {
    "source": "LIFE_JSON",
@@ -7130,17 +6454,6 @@
    "source": "LIFE_JSON",
    "country": "Italy",
    "type": "youtube",
-   "id": "Kmf_wiTFuXY",
-   "label": "4k Venice Italy Live Cam - Rialto Bridge Live Streaming",
-   "kind": "video",
-   "status": "alive",
-   "http": 200,
-   "title": "🔴 4k Venice Italy Live Cam - Rialto Bridge Live Streaming from Palazzo Bembo - Live Webcam - ライブカメラ"
-  },
-  {
-   "source": "LIFE_JSON",
-   "country": "Italy",
-   "type": "youtube",
    "id": "OeAru94E1jI",
    "label": "What My Life in Southern Italy is Like | A Day in Dasà",
    "kind": "video",
@@ -7256,7 +6569,7 @@
    "kind": "video",
    "status": "alive",
    "http": 200,
-   "title": "AMMAN, Jordan 🇯🇴 Downtown Summer Midnight Tour (No Music)"
+   "title": "AMMAN, Jordan 🇯🇴 2026 Downtown Summer Midnight Tour (No Music)"
   },
   {
    "source": "LIFE_JSON",
@@ -8208,17 +7521,6 @@
    "source": "LIFE_JSON",
    "country": "Norway",
    "type": "youtube",
-   "id": "ES9-xYLN2i0",
-   "label": "OSLO: -20°C STREET WALK",
-   "kind": "video",
-   "status": "alive",
-   "http": 200,
-   "title": "OSLO: -20°C STREET WALK 🥶"
-  },
-  {
-   "source": "LIFE_JSON",
-   "country": "Norway",
-   "type": "youtube",
    "id": "jgNeXBzHvJk",
    "label": "Oslo, Norway Walking Tour - 4K Downtown tour｜Jul 2025",
    "kind": "video",
@@ -8698,17 +8000,6 @@
    "status": "alive",
    "http": 200,
    "title": "Moscow 4K Walking Tour | City Center, Red Square & Zaryadye Park"
-  },
-  {
-   "source": "LIFE_JSON",
-   "country": "Russia",
-   "type": "youtube",
-   "id": "H-ACTPS1rf8",
-   "label": "Moscow Live: The Ultimate 24/7 Study & Chill Stream",
-   "kind": "video",
-   "status": "alive",
-   "http": 200,
-   "title": "Moscow Live: The Ultimate 24/7 Study & Chill Stream"
   },
   {
    "source": "LIFE_JSON",
@@ -9258,7 +8549,7 @@
    "kind": "video",
    "status": "alive",
    "http": 200,
-   "title": "What Life Is Actually Like in Damascus Today"
+   "title": "What Life Is Actually Like in Damascus Today | Keep The Meter Running"
   },
   {
    "source": "LIFE_JSON",
