@@ -179,10 +179,11 @@ html,body{height:100%;background:var(--bg);background-image:var(--bg-radial);col
    Switching translates between them so the change reads as movement with a
    direction, and a horizontal drag can carry them under the finger. */
 #globe-reels-view,#globe-map-view{position:absolute;inset:0;display:flex;flex-direction:column;min-height:0;will-change:transform;transition:transform .34s cubic-bezier(.22,.61,.36,1)}
-#globe-reels-view{transform:translateX(-100%);pointer-events:none}
+/* The globe is the LEFT panel and the default; REELS waits to the right, as native. */
+#globe-reels-view{transform:translateX(100%);pointer-events:none}
 #globe-map-view{transform:translateX(0)}
 #screen-globe.reels-mode #globe-reels-view{transform:translateX(0);pointer-events:auto}
-#screen-globe.reels-mode #globe-map-view{transform:translateX(100%);pointer-events:none}
+#screen-globe.reels-mode #globe-map-view{transform:translateX(-100%);pointer-events:none}
 /* While a finger is down the transform follows it directly - a transition here
    would fight the drag and make it feel laggy. */
 #screen-globe.dragging #globe-reels-view,#screen-globe.dragging #globe-map-view{transition:none}
@@ -1162,7 +1163,7 @@ body.tab-void .bio-hud{display:flex}
 /* Plain text row, not a segmented pill: the filled gold chip read as a button
    rather than a tab. Active = white text on a 1px gold rule. */
 /* Profile tabs + the layout toggle; the 3-across tile grid (native ProfileScreen st.tile*) */
-.me-tabs .prof-layout-btn{margin-left:auto;background:none;border:none;padding:0 0 9px;color:var(--nav-dim);cursor:pointer;display:flex;align-items:center}
+.me-tabs .prof-layout-btn{margin-left:auto;background:none;border:none;padding:6px 8px;margin-bottom:3px;color:var(--nav-dim);cursor:pointer;display:flex;align-items:center;align-self:flex-start}
 .prof-layout-btn .vi{width:14px;height:14px}
 .prof-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:2px}
 .ptile{position:relative;aspect-ratio:1;overflow:hidden;border-radius:3px;border:1px solid var(--hairline);background:rgba(255,255,255,.03);cursor:pointer}
@@ -1372,8 +1373,8 @@ body.tab-void .bio-hud{display:flex}
   <!-- One tab, two views. The toggle floats above BOTH; the globe view below it
        is the user's original screen, untouched. -->
   <div class="gmode-toggle">
-    <button class="gmode on" data-mode="reels" onclick="setGlobeMode('reels',1)">REELS</button>
-    <button class="gmode" data-mode="globe" onclick="setGlobeMode('globe',1)">GLOBE</button>
+    <button class="gmode on" data-mode="globe" onclick="setGlobeMode('globe',1)">GLOBE</button>
+    <button class="gmode" data-mode="reels" onclick="setGlobeMode('reels',1)">REELS</button>
   </div>
   <div id="globe-reels-view">
     <div class="greel-sub">FOR YOU &middot; SEEDED BY YOUR SIGNALS</div>
@@ -8628,7 +8629,8 @@ function vwFill(n=5,any){
 // REELS is the default view of the GLOBE tab. The queue here is the general FOR
 // YOU ranking — deliberately NOT country-scoped and with no geo boost. Nation-
 // scoped reels exist only via globe -> tap nation -> tap media.
-let globeMode=localStorage.getItem('void_globe_mode')||'reels';
+// GLOBE is the default: the tab opens on the globe (native persist.ts says the same).
+let globeMode=localStorage.getItem('void_globe_mode')||'globe';
 function setGlobeMode(mode,announce){
   globeMode=mode==='globe'?'globe':'reels';
   localStorage.setItem('void_globe_mode',globeMode);
@@ -8737,8 +8739,8 @@ function fillGlobeReels(force){
 function setGlobeOffset(f){
   const r=document.getElementById('globe-reels-view'),m=document.getElementById('globe-map-view');
   if(!r||!m)return;
-  if(globeMode==='reels'){ r.style.transform='translateX('+(f*100)+'%)'; m.style.transform='translateX('+(100+f*100)+'%)'; }
-  else{ r.style.transform='translateX('+(-100+f*100)+'%)'; m.style.transform='translateX('+(f*100)+'%)'; }
+  if(globeMode==='reels'){ r.style.transform='translateX('+(f*100)+'%)'; m.style.transform='translateX('+(-100+f*100)+'%)'; }
+  else{ r.style.transform='translateX('+(100+f*100)+'%)'; m.style.transform='translateX('+(f*100)+'%)'; }
 }
 function clearGlobeOffset(){
   ['globe-reels-view','globe-map-view'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.transform='';});
@@ -8768,7 +8770,7 @@ function clearGlobeOffset(){
     if(!drag)return;
     e.preventDefault();
     // Only allow travel toward the other surface; the far edge has nothing behind it.
-    dx=globeMode==='reels'?Math.min(0,ddx):Math.max(0,ddx);
+    dx=globeMode==='reels'?Math.max(0,ddx):Math.min(0,ddx);   // toward the other surface: globe is left, reels right
     setGlobeOffset(dx/w);
   },{passive:false});
   const end=()=>{
