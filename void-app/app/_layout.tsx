@@ -5,6 +5,7 @@ import 'react-native-reanimated';
 import React, { useEffect, useState } from 'react';
 import { AppState, StyleSheet, View } from 'react-native';
 import { mark, startHeartbeat } from '../src/core/slow';
+import { bundledEarthPixelsAsync } from '../src/features/globe/textures';
 // Module evaluation time: the earliest moment JS can see. [boot] lines count from here.
 const BOOT_T0 = Date.now();
 
@@ -36,6 +37,24 @@ const BOOT_T0 = Date.now();
   });
 })();
 import { Stack } from 'expo-router';
+
+// THE NIGHT MAP IS DECODED AT BOOT, NOT AT SCENE BUILD.
+//
+// The earth texture is an 8MB blob inflated in small yielding slices on the JS
+// thread. Decoding it when the globe scene builds - which is also the moment
+// the wall is creating players and connecting streams - meant every slice
+// queued behind that storm, the decode crawled for minutes, and the user saw
+// the purple fallback "forever" (measured: zero [globe] texture logs in a whole
+// session). Warmed here, a few seconds after launch while the feed idles, the
+// pixels are a cache hit by the time anyone opens the globe tab, and the sphere
+// is textured on its first frame. bundledEarthPixelsAsync is memoized, so the
+// scene's own call simply joins this one.
+function useWarmEarthTexture() {
+  useEffect(() => {
+    const t = setTimeout(() => { bundledEarthPixelsAsync().catch(() => {}); }, 2500);
+    return () => clearTimeout(t);
+  }, []);
+}
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
 import { StatusBar } from 'expo-status-bar';
@@ -174,6 +193,7 @@ function Shell() {
 }
 
 export default function RootLayout() {
+  useWarmEarthTexture();
   return (
     <ObserveRoot>
       <GestureHandlerRootView style={styles.fill}>

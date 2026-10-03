@@ -60,7 +60,12 @@ export function wallSlots(): WallSlot[] {
     taken.add(k); return true;
   };
   const per = ordered.map(n => {
-    const life = lifeMix([...(CAM_SOURCES[n] || []), ...(RAW_FOOTAGE[n] || []), ...lifeFor(n)].filter(usable), shuffle);
+    // NO YOUTUBE ON THE WALL - the web wall's rule, now native's too. A YouTube
+    // tile is a full Chromium WebView wearing YouTube chrome: the user has
+    // refused the look for weeks, and each one taxes the UI thread that the
+    // sparkles, the globe and every gesture run on. YouTube stays available to
+    // the nation cinema, which is its own surface with its own rules.
+    const life = lifeMix([...(CAM_SOURCES[n] || []), ...(RAW_FOOTAGE[n] || []), ...lifeFor(n)].filter(s => s && s.type !== 'youtube' && usable(s)), shuffle);
     // Fastest first by the POPULATION's median connect ms (400ms buckets), the
     // shuffle deciding inside each bucket - the wall leads with streams that
     // connect near-instantly for everyone while still varying every visit.
