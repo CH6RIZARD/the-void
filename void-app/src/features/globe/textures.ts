@@ -67,6 +67,14 @@ let bundledCache: Uint8Array | null = null;
  */
 const DECODE_SLICE = 64 * 1024;
 let bundledPromise: Promise<Uint8Array | null> | null = null;
+/** The warm path, synchronously: the boot-time warmup (app/_layout) filled the
+ *  cache long before anyone opened the globe tab, so the scene can build on the
+ *  REAL night map with zero fallback frames. null only on a cold sprint to the
+ *  tab within seconds of first launch - the async swap still covers that. */
+export function earthPixelsCached(): { px: Uint8Array; w: number; h: number } | null {
+  return bundledCache ? { px: bundledCache, w: EARTH_W, h: EARTH_H } : null;
+}
+
 export function bundledEarthPixelsAsync(): Promise<Uint8Array | null> {
   if (bundledCache) return Promise.resolve(bundledCache);
   if (bundledPromise) return bundledPromise;

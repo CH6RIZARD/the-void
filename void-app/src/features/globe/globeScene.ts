@@ -9,7 +9,7 @@
 //     (≈0.933 at the globe); modern range attenuation is emulated with decay=0 × 0.933.
 //   • On three < r155 the original numbers are used unchanged.
 import * as THREE from 'three';
-import { fallbackEarthTexture, loadEarthTexture, markerTexture } from './textures';
+import { earthPixelsCached, fallbackEarthTexture, loadEarthTexture, markerTexture } from './textures';
 import type { Country } from '../live/core';
 
 const REV = parseInt(String((THREE as any).REVISION), 10) || 0;
@@ -291,10 +291,31 @@ void main(){
     if (i >= 0) arr[i] = 1;
     a.needsUpdate = true;
   };
-  const fallback = fallbackEarthTexture();
-  buildGlobe(fallback);
+  // LOGICALLY IMPOSSIBLE TO OPEN UNTEXTURED when the boot warmup has run: if
+  // the decoded night map is already in cache (it is, within seconds of app
+  // launch), the globe is BORN on the real map - no fallback frame exists to
+  // see. The purple procedural ball can only appear on a cold sprint to this
+  // tab moments after a first install, and the async swap still rescues that.
+  const warm = earthPixelsCached();
+  let firstTex: THREE.Texture;
+  if (warm) {
+    const dt = new THREE.DataTexture(warm.px, warm.w, warm.h, THREE.RGBAFormat);
+    dt.colorSpace = THREE.LinearSRGBColorSpace;
+    dt.magFilter = THREE.LinearFilter;
+    dt.minFilter = THREE.LinearMipmapLinearFilter;
+    dt.wrapS = THREE.ClampToEdgeWrapping;
+    dt.wrapT = THREE.ClampToEdgeWrapping;
+    dt.generateMipmaps = true;
+    dt.needsUpdate = true;
+    firstTex = dt;
+    try { console.warn('[globe] born textured (warm cache)'); } catch {}
+  } else {
+    firstTex = fallbackEarthTexture();
+  }
+  const fallback = firstTex;
+  buildGlobe(firstTex);
   // On texture failure the globe simply keeps the fallback, like the web's onError.
-  loadEarthTexture(gl, renderer, rawPixelStorei)
+  if (!warm) loadEarthTexture(gl, renderer, rawPixelStorei)
     .then((tex) => {
       if (disposed) {
         try {
