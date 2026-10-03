@@ -120,6 +120,19 @@ export function GlobeCanvas({ running, onOpenCountry, refreshNonce = 0, gestureR
       retryGl();
     }
   }, []);
+  // THE FINGER IS READ ON THE UI THREAD: worklet handlers below accumulate
+  // gesture deltas into these shared values the instant the finger moves,
+  // whatever the JS thread is doing; the render loop consumes them each frame
+  // it gets. A stall can delay frames but can never lose or lag the gesture.
+  // (This block was once eaten by a careless cleanup regex - build 37156636570
+  // failed on exactly these names. Declarations live here, before every use.)
+  const accX = useSharedValue(0); // pending rotation delta (radians)
+  const accY = useSharedValue(0);
+  const accZoom = useSharedValue(0);
+  const velX = useSharedValue(0); // last per-event velocity, for release decay
+  const velY = useSharedValue(0);
+  const dragSV = useSharedValue(0);
+  const tg = useSharedValue({ px: 0, py: 0, sx: 0, sy: 0, st: 0, pinch: 0, tap: 0 });
   useEffect(() => {
     const s = scene.current;
     if (!sceneReady || !s || !running || !appActive) return;
