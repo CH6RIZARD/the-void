@@ -164,6 +164,7 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
     lastGood: new Map<number, StreamSource>(),
     healBusy: 0,
     scrollY: 0,
+    fingerDown: false,
     lanes: new Lanes(WALL_LANES),
     activeRef: active,
     asleepRef: false,
@@ -285,7 +286,11 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
 
   const onFirstSettled = useCallback(
     (rec: TileRec, res: CascadeResult) => {
-      if (res.ok) {
+      if (res.ok && rec.batch === 1) {
+        // Only the first screenful packs by connection order - that is the fill
+        // the user watches happen. Later batches arrive below the fold and keep
+        // their spawn slots: re-sorting them as they connected made content "sit
+        // randomly" and jump around under an active scroll.
         const o = w.wallConn++;
         setOrder((prev) => ({ ...prev, [rec.id]: o })); // connected tiles rise
       }
@@ -567,6 +572,9 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
     setPullArmed(e.nativeEvent.contentOffset.y <= ARM_SLOP && !refreshing);
   }, []);
   const onRefresh = useCallback(() => {
+    // An explicit refresh resets the heal budget: a leaked counter (a heal whose
+    // tile vanished mid-flight) must never make the button a no-op.
+    w.healBusy = 0;
     if (refreshing) return;
     setRefreshing(true);
     // REFRESH SWAPS CONTENT IN PLACE. IT DOES NOT BLANK THE WALL.
@@ -619,12 +627,12 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
       scrollActiveRef.current?.(true);
       if (sentinelNear()) loadBatchRef.current(WALL_BATCH);
       const now = Date.now();
-      // Placement walks every tile, sorts them and rebuilds two Sets. At 300ms
-      // that is three of those per second DURING a drag, on the thread the
-      // gesture is being handled on - which is felt as the scroll not following
-      // the finger. Twice a second is still well ahead of anything leaving the
-      // ring, and the pass on momentum-end catches up the moment it settles.
-      if (now - lastPlaceAt.current > 500) {
+      // Placement walks every tile, sorts them and rebuilds two Sets. Even at
+      // twice a second that work landed on the thread the gesture is handled
+      // on and was felt as the scroll not following the finger - so while the
+      // finger is DOWN nothing recomputes at all; EndDrag runs one pass the
+      // moment it lifts, and momentum-end catches the rest.
+      if (!w.fingerDown && now - lastPlaceAt.current > 500) {
         lastPlaceAt.current = now;
         recomputePlacement();
       }
@@ -661,8 +669,8 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
         setViewportH(e.nativeEvent.layout.height);
       }}
       onScroll={onScroll}
-      onScrollBeginDrag={onScrollBeginDrag}
-      onScrollEndDrag={() => scrollActiveRef.current?.(false)}
+      onScrollBeginDrag={(e) => { w.fingerDown = true; onScrollBeginDrag(e); }}
+      onScrollEndDrag={() => { w.fingerDown = false; lastPlaceAt.current = Date.now(); recomputePlacement(); scrollActiveRef.current?.(false); }}
       onMomentumScrollBegin={() => scrollActiveRef.current?.(true)}
       onMomentumScrollEnd={() => {
         scrollActiveRef.current?.(false);
@@ -877,10 +885,20 @@ const WallTile = memo(function WallTile({ rec, left, top, width, height, borderC
   // Memory guard: far-away YouTube/iframe tiles unmount, and reconnect (same source
   // first) once they come back within PARK_SCREENS.
   useEffect(() => {
-    if (evicted && phase === 'playing') {
-      cascade.cancel();
-      setPhaseBoth('evicted');
-    } else if (!evicted && phase === 'evicted') {
+    // THE RE-ARM MUST BE UNCONDITIONAL ON THE WAY OUT. This used to mark a tile
+    // 'evicted' only from 'playing', so one evicted mid-CONNECT kept its old
+    // phase, failed the return condition, and sat dead with a loader forever -
+    // the user scrolled back to the top and "all the streams cut out, none
+    // reconnected for 2 minutes". Its headless cascade also leaked the heal
+    // budget, which is why the refresh button then did nothing. Every eviction
+    // now cancels whatever was in flight and lands in 'evicted'; every return
+    // from 'evicted' reconnects (lastGood first, one attempt).
+    if (evicted) {
+      if (phase !== 'evicted' && phase !== 'offline') {
+        cascade.cancel();
+        setPhaseBoth('evicted');
+      }
+    } else if (phase === 'evicted') {
       connect(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

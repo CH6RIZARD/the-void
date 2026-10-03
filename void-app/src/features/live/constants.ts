@@ -180,7 +180,10 @@ export const EVICT_MARGIN_SCREENS = 0;
  * (EGL 302 MB + GL 49 MB) and decoder buffers dominate the app's memory, so each tile
  * holds the least that still plays smoothly.
  */
-export const WALL_BUFFER = { preferredForwardBufferDuration: 4, minBufferForPlayback: 1.5, maxBufferBytes: 4 << 20 };
+// 4s/4MB starved live HLS on real networks - the user: "they just keep
+// buffering, not a single smooth stream". 8s/8MB still halves Android's
+// defaults, and parked tiles hand their buffers back.
+export const WALL_BUFFER = { preferredForwardBufferDuration: 8, minBufferForPlayback: 2, maxBufferBytes: 8 << 20 };
 
 // ─── One stream, one place on screen (web claimLiveKey/releaseLiveKey) ───────
 // Claimed by URL *and* by channel, because the same feed reaches the wall under more

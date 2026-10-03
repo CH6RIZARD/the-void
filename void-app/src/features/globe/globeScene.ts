@@ -127,7 +127,13 @@ export function createGlobeScene(gl: any, countries: Country[], viewW: number, v
   // The scene is sized in BUFFER pixels (PointsMaterial sizes depend on it), so
   // the cap is applied by rendering smaller and letting the surface scale - not
   // by changing the sizes the scene is built with.
-  const RASTER_CAP = 2;
+  // 2 -> 1.6 (2026-10-03): the user's verdict on the gesture-fix build was
+  // better-but-still-laggy; frames are produced on the JS thread, so the
+  // remaining lever before the worklet renderer is per-frame cost. At 1.6x a
+  // 360dp globe rasters 576px wide instead of 720 - ~36% fewer shaded pixels -
+  // and on a sphere of smooth gradients the softening is invisible at arm's
+  // length on this panel.
+  const RASTER_CAP = 1.6;
   const density = Math.max(1, bufW / Math.max(1, viewW));
   const rasterScale = density > RASTER_CAP ? RASTER_CAP / density : 1;
   renderer.setPixelRatio(1);

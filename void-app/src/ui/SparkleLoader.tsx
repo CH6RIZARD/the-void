@@ -71,7 +71,10 @@ function makeParticles(): Particle[] {
 // than reading the wall clock, so pausing holds every dot exactly where it is
 // and resuming continues from there - the CSS play-state semantics the lock is
 // written against.
-const DOT = 2; // px, the web's 2x2 particle
+const DOT = 2;    // px on screen, the web's 2x2 particle
+const TEX = 12;   // px the sprite is DRAWN at - a 2x2 texture is a square blob
+                  // (the user: "little blocks... not round, rigid"); at 12px the
+                  // circle antialiases properly and the atlas scales it to 2px.
 function SparkleField({ particles, running, color }: { particles: Particle[]; running: boolean; color: string }) {
   const n = particles.length;
   const boxW = useSharedValue(0);
@@ -88,14 +91,14 @@ function SparkleField({ particles, running, color }: { particles: Particle[]; ru
   const fb = useMemo(() => particles.map((pp) => pp.bottom), [particles]);
   const fd = useMemo(() => particles.map((pp) => pp.duration), [particles]);
   const fl = useMemo(() => particles.map((pp) => pp.lead), [particles]);
-  const sprites = useMemo(() => particles.map(() => rect(0, 0, DOT, DOT)), [particles]);
-  const texture = useTexture(<Circle cx={DOT / 2} cy={DOT / 2} r={DOT / 2} color={color} />, { width: DOT, height: DOT });
+  const sprites = useMemo(() => particles.map(() => rect(0, 0, TEX, TEX)), [particles]);
+  const texture = useTexture(<Circle cx={TEX / 2} cy={TEX / 2} r={TEX / 2 - 1} color={color} />, { width: TEX, height: TEX });
   const transforms = useRSXformBuffer(n, (val, idx) => {
     'worklet';
     const w = boxW.value, h = boxH.value;
     if (!w || !h) { val.set(1, 0, -10, -10); return; }
     const ph = ((t.value + fl[idx]) % fd[idx]) / fd[idx];
-    val.set(1, 0, fx[idx] * w + 15 * ph, h - fb[idx] - DOT - 70 * ph);
+    val.set(DOT / TEX, 0, fx[idx] * w + 15 * ph, h - fb[idx] - DOT - 70 * ph);
   });
   const colors = useColorBuffer(n, (c, idx) => {
     'worklet';

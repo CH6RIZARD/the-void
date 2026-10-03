@@ -315,7 +315,9 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
   // path). At 170dp a 240p rendition is visually identical and costs a quarter
   // of the pixels, so the whole visible wall fits inside the budget instead of
   // starving on it. Fullscreen/nation players pick their own larger target.
-  const targetW = Math.round((tileWidth || 180) * Math.min(1.25, PixelRatio.get()));
+  // 1.25 -> 1.6 (2026-10-03): 240p read as soft to the user; ~300p is crisp at
+  // tile size and still ~40% of the original 480p decode load.
+  const targetW = Math.round((tileWidth || 180) * Math.min(1.6, PixelRatio.get()));
   // ONE PLAYER PER TILE, NOT TWO.
   //
   // This started the player on the master playlist and then called setUrl once
@@ -370,6 +372,11 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
   });
   const parkedRef = useRef(parked);
   parkedRef.current = parked;
+  // When the park began - a resume after a long park must rejoin the live
+  // edge, not replay where the buffer stopped (the user: coming back after
+  // some time is "really laggy and delayed").
+  const parkAtRef = useRef(0);
+  useEffect(() => { parkAtRef.current = parked ? Date.now() : parkAtRef.current && 0; }, [parked]);
   const shotRef = useRef<View>(null);
 
   useEffect(() => {
@@ -379,6 +386,12 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
     const resume = () => {
       if (isReleasedPlayer(player)) return;   // a released player aborts the process
       try {
+        // Parked long enough that the buffer's position is the past: jump to
+        // the live edge instead of replaying stale seconds and rebuffering.
+        // seekBy clamps to the seekable end, so a huge step IS the live edge.
+        if (parkAtRef.current && Date.now() - parkAtRef.current > 25000) {
+          try { (player as any).seekBy?.(86400); } catch {}
+        }
         player.muted = !audio.isAudible(tileId);
         if (!player.playing) player.play();
       } catch {}
