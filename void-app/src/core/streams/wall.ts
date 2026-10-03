@@ -6,6 +6,7 @@ import { env } from '../env.ts';
 import type { StreamSource, WallSlot } from '../types.ts';
 import { C } from '../data/regions.ts';
 import { CAM_SOURCES, RAW_FOOTAGE, iptvFor, lifeFor, rankOf } from '../data/sources.ts';
+import { ensureHealth, healthDead, healthMsBucket } from './health.ts';
 import { EMBEDDABLE_IFRAME, IFRAME_PLAYER_URL, _badStreams, isBadStream, streamKey, usedStreamKeys } from './keys.ts';
 
 // User-set ratio: windows of 10 tiles, 3 city-life at positions 3, 6, 9 and 7 news /
@@ -36,6 +37,7 @@ export function lifeMix(list: StreamSource[], shuffle?: Shuffle | null): StreamS
 
 /** The full, ordered world-wall slot list (one source per tile). */
 export function wallSlots(): WallSlot[] {
+  ensureHealth();   // fire-and-forget; empty map = exactly the old behavior
   const shuffle = shuffleInPlace;
   // TENSION IS A WEIGHT, NOT A GATE (web lifeMix). Rank tiers made the 28 tension
   // nations lead every session; a weighted random key (Efraimidis–Spirakis:
@@ -52,13 +54,20 @@ export function wallSlots(): WallSlot[] {
   const used = usedStreamKeys(), taken = new Set<string>();
   const usable = (s: StreamSource) => {
     if (!s || isBadStream(s)) return false;             // bars/slate or removed/embed-disabled VOD
+    if (healthDead(s)) return false;                    // dead for EVERYONE (server health map)
     const k = streamKey(s);
     if (!k || taken.has(k)) return false;
     taken.add(k); return true;
   };
   const per = ordered.map(n => {
     const life = lifeMix([...(CAM_SOURCES[n] || []), ...(RAW_FOOTAGE[n] || []), ...lifeFor(n)].filter(usable), shuffle);
-    const news = shuffle(iptvFor(n).filter(usable));
+    // Fastest first by the POPULATION's median connect ms (400ms buckets), the
+    // shuffle deciding inside each bucket - the wall leads with streams that
+    // connect near-instantly for everyone while still varying every visit.
+    const news = shuffle(iptvFor(n).filter(usable))
+      .map((s, i) => [s, healthMsBucket(s), i] as const)
+      .sort((a, b) => a[1] - b[1] || a[2] - b[2])
+      .map(x => x[0]);
     return { n, life, news };
   });
   // Round-robin each pool across countries (tiers preserved), then sink anything

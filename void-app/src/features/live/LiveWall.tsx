@@ -192,25 +192,25 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
   const tileH = (tileW * 9) / 16;
   const rowH = tileH + GAP;
 
-  // POSITION IS SPAWN ORDER. IT DOES NOT MOVE.
+  // CONNECTED TILES PACK THE TOP-LEFT. RESTORED - the user's design.
   //
-  // Tiles used to be sorted by CONNECTION order, with anything not yet connected
-  // ranked `999999 + id`. That put every still-loading tile at the END of the
-  // grid - so loading always appeared to happen in the bottom-right, no matter
-  // which tiles were actually working, and a tile that connected jumped from
-  // there up into the first free slot. The wall rearranged itself under the
-  // reader for as long as it was filling.
-  //
-  // Spawn order instead: slot 0 is top-left and stays there. Tiles connect in
-  // the order they mount and they mount in slot order, so filling now reads
-  // top-left downward - which is also the order someone looking at it expects
-  // to see, and the order the lanes hand out turns in.
+  // This was switched to pure spawn order ("slot 0 stays put") to stop tiles
+  // rearranging while the wall filled. In practice spawn order only reads
+  // top-left-first when streams connect in mount order, and they never do: a
+  // slow or dead stream parks a loader in slot 0 while slot 7 plays, and the
+  // user watched days of walls that "don't fill top left and down in order
+  // like it's designed to." The design is: what PLAYS packs from the top-left,
+  // loaders sink below. Connection order does exactly that - `order` was
+  // already recorded on every settle, it just stopped being used. Within the
+  // connected set the layout is stable (an order rank never changes once
+  // assigned), so the only movement is a connecting tile rising past loaders,
+  // which is the fill the user asked to watch.
   const positions = useMemo(() => {
-    const sorted = [...tiles].sort((a, b) => a.id - b.id);
+    const sorted = [...tiles].sort((a, b) => (order[a.id] ?? 1e9 + a.id) - (order[b.id] ?? 1e9 + b.id));
     const pos = new Map<number, { left: number; top: number }>();
     sorted.forEach((r, i) => pos.set(r.id, { left: (i % cols) * (tileW + GAP), top: Math.floor(i / cols) * rowH }));
     return pos;
-  }, [tiles, cols, tileW, rowH]);
+  }, [tiles, order, cols, tileW, rowH]);
   const gridH = Math.max(0, Math.ceil(tiles.length / cols) * rowH - GAP);
   const posRef = useRef(positions);
   posRef.current = positions;

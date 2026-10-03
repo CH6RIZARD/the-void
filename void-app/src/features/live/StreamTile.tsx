@@ -122,6 +122,9 @@ function noteSettle(success: boolean, ms: number, kind: string): void {
 }
 
 interface PlayerApi {
+  /** The real attempt has started (player created, url set). Arms the connect
+   *  clock - see the mount effect for why it must not start at mount. */
+  began(): void;
   finish(ok: boolean): void;
   isDone(): boolean;
   succeeded(): boolean;
@@ -164,6 +167,7 @@ export const StreamTile = forwardRef<StreamTileHandle, StreamTileProps>(function
   }, []);
 
   const api = useRef<PlayerApi>({
+    began: () => armTimeout.current(),
     finish: (s) => finish(s),
     isDone: () => done.current,
     succeeded: () => ok.current,
@@ -174,12 +178,36 @@ export const StreamTile = forwardRef<StreamTileHandle, StreamTileProps>(function
   }).current;
 
   const startedAt = useRef(Date.now());
+  // THE CLOCK STARTS WHEN THE ATTEMPT STARTS, NOT WHEN THE TILE MOUNTS.
+  //
+  // The connect timeout used to start here, at mount - before the paced queue
+  // granted a player, before the synchronous ExoPlayer build (measured 0.3-1.7s
+  // of blocked JS apiece), before the variant playlist was fetched, before one
+  // byte of media moved. On this phone the JS thread stalls in seconds, so the
+  // 5.5s budget was routinely spent on QUEUEING, and the tile declared the
+  // stream dead having never tried it - [fill] logs showed walls of "gave up"
+  // while the same urls played instantly in the phone's own browser. The
+  // player calls api.began() at the moment its load genuinely starts, and THAT
+  // arms CONNECT_TIMEOUT; mount starts only a generous backstop so a player
+  // that never begins (queue starvation, torn-down surface) still settles the
+  // lane instead of holding it forever.
+  const armed = useRef(false);
+  const connectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const armTimeout = useRef(() => {
+    if (armed.current || done.current) return;
+    armed.current = true;
+    connectTimer.current = setTimeout(() => finish(false), CONNECT_TIMEOUT[source.type] || 8000);
+  });
   useEffect(() => {
     mounted.current = true;
     startedAt.current = Date.now();
-    const timer = setTimeout(() => finish(false), CONNECT_TIMEOUT[source.type] || 8000);
+    const backstop = setTimeout(() => finish(false), 20000);
+    // Players that have no paced creation step (YouTube WebView, MJPEG, iframe)
+    // begin at mount, exactly as before.
+    if (source.type !== 'hls') armTimeout.current();
     return () => {
-      clearTimeout(timer);
+      clearTimeout(backstop);
+      if (connectTimer.current) clearTimeout(connectTimer.current);
       mounted.current = false;
       audio.releaseStream(tileId);
     };
@@ -318,6 +346,7 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [raw, targetW]);
   const player = usePacedPlayer(url ? ({ uri: url, contentType: /\.m3u8(\?|$)/i.test(url) ? 'hls' : 'auto' } as any) : null, (p) => {
+    api.began();   // the attempt is real from here - this is what arms the clock
     p.muted = true;
     p.loop = true;
     try {
