@@ -7,7 +7,7 @@ import Svg, { Path } from 'react-native-svg';
 import * as SparkleModule from '../../ui/SparkleLoader';
 import { em, useLiveTheme } from './liveTheme';
 
-const SparkleLoader: React.ComponentType<{ label?: string; style?: ViewStyle; animate?: boolean }> =
+const SparkleLoader: React.ComponentType<{ label?: string; style?: ViewStyle; animate?: boolean; mountDots?: boolean }> =
   (SparkleModule as any).SparkleLoader ?? (SparkleModule as any).default;
 
 /** .strip-live-dot{width:5px;height:5px;border-radius:50%;background:var(--red);animation:blink 1.3s infinite} */
