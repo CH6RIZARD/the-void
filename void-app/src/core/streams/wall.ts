@@ -106,6 +106,12 @@ export function wallCascadeFor(name: string, first?: StreamSource | null): Strea
   const hls: StreamSource[] = [], rest: StreamSource[] = [];
   const push = (s: StreamSource | null | undefined) => {
     if (!s) return;
+    // The wall's YouTube ban applies to the CASCADE too. The slot pool was
+    // filtered, but this fallback chain re-imported the cam/raw/life pools
+    // wholesale - the measured "[fill] ... last youtube" on a wall whose slots
+    // carried none was this line resurrecting them. And a stream the whole
+    // population has measured dead never spends one of the three chain places.
+    if (s.type === 'youtube' || healthDead(s)) return;
     const k = streamKey(s);
     if (!k || seen.has(k) || _badStreams.has(k)) return;
     seen.add(k);

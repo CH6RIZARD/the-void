@@ -91,12 +91,15 @@ export function TileLoader({
   visible,
   zIndex = 3,
   animate = true,
+  still = false,
   over = false,
 }: {
   label?: string;
   visible: boolean;
   zIndex?: number;
   animate?: boolean;
+  /** Terminal NO SIGNAL: dots mount and hold still. */
+  still?: boolean;
   /** true when a poster sits under the loader: the panel turns see-through so it shows. */
   over?: boolean;
 }) {
@@ -127,7 +130,7 @@ export function TileLoader({
           reads as a grid of panels waiting for pictures rather than a field of
           holes. Costs nothing: no image, no decode, no file descriptor. */}
       {SparkleLoader ? (
-        <SparkleLoader label={label} animate={visible && animate} style={[StyleSheet.absoluteFill, over ? { backgroundColor: 'transparent' } : null] as unknown as ViewStyle} />
+        <SparkleLoader label={label} animate={visible && animate} mountDots={visible && (animate || still)} style={[StyleSheet.absoluteFill, over ? { backgroundColor: 'transparent' } : null] as unknown as ViewStyle} />
       ) : null}
     </Animated.View>
   );

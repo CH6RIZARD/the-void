@@ -131,10 +131,20 @@ export interface SparkleLoaderProps {
    * whenever it can't be seen (blurred screen, hidden surface, app in background).
    */
   animate?: boolean;
+  /**
+   * false defers BUILDING the 14 dot views until the first render where this is
+   * true (then they stay forever). The wall passes its own geometry here - a tile
+   * off the viewport or parked has no visible pixels, so skipping its dots is
+   * pixel-identical to the user while cutting the batch-mount commit that was
+   * measured stalling the JS thread 1.1-1.4s. Keyed on geometry/terminal state
+   * ONLY - never a JS clock - so the no-freeze mandate holds: anything visible
+   * has mounted, running dots. Default true (every other surface born-running).
+   */
+  mountDots?: boolean;
   style?: StyleProp<ViewStyle>;
 }
 
-export const SparkleLoader = memo(function SparkleLoader({ label, onPress, radius, surface = 'media', absolute = true, animate = true, style }: SparkleLoaderProps) {
+export const SparkleLoader = memo(function SparkleLoader({ label, onPress, radius, surface = 'media', absolute = true, animate = true, mountDots = true, style }: SparkleLoaderProps) {
   mark('loader:render');
   const theme = useTheme();
   // BORN RUNNING. The particles exist from the very first mounted frame and the
@@ -159,7 +169,9 @@ export const SparkleLoader = memo(function SparkleLoader({ label, onPress, radiu
   // longer waits for anyone's permission to build it.
   const onScreen = useLoaderShown(true);
   const running = animate && onScreen;
-  const particles = useMemo(() => makeParticles(), []);
+  const everWanted = useRef(mountDots);
+  if (mountDots) everWanted.current = true;
+  const particles = useMemo(() => (everWanted.current ? makeParticles() : []), [everWanted.current]);
   const lightFeed = surface === 'feed' && theme.isLight;
   const bg = lightFeed ? '#f7f3ea' : 'rgba(3,1,10,0.97)';
   const labelColor = lightFeed ? theme.colors.dim : theme.colors.muted;
