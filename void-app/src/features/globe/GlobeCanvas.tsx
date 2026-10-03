@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, AppState, Easing, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { GLView, type ExpoWebGLRenderingContext } from 'expo-gl';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { runOnJS, useSharedValue } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
 import Svg, { Circle, Path } from 'react-native-svg';
@@ -126,6 +127,22 @@ export function GlobeCanvas({ running, onOpenCountry, refreshNonce = 0, gestureR
     const loop = (ts: number) => {
       if (!alive) return;
       rafId.current = requestAnimationFrame(loop);
+      // Consume whatever the finger did since the last JS frame. The shared
+      // values accumulated on the UI thread; read-and-zero here keeps the
+      // gesture exact across stalls - nothing lost, nothing replayed.
+      const inp = s.input;
+      const dY = accY.value;
+      const dX = accX.value;
+      const dZ = accZoom.value;
+      if (dY !== 0) { accY.value = 0; inp.tRotY += dY; }
+      if (dX !== 0) { accX.value = 0; inp.tRotX = Math.max(-1.3, Math.min(1.3, inp.tRotX + dX)); }
+      if (dZ !== 0) { accZoom.value = 0; inp.tZoom = Math.max(1.5, Math.min(4, inp.tZoom + dZ)); }
+      const dragging = dragSV.value === 1;
+      if (dragging !== inp.drag) {
+        inp.drag = dragging;
+        if (!dragging) { try { touchingRef.current?.(false); } catch {} }
+      }
+      if (dragging) { inp.rVelY = velY.value; inp.rVelX = velX.value; }
       let drew = false;
       try {
         drew = s.frame(ts || Date.now());
@@ -162,90 +179,76 @@ export function GlobeCanvas({ running, onOpenCountry, refreshNonce = 0, gestureR
   // ── touch handling: web touchstart/touchmove/touchend, 1:1 ───────────────
   const touchingRef = useRef(onTouching);
   touchingRef.current = onTouching;
-  const tr = useRef({ prev: null as null | { x?: number; y?: number; pinch?: number }, start: null as null | { x: number; y: number; t: number } }).current;
+  const onTouchStartJS = useCallback(() => {
+    try { touchingRef.current?.(true); } catch {}
+    const sc = scene.current;
+    if (!sc) return;
+    setTip(null); // the tap label lives until the next touch
+    sc.clearHover();
+  }, []);
+  const onTapJS = useCallback((x: number, y: number) => {
+    const sc = scene.current;
+    if (!sc) return;
+    // Mobile web fires the emulated hover on a tap: the marker lights and
+    // #gtip shows the name at the finger, then the nation opens.
+    const c = sc.hover(x, y);
+    if (c) {
+      setTip({ x: x + 14, y: y + 10, name: c.n });
+      openRef.current(c);
+    }
+  }, []);
   const gesture = Gesture.Manual()
     .withRef(gestureRef as any)
-    .runOnJS(true)
     .onTouchesDown((e, mgr) => {
-      mgr.activate(); // the globe owns its gestures; the REELS⇄GLOBE swipe must not start here
-      // A FINGER ON THE GLOBE MEANS THE WALL STOPS WORKING IN THE BACKGROUND.
-      //
-      // The globe renders from a requestAnimationFrame on the JS thread, so its
-      // smoothness is decided by whatever else is queued there - the wall's
-      // watchdog, its healing pass, new cascade starts. Converting the gesture
-      // to a worklet would not help: the frames themselves still come from JS,
-      // so a blocked thread is a frozen globe whoever read the touch.
-      //
-      // So while the globe is being turned, the wall does nothing it can defer.
-      // Players keep playing; only the background work pauses, and it resumes on
-      // release.
-      try {
-        touchingRef.current?.(true);
-      } catch {}
-      const s = scene.current;
-      if (!s) return;
-      setTip(null); // the tap label lives until the next touch
-      s.clearHover();
+      'worklet';
+      mgr.activate(); // the globe owns its gestures; the REELS-GLOBE swipe must not start here
       if (e.numberOfTouches === 1) {
-        const p = e.allTouches[0];
-        s.input.drag = true;
-        tr.prev = { x: p.x, y: p.y };
-        tr.start = { x: p.x, y: p.y, t: Date.now() };
+        const pt = e.allTouches[0];
+        dragSV.value = 1;
+        tg.value = { px: pt.x, py: pt.y, sx: pt.x, sy: pt.y, st: performance.now(), pinch: 0, tap: 1 };
       } else {
-        tr.start = null; // a second finger is never a tap
+        tg.value = { ...tg.value, pinch: 0, tap: 0 }; // a second finger is never a tap
       }
+      runOnJS(onTouchStartJS)();
     })
     .onTouchesMove((e) => {
-      const s = scene.current;
-      if (!s) return;
-      const i = s.input;
-      if (e.numberOfTouches === 1 && i.drag && tr.prev && tr.prev.x != null && tr.prev.y != null) {
-        const p = e.allTouches[0];
-        const dx = p.x - tr.prev.x,
-          dy = p.y - tr.prev.y;
-        i.rVelY = dx * 0.007;
-        i.rVelX = dy * 0.007;
-        i.tRotY += dx * 0.007;
-        i.tRotX += dy * 0.007;
-        i.tRotX = Math.max(-1.3, Math.min(1.3, i.tRotX));
-        tr.prev = { x: p.x, y: p.y };
-      } else if (e.numberOfTouches === 1) {
-        // coming back from a pinch: re-anchor instead of computing against a pinch record
-        const p = e.allTouches[0];
-        tr.prev = { x: p.x, y: p.y };
+      'worklet';
+      const g = tg.value;
+      if (e.numberOfTouches === 1 && dragSV.value === 1) {
+        const pt = e.allTouches[0];
+        if (g.pinch === 0) {
+          const dx = pt.x - g.px;
+          const dy = pt.y - g.py;
+          accY.value += dx * 0.007;
+          accX.value += dy * 0.007;
+          velY.value = dx * 0.007;
+          velX.value = dy * 0.007;
+        }
+        // coming back from a pinch re-anchors instead of jumping
+        tg.value = { ...g, px: pt.x, py: pt.y, pinch: 0 };
       }
       if (e.numberOfTouches === 2) {
-        const a = e.allTouches[0],
-          b = e.allTouches[1];
-        const d = Math.hypot(a.x - b.x, a.y - b.y);
-        if (tr.prev?.pinch) i.tZoom = Math.max(1.5, Math.min(4, i.tZoom + (tr.prev.pinch - d) * 0.005));
-        tr.prev = { pinch: d };
+        const a2 = e.allTouches[0];
+        const b2 = e.allTouches[1];
+        const d = Math.hypot(a2.x - b2.x, a2.y - b2.y);
+        if (g.pinch > 0) accZoom.value += (g.pinch - d) * 0.005;
+        tg.value = { ...g, pinch: d, tap: 0 };
       }
     })
     .onTouchesUp((e, mgr) => {
-      const s = scene.current;
+      'worklet';
       if (e.numberOfTouches > 0) return;
-      if (s) {
-        s.input.drag = false;
-        const p = e.changedTouches[0];
-        if (tr.start && p && Math.abs(p.x - tr.start.x) < 12 && Math.abs(p.y - tr.start.y) < 12 && Date.now() - tr.start.t < 280) {
-          // Mobile web fires the emulated hover on a tap: the marker lights and #gtip
-          // shows the name at the finger, then the nation opens.
-          const c = s.hover(p.x, p.y);
-          if (c) {
-            setTip({ x: p.x + 14, y: p.y + 10, name: c.n });
-            openRef.current(c);
-          }
-        }
+      dragSV.value = 0;
+      const g = tg.value;
+      const pt = e.changedTouches[0];
+      if (g.tap === 1 && pt && Math.abs(pt.x - g.sx) < 12 && Math.abs(pt.y - g.sy) < 12 && performance.now() - g.st < 280) {
+        runOnJS(onTapJS)(pt.x, pt.y);
       }
-      tr.prev = null;
-      tr.start = null;
       mgr.end();
     })
     .onTouchesCancelled((_e, mgr) => {
-      if (scene.current) scene.current.input.drag = false;
-      tr.prev = null;
-      tr.start = null;
+      'worklet';
+      dragSV.value = 0;
       mgr.end();
     });
 

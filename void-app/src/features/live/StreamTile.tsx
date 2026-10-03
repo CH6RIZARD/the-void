@@ -309,7 +309,13 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
   // show. On a 3x screen that asks for ~340px and gets a 480p variant instead:
   // less than half the pixels to decode per tile, per frame, with the softness
   // landing on a picture that is 170dp wide.
-  const targetW = Math.round((tileWidth || 180) * Math.min(2, PixelRatio.get()));
+  // ONE VPU, EIGHT STREAMS: the decoder's throughput is a single shared budget,
+  // and 8 tiles x ~480p spent it several times over - every stream crawled
+  // (measured 5-8fps with buffer drops while decode stayed on the hardware
+  // path). At 170dp a 240p rendition is visually identical and costs a quarter
+  // of the pixels, so the whole visible wall fits inside the budget instead of
+  // starving on it. Fullscreen/nation players pick their own larger target.
+  const targetW = Math.round((tileWidth || 180) * Math.min(1.25, PixelRatio.get()));
   // ONE PLAYER PER TILE, NOT TWO.
   //
   // This started the player on the master playlist and then called setUrl once

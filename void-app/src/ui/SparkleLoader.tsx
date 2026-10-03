@@ -10,8 +10,9 @@
 //                     100%{opacity:0;transform:translateY(-70px) translateX(15px)}}
 //   14 particles: left random 0-100%, bottom random 0-40px, duration 2.5-6.5s,
 //   delay -(0-6)s (always mid-flight), animation ignores prefers-reduced-motion.
-import React, { memo, useMemo } from 'react';
-import Reanimated, { type CSSAnimationKeyframes } from 'react-native-reanimated';
+import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { useFrameCallback, useSharedValue } from 'react-native-reanimated';
+import { Atlas, Canvas, Circle, rect, useColorBuffer, useRSXformBuffer, useTexture } from '@shopify/react-native-skia';
 import { mark } from '../core/slow';
 import { Pressable, StyleSheet, type StyleProp, type ViewStyle, View } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
@@ -56,62 +57,65 @@ function makeParticles(): Particle[] {
   return out;
 }
 
-// EACH PARTICLE IS THE WEB'S @keyframes pfloat, RUN BY REANIMATED'S CSS ENGINE.
-//
-// This was fourteen RN Animated.Views per loader, each building an
-// Animated.Value, three interpolations and an attached props node in render,
-// then starting a native-driver timing in an effect - roughly ten
-// NativeAnimatedModule calls per dot, every one a synchronous hop out of JS.
-// A wall batch mounts six tiles, so one commit paid for that about ninety
-// times over. Measured on the phone with breadcrumbs on each step, in the 75
-// seconds after opening the globe tab: ~24 seconds of blocked JS thread
-// attributed to loader:render, loader:dot and loader:loop - 845ms with the
-// breadcrumb 2ms old, 2651ms with it 117ms old. The single largest cost in
-// the app, and it sat on the one thread that everything else waits for.
-//
-// The look is locked, so the cost had to come out of HOW fourteen particles
-// are driven. This is the exact animation the lock is written against -
-//
-//   @keyframes pfloat{0%{opacity:.4;transform:translateY(0) translateX(0)}
-//                     100%{opacity:0;transform:translateY(-70px) translateX(15px)}}
-//   animation: pfloat <2.5-6.5s> linear -<0-6s> infinite
-//
-// - expressed as a CSS animation that Reanimated 4 runs natively: one style
-// prop per dot, registered once at mount in C++, stepped on the UI thread
-// with no JS node graph, no effect, and no per-dot bridge traffic. A negative
-// animationDelay starts mid-flight exactly as the CSS does (Reanimated's
-// AnimationProgressProvider handles it explicitly). translateX/translateY are
-// top-level interpolators in its registry, so no transform matrix is built.
-//
-// Pausing is animationPlayState - the web's own mechanism for a parked tile
-// (`animation-play-state: paused`), and the one the web file chose over
-// freezing or thinning the particles. A paused dot holds its place and resumes
-// from it; a loader that comes back after a long absence resumes where it was
-// rather than re-syncing to the wall clock, which is what the reference does.
-const PFLOAT: CSSAnimationKeyframes = {
-  from: { opacity: 0.4, translateX: 0, translateY: 0 },
-  to: { opacity: 0, translateX: 15, translateY: -70 },
-};
-const Dot = memo(function Dot({ p, running, color }: { p: Particle; running: boolean; color: string }) {
-  mark('loader:dot');
+// Engine history lives in docs/sparkle-loader-engines.md (the user asked for
+// the previous implementations to stay on record; extract them from git, do
+// not retype). Current engine below: one Skia Atlas draw per loader.
+// ONE DRAW CALL FOR ALL FOURTEEN. The CSS engine stepped each dot as its own
+// native view - under a loaded UI thread the steps landed in visible jerks and
+// the user called it, correctly. Skia's Atlas draws every particle of a loader
+// in a single GPU operation: one worklet reads one accumulated clock and writes
+// position + alpha for all fourteen, whatever the JS thread is doing. The math
+// is pfloat verbatim - phase = ((t + lead) % duration) / duration, translate
+// (+15, -70) * phase, opacity 0.4 -> 0, per-dot durations and leads, all dots
+// mid-flight from the first frame. The clock ACCUMULATES frame deltas rather
+// than reading the wall clock, so pausing holds every dot exactly where it is
+// and resuming continues from there - the CSS play-state semantics the lock is
+// written against.
+const DOT = 2; // px, the web's 2x2 particle
+function SparkleField({ particles, running, color }: { particles: Particle[]; running: boolean; color: string }) {
+  const n = particles.length;
+  const boxW = useSharedValue(0);
+  const boxH = useSharedValue(0);
+  const t = useSharedValue(Math.random() * 6000); // a fresh loader is already mid-flight
+  const frame = useFrameCallback((info) => {
+    t.value += info.timeSincePreviousFrame ?? 16.7;
+  }, running);
+  useEffect(() => {
+    frame.setActive(running);
+  }, [frame, running]);
+  // plain arrays capture cleanly into worklets
+  const fx = useMemo(() => particles.map((pp) => parseFloat(pp.left) / 100), [particles]);
+  const fb = useMemo(() => particles.map((pp) => pp.bottom), [particles]);
+  const fd = useMemo(() => particles.map((pp) => pp.duration), [particles]);
+  const fl = useMemo(() => particles.map((pp) => pp.lead), [particles]);
+  const sprites = useMemo(() => particles.map(() => rect(0, 0, DOT, DOT)), [particles]);
+  const texture = useTexture(<Circle cx={DOT / 2} cy={DOT / 2} r={DOT / 2} color={color} />, { width: DOT, height: DOT });
+  const transforms = useRSXformBuffer(n, (val, idx) => {
+    'worklet';
+    const w = boxW.value, h = boxH.value;
+    if (!w || !h) { val.set(1, 0, -10, -10); return; }
+    const ph = ((t.value + fl[idx]) % fd[idx]) / fd[idx];
+    val.set(1, 0, fx[idx] * w + 15 * ph, h - fb[idx] - DOT - 70 * ph);
+  });
+  const colors = useColorBuffer(n, (c, idx) => {
+    'worklet';
+    const ph = ((t.value + fl[idx]) % fd[idx]) / fd[idx];
+    const a = 0.4 * (1 - ph);
+    c[0] = 1; c[1] = 1; c[2] = 1; c[3] = a;
+  });
   return (
-    <Reanimated.View
+    <Canvas
       pointerEvents="none"
-      style={[
-        styles.particle,
-        { left: p.left, bottom: p.bottom, backgroundColor: color },
-        {
-          animationName: PFLOAT,
-          animationDuration: p.duration,
-          animationDelay: -p.lead,
-          animationIterationCount: 'infinite',
-          animationTimingFunction: 'linear',
-          animationPlayState: running ? 'running' : 'paused',
-        },
-      ]}
-    />
+      style={StyleSheet.absoluteFill}
+      onLayout={(e) => {
+        boxW.value = e.nativeEvent.layout.width;
+        boxH.value = e.nativeEvent.layout.height;
+      }}
+    >
+      <Atlas image={texture} sprites={sprites} transforms={transforms} colors={colors} />
+    </Canvas>
   );
-});
+}
 export interface SparkleLoaderProps {
   /** Mono label, e.g. '● NO SIGNAL'. Omit for none (sparkleMarkup without label). */
   label?: string;
@@ -177,9 +181,7 @@ export const SparkleLoader = memo(function SparkleLoader({ label, onPress, radiu
   const labelColor = lightFeed ? theme.colors.dim : theme.colors.muted;
   const body = (
     <>
-      {particles.map((p, i) => (
-        <Dot key={i} p={p} running={running} color={theme.colors.gold} />
-      ))}
+      {particles.length ? <SparkleField particles={particles} running={running} color={theme.colors.gold} /> : null}
       {label ? (
         <VText style={[styles.label, { color: labelColor }]} numberOfLines={1}>
           {label}

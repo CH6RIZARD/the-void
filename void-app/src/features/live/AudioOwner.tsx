@@ -167,6 +167,9 @@ export function AudioOwnerProvider({ children }: { children: React.ReactNode }) 
 
   const releaseStream = useCallback(
     (id?: string) => {
+      // The user hears sound die when its tile scrolls past; every path that can
+      // do that now says so, so the next session's log names the culprit.
+      try { if (audibleId && id === audibleId) console.warn('[audio] cut: releaseStream(' + audibleId + ')'); } catch {}
       const cur = current.current;
       if (!cur || (id && cur.id !== id)) {
         if (id) fallbackIds.current.delete(id);
