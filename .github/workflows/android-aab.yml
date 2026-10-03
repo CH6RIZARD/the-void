@@ -66,6 +66,9 @@ jobs:
       # EAS cloud installs with yarn 1 (no lockfile is committed); match it.
       - name: Install dependencies
         run: yarn install --non-interactive --network-timeout 600000
+      - name: Typecheck (fail fast - a broken import must never cost a 25-minute build)
+        working-directory: void-app
+        run: npx tsc --noEmit -p tsconfig.json
 
       - name: Build AAB (local, signed with the remote keystore)
         env:
