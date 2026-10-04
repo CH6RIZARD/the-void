@@ -13,6 +13,7 @@ import { bskyFeedUrl, bskyToPost } from './bluesky.ts';
 import { peertubeSrc } from './fedi.ts';
 import { laneClaim, laneFree } from './search.ts';
 import { allPosts, emitPostsChanged, reelPosts } from './store.ts';
+import { nfFetchJson } from '../util.ts';
 
 // Every source was independently discovered, then ADVERSARIALLY re-verified live
 // (status, CORS with a real Origin, video share over a paginated sample, a .ts
@@ -48,9 +49,8 @@ const _ptCache: Record<string, { url: string; thumb: string; dur: number }> = {}
 export async function ptDetail(host: string, uuid: string) {
   if (_ptCache[uuid]) return _ptCache[uuid];
   try {
-    const r = await env.fetch(`https://${host}/api/v1/videos/${uuid}`, { headers: { Accept: 'application/json' } });
-    if (!r.ok) return null;
-    const d = await r.json();
+    const d = await nfFetchJson(`https://${host}/api/v1/videos/${uuid}`, 5000);
+    if (!d) return null;
     const hls = (d.streamingPlaylists || [])[0];
     // files[] is largest first: with no HLS this handed a 720-wide phone the 1080p mp4.
     const url = (hls && hls.playlistUrl) || peertubeSrc(d, 720);
@@ -79,9 +79,8 @@ export async function pullPeerTubeSearch(): Promise<number> {
   const start = Math.floor(env.random() * 60);   // or the same top hits repeat every session
   try {
     const u = `https://${host}/api/v1/search/videos?search=${encodeURIComponent(term)}&count=20&start=${start}&nsfw=false&isLive=false`;
-    const r = await env.fetch(u, { headers: { Accept: 'application/json' } });
-    if (!r.ok) return 0;
-    const j = await r.json();
+    const j = await nfFetchJson(u, 6000);
+    if (!j) return 0;
     const rows = (j.data || []).filter((v: any) => v && v.uuid && !v.isLive && !v.nsfw && (v.duration || 0) > 2 && (v.duration || 0) < 900);
     // The gates that need nothing from the detail call go first (in a live sample 39
     // of 67 detail calls were for rows dropped right after), and the calls that are
@@ -106,9 +105,8 @@ export async function pullPeerTubeReels(): Promise<number> {
   const src = REEL_PEERTUBE[Math.floor(env.random() * REEL_PEERTUBE.length)];
   const start = Math.floor(env.random() * Math.max(1, src.depth));
   try {
-    const r = await env.fetch(`https://${src.host}${src.path}&start=${start}`, { headers: { Accept: 'application/json' } });
-    if (!r.ok) return 0;
-    const j = await r.json();
+    const j = await nfFetchJson(`https://${src.host}${src.path}&start=${start}`, 6000);
+    if (!j) return 0;
     const rows = (j.data || []).filter((v: any) => v && v.uuid && !v.isLive && !v.nsfw && (v.duration || 0) > 2 && (v.duration || 0) < 600);
     const cand = rows.slice(0, 8)                       // cap the N+1
       .map((v: any) => ({ v, p: ptReelPost(src.host, v, { url: '', thumb: '' }, [src.lane]) }))
@@ -131,8 +129,17 @@ function loadReelCursors() { try { _reelCursors = JSON.parse(env.storage.getItem
 loadReelCursors();
 onConfigure(loadReelCursors);
 
+// Callers get the IN-FLIGHT pull instead of an instant false (web pullReelPage). The
+// false made fillOpenReel 'await' nothing and a NO SIGNAL retry tap do nothing while a
+// pull was running. Each request is bounded too (5s detail, 6s list, 8s feed page): a
+// host that accepts and then stalls used to hold this lock 12s per step of the chain.
+let _reelPromise: Promise<boolean> | null = null;
+export function pullReelPage(): Promise<boolean> {
+  if (!_reelPromise) _reelPromise = pullReelPageOnce().finally(() => { _reelPromise = null; });
+  return _reelPromise;
+}
 /** One reels top-up. Single lock with ONE try/finally (an early return once leaked the lock and reels died). */
-export async function pullReelPage(): Promise<boolean> {
+async function pullReelPageOnce(): Promise<boolean> {
   if (_reelLoading) return false; _reelLoading = true;
   try {
     // ON-TOPIC FIRST: PeerTube search is the only source yielding subject-matching video at volume.
@@ -146,8 +153,8 @@ export async function pullReelPage(): Promise<boolean> {
       const feed = chain[_reelIdx % chain.length]; _reelIdx++;
       const cur = _reelCursors[feed] || '';
       try {
-        const r = await env.fetch(bskyFeedUrl(feed, cur), { headers: { Accept: 'application/json' } }); if (!r.ok) continue;
-        const d = await r.json(); _reelCursors[feed] = d.cursor || '';
+        const d = await nfFetchJson(bskyFeedUrl(feed, cur), 8000); if (!d) continue;
+        _reelCursors[feed] = d.cursor || '';
         try { env.storage.setItem('void_reel_cursors', JSON.stringify(_reelCursors)); } catch { /* */ }
         let added = 0;
         for (const it of (d.feed || [])) {

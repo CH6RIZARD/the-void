@@ -3537,9 +3537,8 @@ async function pullPeerTubeSearch(){
   const start=Math.floor(Math.random()*60);
   try{
     const u=`https://${host}/api/v1/search/videos?search=${encodeURIComponent(term)}&count=20&start=${start}&nsfw=false&isLive=false`;
-    const r=await fetch(u,{headers:{Accept:'application/json'}});
-    if(!r.ok)return 0;
-    const j=await r.json();
+    const j=await nfFetchJson(u,6000);
+    if(!j)return 0;
     const rows=(j.data||[]).filter(v=>v&&v.uuid&&!v.isLive&&!v.nsfw&&(v.duration||0)>2&&(v.duration||0)<900);
     let added=0;
     // These 8 detail calls used to run strictly one after another, so the first reel
@@ -3590,9 +3589,10 @@ async function vwCorsOk(url){
 async function ptDetail(host,uuid){
   if(_ptCache[uuid])return _ptCache[uuid];
   try{
-    const r=await fetch(`https://${host}/api/v1/videos/${uuid}`,{headers:{Accept:'application/json'}});
-    if(!r.ok)return null;
-    const d=await r.json();
+    // Bounded, like every request in the reel chain: a host that accepts and then
+    // stalls must not hold the single reel pull for minutes.
+    const d=await nfFetchJson(`https://${host}/api/v1/videos/${uuid}`,5000);
+    if(!d)return null;
     const hls=(d.streamingPlaylists||[])[0];
     // files[] is largest first: with no HLS this handed a phone the 1080p mp4.
     const url=(hls&&hls.playlistUrl)||peertubeSrc(d,720);
@@ -3607,9 +3607,8 @@ async function pullPeerTubeReels(){
   // Randomised window into the archive — without this the same clips repeat forever.
   const start=Math.floor(Math.random()*Math.max(1,src.depth));
   try{
-    const r=await fetch(`https://${src.host}${src.path}&start=${start}`,{headers:{Accept:'application/json'}});
-    if(!r.ok)return 0;
-    const j=await r.json();
+    const j=await nfFetchJson(`https://${src.host}${src.path}&start=${start}`,6000);
+    if(!j)return 0;
     const rows=(j.data||[]).filter(v=>v&&v.uuid&&!v.isLive&&!v.nsfw&&(v.duration||0)>2&&(v.duration||0)<600);
     let added=0;
     for(const v of rows.slice(0,8)){                 // cap the N+1
@@ -3683,8 +3682,8 @@ async function _pullReelPageOnce(){
       const cur=_reelCursors[feed]||'';
       try{
         const u='https://public.api.bsky.app/xrpc/app.bsky.feed.getFeed?feed='+encodeURIComponent(feed)+'&limit=30'+(cur?'&cursor='+encodeURIComponent(cur):'');
-        const r=await fetch(u,{headers:{Accept:'application/json'}}); if(!r.ok)continue;
-        const d=await r.json(); _reelCursors[feed]=d.cursor||'';
+        const d=await nfFetchJson(u,8000); if(!d)continue;
+        _reelCursors[feed]=d.cursor||'';
         try{localStorage.setItem('void_reel_cursors',JSON.stringify(_reelCursors));}catch(e){}
         let added=0;
         for(const it of (d.feed||[])){

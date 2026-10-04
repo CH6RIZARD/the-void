@@ -12,8 +12,11 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const fx = (f: string) => JSON.parse(fs.readFileSync(path.join(here, 'fixtures', f), 'utf8'));
 const NOW = Date.UTC(2026, 8, 17, 2, 0, 0);
 const plain = (v: unknown) => JSON.parse(JSON.stringify(v));
+// No test reaches the network. vwFill tops the reel pool up in the background, and
+// that pull used to go out to the real PeerTube and Bluesky hosts from a test run.
+const noNet = (async () => ({ ok: false, status: 0, json: async () => null })) as any;
 function fresh(seed = 7) {
-  core.configureCore({ storage: core.createMemoryStorage(), session: core.createMemoryStorage(), now: () => NOW, random: mulberry32(seed), proxyBase: '' });
+  core.configureCore({ storage: core.createMemoryStorage(), session: core.createMemoryStorage(), now: () => NOW, random: mulberry32(seed), proxyBase: '', fetch: noNet });
   core._badStreams.clear(); core.resetStories(); core.resetStore();
 }
 
@@ -216,4 +219,26 @@ test('reels PeerTube lane: gates run before the detail calls; a clip with no HLS
   assert.deepEqual(details.map(u => u.slice(-3)), ['ptA'], 'only the row that passes the gates costs a detail call');
   assert.equal(core.reelPosts[0]._video, 'https://h.example/720.mp4');
   assert.equal(core.reelPosts[0]._img!.endsWith('/p.jpg'), true);
+});
+
+test('reels pull is single-flight: a second caller gets the pull in progress, not an instant false', async () => {
+  let searches = 0;
+  core.configureCore({
+    storage: core.createMemoryStorage(), session: core.createMemoryStorage(), now: () => NOW, random: mulberry32(5), proxyBase: '',
+    fetch: (async (u: string) => {
+      if (u.includes('/search/videos')) searches++;
+      return { ok: true, json: async () => (u.includes('getFeed') ? { feed: [] } : { data: [] }) };
+    }) as any,
+  });
+  core.resetStore();
+  await core.pullReelPage(); // settle any pull an earlier test left in flight
+  searches = 0;
+  const a = core.pullReelPage();
+  const b = core.pullReelPage();
+  assert.equal(a, b, 'the same in-flight promise');
+  assert.equal(await a, false, 'nothing admitted from empty sources');
+  assert.equal(searches, 1, 'one pull, not two');
+  const c = core.pullReelPage();
+  assert.notEqual(c, a, 'a settled pull frees the slot');
+  await c;
 });
