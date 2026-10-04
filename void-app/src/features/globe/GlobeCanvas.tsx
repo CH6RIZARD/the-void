@@ -9,6 +9,7 @@ import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { createGlobeScene, type GlobeScene } from './globeScene';
+import { pickCountry, resolveEarthUri, startWorkletGlobe } from './globeWorklet';
 import { GlobeSearch } from './GlobeSearch';
 import { countries, type Country } from '../live/core';
 import { em, useLiveTheme } from '../live/liveTheme';
@@ -101,6 +102,21 @@ export function GlobeCanvas({ running, onOpenCountry, refreshNonce = 0, gestureR
     glRetries.current = 0;
     setGlAttempt((a) => a + 1);
   }, [refreshNonce]);
+  // THE WORKLET GLOBE. The user authorized a full rebuild ("if you have to
+  // completely rebuild it, do that - I just need it to look the same"):
+  // globeWorklet.ts runs the entire render loop on the UI thread, so a blocked
+  // JS thread can no longer cost the globe a single frame. globeScene.ts stays
+  // as the instant fallback - flip this to false and everything is as before.
+  const WORKLET_GLOBE = true;
+  const runningSV = useSharedValue(0);
+  const canceledSV = useSharedValue(0);
+  const hotSV = useSharedValue(-1);
+  const rotXSV = useSharedValue(0);
+  const rotYSV = useSharedValue(0);
+  const zoomSV = useSharedValue(2.9);
+  const lastFrameSV = useSharedValue(0);
+  const texStateSV = useSharedValue(0);
+  const earthUriSV = useSharedValue('');
   const onContextCreate = useCallback((gl: ExpoWebGLRenderingContext) => {
     // See the guard in app/_layout.tsx: a re-created surface can hand back a context
     // that is not real. Building a renderer on it would fail in a dozen places.
@@ -112,13 +128,49 @@ export function GlobeCanvas({ running, onOpenCountry, refreshNonce = 0, gestureR
       return;
     }
     try {
-      scene.current = createGlobeScene(gl, countries(), size.current.w, size.current.h);
-      setSceneReady(true);
+      if (WORKLET_GLOBE) {
+        const cs = countries();
+        canceledSV.value = 0;
+        lastFrameSV.value = 0;
+        startWorkletGlobe((gl as any).contextId, cs, size.current.w, size.current.h, {
+          accX, accY, accZoom, velX, velY, dragSV,
+          runningSV, canceledSV, hotSV, rotXSV, rotYSV, zoomSV, lastFrameSV, texStateSV, earthUriSV,
+        });
+        resolveEarthUri(earthUriSV);
+        // A JS-side shim with the old scene's surface: picking + hover live
+        // here (plain math on the rotation the worklet reports), everything
+        // else is a shared-value flip.
+        scene.current = {
+          input: { drag: false, tRotX: 0, tRotY: 0, rVelX: 0, rVelY: 0, tZoom: 2.9 },
+          frame: () => false,
+          hit: (x: number, y: number) => {
+            const i = pickCountry(cs, x, y, size.current.w, size.current.h, rotXSV.value, rotYSV.value, zoomSV.value);
+            return i >= 0 ? cs[i] : null;
+          },
+          hover: (x: number, y: number) => {
+            const i = pickCountry(cs, x, y, size.current.w, size.current.h, rotXSV.value, rotYSV.value, zoomSV.value);
+            hotSV.value = i;
+            return i >= 0 ? cs[i] : null;
+          },
+          clearHover: () => {
+            hotSV.value = -1;
+          },
+          resize: () => {},
+          dispose: () => {
+            canceledSV.value = 1;
+          },
+        } as GlobeScene;
+        setSceneReady(true);
+      } else {
+        scene.current = createGlobeScene(gl, countries(), size.current.w, size.current.h);
+        setSceneReady(true);
+      }
     } catch (e) {
       console.warn('[globe] scene failed - rebuilding the canvas', e);
       scene.current = null;
       retryGl();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   // THE FINGER IS READ ON THE UI THREAD: worklet handlers below accumulate
   // gesture deltas into these shared values the instant the finger moves,
@@ -133,7 +185,38 @@ export function GlobeCanvas({ running, onOpenCountry, refreshNonce = 0, gestureR
   const velY = useSharedValue(0);
   const dragSV = useSharedValue(0);
   const tg = useSharedValue({ px: 0, py: 0, sx: 0, sy: 0, st: 0, pinch: 0, tap: 0 });
+  // Worklet mode: the UI thread owns the loop. This effect only flips the
+  // running flag and watches health - if the loop stops producing frames while
+  // it should be running (context death), the usual retry path rebuilds it.
   useEffect(() => {
+    if (!WORKLET_GLOBE) return;
+    const on = sceneReady && running && appActive;
+    runningSV.value = on ? 1 : 0;
+    if (!on) return;
+    let seen = lastFrameSV.value;
+    let strikes = 0;
+    const iv = setInterval(() => {
+      const now = lastFrameSV.value;
+      if (now !== seen) {
+        seen = now;
+        strikes = 0;
+        noteGlHealthy();
+        if (!markedRef.current) {
+          markedRef.current = true;
+          interactiveRef.current({ params: { surface: 'globe' } });
+        }
+      } else if (++strikes >= 3) {
+        clearInterval(iv);
+        console.warn('[globe] worklet loop stopped producing frames - rebuilding');
+        retryGl();
+      }
+    }, 1500);
+    return () => clearInterval(iv);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sceneReady, running, appActive, noteGlHealthy]);
+
+  useEffect(() => {
+    if (WORKLET_GLOBE) return;
     const s = scene.current;
     if (!sceneReady || !s || !running || !appActive) return;
     let alive = true;
@@ -306,7 +389,7 @@ export function GlobeCanvas({ running, onOpenCountry, refreshNonce = 0, gestureR
 
               `opaque` is a prop this app adds to expo-gl (patches/expo-gl); the
               onboarding globe clears to alpha 0 and must not set it. */}
-          <GLView key={glAttempt} style={StyleSheet.absoluteFill} onContextCreate={onContextCreate} msaaSamples={0} opaque />
+          <GLView key={glAttempt} style={StyleSheet.absoluteFill} onContextCreate={onContextCreate} msaaSamples={0} enableExperimentalWorkletSupport opaque />
         </View>
       </GestureDetector>
 
