@@ -16,7 +16,7 @@
 // Paging: scroll-snap-type:y mandatory + scroll-snap-stop:always → FlatList snapToInterval
 // (one full-height card per page) + disableIntervalMomentum (one card per swipe). vwObserve(threshold .5) → viewability 50%.
 // Reels stay a dark media surface in every theme (LIGHT included).
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, FlatList, Pressable, Share, StyleSheet, Text, View, type LayoutChangeEvent, type ViewToken } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -66,15 +66,17 @@ export interface ReelsViewProps {
 
 /** Near the end when fewer than three screens remain below (ct.scrollTop + clientHeight*3 > scrollHeight). */
 const nearEnd = (idx: number, len: number) => len - idx < 3;
-/** The GLOBE-REELS slide is 340ms; players are built once it has landed, not under it. */
-const ENTRY_HOLD_MS = 380;
+/** (Re)entering: the card on screen gets this long alone on the build queue before its neighbours join. */
+const NEIGHBOUR_HOLD_MS = 900;
 /** Momentum end is the settle. This is only the net under it (a programmatic scroll, a missed event). */
 const SETTLE_FALLBACK_MS = 700;
 /** Nothing to show after this long: say NO SIGNAL and offer a retry (never a spinner forever). */
 const STALL_MS = 12000;
 const STALL_RETRY_MS = 15000;
 
-export function ReelsView({ active, nation, postId, overlay: overlayProp, onClose }: ReelsViewProps) {
+// memo: on the globe tab this sits under GlobeSurfaces, whose state flips on every
+// globe touch-down, slide and refresh - none of which change these props.
+export const ReelsView = memo(function ReelsView({ active, nation, postId, overlay: overlayProp, onClose }: ReelsViewProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const overlay = overlayProp ?? (!!nation || !!postId);
@@ -112,15 +114,18 @@ export function ReelsView({ active, nation, postId, overlay: overlayProp, onClos
   const audio = useSafeClaimAudio();
 
   const live = active && appActive;
-  // Players wait for the slide (or the route push) that reveals this surface:
-  // the cards are all there under it, the heavy part arrives once it has landed.
-  const [warm, setWarm] = useState(false);
+  // (RE)ENTERING: THE CARD ON SCREEN GETS THE FIRST BUILD TO ITSELF.
+  // The paced queue is FIFO in mount order, so attaching the whole window at
+  // once built the card BEHIND before the one being looked at - the web's rule
+  // is "the card on screen gets the connection first". Its neighbours join
+  // once it has had a head start, which also keeps their builds off the slide.
+  const [around, setAround] = useState(false);
   useEffect(() => {
     if (!live) {
-      setWarm(false);
+      setAround(false);
       return;
     }
-    const t = setTimeout(() => setWarm(true), ENTRY_HOLD_MS);
+    const t = setTimeout(() => setAround(true), NEIGHBOUR_HOLD_MS);
     return () => clearTimeout(t);
   }, [live]);
 
@@ -366,7 +371,7 @@ export function ReelsView({ active, nation, postId, overlay: overlayProp, onClos
         // a nicety. Hidden now means cold: the current card shows its poster,
         // and the swipe to REELS creates its player on the paced queue - the
         // poster covers the ~0.5s to first frame, same as every cold reel.
-        attached={live && warm}
+        attached={live && (index === cur || around)}
         viewed={viewed.has(k)}
         railBottom={railBottom}
         soundOn={soundOn}
@@ -387,7 +392,7 @@ export function ReelsView({ active, nation, postId, overlay: overlayProp, onClos
       );
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [h, cur, win, warm, live, railBottom, soundOn, storeVersion, cleared, toggleSound, onReply, onShare, onLess, onMenu, onAuthor],
+    [h, cur, win, around, live, railBottom, soundOn, storeVersion, cleared, toggleSound, onReply, onShare, onLess, onMenu, onAuthor],
   );
 
   const onLayout = useCallback((e: LayoutChangeEvent) => setH(Math.round(e.nativeEvent.layout.height)), []);
@@ -398,7 +403,7 @@ export function ReelsView({ active, nation, postId, overlay: overlayProp, onClos
   const onDragEnd = useCallback(() => {
     dragging.current = false;
   }, []);
-  const extra = useMemo(() => ({ cur, win, warm, live, soundOn, storeVersion, cleared, h }), [cur, win, warm, live, soundOn, storeVersion, cleared, h]);
+  const extra = useMemo(() => ({ cur, win, around, live, soundOn, storeVersion, cleared, h }), [cur, win, around, live, soundOn, storeVersion, cleared, h]);
 
   return (
     <View style={[styles.fill, { backgroundColor: overlay ? '#000' : '#05020e' }]} onLayout={onLayout}>
@@ -473,7 +478,7 @@ export function ReelsView({ active, nation, postId, overlay: overlayProp, onClos
       <ReelModSheet target={mod} onClose={() => setMod(null)} onChanged={sweep} />
     </View>
   );
-}
+});
 
 export default ReelsView;
 

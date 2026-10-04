@@ -20,9 +20,11 @@ export interface ReelVideoProps {
   want: boolean;
   muted: boolean;
   onMediaReady(): void;
+  /** The surface has drawn its first frame (the poster over it can go). */
+  onFirstFrame?(): void;
 }
 
-export const ReelVideo = memo(function ReelVideo({ uri, want, muted, onMediaReady }: ReelVideoProps) {
+export const ReelVideo = memo(function ReelVideo({ uri, want, muted, onMediaReady, onFirstFrame }: ReelVideoProps) {
   const player = usePacedPlayer({ uri, contentType: /\.m3u8(\?|$)/i.test(uri) ? 'hls' : 'auto' } as any, (p) => {
     p.muted = true; // v.muted = v.defaultMuted = true
     p.loop = true;
@@ -84,7 +86,7 @@ export const ReelVideo = memo(function ReelVideo({ uri, want, muted, onMediaRead
     } catch {}
   }, [muted, player]);
 
-  return player ? <VideoView player={player} style={[StyleSheet.absoluteFill, styles.vid]} contentFit="cover" nativeControls={false} allowsPictureInPicture={false} /> : null;
+  return player ? <VideoView player={player} style={[StyleSheet.absoluteFill, styles.vid]} contentFit="cover" nativeControls={false} allowsPictureInPicture={false} onFirstFrameRender={onFirstFrame} /> : null;
 });
 
 function useWantRef(want: boolean) {
