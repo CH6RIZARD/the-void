@@ -144,6 +144,21 @@ function Shell() {
     return () => clearTimeout(t);
   }, []);
 
+  // The search discovery pool is session-global, and the first SEARCH open used
+  // to start it from nothing - a blank grid for a full network round. Stocked a
+  // few seconds in (the web's own setTimeout(pullSearchDiscovery, 5000)), the
+  // first open deals instantly.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try {
+        (require('../src/core') as typeof import('../src/core')).pullSearchDiscovery().catch(() => 0);
+      } catch {
+        /* search still works, it just pays for its own first pull */
+      }
+    }, 5000);
+    return () => clearTimeout(t);
+  }, []);
+
   useEffect(() => {
     const stopHeartbeat = startHeartbeat();
     const sub = AppState.addEventListener('change', (st) => {

@@ -10,10 +10,10 @@
 // the one-stream-one-place key (that line is commented out in the web), so neither
 // does the hero: only the instant refusals (refuseInstantly) apply.
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { _nationLive, nationStreamSources, noteNationLive } from '../../core';
+import { _nationLive, nationBundledSources, nationStreamSources, noteNationLive } from '../../core';
 import type { Country, StreamSource as CoreSource } from '../../core/types';
 import { refuseInstantly } from '../live/useStreamCascade';
-import { rememberStream, type StreamSource } from '../live/core';
+import { rememberStream, streamKey, type StreamSource } from '../live/core';
 
 export interface HeroAttempt {
   key: string;
@@ -79,8 +79,18 @@ export function useNationHero(c: Country) {
       r.needsHeal = false;
       r.healing = false;
       patch({ hidden: false, playing: false, metaSrc: null }); // nationHeroMeta(null,c) + sparkleTile(stage,'● SCANNING')
-      const sources = (await nationStreamSources(c)) as unknown as StreamSource[];
-      if (token !== r.token || !r.alive) return;
+      // THE FIRST ATTEMPT STARTS AT OPEN. The bundled cascade is synchronous;
+      // waiting on the old Promise.all (regionView up to 4s + a 404) before
+      // trying anything was most of the black-hero time. Reviewed regionView
+      // sources merge in below when they land and lead the next heal.
+      let sources = nationBundledSources(c) as unknown as StreamSource[];
+      const bundled = sources.length > 0;
+      if (!bundled) {
+        // A nation with nothing bundled: the regionView wait is its only hope,
+        // exactly as before.
+        sources = (await nationStreamSources(c)) as unknown as StreamSource[];
+        if (token !== r.token || !r.alive) return;
+      }
       if (!sources.length) {
         patch({ hidden: true });
         return;
@@ -123,6 +133,18 @@ export function useNationHero(c: Country) {
         });
 
       let i = 0;
+      if (bundled) {
+        // Reviewed sources land behind the first attempt and LEAD whatever the
+        // walk has not reached yet - the next advance or heal tries them first.
+        nationStreamSources(c)
+          .then((extra) => {
+            if (token !== r.token || !r.alive || !extra.length) return;
+            const have = new Set(sources.map((s) => streamKey(s as any)));
+            const add = (extra as unknown as StreamSource[]).filter((s) => !have.has(streamKey(s as any)));
+            if (add.length) sources.splice(Math.min(i, sources.length), 0, ...add);
+          })
+          .catch(() => {});
+      }
       const next = async (): Promise<boolean> => {
         while (i < sources.length) {
           if (token !== r.token) return false;

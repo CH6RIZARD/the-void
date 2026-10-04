@@ -1,5 +1,86 @@
 # NATIVE PERF LOOP — state
 
+## WALL MECHANICS HARD-LOCKED BY USER AT 7m (71aa593, tag wall-locked-7m)
+Relayed by peer session the-void-35 (07:35 EDT): "the live wall is perfect...
+no pivot"; sources stay open. Scope: src/features/live/* wall logic,
+src/core/streams/* wall logic, web wall engine. PARKED pending explicit user
+OK in THIS session: (a) audio-pinned-starve fix (three-fronts A), (b) the
+one-shared-Skia-canvas sparkle overlay. Protocol when three-fronts lands:
+commit ONLY feed-latency files (core/feed/proxy.ts, voidFeed.ts, lib/core.ts)
+to web/parity as 7n; park wall diffs (LiveWall.tsx, placementStore.ts) AND
+globe diffs (GlobeCanvas.tsx, globeWorklet.ts - peer owns globe touch now) on
+hold/wall-fixes-pending-user-ok; message the globe diff to the peer. Peer
+works on fix/search-center-reels (globe touch, reels perf, SearchPostCard
+centering) in an isolated worktree; they message before merging; CI stays
+one-build-at-a-time across both sessions.
+SEQUENCE AGREED: (1) my 7n ships first (feed-latency files only); (2) peer
+rebases onto my web/parity, re-verifies, messages, merges, dispatches the
+next build so one APK carries both. LAB PHONE: peer's until they release it
+(their stage-of globe/reels baselines). My 7n gate runs MANUALLY after they
+free the phone - the idle-aware auto-gate would install mid-baseline because
+it treats Void-foreground as safe. I carry the lock note in this file (peer
+stays out of it).
+
+## SCROLL BOTTLENECK NAMED BY PERFETTO (2026-10-04 07:16, build 7m, lab)
+- Trace: E:/measure/void-scroll.pftrace (33MB; pip 'perfetto' trace_processor
+  works on this PC). Main thread, 18s of scripted scrolls, 281 frames:
+  Choreographer#doFrame 11.8s total; animation 7.5s (26.5ms avg); traversal
+  4.3s (15.3ms); draw 4.1s (14.6ms); and the smoking gun - eglSwapBuffers
+  n=1975 (2.15s) + queue/dequeue/acquireBuffer ~4.5s combined = ~7 GL SURFACE
+  SWAPS PER FRAME ON THE MAIN THREAD. Each SparkleLoader is its own Skia
+  Canvas = own EGL surface; a fling shows ~14 of them ('[sparkle] fields
+  during scroll: 14' breadcrumb). Clock pacing (7m) was measured nearly
+  useless (animation 57.0->52.5) because the cost is SURFACES, not dot math.
+- Sparkle attribution history: refuted-as-math, confirmed-as-surfaces.
+- THE FIX (queued behind the three-fronts implementer which holds LiveWall):
+  ONE fixed Skia Canvas over the wall viewport drawing ALL active fields in a
+  single Atlas pass; per-tile offsets = tileTop - scrollY via a reanimated
+  UI-thread scroll handler shared value; SparkleLoader keeps its own Canvas
+  for non-wall uses. Pixel-identical dots by construction. One swap/frame.
+- Also from the trace: eo.cdn.bsky.app OkHttp thread 2.06s CPU DURING wall
+  scrolls (feed prefetch not scroll-gated - fold into three-fronts C);
+  HeapTaskDaemon 2.27s (GC pressure - audit memory track); RenderThread
+  7.9s CPU ~saturated.
+- 7m: gate survived, budget held (8/7/0), texture confirmed by screenshot
+  (breadcrumb-missing = known logcat rotation), PROMOTED TO USER. Settled
+  scroll 168.4 (=7l's 166.9). Lab phone switched to LIGHT THEME at dawn
+  (clone auto-switch; app honors system theme - not a defect).
+
+## THREE FRONTS (user 2026-10-04, on 7l) — workflow wf_c84b210c-fa1 (task wzexydgx3)
+- A: audio-pinned wall starve. With audio on + scroll to unloaded region: only
+  ~3 tiles fill, rest load-and-drop; re-tapping audio floods the section.
+  Hypothesis (VERIFY): keepId exemption mis-counts against the 7l budget-gated
+  restore; switching audio frees the pinned slot. Product rule stands:
+  "listening keeps playing" - fix arithmetic, not the rule.
+- B: nation feed -> back to globe = globe laggy/unresponsive. Suspects:
+  nation leaves players/audio/webviews/timers alive on pop; return-storm
+  restore commit; globe GL/gesture state across the trip.
+- C: feed/nation/search time-to-first-content too slow for the new standard
+  ("won't last 1100k users"). Known: 416+359ms unmarked boot stalls at feed
+  first render; nation open waterfalls; search 18-block swap commit.
+- GitHub current: main=71aa593 (7m sparkles-30fps-under-scroll) incl.
+  93b74c3. 7m CI run 37195708337 in flight w/ idle-aware gate (b2ds2qiy5).
+  Workflow fixes land as 7n after 7m's chain finishes.
+
+## 7L MEASURED + PROMOTED TO USER · 7m in flight (task b2ds2qiy5)
+- 7l settled truth: BUDGET HOLDS (players 9 / hw 9 / sw 0 post-scroll; gate
+  moment showed 6/3/0 mid-ramp with creates held - the holiday working).
+  Globe TEXTURED (screenshot; gate's 'texture=MISSING' was logcat rotation -
+  the breadcrumb grep now runs ~90s after launch, buffer turns over in
+  seconds; trust screenshots). Scroll settled-comparable: p50 166.9 p90 259
+  worst 456 (baseline 204.6/414.9/968); gpu 25.5->14.8; animation 58.3->57
+  UNMOVED -> by elimination the sparkle fields' per-frame buffer recompute.
+- 7l PROMOTED to user phone manually (install Success) - strictly better than
+  7i on every measured axis despite the gate's conservative auto-block.
+- 7m (committed via chain): sparkle clock samples at 30fps while
+  wallScrollAtSV fresh, dt accumulates (motion bit-identical, never frozen);
+  '[sparkle] fields during scroll: N' breadcrumb for attribution.
+  Transform-proofed (closure {wallScrollAtSV}), tsc clean. Gate = idle-aware
+  + verified install + budget counts + settled scroll re-measure.
+- NEXT after 7m numbers: if animation still >35ms with few fields reported,
+  the attribution was wrong - profile what else lives in the window (gated:
+  F6 reanimated sync-props flag, F7 TextureView A/B for remaining gpu).
+
 ## 7L COMMITTED (93b74c3) — budget-holds + settle-gated packing. DISPATCH AFTER 7K GATE.
 - Budget root cause (workflow wf_0417bc43-10d): fillCount()=20 geometry + the
   one-way un-evict valve (restore unconditional within PARK_SCREENS, no pass

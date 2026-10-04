@@ -16,7 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { mark } from '../core/slow';
 import Constants from 'expo-constants';
 import { AppState, type AppStateStatus } from 'react-native';
-import { configureCore, createMemoryStorage, initAuth, moderation, BIO, persistSeen, SIGNED_IN_KEY, type KVStorage } from '../core/index.ts';
+import { configureCore, createMemoryStorage, initAuth, moderation, BIO, persistSeen, pullSupabasePosts, pullVoidFeed, restoreFeedCache, SIGNED_IN_KEY, type KVStorage } from '../core/index.ts';
 import { ensureCore } from '../features/auth/coreBridge';
 import { continueAnonymously } from '../features/auth/authActions';
 import { AUTH_REDIRECT_URL } from '../nav/routes';
@@ -165,6 +165,17 @@ export function bootCore(): Promise<void> {
     try {
       moderation.loadModeration();
     } catch {}
+    // THE FEED RTT OVERLAPS THE SPLASH INSTEAD OF FOLLOWING IT. The pull needs
+    // only env.proxyBase - not auth - and the screen's own mount-time pull is
+    // deduped by the feedLoading single-flight, so by the time the feed mounts
+    // the fresh page has usually already landed. Last session's settled top is
+    // restored first (it was in the hydrate read anyway), so the screen's very
+    // first nextFeedBatch paints posts on its first frame.
+    try {
+      restoreFeedCache();
+    } catch {}
+    pullVoidFeed().catch(() => {});
+    pullSupabasePosts().catch(() => {});
     // Never hold the splash on the network (getSession may refresh an expired token).
     await Promise.race([ensureCore().catch(() => {}), new Promise((r) => setTimeout(r, 3000))]);
     initAuth(); // loads void_sb_session; its refresh() is bridged to supabase-js

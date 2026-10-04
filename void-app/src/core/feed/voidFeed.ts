@@ -28,14 +28,53 @@ export async function pullVoidFeed(): Promise<FeedPullResult> {
       try {
         const posts = await pullProxyPage();
         let added = 0; for (const p of posts) if (admitPost(p)) { allPosts.push(p); added++; }
-        if (added) { emitPostsChanged('feed'); return 'ok'; }
+        if (added) { emitPostsChanged('feed'); scheduleFeedCacheSave(); return 'ok'; }
       } catch { /* fall through to direct sources */ }
     }
     let ok = (await pullBlueskyPage()).length > 0;
     if (!ok) ok = (await pullRedditPage()).length > 0;
     trimStore(new Set(_rendered));   // keep the store bounded; on-screen rows are safe
+    if (ok) scheduleFeedCacheSave();
     return ok ? 'ok' : 'empty';
   } catch { return 'error'; } finally { feedLoading = false; }
+}
+
+// ─── WARM-LAUNCH FIRST PAINT ─────────────────────────────────────────────
+// The in-memory pool starts empty, so every launch paid a full RTT before the
+// first post could draw. The settled top of the feed is persisted through the
+// boot storage's write-through queue and restored into allPosts by bootCore -
+// the boot hydrate already reads every AsyncStorage key before first paint, so
+// the read costs nothing extra. The screen's initial nextFeedBatch then paints
+// instantly while pullVoidFeed refreshes behind it; staleLast sinks old posts
+// and anything past FEED_MAX_AGE_H never deals at all.
+export const FEED_CACHE_KEY = 'void_feed_cache';
+let _cacheT: ReturnType<typeof setTimeout> | null = null;
+/** Once per session, a beat after the settle window closes: save what settled on top. */
+function scheduleFeedCacheSave(): void {
+  if (_cacheT) return;
+  _cacheT = setTimeout(() => {
+    try {
+      const top = allPosts.filter(p => _rendered.has(p.id) && !p._offFeed).slice(0, 15);
+      if (top.length) env.storage.setItem(FEED_CACHE_KEY, JSON.stringify(top));
+    } catch { /* a failed save costs one warm paint, nothing more */ }
+  }, FEED_SETTLE_MS + 1000);
+  (_cacheT as any)?.unref?.();   // never holds a node test process open
+}
+/** bootCore: last session's settled top back into the pool before first paint. */
+export function restoreFeedCache(): number {
+  try {
+    const raw = env.storage.getItem(FEED_CACHE_KEY);
+    if (!raw) return 0;
+    const list = JSON.parse(raw);
+    if (!Array.isArray(list)) return 0;
+    const have = new Set(allPosts.map(p => p.id));
+    let added = 0;
+    for (const p of list) {
+      if (!p || !p.id || have.has(p.id)) continue;
+      allPosts.push(p as Post); added++;
+    }
+    return added;
+  } catch { return 0; }
 }
 
 // ─── APPEND-ONLY RENDER MODEL ────────────────────────────────────────────
@@ -57,6 +96,10 @@ function nextFeedBatchInner(hidden?: (p: Post) => boolean, exclude?: Set<string>
   let fresh = peekFeedFresh(hidden, exclude);
   if (!fresh.length) return [];
   fresh = staleLast(orderFeedBatch(fresh));
+  // The FIRST deal is two screenfuls, not the whole pool. Committing ~100 ranked
+  // cards in one go was the other half of the post-boot stall; the remainder
+  // stays fresh and deals on the next append (a scroll, or the next arrival).
+  if (!_rendered.size && fresh.length > 12) fresh = fresh.slice(0, 12);
   fresh.forEach(p => { _rendered.add(p.id); laneClaim(p, 'feed'); surfaceClaim(p, 'feed'); });
   return fresh;
 }

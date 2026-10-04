@@ -163,8 +163,11 @@ export async function pullSearchQuery(q: string): Promise<Post[]> {
     tag ? nfFetchJson(`https://mastodon.social/api/v1/timelines/tag/${encodeURIComponent(tag)}?limit=20`).then(d => Array.isArray(d) ? d.map(x => mastoToPost(x, _SD_NATION)).filter(Boolean) : []) : Promise.resolve([]),
   ]);
   const got = res.flatMap(r => r.status === 'fulfilled' && Array.isArray(r.value) ? r.value : []).filter(_sdOk);
-  _sqPool.set(q, got);
-  if (got.length) emitPostsChanged('search');
+  // Only a result WITH posts is cached. Caching an empty one made a flaky
+  // network a session-permanent empty answer for that query; releasing the key
+  // lets a retyped query actually retry.
+  if (got.length) { _sqPool.set(q, got); emitPostsChanged('search'); }
+  else _sqPool.delete(q);
   return got;
 }
 /** Search cards are not in allPosts; register the tapped one OFF the feed so a thread can open it. */

@@ -31,7 +31,7 @@ import { useTheme } from '../../theme/tokens';
 import { FONTS, em } from '../../theme/palettes';
 import { useBottomNavSpace } from '../../nav/layout';
 import { onTabReselect } from '../../nav/reselect';
-import { FILTERS, buildSearch, type SearchBlock, type SearchFilter } from './searchModel';
+import { FILTERS, advanceLiveWindow, buildSearch, type SearchBlock, type SearchFilter } from './searchModel';
 import { SEARCH_SURFACE, SearchPostCard } from './SearchPostCard';
 import { setInView } from '../feed/stores';
 
@@ -72,6 +72,7 @@ export default function SearchScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      advanceLiveWindow(); // a fresh visit gets a fresh LIVE NOW set; builds within the visit keep it
       setFocused(true);
       return () => setFocused(false);
     }, []),
@@ -84,13 +85,21 @@ export default function SearchScreen() {
   const filterRef = useRef(filter);
   filterRef.current = filter;
 
+  const viewRef = useRef<string | null>(null);
   const render = useCallback((q: string, f: SearchFilter) => {
     const r = buildSearch(q, f);
     // Same exact set of cards → what is on screen is already correct; leave it alone.
     if (sigRef.current === r.sig) return;
     sigRef.current = r.sig;
+    // Only the POSTS changed (a discovery landing on the same query + filter):
+    // keep the staircase where it is. Collapsing back to FIRST_PAINT and
+    // re-climbing on every landing re-revealed - and remounted - everything
+    // below block four, over and over, which is the "slow" search felt.
+    const view = f + '\u0000' + q;
+    const sameView = viewRef.current === view;
+    viewRef.current = view;
     setBlocks(r.blocks);
-    setShown(FIRST_PAINT);
+    if (!sameView) setShown(FIRST_PAINT);
   }, []);
 
   // ─── THE SCREEN ARRIVES IN PIECES, NOT ALL AT ONCE ─────────────────────

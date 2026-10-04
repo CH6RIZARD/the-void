@@ -648,13 +648,28 @@ function page(all, offset, limit) {
 }
 const cache = new Map();
 
+// The producer's PROMISE goes into the cache before anyone awaits it, so N
+// concurrent misses on one key run ONE upstream fan-out instead of N - the old
+// shape was a thundering herd that burned N-1 paid-X spends on every 60s TTL
+// expiry per mode. And expiry serves STALE WHILE REVALIDATING: no user request
+// ever blocks on the refresh; the new pool answers the requests after it.
 async function cached(key, producer) {
   const now = Date.now();
-  const hit = cache.get(key);
-  if (hit && now - hit.t < CACHE_TTL_MS) return hit.v;
-  const v = await producer();
-  cache.set(key, { t: now, v });
-  return v;
+  let e = cache.get(key);
+  if (!e) {
+    e = { t: now, v: producer(), next: null };   // v is a promise; await unwraps it for every coalesced caller
+    cache.set(key, e);
+    // A failed fan-out must not poison the key for a whole TTL.
+    Promise.resolve(e.v).catch(() => { if (cache.get(key) === e) cache.delete(key); });
+    return e.v;
+  }
+  if (now - e.t >= CACHE_TTL_MS && !e.next) {
+    e.next = Promise.resolve().then(producer).then(
+      (v) => { e.t = Date.now(); e.v = v; e.next = null; },
+      () => { e.next = null; },                  // keep serving stale; the next request retries
+    );
+  }
+  return e.v;
 }
 
 // ---------------------------------------------------------------------------
@@ -818,12 +833,17 @@ function cors(res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
-function sendJson(res, code, obj) {
+function sendJson(res, code, obj, headers) {
   const body = JSON.stringify(obj);
   cors(res);
-  res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' });
+  res.writeHead(code, Object.assign({ 'Content-Type': 'application/json; charset=utf-8' }, headers || null));
   res.end(body);
 }
+// /feed and /social payloads are user-independent (keyed only by mode / country /
+// offset / limit), so a CDN in front of the proxy can absorb them the same way
+// /streams/health is already absorbed - origin load becomes O(pages-per-minute)
+// instead of O(users), and everyone's latency becomes an edge hit.
+const FEED_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=30, stale-while-revalidate=120' };
 
 const server = http.createServer(async (req, res) => {
   try {
@@ -871,14 +891,14 @@ const server = http.createServer(async (req, res) => {
       // each page came from a differently-sized, differently-ranked fetch.
       const key = `feed|${mode}`;
       const all = await cached(key, () => aggregateGlobal({ mode, limit: FEED_POOL }));
-      return sendJson(res, 200, page(all, offset, limit));
+      return sendJson(res, 200, page(all, offset, limit), FEED_CACHE_HEADERS);
     }
 
     if (path === '/social') {
       const country = u.searchParams.get('country') || '';
       const key = `social|${country.toLowerCase()}|${mode}`;
       const all = await cached(key, () => aggregateByCountry({ country, mode, limit: SOCIAL_POOL }));
-      return sendJson(res, 200, page(all, offset, limit));
+      return sendJson(res, 200, page(all, offset, limit), FEED_CACHE_HEADERS);
     }
 
     // ─── STREAM HEALTH: the pool's vital signs, aggregated from every client ──

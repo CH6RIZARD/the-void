@@ -92,9 +92,13 @@ function liveWindow(all: LiveChannelRef[], n: number): LiveChannelRef[] {
   for (let i = 0; i < n; i++) out.push(all[(liveCursor + i) % all.length]);
   return out;
 }
-/** Move the window on, so the next visit is a different set. */
-function advanceLive(all: LiveChannelRef[], by: number): void {
-  if (all.length) liveCursor = (liveCursor + by) % all.length;
+/** Move the window on - ONCE PER TAB FOCUS, not per build. Advancing inside
+ *  buildSearch meant every discovery landing minted new feat/row keys, so the
+ *  live YouTube embeds remounted mid-read on every landing - the dominant
+ *  "search is slow" feel. The window now moves when the user comes back. */
+export function advanceLiveWindow(): void {
+  const all = channels();
+  if (all.length) liveCursor = (liveCursor + 7) % all.length;
 }
 
 export type SearchBlock =
@@ -124,7 +128,6 @@ export function buildSearch(q: string, filter: SearchFilter): SearchRender {
   const lq = String(q || '').trim().toLowerCase();
   if (filter === 'live') {
     const win = liveWindow(LC, 7);
-    advanceLive(LC, 7);
     return {
       sig: 'live|' + q + '|' + win[0].id,
       blocks: [
@@ -168,7 +171,9 @@ export function buildSearch(q: string, filter: SearchFilter): SearchRender {
     posts.push(p);
   }
   if (!lq && free < 24) pullSearchDiscovery().catch(() => 0); // keep discovery stocked ahead of the exclusions
-  const sig = filter + '|' + q + '|' + liveCursor + '|' + posts.map((p) => p.id).join(',');
+  // No cursor in the sig: the window only moves per focus now, so two builds in
+  // one visit with the same posts ARE the same screen and must compare equal.
+  const sig = filter + '|' + q + '|' + posts.map((p) => p.id).join(',');
   posts.forEach((p) => surfaceClaim(p, 'search'));
   if (filter !== 'all') posts = posts.filter((p) => matchesFilter(p, filter));
 
@@ -179,7 +184,6 @@ export function buildSearch(q: string, filter: SearchFilter): SearchRender {
   // open, every launch, for ever - which is exactly what was reported, after this
   // was called fixed.
   const win = liveWindow(LC, 3);
-  advanceLive(LC, 3);
   const blocks: SearchBlock[] = [
     { kind: 'label', key: 'lbl:live', text: 'LIVE NOW', live: true },
     { kind: 'feat', key: 'feat:' + win[0].id, ch: win[0] },

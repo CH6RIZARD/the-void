@@ -409,8 +409,14 @@ export function nationFeedPoolAdd(st: NationFeedState, list: Array<Post | null> 
  */
 export function nationFeedHoldMs(st: NationFeedState): number {
   const age = env.now() - (st.t0 || 0), busy = Object.keys(st.inflight || {}).length;
-  const lone = new Set(st.pool.map(nfGroup)).size < 2;
-  if (!st.rendered && busy && (age < 1500 || (lone && age < 4000))) return Math.max(250, (age < 1500 ? 1550 : 4050) - age);
+  // The hold exists for exactly one reason: no all-radio first screen. Radio
+  // answers first and a 1.5-4s blank was the price of waiting for anything
+  // else. But nfPick already caps radio at one card per NF_RADIO_EVERY posts,
+  // so a pool holding ANY non-radio format can deal NOW and cannot produce the
+  // screen the hold was built against. Only a radio-only (or empty) pool still
+  // waits, and only while sources are in flight.
+  const radioOnly = !st.pool.some(p => p.source !== 'radio');
+  if (!st.rendered && busy && radioOnly && age < 4000) return Math.max(250, 4050 - age);
   return 0;
 }
 

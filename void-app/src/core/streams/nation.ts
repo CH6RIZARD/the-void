@@ -9,6 +9,7 @@ import type { Country, RegionView, StreamSource } from '../types.ts';
 import { C, resolveRegion } from '../data/regions.ts';
 import { CAM_SOURCES, NEWS_SOURCES, RAW_FOOTAGE, iptvFor, lifeFor } from '../data/sources.ts';
 import { streamKey, usedStreamKeys } from './keys.ts';
+import { ensureHealth, healthDead, healthFlaky, healthMsBucket } from './health.ts';
 
 /** name -> sources that actually CONNECTED in that nation's live section (feeds rankNation). */
 export const _nationLive: Record<string, StreamSource[]> = {};
@@ -75,23 +76,27 @@ export async function pullLiveStreams(country: string): Promise<StreamSource[]> 
 
 const normLabel = (s: unknown) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
-/**
- * The nation's own ordered stream cascade. `deps` lets tests / callers inject the
- * two network tiers (defaults: nationRegionView + pullLiveStreams).
- */
-export async function nationStreamSources(c: Pick<Country, 'n' | 'iso'>, deps?: {
-  regionView?: (c: Pick<Country, 'n' | 'iso'>) => Promise<RegionView | null>;
-  proxy?: (name: string) => Promise<StreamSource[]>;
-}): Promise<StreamSource[]> {
-  const name = c.n;
-  const [rv, proxy] = await Promise.all([(deps?.regionView || nationRegionView)(c), (deps?.proxy || pullLiveStreams)(name)]);
-  const reviewed = ((rv && rv.places) || []).map(placeToSource).filter(Boolean) as StreamSource[];
-  // User-set mix for a nation: 3 city-life streams in every 10, the other 7 news /
-  // live TV. News leads, so the hero opens on the nation's live picture; life is
-  // spread evenly. Whichever pool runs out, the other fills. Portal iframes go last.
+/** Reliability before speed, the wall's own ordering (wall.ts): known-dead
+ *  streams are dropped, proven-flaky sink behind everything, and inside each
+ *  tier the population's median connect ms rules - so the hero stops burning
+ *  5.5-7s serial connect timeouts on leads the whole world already knows are
+ *  dead. The health map is empty until ensureHealth's fetch lands (and always
+ *  in tests), and an empty map is exactly the old order. */
+function rankTier(list: StreamSource[]): StreamSource[] {
+  return list
+    .filter(s => !healthDead(s))
+    .map((s, i) => [s, healthFlaky(s) ? 1 : 0, healthMsBucket(s), i] as const)
+    .sort((a, b) => a[1] - b[1] || a[2] - b[2] || a[3] - b[3])
+    .map(x => x[0]);
+}
+
+// User-set mix for a nation: 3 city-life streams in every 10, the other 7 news /
+// live TV. News leads, so the hero opens on the nation's live picture; life is
+// spread evenly. Whichever pool runs out, the other fills. Portal iframes go last.
+function nationOwnCascade(name: string): StreamSource[] {
   const lifeAll = [...(CAM_SOURCES[name] || []), ...(RAW_FOOTAGE[name] || []), ...lifeFor(name)];
-  const life = lifeAll.filter(x => x.type !== 'iframe'), frames = lifeAll.filter(x => x.type === 'iframe');
-  const news = [...iptvFor(name), ...(NEWS_SOURCES[name] || [])];
+  const life = rankTier(lifeAll.filter(x => x.type !== 'iframe')), frames = lifeAll.filter(x => x.type === 'iframe');
+  const news = rankTier([...iptvFor(name), ...(NEWS_SOURCES[name] || [])]);
   const own: StreamSource[] = [];
   const NATION_LIFE_SLOTS = new Set([2, 5, 8]);                // positions 3, 6, 9 of every 10
   for (let i = 0; life.length || news.length; i++) {
@@ -100,10 +105,14 @@ export async function nationStreamSources(c: Pick<Country, 'n' | 'iso'>, deps?: 
     own.push(pick.shift()!);
   }
   own.push(...frames);
-  // Dedupe by stream key AND by label: the IPTV pool lists some channels under
-  // several mirror URLs, which put the same broadcast on screen twice.
+  return own;
+}
+
+// Dedupe by stream key AND by label: the IPTV pool lists some channels under
+// several mirror URLs, which put the same broadcast on screen twice.
+function nationDedupe(name: string, srcs: Array<StreamSource | null>): StreamSource[] {
   const seen = new Set<string>(), seenLbl = new Set<string>(), out: StreamSource[] = [];
-  for (const src of [...reviewed, ...own, ...(proxy || [])]) {
+  for (const src of srcs) {
     if (!src) continue;
     const k = src.type ? streamKey(src) : JSON.stringify(src).slice(0, 160);
     const l = normLabel(src.label);
@@ -112,6 +121,35 @@ export async function nationStreamSources(c: Pick<Country, 'n' | 'iso'>, deps?: 
     seen.add(k); if (l) seenLbl.add(l); out.push(src);
   }
   return out;
+}
+
+/**
+ * The bundled tiers, SYNCHRONOUSLY. The hero's first connect attempt used to
+ * wait on Promise.all([regionView up to 4s, a /streams call the proxy does not
+ * even route - a guaranteed 404]) before it could try anything; this is the
+ * same cascade with zero awaits, so the first attempt starts at open.
+ * Reviewed regionView sources merge in when they land (useNationHero).
+ */
+export function nationBundledSources(c: Pick<Country, 'n' | 'iso'>): StreamSource[] {
+  ensureHealth();   // fire-and-forget; empty map = exactly the old behavior
+  return nationDedupe(c.n, nationOwnCascade(c.n));
+}
+
+/**
+ * The nation's own ordered stream cascade. `deps` lets tests / callers inject the
+ * two network tiers. The default proxy tier is empty: GET /streams does not exist
+ * on the proxy (see server.js's route table), and awaiting its 404 was part of
+ * what blocked every nation open.
+ */
+export async function nationStreamSources(c: Pick<Country, 'n' | 'iso'>, deps?: {
+  regionView?: (c: Pick<Country, 'n' | 'iso'>) => Promise<RegionView | null>;
+  proxy?: (name: string) => Promise<StreamSource[]>;
+}): Promise<StreamSource[]> {
+  const name = c.n;
+  const [rv, proxy] = await Promise.all([(deps?.regionView || nationRegionView)(c), (deps?.proxy || (async () => [] as StreamSource[]))(name)]);
+  const reviewed = ((rv && rv.places) || []).map(placeToSource).filter(Boolean) as StreamSource[];
+  ensureHealth();
+  return nationDedupe(name, [...reviewed, ...nationOwnCascade(name), ...(proxy || [])]);
 }
 
 // Uniqueness guard. A stream is ONE nation's: a key or label another nation's own
