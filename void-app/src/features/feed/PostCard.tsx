@@ -69,33 +69,6 @@ export const PostCard = memo(function PostCard({ post: p, index: i, onOpenThread
   const lifted = useLifted(p.id);
   const ref = useRef<View>(null);
 
-  const fade = useSharedValue(faded.has(p.id) ? 1 : 0);
-  // THE FADE'S END STATE IS WRITTEN INTO REACT. React's own props for this view
-  // keep the first render's opacity 0 for the card's whole life; the animated 1
-  // lives in Reanimated's registry, which syncs it back to React only if a 500ms
-  // JS poll lands 1-2s after the fade, then forgets it. A JS stall in that window
-  // (opening a nation: 35-60 requests) lost it, and the next React commit sent
-  // opacity 0 again - "the nation feed is loaded but you can't see anything
-  // until you scroll". Settled, the card drops the animated style: no opacity 0
-  // left in React to go back to. Same look, one render per post per session.
-  const [settled, setSettled] = useState(() => faded.has(p.id));
-  useEffect(() => {
-    if (faded.has(p.id)) {
-      // Already faded (a re-mount, or a second card for the same post in the same
-      // commit): show it as settled rather than leave this instance at fade 0.
-      setSettled(true);
-      return;
-    }
-    faded.add(p.id);
-    fade.value = withDelay(
-      Math.min(i, 8) * 40,
-      withTiming(1, { duration: 280, easing: EASE }, (done) => {
-        if (done) runOnJS(setSettled)(true);
-      }),
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [p.id]);
-  const fadeStyle = useAnimatedStyle(() => ({ opacity: fade.value, transform: [{ translateY: (1 - fade.value) * 3 }] }));
 
   const measure = useCallback((cb: (r: Rect | null) => void) => {
     const node = ref.current;
@@ -127,7 +100,7 @@ export const PostCard = memo(function PostCard({ post: p, index: i, onOpenThread
     : { backgroundColor: col, boxShadow: p._user ? '0px 0px 0px 2px rgba(201,168,76,0.35)' : '0px 0px 0px 2px rgba(124,58,237,0.35)' };
 
   return (
-    <Animated.View ref={ref as any} collapsable={false} style={[styles.outer, settled ? null : fadeStyle, style]}>
+    <FadeIn id={p.id} index={i} viewRef={ref} style={style}>
       <Pressable
         onPress={open}
         style={({ pressed }) => [
@@ -196,6 +169,57 @@ export const PostCard = memo(function PostCard({ post: p, index: i, onOpenThread
           />
         </View>
       </Pressable>
+    </FadeIn>
+  );
+});
+
+// .post{animation:vfadeIn .28s ease both}, as its own component.
+//
+// THE FADE'S END STATE IS WRITTEN INTO REACT. React's own props for the card keep
+// the first render's opacity 0 for its whole life; the fade's frames reach the
+// native view only through Reanimated (its UI commits, which it skips while a React
+// commit is pending, and its settled-props sync, which a JS stall or a stopped GC
+// timer can lose). When they don't, the card sits at alpha 0 until some React
+// commit lands - "the nation feed is loaded but the content won't show till I tap
+// or scroll". The fade's end now commits its own settled state, and a settled card
+// drops the animated style: no opacity 0 is left in React's props to fall back
+// to. Here rather than in PostCard so that commit re-renders one View, not the
+// whole card (media, actions, text) in the middle of a nation open.
+const FadeIn = memo(function FadeIn({
+  id,
+  index,
+  viewRef,
+  style,
+  children,
+}: {
+  id: string;
+  index: number;
+  viewRef: React.RefObject<View | null>;
+  style?: StyleProp<ViewStyle>;
+  children: React.ReactNode;
+}) {
+  const fade = useSharedValue(faded.has(id) ? 1 : 0);
+  const [settled, setSettled] = useState(() => faded.has(id));
+  useEffect(() => {
+    if (faded.has(id)) {
+      // Already faded (a re-mount, or a second card for the same post in the same
+      // commit): show it settled rather than leave this instance at fade 0.
+      setSettled(true);
+      return;
+    }
+    faded.add(id);
+    fade.value = withDelay(
+      Math.min(index, 8) * 40,
+      withTiming(1, { duration: 280, easing: EASE }, (done) => {
+        if (done) runOnJS(setSettled)(true);
+      }),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+  const fadeStyle = useAnimatedStyle(() => ({ opacity: fade.value, transform: [{ translateY: (1 - fade.value) * 3 }] }));
+  return (
+    <Animated.View ref={viewRef as any} collapsable={false} style={[styles.outer, settled ? null : fadeStyle, style]}>
+      {children}
     </Animated.View>
   );
 });
