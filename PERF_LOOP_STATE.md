@@ -1,5 +1,38 @@
 # NATIVE PERF LOOP — state
 
+## Build 7i in flight (chain /e/tmp/chain7i.sh, task bnfod6tl0) — THE GLOBAL BUDGET
+- Carries (one commit): feed/profile release players on tab blur (surface-focus
+  flag -> videoStore releasePaced, Search's path); PostMedia unconditional
+  pause (buffering-at-blur active-decode bypass closed); reels hidden side
+  holds zero players; sentinel `w` annotation (1766/2645, 374 cheap) + wallSlots
+  sorts [cheap, unknown, expensive] on BOTH native and web + capExpensive (max 2
+  concurrent >480-wide wall streams, reorder never filter); golden suite
+  resurrected (slow.ts lazy AppState, health.ts lazy config, harness learned
+  provenDead/health, cascade test encodes the native YT ban) - 24/24 + tsc.
+- Gate now REQUIRES: texture breadcrumb + players <=11 + sw sessions 0 after a
+  60s settle, else user stays on b6.
+- NEXT TICK on gate pass: full measure - per-layer fps (PASS >=12 all visible,
+  TARGET >=15, baseline 3.2-7.6), media.metrics width histogram (expect
+  majority <=480 on new wall sessions), feed-restore bar (poster frame 1,
+  first video frame <700ms on tab return), scroll-transient player count.
+- GATED next if fps still short: B1 release-gap 150ms (needs soak-wall),
+  F4 expo-video patch (needs sessions <=10 + sw 0 proven first).
+- Web side rides the same push (Cloudflare Pages deploys void-proxy/public).
+
+## GLOBE FLUIDITY (user 2026-10-04: "could be a little more fluid") — MEASURED
+- stage-of.mjs globe on 7h, lab, mid-drag: total p50 127ms (~8fps) p90 162,
+  100% janky; gpu p50 35.3 p90 70.0 DOMINANT; animation (worklet loop) p50
+  10.7; input/draw/traversal ~0. The worklet+gesture path is healthy - the
+  GPU is starved by compositing ~20 video surfaces alongside the globe.
+- PLAN: (1) re-run the same command after 7i installs (7i halves the layer
+  count) - directly comparable. (2) If gpu still >16ms p50: pace the worklet
+  loop to a steady ~30fps DURING drag too (currently only idle-governed) so
+  endFrameEXP stops outrunning vsync - the 247ms worst is pipeline backlog,
+  not slow math; steady 30 reads fluid, oscillating 8-15 reads jank. No look
+  change. (3) Bench: GLView at 1/1.4 layout size + transform scale (smaller
+  buffer, HWUI upscales) - ONLY behind a screenshot pixel-compare, look is
+  locked.
+
 ## WALL FRAMERATE — root-caused by workflow wf_fd7068c2-0ae (2026-10-04)
 User: "frame rate is still catastrophic, stop motion." Measured truth (lab, 7f):
 19/20 video layers at 5.0-6.7fps median (SurfaceFlinger --latency); 14
