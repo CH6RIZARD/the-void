@@ -25,11 +25,9 @@
 import { runOnUI, type SharedValue } from 'react-native-reanimated';
 // getWorkletContext MUST be the module-level export: it is itself a 'worklet'
 // function the babel plugin can carry across runOnUI. The deprecated STATIC on
-// the GLView class does not survive the trip (classes don't cross into the
-// worklet runtime) and arrives as undefined - the exact 7c crash on the lab
-// phone: "TypeError: undefined is not a function at globeWorkletTs" the moment
-// the globe tab opened. The lab phone caught it before the user's thumb did.
-import { getWorkletContext } from 'expo-gl';
+// the GLView class does not survive the trip (7c crash), and even the module
+// export depends on babel workletizing a node_modules file (7d crash). The
+// worklet reads the global expo-gl itself writes - see below.
 import { Asset } from 'expo-asset';
 import type { Country } from '../live/core';
 
@@ -139,7 +137,12 @@ export function startWorkletGlobe(
 
   runOnUI((ctxId: number, mk: Float32Array, mkN: number, sp: Uint8Array, spHot: Uint8Array, vw: number, vh: number) => {
     'worklet';
-    const gl = getWorkletContext(ctxId) as any;
+    // The raw global, not an import: expo-gl's own getWorkletContext is just
+    // this lookup, and whether a library function survives workletization
+    // depends on the app's babel config - 7c crashed on the class static, 7d on
+    // the module export. The global is written by the native side at surface
+    // prepare and needs nothing to cross the bridge.
+    const gl = (globalThis as any).__EXGLContexts?.[String(ctxId)];
     if (!gl) return;
 
     // ─── sizing (visual-spec §1) ───────────────────────────────────────────
