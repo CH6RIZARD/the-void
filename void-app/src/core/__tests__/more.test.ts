@@ -145,3 +145,29 @@ test('nation feed audio: a person speaking goes before radio, radio at most 1 pe
   for (let k = 1; k < radioAt.length; k++) assert.ok(radioAt[k] - radioAt[k - 1] >= core.NF_RADIO_EVERY, 'radio spacing ' + radioAt.join(','));
   assert.ok(radioAt.length >= 1, 'radio still appears');
 });
+
+test('nation TRENDING is the nation\'s own fastest-moving post, the same pick as the web', () => {
+  fresh();
+  const c = core.C.find(x => x.n === 'South Korea')!;
+  const H = 3600000;
+  const mk = (id: string, o: Record<string, unknown> = {}) => ({ id, style: 'take', body: 'Seoul ' + id, tags: [], score: 0, replies: 0, time: NOW - H, source: 'x', country: 'South Korea', iso: c.iso, ...o });
+  const posts = [
+    mk('radio', { style: 'audio', _img: 'x' }),                 // what the card used to show: media, zero engagement
+    mk('slow', { score: 900, time: NOW - 40 * H }),             // bigger total, long cooled
+    mk('hot', { score: 300, replies: 40, time: NOW - 2 * H }),  // moving now
+    mk('stale', { score: 90000, time: NOW - 72 * H }),          // outside the window, however large
+    mk('abroad', { score: 5000, country: 'Japan', iso: 'JP', body: 'South Korea talks' }), // about, not from
+  ];
+  core.allPosts.push(...(posts as any));
+  assert.equal(core.nationTrending(c)!.id, 'hot');
+  assert.equal(core.nationCards(c).trending!.id, 'hot');
+  const w = webSandbox({ now: NOW });
+  w.load('C', 'REGION_ALIASES', '_regionNorm', '_REGION_ALIAS_N', '_regionByName', '_regionByCode', 'resolveRegion', 'postAgeH', 'velocity', 'allPosts', 'TREND_WINDOW_H', 'nationOwns', 'nationTrending');
+  w.run(`allPosts.push(...${JSON.stringify(posts)});`);
+  assert.equal(w.run(`nationTrending(C.find(x=>x.n==='South Korea')).id`), 'hot');
+  // Nothing local has engagement: the ranker's pick stands in rather than an empty card.
+  core.resetStore();
+  core.allPosts.push(mk('quiet') as any);
+  assert.equal(core.nationTrending(c), null);
+  assert.equal(core.nationCards(c).trending!.id, 'quiet');
+});

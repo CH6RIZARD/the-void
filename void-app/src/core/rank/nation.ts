@@ -9,6 +9,13 @@ import { allPosts } from '../feed/store.ts';
 import { nationMentionRe } from '../feed/nation.ts';
 import { _nationLive } from '../streams/nation.ts';
 import { BIO } from './bio.ts';
+import { postAgeH, velocity } from './story.ts';
+
+/** Is a post FROM the nation, not merely about it? One test for the ranker and for TRENDING. */
+function nationOwns(name: string, iso?: string): (p: Post) => boolean {
+  const want = (resolveRegion(name) || {} as any).code || iso;
+  return p => !!((want && p._region === want) || p.country === name || (iso && p.iso === iso));
+}
 
 export function rankNation(iso: string, current?: Country | null): NationRankItem[] {
   const c: any = C.find(x => x.iso === iso || x.n === iso) || current || {};
@@ -18,12 +25,12 @@ export function rankNation(iso: string, current?: Country | null): NationRankIte
   // stream nobody has seen play would be a claim the app cannot back up.
   const streams = (_nationLive[name] || []).slice(0, 4)
     .map(s => ({ kind: 'stream' as const, live: true, title: s.label || name, country: name, iso: c.iso, src: s }));
-  const want = (resolveRegion(name) || {} as any).code || c.iso;
+  const owns = nationOwns(name, c.iso);
   const re = c.n ? nationMentionRe(c) : null;
   const posts: any[] = [], about: any[] = [], seen = new Set<string>();
   for (const p of allPosts) {
     if (!p || seen.has(p.id)) continue;
-    const own = (want && p._region === want) || p.country === name || (c.iso && p.iso === c.iso);
+    const own = owns(p);
     const ab = !own && (p._nation === name || (re && re.test(p.body || '')));
     if (!own && !ab) continue;
     seen.add(p.id);
@@ -52,10 +59,29 @@ export function nationRankedPosts(c: Country): NationRankItem[] {
   const saved = _nationLive[c.n]; _nationLive[c.n] = [];
   try { return rankNation(c.iso || c.n, c).filter(it => it.post); } finally { _nationLive[c.n] = saved; }
 }
-/** 7e quiet cards: TRENDING = best post FROM the nation (else best about), ABOUT = best about. */
+// TRENDING means trending: the nation's own post that is moving fastest right now
+// (engagement velocity, the same measure the feed uses), not the ranker's personal
+// favourite - that put a zero-heart radio bulletin under the word TRENDING.
+export const TREND_WINDOW_H = 48;
+export function nationTrending(c: Country): Post | null {
+  const owns = nationOwns(c.n, c.iso);
+  let best: Post | null = null, bestV = 0;
+  for (const p of allPosts) {
+    if (!p || !owns(p) || postAgeH(p) > TREND_WINDOW_H) continue;
+    const v = velocity(p);
+    if (v > bestV) { bestV = v; best = p; }
+  }
+  return best;
+}
+/**
+ * 7e quiet cards: TRENDING = what is trending in the nation; when nothing local has
+ * any engagement, the best post FROM the nation (else best about) stands in.
+ * ABOUT = best about.
+ */
 export function nationCards(c: Country): { trending: Post | null; about: Post | null } {
   const items = nationRankedPosts(c);
-  const trending = items.find(x => x.kind === 'post') || items.find(x => x.kind === 'about');
-  const about = items.find(x => x.kind === 'about' && x !== trending);
-  return { trending: (trending && trending.post) || null, about: (about && about.post) || null };
+  const pick = items.find(x => x.kind === 'post') || items.find(x => x.kind === 'about');
+  const trending = nationTrending(c) || (pick && pick.post) || null;
+  const about = items.find(x => x.kind === 'about' && x.post !== trending);
+  return { trending, about: (about && about.post) || null };
 }
