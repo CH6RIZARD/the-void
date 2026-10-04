@@ -16,6 +16,7 @@
  */
 
 const http = require('http');
+const zlib = require('zlib');
 const fs = require('fs');
 const { URL } = require('url');
 
@@ -834,9 +835,21 @@ function cors(res) {
 }
 
 function sendJson(res, code, obj, headers) {
-  const body = JSON.stringify(obj);
+  let body = JSON.stringify(obj);
   cors(res);
-  res.writeHead(code, Object.assign({ 'Content-Type': 'application/json; charset=utf-8' }, headers || null));
+  const h = Object.assign({ 'Content-Type': 'application/json; charset=utf-8' }, headers || null);
+  // Gzip when the client can take it and the body is worth it: /feed pages run
+  // 100-400KB of highly repetitive JSON (5-8x smaller gzipped), OkHttp on the
+  // phone and every browser auto-inflate, and the CDN caches the compressed
+  // copy (Vary makes that correct). ~1TB/day of origin egress at scale was
+  // uncompressed JSON.
+  const ae = String((res.req && res.req.headers && res.req.headers['accept-encoding']) || '');
+  if (body.length > 1024 && /gzip/i.test(ae)) {
+    body = zlib.gzipSync(Buffer.from(body));
+    h['Content-Encoding'] = 'gzip';
+    h['Vary'] = h['Vary'] ? h['Vary'] + ', Accept-Encoding' : 'Accept-Encoding';
+  }
+  res.writeHead(code, h);
   res.end(body);
 }
 // /feed and /social payloads are user-independent (keyed only by mode / country /

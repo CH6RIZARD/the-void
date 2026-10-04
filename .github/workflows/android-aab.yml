@@ -69,6 +69,11 @@ jobs:
       - name: Typecheck (fail fast - a broken import must never cost a 25-minute build)
         working-directory: void-app
         run: npx tsc --noEmit -p tsconfig.json
+      # The dual-implementation strategy IS these tests; they rotted silently
+      # for weeks when nothing ran them - never again.
+      - name: Golden parity + variant tests
+        working-directory: void-app
+        run: npm test
 
       - name: Build AAB (local, signed with the remote keystore)
         env:

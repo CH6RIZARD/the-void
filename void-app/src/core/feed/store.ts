@@ -30,15 +30,30 @@ export function resetStore(): void { allPosts.length = 0; reelPosts.length = 0; 
 // nothing. Oldest first, anything not currently rendered and not held by another
 // surface is dropped. Reels keep their own, smaller pool the same way.
 export const STORE_MAX = { posts: 600, reels: 300 };
+// _offFeed posts are owned by other surfaces (nation deals, opened search
+// cards) and immune to the main pass below - but nothing ever CLEARS the flag,
+// so an evening of nation browsing turned the ceiling into a floor that only
+// rises. They get their own LRU budget instead of immunity: generous enough
+// that a mounted nation screen's posts (the newest ~16-48) are never the cut.
+const OFF_FEED_MAX = 200;
 function trim(list: Post[], max: number, protectedIds: Set<string>): number {
-  if (list.length <= max) return 0;
-  const oldestFirst = list.slice().sort((a, b) => (a.time || 0) - (b.time || 0));
   let removed = 0;
-  for (const p of oldestFirst) {
-    if (list.length <= max) break;   // splice already shrank it; do not subtract twice
-    if (protectedIds.has(p.id) || p._offFeed) continue;   // on screen, or owned elsewhere
-    const at = list.indexOf(p);
-    if (at >= 0) { list.splice(at, 1); removed++; }
+  if (list.length > max) {
+    const oldestFirst = list.slice().sort((a, b) => (a.time || 0) - (b.time || 0));
+    for (const p of oldestFirst) {
+      if (list.length <= max) break;   // splice already shrank it; do not subtract twice
+      if (protectedIds.has(p.id) || p._offFeed) continue;   // on screen, or owned elsewhere
+      const at = list.indexOf(p);
+      if (at >= 0) { list.splice(at, 1); removed++; }
+    }
+  }
+  const off = list.filter(p => p._offFeed && !protectedIds.has(p.id));
+  if (off.length > OFF_FEED_MAX) {
+    off.sort((a, b) => (a.time || 0) - (b.time || 0));
+    for (const p of off.slice(0, off.length - OFF_FEED_MAX)) {
+      const at = list.indexOf(p);
+      if (at >= 0) { list.splice(at, 1); removed++; }
+    }
   }
   return removed;
 }
