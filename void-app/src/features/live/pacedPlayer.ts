@@ -18,6 +18,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { mark } from '../../core/slow';
 import { createVideoPlayer, type VideoPlayer, type VideoSource } from 'expo-video';
+import { MAX_MOUNTED_PLAYERS } from './constants';
 
 const RELEASE_GAP_MS = 350;
 // TOUCHING A RELEASED PLAYER ABORTS THE PROCESS. expo's shared objects are backed by
@@ -34,12 +35,32 @@ export function isReleasedPlayer(p: VideoPlayer | null | undefined): boolean {
 const queue: VideoPlayer[] = [];
 let timer: ReturnType<typeof setTimeout> | null = null;
 
+// ─── HOW MANY CODECS ARE ACTUALLY ALIVE ──────────────────────────────────
+// Counted here because this file is where a paced player is born (enqueueCreate)
+// and where one truly dies (step below - a player handed to releasePaced still
+// holds its codec until its queue slot runs). Only players THIS file created are
+// counted: videoStore's feed players drain through the same release queue, and
+// decrementing for a player never counted would quietly open the cap back up.
+// The wall reads both numbers as backpressure - stepCreate's hard cap here, and
+// healVisible's pressure gate in LiveWall.
+let liveCount = 0;
+const counted = new WeakSet<object>();
+export function livePlayerCount(): number {
+  return liveCount;
+}
+export function releaseQueueDepth(): number {
+  return queue.length;
+}
+
 function step() {
   const p = queue.shift();
   if (p) {
     try {
       p.release();
     } catch {}
+    // AFTER release, success or swallowed: the codec is only truly gone once
+    // release has run, and a throw here still tore the player down.
+    if (counted.has(p as unknown as object)) liveCount = Math.max(0, liveCount - 1);
   }
   timer = queue.length ? setTimeout(step, RELEASE_GAP_MS) : null;
 }
@@ -113,9 +134,24 @@ export function releasePaced(p: VideoPlayer) {
 // created by a committed effect is owned by that effect's cleanup from the
 // instant it exists. There is no longer anything to sweep.
 const CREATE_GAP_MS = 40;
+// ─── THE HARD CAP LIVES AT THE SOURCE ────────────────────────────────────
+// Whatever heals, cascade advances or fill waves ask for, the device cannot be
+// marched past the hardware decoder pool (~16 AVC sessions on the MediaTek test
+// phones; past it Android hands out the software decoder, which dies). So the
+// builder itself refuses to run while the live count sits at the ceiling:
+// the job is DEFERRED, exactly like the fling hold - never dropped - and the
+// tile keeps showing its loading panel as it already does while waiting its
+// turn. The per-job deadline is the same self-expiring shape as createHoldUntil:
+// a counting bug can delay a build by five seconds, never starve the grid.
+// ponytail: the +4 slack and 5s deadline are knobs - tune on device if the
+// post-eviction convergence pass ships bursty.
+const CREATE_CAP = MAX_MOUNTED_PLAYERS + 4;
+const CREATE_DEFER_MAX_MS = 5000;
 interface CreateJob {
   run: () => void;
   cancelled: boolean;
+  /** Set when the cap first defers this job; it runs anyway once this passes. */
+  deferUntil?: number;
 }
 const createQueue: CreateJob[] = [];
 let createTimer: ReturnType<typeof setTimeout> | null = null;
@@ -146,17 +182,24 @@ function stepCreate() {
     createTimer = setTimeout(stepCreate, 80);
     return;
   }
-  let job: CreateJob | undefined;
-  while ((job = createQueue.shift()) && job.cancelled) {
-    /* skipped: its tile unmounted or changed source before its turn */
-  }
-  if (job) {
-    mark('player:create');
-    try {
-      job.run();
-    } catch {
-      /* a failed build must not stop the queue */
+  // Cancelled heads go first, so the cap below never waits on a job nobody wants.
+  while (createQueue.length && createQueue[0].cancelled) createQueue.shift();
+  if (!createQueue.length) return;
+  if (liveCount >= CREATE_CAP) {
+    const head = createQueue[0];
+    if (!head.deferUntil) head.deferUntil = Date.now() + CREATE_DEFER_MAX_MS;
+    if (Date.now() < head.deferUntil) {
+      // At the decoder ceiling: defer, never drop. See CREATE_CAP above.
+      createTimer = setTimeout(stepCreate, 80);
+      return;
     }
+  }
+  const job = createQueue.shift()!;
+  mark('player:create');
+  try {
+    job.run();
+  } catch {
+    /* a failed build must not stop the queue */
   }
   if (createQueue.length) createTimer = setTimeout(stepCreate, CREATE_GAP_MS);
 }
@@ -188,6 +231,9 @@ export function usePacedPlayer(source: VideoSource, setup?: (p: VideoPlayer) => 
     const job = enqueueCreate(() => {
       const p = createVideoPlayer(source);
       mine = p;
+      // Count only once the build actually succeeded; step() balances it.
+      liveCount++;
+      counted.add(p as unknown as object);
       try {
         setupRef.current?.(p);
       } catch {}

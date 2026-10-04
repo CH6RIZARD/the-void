@@ -5404,6 +5404,10 @@ function healthOf(src){const k=src&&src.url;return (k&&_health[k])||null;}
 function healthDead(src){const h=healthOf(src);return !!(h&&h[0]===0&&h[2]>=3);}
 function healthVia(src){const h=healthOf(src);return !!(h&&h[1]>=60&&h[2]>=2);}
 function healthMsBucket(src){const h=healthOf(src);return h&&h[0]>0?Math.round((h[3]||2000)/400):9;}
+// Proven flaky for everyone: enough reports, under half of them good. Ordering
+// signal only, never a filter - wallSlots sinks these behind everything, so the
+// lead of each country's list is cheap AND reliable (native wall.ts mirrors it).
+function healthFlaky(src){const h=healthOf(src);return !!(h&&h[2]>=3&&h[0]<50);}
 let _reportQ=[],_reportT=0;
 function healthReport(src,ok,via,ms){
   if(!VOID_PROXY_BASE||!src||src.type!=='hls'||!src.url)return;
@@ -5951,8 +5955,11 @@ function wallSlots(){
     // would replay the same channels every day. The dead, locally or globally,
     // drop out entirely.
     const wBucket=s=>{const w=Number(s.w)||0;return w>0&&w<=480?0:(!w?1:2);};
+    // Reliability before cost, cost before speed: proven-flaky streams sink
+    // behind everything, whatever their width - a flaky lead is a cascade
+    // advance per tile per visit. The native wall sorts the same way (wall.ts).
     const news=shuffle(iptvFor(n).filter(s=>usable(s)&&!provenDead(s)&&!healthDead(s)))
-      .map((x,i)=>[x,wBucket(x),healthMsBucket(x),i]).sort((a,b)=>a[1]-b[1]||a[2]-b[2]||a[3]-b[3]).map(x=>x[0]);
+      .map((x,i)=>[x,healthFlaky(x)?1:0,wBucket(x),healthMsBucket(x),i]).sort((a,b)=>a[1]-b[1]||a[2]-b[2]||a[3]-b[3]||a[4]-b[4]).map(x=>x[0]);
     return {n,life,news};
   });
   // Round-robin each pool across countries (rank tiers preserved), then sink

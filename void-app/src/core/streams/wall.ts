@@ -6,7 +6,7 @@ import { env } from '../env.ts';
 import type { StreamSource, WallSlot } from '../types.ts';
 import { C } from '../data/regions.ts';
 import { CAM_SOURCES, RAW_FOOTAGE, iptvFor, lifeFor, rankOf } from '../data/sources.ts';
-import { ensureHealth, healthDead, healthMsBucket } from './health.ts';
+import { ensureHealth, healthDead, healthFlaky, healthMsBucket } from './health.ts';
 import { EMBEDDABLE_IFRAME, IFRAME_PLAYER_URL, _badStreams, isBadStream, streamKey, usedStreamKeys } from './keys.ts';
 // Pure, no imports of its own - the ladder widths it measures are the only
 // live decode-cost signal there is, and this module is where cost decides order.
@@ -102,16 +102,19 @@ export function wallSlots(): WallSlot[] {
     // sparkles, the globe and every gesture run on. YouTube stays available to
     // the nation cinema, which is its own surface with its own rules.
     const life = lifeMix([...(CAM_SOURCES[n] || []), ...(RAW_FOOTAGE[n] || []), ...lifeFor(n)].filter(s => s && s.type !== 'youtube' && usable(s)), shuffle);
-    // Cheapest first, then fastest: known <=480-wide streams lead (the ~16% of
-    // the pool the sentinel annotated saturate 8 tiles many times over, and a
-    // tile decoding 426x240 costs 10-20x fewer pixels/s than native 1080p),
-    // unknowns in the middle, known-expensive last. Ordering only, never a
-    // filter - every stream stays in the pool. Inside each cost bucket the
-    // POPULATION's median connect ms (400ms buckets) still rules, the shuffle
-    // deciding inside each, so the wall varies every visit.
+    // Reliability before cost, cost before speed. A proven-flaky stream in the
+    // lead is a cascade advance per tile per visit, whatever it costs to decode,
+    // so flaky sinks behind EVERYTHING - the lead must be cheap AND reliable.
+    // Then cheapest first: known <=480-wide streams lead (the ~16% of the pool
+    // the sentinel annotated saturate 8 tiles many times over, and a tile
+    // decoding 426x240 costs 10-20x fewer pixels/s than native 1080p), unknowns
+    // in the middle, known-expensive last. Ordering only, never a filter -
+    // every stream stays in the pool. Inside each bucket the POPULATION's
+    // median connect ms (400ms buckets) still rules, the shuffle deciding
+    // inside each, so the wall varies every visit.
     const news = shuffle(iptvFor(n).filter(usable))
-      .map((s, i) => [s, wBucket(s), healthMsBucket(s), i] as const)
-      .sort((a, b) => a[1] - b[1] || a[2] - b[2] || a[3] - b[3])
+      .map((s, i) => [s, healthFlaky(s) ? 1 : 0, wBucket(s), healthMsBucket(s), i] as const)
+      .sort((a, b) => a[1] - b[1] || a[2] - b[2] || a[3] - b[3] || a[4] - b[4])
       .map(x => x[0]);
     return { n, life, news };
   });

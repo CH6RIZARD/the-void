@@ -36,7 +36,7 @@ const WALL = ['TENSION_RANK', 'rankOf', 'CAM_SOURCES', 'RAW_FOOTAGE', 'NEWS_SOUR
   // The wall's filters grew health + proven-dead maps after this list was last
   // touched; with empty sandbox storage they all answer "fine", which is what
   // the native side assumes too - the suite was unrunnable while they drifted.
-  '_health', 'healthOf', 'healthDead', 'healthMsBucket', 'PROVEN_KEY', '_proven', 'provenAll', 'provenOf', 'provenDead',
+  '_health', 'healthOf', 'healthDead', 'healthFlaky', 'healthMsBucket', 'PROVEN_KEY', '_proven', 'provenAll', 'provenOf', 'provenDead',
   'lifeMix', 'wallSlots', 'wallCascadeFor'];
 
 // ─── constants copied by hand must equal the web's ──────────────────────

@@ -23,7 +23,7 @@ import { Image } from 'expo-image';
 import { LiveDot, TileLabel, TileLoader } from './TileChrome';
 import { StreamTile, type StreamTileHandle } from './StreamTile';
 import { applyPlacement, clearPlacement, evictedIds, placementOf, usePlacement } from './placementStore';
-import { holdCreates } from './pacedPlayer';
+import { holdCreates, livePlayerCount, releaseQueueDepth } from './pacedPlayer';
 import { wallScrollAtSV } from './wallScrollSignal';
 import { useStreamCascade, type CascadeResult } from './useStreamCascade';
 import { liveVidFor, rememberStream, wallCascadeFor, wallSlots, streamKey, type StreamSource, type StreamType, type WallSlot } from './core';
@@ -147,6 +147,8 @@ export const LiveWall = memo(forwardRef<LiveWallHandle, LiveWallProps>(function 
     slots: [] as WallSlot[],
     slotIdx: 0,
     wallConn: 0,
+    // Connection ranks earned mid-gesture, waiting for the settle to commit.
+    pendingOrder: [] as Array<[number, number]>,
     busy: false,
     nextId: 1,
     batchSeq: 0,
@@ -269,6 +271,14 @@ export const LiveWall = memo(forwardRef<LiveWallHandle, LiveWallProps>(function 
   const healVisible = useCallback(() => {
     // Healing is never urgent enough to stutter a gesture.
     if (quietRef.current) return;
+    // ... and never worth feeding an exhausted decoder pool. While releases are
+    // still draining or the live count sits over budget, a heal's create would
+    // land on a starved pool, fail into the InsufficientResources wall and burn
+    // a 5.5s connect timeout - the measured give-up spiral. The watchdog calls
+    // back every 2.5s, so a dead visible tile heals one or two ticks later once
+    // the pressure clears; the 12s per-tile cooldown already prevents thrash.
+    // Nudges stay ungated - they only resume paused players, zero codec cost.
+    if (releaseQueueDepth() > 3 || livePlayerCount() > playerBudgetNow() + 2) return;
     if (!w.activeRef || AppState.currentState !== 'active') return;
     const g = geo.current;
     for (const e of w.registry.values()) {
@@ -288,15 +298,39 @@ export const LiveWall = memo(forwardRef<LiveWallHandle, LiveWallProps>(function 
     }
   }, [w]);
 
+  // The ranks earned during a gesture, committed in ONE setOrder at settle -
+  // tiles never move under the finger, fast connectors rise the moment it lifts.
+  const flushPendingOrder = useCallback(() => {
+    if (!w.pendingOrder.length) return;
+    const queued = w.pendingOrder;
+    w.pendingOrder = [];
+    setOrder((prev) => {
+      const next = { ...prev };
+      for (const [id, o] of queued) next[id] = o;
+      return next;
+    });
+  }, [w]);
+
   const onFirstSettled = useCallback(
     (rec: TileRec, res: CascadeResult) => {
-      if (res.ok && rec.batch === 1) {
-        // Only the first screenful packs by connection order - that is the fill
-        // the user watches happen. Later batches arrive below the fold and keep
-        // their spawn slots: re-sorting them as they connected made content "sit
-        // randomly" and jump around under an active scroll.
+      if (res.ok) {
+        // EVERY batch packs by connection order now - but never under a live
+        // gesture. Packing all batches as they connected was tried once and
+        // made content "sit randomly and jump around under an active scroll";
+        // batch-1-only was the retreat, and its seam was the user's next note:
+        // scroll a little and the fastest stream lights up low while slower
+        // tiles above still hold loaders. The rank is assigned the moment a
+        // tile settles (ranks are stable, the sort is global), and the COMMIT
+        // waits for the wall to be at rest: batch 1 and any at-rest connect
+        // rise immediately - the fill the user watches happen - while a
+        // mid-gesture connect queues and rises in one commit at settle,
+        // beside the placement pass that already owns that moment.
         const o = w.wallConn++;
-        setOrder((prev) => ({ ...prev, [rec.id]: o })); // connected tiles rise
+        if (rec.batch === 1 || (!w.fingerDown && !w.momentum)) {
+          setOrder((prev) => ({ ...prev, [rec.id]: o })); // connected tiles rise
+        } else {
+          w.pendingOrder.push([rec.id, o]);
+        }
       }
       const left = (w.batchPending.get(rec.batch) || 1) - 1;
       if (left > 0) {
@@ -320,6 +354,7 @@ export const LiveWall = memo(forwardRef<LiveWallHandle, LiveWallProps>(function 
     w.slots = wallSlots();
     w.slotIdx = 0;
     w.wallConn = 0;
+    w.pendingOrder = [];
     w.busy = false;
     w.batchPending.clear();
     w.gen++;
@@ -345,6 +380,9 @@ export const LiveWall = memo(forwardRef<LiveWallHandle, LiveWallProps>(function 
   const refreshRef = useRef<null | (() => void)>(null);
   // refreshRef is filled in below, once onRefresh exists; the handle only ever
   // calls through it, so declaration order does not matter.
+  // Same pattern for the watchdog's placement pass: recomputePlacement is
+  // declared further down, and the watchdog only ever calls through this ref.
+  const recomputePlacementRef = useRef<null | (() => void)>(null);
   useImperativeHandle(ref, () => ({ rebuild: build, refresh: () => refreshRef.current?.() }), [build]);
 
   // Watchdog (web setInterval 2500): nudge near tiles that are not PLAYING, then heal.
@@ -362,6 +400,14 @@ export const LiveWall = memo(forwardRef<LiveWallHandle, LiveWallProps>(function 
         e.nudge(false);
       }
       healVisible();
+      // ENFORCEMENT IS CONTINUOUS, NOT EVENT-DRIVEN. The budget used to be
+      // checked only on gesture boundaries and tile commits, so anything mounted
+      // AFTER the last gesture - heal replacements, cascade advances, late
+      // settles - lived until the next scroll. With the restore budget-gated
+      // (see recomputePlacement) this pass is idempotent once at budget: a
+      // usually-zero-flip registry walk every 2.5s that sheds rest-time inflow
+      // within a tick. Gated off during gestures exactly like the commit path.
+      if (!w.fingerDown && !w.momentum) recomputePlacementRef.current?.();
     }, WATCHDOG_MS);
     return () => clearInterval(iv);
   }, [active, w, healVisible]);
@@ -455,13 +501,38 @@ export const LiveWall = memo(forwardRef<LiveWallHandle, LiveWallProps>(function 
     const live = [...w.registry.values()].filter((e) => e.phase === 'playing' || e.phase === 'connecting');
     const web = live.filter((e) => e.kind === 'youtube' || e.kind === 'iframe');
     const evicted = evictedIds();
+    // Hoisted above the restore, which now spends it: the ask is the ring,
+    // capped by what the device has shown it can serve. (See the budget essay
+    // above evictFarthest's call sites below.)
+    const inRing = [...dist.values()].filter((d) => d <= PARK_SCREENS).length;
+    const want = Math.max(PLAYER_BUDGET_FLOOR, Math.min(playerBudgetNow(), inRing));
     if (w.asleepRef) {
       // Asleep: every player goes (the tile effect only acts on PLAYING tiles; a tile
       // still connecting is evicted once it connects, via the order change).
       for (const e of w.registry.values()) evicted.add(e.id);
     } else {
-      // restore evicted tiles that came back near
-      for (const id of [...evicted]) if ((dist.get(id) ?? 0) <= PARK_SCREENS) evicted.delete(id);
+      // THE RESTORE IS BUDGETED. IT WAS A BLANKET AMNESTY.
+      //
+      // Un-evicting everything within PARK_SCREENS made every pass net-un-evicting
+      // (a restored tile has phase 'evicted', so the same pass could never re-shed
+      // it): scroll hours ping-ponged 8-12 players per pass, and the last pass
+      // before a rest handed back the whole ring - which is how a rest relaxed to
+      // ~20 codecs on an 8-player budget.
+      //
+      // Visible tiles (dist 0) always come back - 8 visible is 8 playing, the
+      // whole rule. The rest return NEAREST-FIRST and only while there is budget
+      // left. A tile this declines is already evicted and already showing its
+      // poster, so nothing visible changes; the next pass picks it up in budget.
+      let room = want - live.length;
+      const near = [...evicted]
+        .map((id) => [id, dist.get(id) ?? 0] as const)
+        .filter(([, d]) => d <= PARK_SCREENS)
+        .sort((a, b) => a[1] - b[1]);
+      for (const [id, d] of near) {
+        if (d > 0 && room <= 0) break; // sorted: nothing nearer is coming
+        evicted.delete(id);
+        room--;
+      }
     }
     // Two budgets, farthest first. A PAUSED player is not a free player: an off-screen
     // HLS tile still holds its ExoPlayer and decoder, which is how the wall reached
@@ -541,8 +612,6 @@ export const LiveWall = memo(forwardRef<LiveWallHandle, LiveWallProps>(function 
     // screen of runway above and below. Those are exactly the tiles you are
     // about to see or have just seen, and keeping them connected is what makes
     // scrolling feel like nothing is loading at all.
-    const inRing = [...dist.values()].filter((d) => d <= PARK_SCREENS).length;
-    const want = Math.max(PLAYER_BUDGET_FLOOR, Math.min(playerBudgetNow(), inRing));
     evictFarthest(web, MAX_MOUNTED_WEBVIEWS);
     evictFarthest(live, want);
     const same = (a: Set<number>, b: Set<number>) => a.size === b.size && [...a].every((x) => b.has(x));
@@ -552,6 +621,7 @@ export const LiveWall = memo(forwardRef<LiveWallHandle, LiveWallProps>(function 
     applyPlacement(parked, evicted);
     mark('idle');
   }, [w]);
+  recomputePlacementRef.current = recomputePlacement;
 
   useEffect(() => {
     // Mid-gesture, a tiles/order commit (a batch slice landing, a tile
@@ -673,10 +743,11 @@ export const LiveWall = memo(forwardRef<LiveWallHandle, LiveWallProps>(function 
       // EndDrag's pass is a gesture-boundary pass and stays. If a fling follows,
       // MomentumBegin re-arms the create hold before the 300ms trailing release
       // can let a build through the EndDrag->MomentumBegin gap.
-      onScrollEndDrag={() => { w.fingerDown = false; lastPlaceAt.current = Date.now(); recomputePlacement(); holdCreates(300); }}
+      onScrollEndDrag={() => { w.fingerDown = false; lastPlaceAt.current = Date.now(); flushPendingOrder(); recomputePlacement(); holdCreates(300); }}
       onMomentumScrollBegin={() => { w.momentum = true; wallScrollAtSV.value = Date.now(); holdCreates(900); }}
       onMomentumScrollEnd={() => {
         w.momentum = false;
+        flushPendingOrder();
         recomputePlacement();
         // The fling is over: let the held builds run, a beat after the pass.
         holdCreates(300);

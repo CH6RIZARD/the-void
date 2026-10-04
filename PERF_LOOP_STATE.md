@@ -1,5 +1,50 @@
 # NATIVE PERF LOOP — state
 
+## ORDERED BY USER (2026-10-04, reversing the wontfix below): settle-gated packing
+- Implement: every batch gets a connection rank (w.wallConn++) in
+  onFirstSettled; commit immediately when batch===1 OR wall at rest
+  (!fingerDown && !momentum); otherwise queue in w.pendingOrder and flush in
+  ONE setOrder commit at the settle points 7k added (momentum-end /
+  end-drag-no-momentum, beside the deferred placement pass). Reset clears the
+  queue with wallConn. Sort at LiveWall.tsx:214 is global + ranks stable, so
+  no mid-gesture movement ever (the regression guard), fast connectors rise
+  at settle/idle.
+- APPLY AFTER workflow wc2beswd0 completes (it edits LiveWall.tsx too);
+  ship with its fixes as 7l; film the settle reorder on the lab phone.
+
+## superseded wontfix record (kept for the mechanism + history)
+- Edge case: slightly scrolled, a fast-connecting stream lights up in the
+  lower section while slower tiles above still show loaders. MECHANISM
+  (located, LiveWall.tsx onFirstSettled): only batch 1 packs by connection
+  order; later batches keep spawn slots DELIBERATELY - packing every batch
+  was tried before and caused the recorded complaint "content sat randomly /
+  jumped around under an active scroll". User accepts the trade; grid
+  mechanics otherwise called "almost perfect".
+- Safe future variant if ever revisited: pack batch-N by connect order only
+  on scroll-SETTLE (never mid-gesture), gated after 7k/7l placement work
+  stabilizes. Do not re-investigate from scratch.
+
+## 7j GATE BLOCKED -> A/B EXONERATED IT -> the budget doesn't hold in CHURN HOURS
+- 7j gate: 20 players / 16 hw / 4 sw -> blocked (correctly). Same-hour A/B:
+  7i reinstalled = 19->18 players, 16->11 hw. NOT a 7j regression - the 9/9/0
+  at 7i's original gate was a calm-hour anomaly. ~20 is suspiciously stable
+  across builds/hours (equilibrium or ceiling). 19 DISTINCT SurfaceViews vs
+  cap 8 -> still-frame VideoViews / park-keeps-surface / release-drain vs
+  heal-cascade inflow are the suspects; C1's cheap-before-health sort may
+  feed churn with flaky-but-cheap leads.
+- 7k (scroll fixes, c6f79fb) dispatched: run 37187104713, gate watcher task
+  b1fip6zwa (gate includes stage-of wall scroll measurement; promotion will
+  likely be blocked by the budget check in churn hours - that is fine, the
+  scroll numbers still land).
+- Workflow wf_0417bc43-10d (task wc2beswd0) running: mount accounting (code)
+  + live attribution (device, passive-only) -> design budget-holds fixes ->
+  implement safe subset = 7l. Candidate levers: eviction unmounts the
+  VideoView; heal/cascade backpressure gate; release drain 350->150 (B1 soak
+  now justified?); health-before-cost sort repair; hard create backpressure
+  at players>=N.
+- User phone: ON 7I (promoted in the calm hour). Its churn-hour behavior is
+  what the user feels - the budget fix is what finally pins it.
+
 ## WALL SCROLL (user 2026-10-04: "2/10 on scrolls") — MEASURED, workflow running
 - stage-of.mjs wall on 7i, lab, scripted scroll: total p50 204.6ms (~5fps UI)
   p90 414.9 worst 968; animation p50 58.3 p90 117.6 DOMINANT, gpu 25.5/41.3.

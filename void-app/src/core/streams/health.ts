@@ -69,3 +69,12 @@ export function healthMsBucket(s: StreamSource): number {
   const h = of(s);
   return h && h[0] > 0 ? Math.round((h[3] || 2000) / 400) : 9;
 }
+
+/** Proven flaky for everyone: enough reports, under half of them good. A
+ *  cheap-but-unreliable stream in the lead costs a cascade advance per visit,
+ *  so reliability outranks cost in wallSlots. Ordering signal only, never a
+ *  filter - and the map is empty on a cold launch, so first fill is unchanged. */
+export function healthFlaky(s: StreamSource): boolean {
+  const h = of(s);
+  return !!(h && h[2] >= 3 && h[0] < 50);
+}
