@@ -1,5 +1,37 @@
 # NATIVE PERF LOOP — state
 
+## MERGED THE PEER'S BRANCH · two CI runs in flight · lab phone back
+- web/parity = 51a0143: union of 7n + my 2e31b73/5acc349/fe6064b (CI test
+  gate, trim+gzip, DM fixes) + peer's fix/globe-reels (search card centred;
+  globe = my zombie-loop/CPU-cache fix + THEIR feel change: ease 0.5 under
+  finger [diverges from web's 0.18 - their user asked for snappier; flagged],
+  finger outranks wall-scroll hold; nation TRENDING = 48h engagement velocity,
+  web+native+parity test). Verified post-merge: tsc, 25/25, worklet transform
+  clean, ZERO diff in src/features/live since wall-locked-7m. NOT yet merged
+  to main (do it before dispatching the union build).
+- In flight: 7n run 37199918633 (superseded - do not gate separately) and
+  peer's run 37201525842 (= 7n + their three). Watcher boqvd14fk gates the
+  peer artifact on the lab phone (idle-aware) and promotes on pass.
+- PEER'S TRACES (logged): globe drag on 7m was SurfaceFlinger-bound ~22fps
+  (RenderThread ~20ms/frame in dequeueBuffer; 147 video-buffer conv/s);
+  main-thread animation = Skia sparkle canvases - BELOW-FOLD mounted wall
+  loaders swap main thread every frame (16 mounted = ~10 swaps/frame, anim
+  p50 42ms); one zombie globe loop costs ~1.8ms/frame; reels PlayerView
+  inflate ~43ms each on main. Traces: E:/measure/globe7m*.pftrace,
+  reels7m.pftrace. All of it reinforces the PARKED single-canvas overlay
+  (wall lock - user OK needed).
+- DM fixes shipped (fe6064b): badge poll AppState-gated, loadConversations
+  single-flight, chat poll no-change emit skip.
+- TWO-HALF GATE AGREED: my watcher (b0c9p3awx, auto-promote STRIPPED) runs the
+  standard half on run 37201525842 (crash/texture/budget/wall-scroll), then
+  hands the phone to the peer for their functional half (drag after nation
+  round trips, search card, TRENDING card). NOBODY promotes to the user phone
+  until both halves pass.
+- UNION DISPATCH HELD: a 4th peer commit (reels settle-gated window, entry
+  hold, placeholder far cells, hoisted rail buttons, scaleX spine, stable
+  toggleSound; ReelsView+ReelItem only) lands shortly - merge its sha into
+  web/parity, re-verify, THEN merge to main and dispatch 7o.
+
 ## TICK (loop v2 re-fired): CI in flight, blocked tick used for audit ranks 1-3
 - 7n CI 37199918633 still in_progress; lab phone loaned to peer (The Void
   foreground = their baselines; hands off). Gate stays manual-after-release.
