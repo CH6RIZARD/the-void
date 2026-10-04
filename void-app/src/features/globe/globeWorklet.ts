@@ -592,6 +592,7 @@ export function startWorkletGlobe(
     let cRotX = 0, cRotY = 0, globeZoom = 2.9, pt = 0, gT = 0, gLast = 0;
     let tRotX = 0, tRotY = 0, tZoom = 2.9, rVelX = 0, rVelY = 0;
     const rot = new Float32Array(9);
+    let drawnOnce = false; // one '[globe] first frame' breadcrumb per context
 
     // NO nested 'worklet' directive here. A directive makes the babel plugin
     // factory-ize this function separately, and the factory captures `loop`
@@ -769,6 +770,12 @@ export function startWorkletGlobe(
       gl.flush();
       gl.endFrameEXP();
       sv.lastFrameSV.value = ts;
+      if (!drawnOnce) {
+        drawnOnce = true;
+        try {
+          console.warn('[globe] first frame, gen ' + myGen + (sv.texStateSV.value === 1 ? ' (textured)' : ' (fallback map)'));
+        } catch {}
+      }
     };
     (globalThis as any).requestAnimationFrame(loop);
   })(exglCtxId, markers, markerCount, sprite, spriteHot, viewW, viewH, gen);

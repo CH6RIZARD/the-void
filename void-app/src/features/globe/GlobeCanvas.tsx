@@ -63,6 +63,14 @@ export const GlobeCanvas = memo(function GlobeCanvas({ running, onOpenCountry, r
     const sub = AppState.addEventListener('change', (s) => setAppActive(s === 'active'));
     return () => sub.remove();
   }, []);
+  // Read by onContextCreate, which must not wait for a render to learn it.
+  const liveRef = useRef(false);
+  liveRef.current = running && appActive;
+  // Timeline breadcrumbs (mount -> context -> first frame, the last one from the
+  // worklet): logcat's own timestamps give the cold-start and nation-return cost.
+  useEffect(() => {
+    try { console.warn('[globe] canvas mounted'); } catch {}
+  }, []);
 
   // ── GL context + render loop ─────────────────────────────────────────────
   // The loop runs ONLY while the globe is the visible surface and the app is
@@ -152,7 +160,15 @@ export const GlobeCanvas = memo(function GlobeCanvas({ running, onOpenCountry, r
           runningSV, genSV: glGenSV, hotSV, rotXSV, rotYSV, zoomSV, lastFrameSV, texStateSV, texIdSV,
           wallScrollAtSV,
         };
+        try { console.warn('[globe] context ' + (gl as any).contextId + ', gen ' + gen); } catch {}
         startWorkletGlobe((gl as any).contextId, cs, size.current.w, size.current.h, shared, gen);
+        // THE FIRST FRAME DOES NOT WAIT FOR A RENDER. runningSV used to be set
+        // only by the effect below, after setSceneReady's commit - two more trips
+        // through a JS thread that, at a cold start on the globe tab, is busy
+        // building the wall's players 0.3-0.8s at a time (measured: the panel was
+        // still black ~7s after the tap). Visible already? Run now; the effect
+        // still owns every later change.
+        if (liveRef.current) runningSV.value = 1;
         deliverEarthPixels((gl as any).contextId, shared, gen);
         // A JS-side shim with the old scene's surface: picking + hover live
         // here (plain math on the rotation the worklet reports), everything
