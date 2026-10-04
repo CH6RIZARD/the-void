@@ -1,5 +1,19 @@
 # NATIVE PERF LOOP — state
 
+## TICK (loop v2 re-fired): CI in flight, blocked tick used for audit ranks 1-3
+- 7n CI 37199918633 still in_progress; lab phone loaned to peer (The Void
+  foreground = their baselines; hands off). Gate stays manual-after-release.
+- Shipped on web/parity meanwhile: 2e31b73 (CI runs golden suite + audit
+  reports in docs/audit-2026-10-04b/, merged to main) and 5acc349 (rank 2:
+  trimStore in pullVoidFeed finally + supabase-poll trim + _offFeed LRU 200;
+  rank 1 remainder: proxy gzip w/ Vary). 5acc349 NOT yet merged to main -
+  rides with the next merge so the in-flight run's artifact stays 7n-pure.
+- NEXT TICK: if 7n done + phone released -> install both phones (7n gate:
+  launch-to-first-post, nation open, budget guards, scroll sanity) - 7n is
+  globe/wall-untouched so the user phone can take it after the lab pass.
+  Remaining audit queue: ranks 4-23 (4 needs wall-lock care: feed players
+  into the shared budget changes wall supply - treat as LOCKED-adjacent).
+
 ## 7n SHIPPED (75553ec, CI 37199918633) — three-fronts C only; A/B parked
 - VERDICTS (all proven, workflow wf_c84b210c-fa1): A = keepId billed-but-
   exempt arithmetic (room perpetually -1, visible evict ping-pong, budget-4

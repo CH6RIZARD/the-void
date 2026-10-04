@@ -7,6 +7,7 @@
 //
 // Delivery: 5s poll while a chat is open, 15s poll of the list. No Realtime socket.
 import { useSyncExternalStore } from 'react';
+import { AppState } from 'react-native';
 import { moderation, VoidAPI, voidEnsureSession, voidUuid } from '../../core';
 import { setDmUnread } from '../../nav/badges';
 import { ensureCore, getIdentity } from '../auth/coreBridge';
@@ -88,7 +89,16 @@ async function loadBlocks(): Promise<void> {
   }
 }
 
-export async function loadConversations(): Promise<void> {
+// In-flight guard: the 60s badge timer and the Messages screen's 15s focused
+// poll used to double-fetch every minute - 4 REST calls each, including the
+// 500-row messages read. One flight at a time; callers share its result.
+let _loadInFlight: Promise<void> | null = null;
+export function loadConversations(): Promise<void> {
+  if (_loadInFlight) return _loadInFlight;
+  _loadInFlight = _loadConversations().finally(() => { _loadInFlight = null; });
+  return _loadInFlight;
+}
+async function _loadConversations(): Promise<void> {
   if (snap.state === 'idle') emit({ state: 'loading' });
   try {
     await session();
@@ -207,6 +217,10 @@ export async function pollChat(convId: string, full: boolean): Promise<boolean> 
   if (full || fresh.length) {
     next = full ? rows.concat(cur.filter((m) => m._pending && !rows.some((r) => r.id === m.id))) : cur.concat(fresh);
   }
+  // Nothing new and nothing to clear: stop here. The 5s chat poll used to
+  // emit a fresh conv object regardless, re-creating every bubble on screen
+  // (~200 of them) for zero new messages.
+  if (!full && !fresh.length && !(snap.convs.find((x) => x.id === convId) || { unread: 0 }).unread) return true;
   const convs = snap.convs.map((c) => {
     if (c.id !== convId) return c;
     const last = next.filter((m) => !m._pending).slice(-1)[0] || c.last;
@@ -257,6 +271,10 @@ export function startDmBadgePoll(ms = 60000): () => void {
   if (!badgeTimer) {
     loadConversations().catch(() => {});
     badgeTimer = setInterval(() => {
+      // Backgrounded, the badge can wait: this app-wide timer fired 1,440
+      // times a day whether anyone was looking - radio + battery + a 4-call
+      // Supabase read (incl. the 500-row messages pull) per fire.
+      if (AppState.currentState !== 'active') return;
       if (!activeConv) loadConversations().catch(() => {});
     }, ms);
   }
