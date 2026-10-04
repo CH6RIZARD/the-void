@@ -24,8 +24,8 @@
 // .vw-burst{centre;z9;#c9a84c;84px;drop-shadow(0 0 24px rgba(201,168,76,.8));vwB .7s: scale .4→1.4, opacity 0→1(25%)→0}
 // .vmod-veil{centre (top 40% on a reel);gap:6px;padding:10px 16px;radius 18;rgba(4,2,12,.72);inset ring rgba(255,255,255,.14);
 //   'Syne Mono' 8px .2em #f4f0ff}  em{7px rgba(244,240,255,.6)}   media: blur(32px) brightness(.5)
-import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated as RNAnimated, Easing as RNEasing, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { BlurView } from 'expo-blur';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -108,7 +108,7 @@ function RailAct({ icon, label, onPress, tone, custom }: { icon?: IconName; labe
 export const ReelItem = memo(function ReelItem(props: ReelItemProps) {
   const { item: p, index, height, want, attached, viewed, railBottom, soundOn, loaderCleared, current } = props;
   const { colors } = useTheme();
-  const { height: winH } = useWindowDimensions();
+  const { height: winH, width: winW } = useWindowDimensions();
   const pid = baseId(p.id);
   const vid = p._vid || p.id;
   const col = coverOf(p);
@@ -118,14 +118,39 @@ export const ReelItem = memo(function ReelItem(props: ReelItemProps) {
   const veiled = moderation.isGraphic(p) && moderation.graphicVeilOn() && !revealed;
 
   // ── spine: width 0 → 100% over 6s linear, once the card has been in view.
-  // Drawn as scaleX from the left edge: the same bar and the same squeezed
-  // gradient, but a transform - animating `width` relaid out the card on every
-  // frame for six seconds after each swipe.
-  const spine = useSharedValue(0);
+  // Drawn as a scale pinned to the left edge - the same bar and the same squeezed
+  // gradient - on the native driver. Animating `width` relaid out the card on
+  // every frame for six seconds after each swipe, and Reanimated commits the tree
+  // per frame even for a transform; this costs no JS, no commit and no layout.
+  const spine = useRef(new RNAnimated.Value(0)).current;
   useEffect(() => {
-    if (viewed) spine.value = withTiming(1, { duration: 6000, easing: Easing.linear });
+    if (!viewed) return;
+    const a = RNAnimated.timing(spine, { toValue: 1, duration: 6000, easing: RNEasing.linear, useNativeDriver: true, isInteraction: false });
+    a.start();
+    return () => a.stop();
   }, [viewed, spine]);
-  const spineStyle = useAnimatedStyle(() => ({ transform: [{ scaleX: spine.value }] }));
+  const spineW = winW - 88; // .vw-info padding: 18 left + 70 right
+  // A scale works about the centre; the translate walks the left edge back to 0.
+  const spineStyle = useMemo(
+    () => ({ transform: [{ translateX: spine.interpolate({ inputRange: [0, 1], outputRange: [-spineW / 2, 0] }) }, { scaleX: spine }] }),
+    [spine, spineW],
+  );
+
+  // The poster comes off at the first frame the surface actually renders. "Ready"
+  // comes earlier (a prepared neighbour has no surface yet) and stays set for the
+  // life of the list, which left a returning card on a bare gradient.
+  const [frameShown, setFrameShown] = useState(false);
+  useEffect(() => {
+    if (!attached) setFrameShown(false);
+  }, [attached]);
+  const onFirstFrame = useCallback(() => setFrameShown(true), []);
+  // The net under it: a device that never reports a first frame must not keep a
+  // poster over a clip that is playing.
+  useEffect(() => {
+    if (!attached || frameShown || !want || !loaderCleared) return;
+    const t = setTimeout(() => setFrameShown(true), 1500);
+    return () => clearTimeout(t);
+  }, [attached, frameShown, want, loaderCleared]);
 
   // ── bolt burst
   const burst = useSharedValue(0);
@@ -183,11 +208,11 @@ export const ReelItem = memo(function ReelItem(props: ReelItemProps) {
   } else if (p._video) {
     media = (
       <>
-        {attached ? <ReelVideo uri={p._video} want={want} muted={!(soundOn && current)} onMediaReady={onMediaReady} /> : null}
+        {attached ? <ReelVideo uri={p._video} want={want} muted={!(soundOn && current)} onMediaReady={onMediaReady} onFirstFrame={onFirstFrame} /> : null}
         {/* The <video poster>: shown whenever there is no player, and - as on the
-            web - kept over the player until its first sign of media, so a cold
-            reel opens on its picture instead of an empty gradient. */}
-        {p._img && (!attached || !loaderCleared) ? (
+            web - kept over the player until its first frame, so a cold or
+            returning reel opens on its picture instead of an empty gradient. */}
+        {p._img && (!attached || !frameShown) ? (
           <Image source={{ uri: p._img }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} />
         ) : null}
         {!loaderCleared ? <SparkleLoader surface="media" style={styles.z1} /> : null}
@@ -305,7 +330,7 @@ export const ReelItem = memo(function ReelItem(props: ReelItemProps) {
           </Text>
         </View>
         <View style={styles.spine} pointerEvents="none">
-          <Animated.View style={[styles.spineFill, bg('linear-gradient(90deg, #7c3aed, #c9a84c)'), spineStyle]} />
+          <RNAnimated.View style={[styles.spineFill, bg('linear-gradient(90deg, #7c3aed, #c9a84c)'), spineStyle]} />
         </View>
       </View>
     </View>
@@ -359,5 +384,5 @@ const styles = StyleSheet.create({
   meta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 },
   metaText: { fontFamily: FONTS.mono, fontSize: 8, color: 'rgba(255,255,255,0.45)', letterSpacing: em(8, 0.12) },
   spine: { height: 2, borderRadius: 1, marginTop: 12, backgroundColor: 'rgba(255,255,255,0.12)', overflow: 'hidden' },
-  spineFill: { height: '100%', width: '100%', transformOrigin: 'left', backgroundColor: '#9a6fb0' },
+  spineFill: { height: '100%', width: '100%', backgroundColor: '#9a6fb0' },
 });
