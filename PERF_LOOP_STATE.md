@@ -1,5 +1,31 @@
 # NATIVE PERF LOOP — state
 
+## 7n SHIPPED (75553ec, CI 37199918633) — three-fronts C only; A/B parked
+- VERDICTS (all proven, workflow wf_c84b210c-fa1): A = keepId billed-but-
+  exempt arithmetic (room perpetually -1, visible evict ping-pong, budget-4
+  hour shows exactly 3 playing - the user's report verbatim) + band cull
+  killing the audible past ~3 screens + detached Skia SurfaceTextures pumping
+  frames (A2, gated). B = ZOMBIE GLOBE LOOPS: every nation round trip starts
+  a new worklet loop without cancelling the old (shared canceledSV reset),
+  dead loops eat gesture deltas first; + return evict-all/rebuild storm; +
+  full scene rebuild per return. C = serial boot (no persisted feed cache,
+  fetch after mount, 100-item deal), nation 1.5-4s deliberate hold + hero
+  awaiting a 404 endpoint, search cursor-in-sig replacing all blocks, proxy
+  thundering herd + no Cache-Control (the 1100k blocker).
+- SHIPPED in 7n: C1-C7 (persisted first-page cache at boot, boot-overlapped
+  fetch, 30/12 first page, nation optimistic paint, hero bundled+health-
+  ranked, search stable sig/keys + boot warm, proxy promise-coalescing +
+  stale-while-revalidate + Cache-Control). tsc + golden 20/20 on the ship
+  subset. CI dispatched, GATE HELD until peer releases the lab phone.
+- PARKED on hold/wall-fixes-pending-user-ok (pushed): A1/A3/A4/A5/B2 (wall -
+  USER LOCK) + B1/B3 (globe - peer's; diff handed over at
+  E:/measure/globe-fixes.diff). A2 remains design-only (release-ordering
+  risk). genSV rename lives only in parked files.
+- NEXT: (1) gate 7n manually when peer frees the phone (launch-to-first-post
+  timing is the headline number, plus nation open + budget guards); (2) ask
+  the USER for the wall-fix OK (A1 is their reported bug); (3) double-audit
+  roadmap still running.
+
 ## WALL MECHANICS HARD-LOCKED BY USER AT 7m (71aa593, tag wall-locked-7m)
 Relayed by peer session the-void-35 (07:35 EDT): "the live wall is perfect...
 no pivot"; sources stay open. Scope: src/features/live/* wall logic,
