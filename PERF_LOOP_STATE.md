@@ -46,6 +46,21 @@
   code review of the reels diff returns clean, message-first. Peer reports
   the b8a crash-watch verdict when it self-ends (180s foreground clean / 45
   min).
+- 7q ON THE USER PHONE (peer, 10:32, after second review APPROVE of
+  a7b759d..f7ba23a; passive install, not launched, ezersaves still in front).
+  First-open watch armed 4h: process death -> auto-rollback to 7m; first
+  foreground -> guarded screenshots +12s/+28s + [boot]/[feed] lines + RN
+  errors, peer judges frames by eye. ONE watcher on that phone (b8a watch
+  stopped). My lab watcher (bhadpzm0w) still owns the 7q lab gate if the
+  phone returns. Reviewer's non-blocking follow-ups (peer will commit later,
+  no 7r): dry-rail retry backoff 2.5s->30s doubling, overlay-seeded-empty
+  falls through to topUp, wantAppend deleted. Wall-lock empty at f7ba23a
+  (re-confirmed by their reviewer).
+- FIRST-OPEN BREADCRUMBS shipped on web/parity (3092e19, NOT in 7q): '[boot]
+  feed cache painted N posts' + '[feed] first deal N cards' - rides with 7r
+  or the next build. For 7q's watch the keys are '[boot] hydrate' / '[boot]
+  core ready' + error lines + the peer's guarded screenshots (their by-hand
+  frame verdict; automated dark-UI heuristics false-positive).
 - 7q BUILT GREEN (run 37205623732; APK at peer's E:/tmp/apk-b8q and my
   watcher will fetch /e/tmp/apk-b7q when gating). Sequence agreed: second
   independent review of a7b759d..f7ba23a in progress; lab gate is the verdict
