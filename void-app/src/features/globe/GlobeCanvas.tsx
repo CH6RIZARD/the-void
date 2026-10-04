@@ -305,7 +305,17 @@ export const GlobeCanvas = memo(function GlobeCanvas({ running, onOpenCountry, r
     sc.clearHover();
   }, []);
   const onTapJS = useCallback((x: number, y: number, rx: number, ry: number, z: number) => {
-    if (!scene.current) return;
+    const sc = scene.current;
+    if (!sc) return;
+    if (!WORKLET_GLOBE) {
+      // The three.js fallback keeps its own rotation and highlight; nothing writes the shared values.
+      const hit = sc.hover(x, y);
+      if (hit) {
+        setTip({ x: x + 14, y: y + 10, name: hit.n });
+        openRef.current(hit);
+      }
+      return;
+    }
     // Mobile web fires the emulated hover on a tap: the marker lights and
     // #gtip shows the name at the finger, then the nation opens.
     // Picked against the rotation the finger TOUCHED, captured on the UI thread
