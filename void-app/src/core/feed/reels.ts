@@ -5,11 +5,12 @@
 // playable video is ever admitted, and reels never borrow the feed's sources.
 import { env, onConfigure } from '../env.ts';
 import type { Post } from '../types.ts';
-import { REEL_BLOCK_ART, REEL_BLOCK_TOPIC, isArticleDrop, isFeedMeta, isMuted, isNewsAccount, reelBlocked } from '../rank/filters.ts';
+import { REEL_BLOCK_TOPIC, isArticleDrop, isFeedMeta, isMuted, isNewsAccount, reelBlocked } from '../rank/filters.ts';
 import { diversify, VW_STYLES, vwScore } from '../rank/order.ts';
 import { admitPost } from '../rank/seen.ts';
 import { inferTags } from '../rank/tags.ts';
 import { bskyFeedUrl, bskyToPost } from './bluesky.ts';
+import { peertubeSrc } from './fedi.ts';
 import { laneClaim, laneFree } from './search.ts';
 import { allPosts, emitPostsChanged, reelPosts } from './store.ts';
 
@@ -51,7 +52,8 @@ export async function ptDetail(host: string, uuid: string) {
     if (!r.ok) return null;
     const d = await r.json();
     const hls = (d.streamingPlaylists || [])[0];
-    const url = (hls && hls.playlistUrl) || ((d.files || [])[0] || {}).fileUrl || '';
+    // files[] is largest first: with no HLS this handed a 720-wide phone the 1080p mp4.
+    const url = (hls && hls.playlistUrl) || peertubeSrc(d, 720);
     if (!url) return null;
     const out = { url, thumb: d.previewPath ? `https://${host}${d.previewPath}` : '', dur: d.duration || 0 };
     _ptCache[uuid] = out; return out;
@@ -81,18 +83,21 @@ export async function pullPeerTubeSearch(): Promise<number> {
     if (!r.ok) return 0;
     const j = await r.json();
     const rows = (j.data || []).filter((v: any) => v && v.uuid && !v.isLive && !v.nsfw && (v.duration || 0) > 2 && (v.duration || 0) < 900);
+    // The gates that need nothing from the detail call go first (in a live sample 39
+    // of 67 detail calls were for rows dropped right after), and the calls that are
+    // left go out together: eight round trips in series was seconds of PULLING SIGNAL.
+    const cand = rows.slice(0, 8)
+      .filter((v: any) => !reelPosts.some(x => x.id === 'pt_' + host + ':' + v.uuid))
+      .map((v: any) => ({ v, p: ptReelPost(host, v, { url: '', thumb: '' }, []) }))
+      .filter(({ p }: { p: Post }) => p.tags.length && !isMuted(p) && !REEL_BLOCK_TOPIC.test(p.body || ''));
+    const dets = await Promise.all(cand.map(({ v }: { v: any }) => ptDetail(host, v.uuid)));   // ptDetail never throws
     let added = 0;
-    for (const v of rows.slice(0, 8)) {
-      if (reelPosts.some(x => x.id === 'pt_' + host + ':' + v.uuid)) continue;
-      const det = await ptDetail(host, v.uuid);
-      if (!det) continue;
-      const p = ptReelPost(host, v, det, []);
-      if (!p.tags.length) continue;            // same intent gate the feed enforces
-      if (isMuted(p)) continue;
-      if (REEL_BLOCK_TOPIC.test(p.body || '')) continue;
-      if (!admitPost(p)) continue;
+    cand.forEach(({ p }: { p: Post }, i: number) => {
+      const det = dets[i]; if (!det) return;
+      p._img = det.thumb; p._video = det.url;
+      if (!admitPost(p)) return;               // still last: only a playable clip is marked seen
       reelPosts.push(p); added++;
-    }
+    });
     return added;
   } catch { return 0; }
 }
@@ -105,16 +110,17 @@ export async function pullPeerTubeReels(): Promise<number> {
     if (!r.ok) return 0;
     const j = await r.json();
     const rows = (j.data || []).filter((v: any) => v && v.uuid && !v.isLive && !v.nsfw && (v.duration || 0) > 2 && (v.duration || 0) < 600);
+    const cand = rows.slice(0, 8)                       // cap the N+1
+      .map((v: any) => ({ v, p: ptReelPost(src.host, v, { url: '', thumb: '' }, [src.lane]) }))
+      .filter(({ p }: { p: Post }) => !isMuted(p) && !REEL_BLOCK_TOPIC.test(p.body || ''));
+    const dets = await Promise.all(cand.map(({ v }: { v: any }) => ptDetail(src.host, v.uuid)));
     let added = 0;
-    for (const v of rows.slice(0, 8)) {                 // cap the N+1
-      const det = await ptDetail(src.host, v.uuid);
-      if (!det) continue;
-      const p = ptReelPost(src.host, v, det, [src.lane]);
-      if (isMuted(p)) continue;
-      if (REEL_BLOCK_TOPIC.test(p.body || '')) continue;
-      if (!admitPost(p)) continue;
+    cand.forEach(({ p }: { p: Post }, i: number) => {
+      const det = dets[i]; if (!det) return;
+      p._img = det.thumb; p._video = det.url;
+      if (!admitPost(p)) return;
       reelPosts.push(p); added++;
-    }
+    });
     return added;
   } catch { return 0; }
 }
@@ -195,8 +201,7 @@ export function vwRemember(p: Post): void {
 }
 let _vwPullAt = 0;
 export function vwFill(n = 5, any = false): Post[] {
-  // The art gate again, at the queue: the allPosts backstop below never went through the reel ingest.
-  const eligible = (p: Post) => (any ? true : VW_STYLES.includes(p.style)) && laneFree(p, 'reel') && !REEL_BLOCK_ART.test(p.body || '');
+  const eligible = (p: Post) => (any ? true : VW_STYLES.includes(p.style)) && laneFree(p, 'reel');
   const fresh = (p: Post) => !!p._video && !vwSeen.has(p.id) && !vwRecentHas(p);
   // Top the reel pool up in the background when thin (throttled: a source that fails
   // instantly must not spin).
@@ -204,7 +209,10 @@ export function vwFill(n = 5, any = false): Post[] {
     _vwPullAt = env.now(); pullReelPage().catch(() => { /* */ });
   }
   let pool = reelPosts.filter(p => fresh(p) && eligible(p));
-  if (pool.length < n) pool = pool.concat(allPosts.filter(p => fresh(p) && eligible(p) && !pool.includes(p)));
+  // The feed pool never went through the reel ingest, so the reel topic block (pets,
+  // drawn art) is applied here - or the backstop leaks exactly what the ingest holds
+  // back, at cold start, when the reel pool is empty and this branch IS the queue.
+  if (pool.length < n) pool = pool.concat(allPosts.filter(p => fresh(p) && eligible(p) && !pool.includes(p) && !REEL_BLOCK_TOPIC.test(p.body || '')));
   // One card per clip, even when two posts carry the same video.
   const byKey = new Set<string>();
   pool = pool.filter(p => { const k = vwKey(p); if (byKey.has(k)) return false; byKey.add(k); return true; });

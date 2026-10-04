@@ -6,7 +6,7 @@
 // switches one on and ticks its consent box.
 //
 //   const s = useSensing();
-//   s.affect            latest quantized AffectState (or null)
+//   BIO.affect          latest quantized AffectState (or null) - not React state, see below
 //   s.setFeedVisible(v) front-camera sensing only runs while the feed is visible + foreground
 //   s.markImpression(impressionId, itemId)
 //   s.setTiers(tiers)   record consent for exactly these tiers (asks OS permissions)
@@ -14,12 +14,13 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import * as Sensing from '../../modules/expo-void-sensing';
+import { BIO } from '../core';
 
 export interface SensingApi {
   native: boolean;
   consent: Sensing.ConsentState;
   sensingOn: boolean;
-  affect: Sensing.AffectState | null;
+
   /** Record consent for EXACTLY these tiers; resolves to the resulting state. */
   setTiers: (tiers: Sensing.SensorTier[]) => Promise<Sensing.ConsentState>;
   setKillSwitch: (on: boolean) => void;
@@ -33,7 +34,7 @@ const SensingContext = createContext<SensingApi | null>(null);
 export function SensingProvider({ children }: { children: React.ReactNode }) {
   const [consent, setConsent] = useState<Sensing.ConsentState>(() => Sensing.getConsent());
   const [sensingOn, setSensingOn] = useState<boolean>(() => Sensing.isKillSwitchEnabled());
-  const [affect, setAffect] = useState<Sensing.AffectState | null>(null);
+
   const feedVisibleRef = useRef(false);
 
   // Run the native pipeline while affect consent is granted and body signals are on.
@@ -47,8 +48,12 @@ export function SensingProvider({ children }: { children: React.ReactNode }) {
     };
   }, [consent.affectConsent, sensingOn]);
 
+  // Kept out of React state. This provider sits above the whole app, so a setState
+  // here gave the context a new value and walked the app's tree on every event (up
+  // to one every 2s) for a value no screen reads. BIO.affect is the slot the web
+  // bridge writes to; anything that wants it reads it there.
   useEffect(() => {
-    const sub = Sensing.addAffectListener((s) => setAffect(s));
+    const sub = Sensing.addAffectListener((s) => BIO.setAffect(s));
     return () => sub.remove();
   }, []);
 
@@ -85,7 +90,6 @@ export function SensingProvider({ children }: { children: React.ReactNode }) {
       native: Sensing.hasNativeSensing(),
       consent,
       sensingOn,
-      affect,
       setTiers,
       setKillSwitch: (on) => {
         Sensing.setKillSwitch(on);
@@ -99,7 +103,7 @@ export function SensingProvider({ children }: { children: React.ReactNode }) {
       markImpression: (impressionId, itemId) => Sensing.markImpression(impressionId, itemId),
       recordTouch: (samples) => Sensing.recordTouch(samples),
     }),
-    [consent, sensingOn, affect, setTiers],
+    [consent, sensingOn, setTiers],
   );
 
   return (

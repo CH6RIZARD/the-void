@@ -115,11 +115,16 @@ export const REEL_BLOCK_AUTHOR_LABELS = /!no-unauthenticated/i;
 // only. Words, then EMOJI ("another Sammy 🐈‍⬛️ sighting" has no animal word).
 export const REEL_BLOCK_TOPIC_WORDS = /\b(cat|cats|kitten|kitty|catto|dog|dogs|doggo|puppy|pupper|hedgehog|hoglet|squirrel|bunny|rabbit|hamster|guinea pig|parrot|budgie|meow|purr|caturday|petsky|toe.?beans?|zoomies|birdwatch\w*|aquarium|zoo)\b/i;
 export const REEL_BLOCK_TOPIC_EMOJI = /[\u{1F400}-\u{1F43F}\u{1F980}-\u{1F9AE}]|\u{1F408}|\u{1F415}|\u{1F43E}|\u{1F98A}|\u{1F994}|\u{1F99C}/u;
-// Drawn and furry art is the other diluter: reels is real footage. Phrases and
-// hashtags as people write them on the reel feeds. The WORD "art" and "sketch" are
-// NOT here (a painter filmed at work, "my art school", a comedy sketch are real
-// footage); the #art hashtag is, because that is how drawn-art posts tag themselves.
-export const REEL_BLOCK_ART = /\b(furry|furries|fursuit\w*|fursona|furryart|anthro|kemono|hand[- ]?drawn|fan ?art|digital ?art|art by me|speedpaint\w*|animatic|animation meme)\b|#(art|artwork|illustration|drawing|doodle|animation|2danimation|commissions|artistsonbluesky|artsky|furry\w*)\b/i;
+// Drawn and furry art is the other diluter: reels is real footage. Built from a live
+// sample of the reel feeds (2026-10-04), where half of what the backbone feed admitted
+// was speedpaints, animatics and furry art: it caught 60 of 60 hand-identified art
+// clips with 1 false positive in 48, and 0 of 444 posts from the topical feeds.
+//  - left half: words that only ever mean drawn / furry art, anywhere in the text;
+//  - right half: ambiguous stems that count ONLY as a hashtag (#art, #painting, any
+//    #...animation...), where the author is filing the post under art.
+// Bare art / artwork / animation / drawn / sketch are deliberately absent: "The Art Of
+// The Grift", "Occupation & Artwork", "Réanimation" and a comedy sketch are real footage.
+export const REEL_BLOCK_ART = /\b(?:furr(?:y\w*|ies)|fursuit\w*|fursona\w*|anthro|kemono|protogen|hand[- ]?drawn|fan ?arts?|pixel ?art|digital ?art(?:ists?|works?)?|watercolou?rs?|speedpaint\w*|animatics?|anime|cartoons?)\b|#(?:\w*animation\w*|art|artsky|myart|ocart|artwork\w*|illustration\w*|drawing\w*|painting\w*)\b/i;
 export const REEL_BLOCK_TOPIC = { test: (t: string) => REEL_BLOCK_TOPIC_WORDS.test(t) || REEL_BLOCK_TOPIC_EMOJI.test(t) || REEL_BLOCK_ART.test(t) };
 /** Label gate for a raw Bluesky feed item: post labels AND the author's. */
 export function reelBlocked(item: any): boolean {

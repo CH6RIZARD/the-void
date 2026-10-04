@@ -3486,11 +3486,16 @@ const REEL_BLOCK_AUTHOR_LABELS=/!no-unauthenticated/i;
 // platform the emoji often IS the only signal.
 const REEL_BLOCK_TOPIC_WORDS=/\b(cat|cats|kitten|kitty|catto|dog|dogs|doggo|puppy|pupper|hedgehog|hoglet|squirrel|bunny|rabbit|hamster|guinea pig|parrot|budgie|meow|purr|caturday|petsky|toe.?beans?|zoomies|birdwatch\w*|aquarium|zoo)\b/i;
 const REEL_BLOCK_TOPIC_EMOJI=/[\u{1F400}-\u{1F43F}\u{1F980}-\u{1F9AE}]|\u{1F408}|\u{1F415}|\u{1F43E}|\u{1F98A}|\u{1F994}|\u{1F99C}/u;
-// Drawn and furry art is the other diluter: reels is real footage. Phrases and
-// hashtags as people write them on the reel feeds. The WORD "art" and "sketch" are
-// NOT here (a painter filmed at work, "my art school", a comedy sketch are real
-// footage); the #art hashtag is, because that is how drawn-art posts tag themselves.
-const REEL_BLOCK_ART=/\b(furry|furries|fursuit\w*|fursona|furryart|anthro|kemono|hand[- ]?drawn|fan ?art|digital ?art|art by me|speedpaint\w*|animatic|animation meme)\b|#(art|artwork|illustration|drawing|doodle|animation|2danimation|commissions|artistsonbluesky|artsky|furry\w*)\b/i;
+// Drawn and furry art is the other diluter: reels is real footage. Built from a live
+// sample of the reel feeds (2026-10-04), where half of what the backbone feed admitted
+// was speedpaints, animatics and furry art: it caught 60 of 60 hand-identified art
+// clips with 1 false positive in 48, and 0 of 444 posts from the topical feeds.
+//  - left half: words that only ever mean drawn / furry art, anywhere in the text;
+//  - right half: ambiguous stems that count ONLY as a hashtag (#art, #painting, any
+//    #...animation...), where the author is filing the post under art.
+// Bare art / artwork / animation / drawn / sketch are deliberately absent: "The Art Of
+// The Grift", "Occupation & Artwork", "Réanimation" and a comedy sketch are real footage.
+const REEL_BLOCK_ART=/\b(?:furr(?:y\w*|ies)|fursuit\w*|fursona\w*|anthro|kemono|protogen|hand[- ]?drawn|fan ?arts?|pixel ?art|digital ?art(?:ists?|works?)?|watercolou?rs?|speedpaint\w*|animatics?|anime|cartoons?)\b|#(?:\w*animation\w*|art|artsky|myart|ocart|artwork\w*|illustration\w*|drawing\w*|painting\w*)\b/i;
 const REEL_BLOCK_TOPIC={test:(t)=>REEL_BLOCK_TOPIC_WORDS.test(t)||REEL_BLOCK_TOPIC_EMOJI.test(t)||REEL_BLOCK_ART.test(t)};
 // PeerTube lane — the genuinely UNHINGED end. The Bluesky feeds above top out at
 // "hobbyist high-variance" (cats, animation, K-pop); this is the absurd/eerie
@@ -3587,7 +3592,8 @@ async function ptDetail(host,uuid){
     if(!r.ok)return null;
     const d=await r.json();
     const hls=(d.streamingPlaylists||[])[0];
-    const url=(hls&&hls.playlistUrl)||((d.files||[])[0]||{}).fileUrl||'';
+    // files[] is largest first: with no HLS this handed a phone the 1080p mp4.
+    const url=(hls&&hls.playlistUrl)||peertubeSrc(d,720);
     if(!url)return null;
     if(!(await vwCorsOk(url)))return null;
     const out={url,thumb:d.previewPath?`https://${host}${d.previewPath}`:'',dur:d.duration||0};
@@ -6931,10 +6937,10 @@ function nfHost(u){try{return new URL(u).host.replace(/^www\./,'');}catch(e){ret
 // VIDEO — PeerTube, federated search via SepiaSearch (CORS *), then the video's own
 // instance (CORS *) for a real file: a web-video mp4 near 480p, else the HLS
 // fragmented mp4, else the HLS master. No file -> no post (never an iframe).
-function peertubeSrc(j){
+function peertubeSrc(j,want=480){
   if(!j||j.isLive||(j.privacy&&j.privacy.id!==1))return '';
   const near=fs=>(fs||[]).filter(f=>f&&f.fileUrl&&f.hasVideo!==false&&f.resolution&&f.resolution.id>0&&f.resolution.id<=1080)
-    .sort((a,b)=>Math.abs(a.resolution.id-480)-Math.abs(b.resolution.id-480))[0];
+    .sort((a,b)=>Math.abs(a.resolution.id-want)-Math.abs(b.resolution.id-want))[0];
   const w=near(j.files);if(w)return w.fileUrl;
   const sp=(j.streamingPlaylists||[])[0];if(!sp)return '';
   const h=near(sp.files);return h?h.fileUrl:(sp.playlistUrl||'');
@@ -8845,8 +8851,7 @@ function vwRemember(p){
   while(_vwRecent.length>VW_NO_REPEAT)_vwRecentSet.delete(_vwRecent.shift());
 }
 function vwFill(n=5,any){
-  // The art gate again, at the queue: the allPosts backstop below never went through the reel ingest.
-  const eligible=p=>(any?true:VW_STYLES.includes(p.style))&&laneFree(p,'reel')&&!REEL_BLOCK_ART.test(p.body||'');
+  const eligible=p=>(any?true:VW_STYLES.includes(p.style))&&laneFree(p,'reel');
   // Top the dedicated reel pool up in the background whenever it runs thin.
   // Throttled so a source that fails instantly cannot spin.
   const fresh=p=>p._video&&!vwSeen.has(p.id)&&!vwRecentHas(p);
@@ -8855,7 +8860,10 @@ function vwFill(n=5,any){
   }
   // VIDEO ONLY, and never a clip shown in the recent window.
   let pool=reelPosts.filter(p=>fresh(p)&&eligible(p));
-  if(pool.length<n)pool=pool.concat(allPosts.filter(p=>fresh(p)&&eligible(p)&&pool.indexOf(p)<0));
+  // The feed pool never went through the reel ingest, so the reel topic block (pets,
+  // drawn art) is applied here - or the backstop leaks exactly what the ingest holds
+  // back, at cold start, when the reel pool is empty and this branch IS the queue.
+  if(pool.length<n)pool=pool.concat(allPosts.filter(p=>fresh(p)&&eligible(p)&&pool.indexOf(p)<0&&!REEL_BLOCK_TOPIC.test(p.body||'')));
   // One card per clip, even when two posts carry the same video.
   const byKey=new Set();
   pool=pool.filter(p=>{const k=vwKey(p);if(byKey.has(k))return false;byKey.add(k);return true;});

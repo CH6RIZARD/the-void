@@ -175,10 +175,15 @@ test('nation TRENDING is the nation\'s own fastest-moving post, the same pick as
 test('reels art gate: furry and hand-drawn art never reach a reel, real footage does', () => {
   fresh();
   const blocked = ['new #furry animation wip', 'Fursuit dance at the con', 'hand-drawn, frame by frame', 'my art for today #artsky', 'speedpaint of my fursona',
-    'commission finished! #art', 'fan art of the finale', 'Handdrawn map of the old town', 'an animatic I made', 'Anthro wolf turnaround #digitalart'];
+    'commission finished! #art', 'fan art of the finale', 'Handdrawn map of the old town', 'an animatic I made', 'Anthro wolf turnaround #digitalart',
+    'protogen head turn test', 'watercolour timelapse', 'anime opening I animated #indieanimation', 'pixel art loop', 'new cartoon short', 'WIP #painting'];
   const allowed = ['Comedy sketch from last night', 'Street artist paints a mural in Lagos', 'Flooding in Bangkok tonight', 'Protest outside the art museum',
     'the state of the art in drone racing', 'Cartagena at dawn', 'Anthropology lecture, day two', 'Martial artist lands a spinning kick',
-    'Riot outside my art school in Tbilisi', 'State capture #commission hearing resumes today'];
+    'Riot outside my art school in Tbilisi', 'State capture #commission hearing resumes today',
+    // real titles and captions from the live sample that an earlier, looser draft refused
+    'The Art Of The Grift - Propaganda And Deceptive Editing', 'Police Violence during Hamburg University Occupation & Artwork',
+    'Merci ! - Réanimation Bordeaux', 'Battle lines drawn as troops mass at the border', '#MarioKartWorld speedrun attempt',
+    'OC gets a taste of his own medicine', 'Anthropic says the model leaked', 'Animation shows how the dam collapsed'];
   for (const t of blocked) assert.ok(core.REEL_BLOCK_TOPIC.test(t), 'blocked: ' + t);
   for (const t of allowed) assert.ok(!core.REEL_BLOCK_ART.test(t), 'allowed: ' + t);
   // The queue's allPosts backstop never went through the reel ingest: the gate holds there too.
@@ -186,4 +191,29 @@ test('reels art gate: furry and hand-drawn art never reach a reel, real footage 
   core.allPosts.push(mk('real', 'Convoy crossing the river at dawn') as any, mk('drawn', 'my fursona walk cycle #furryart') as any);
   const picked = core.vwFill(5, true).map(p => p.id);
   assert.ok(picked.includes('real') && !picked.includes('drawn'), 'vwFill picked ' + picked.join(','));
+});
+
+test('reels PeerTube lane: gates run before the detail calls; a clip with no HLS gets the 720p file, not the largest', async () => {
+  const calls: string[] = [];
+  const rows = [
+    { uuid: 'ptA', name: 'Protest against police surveillance in Hamburg', duration: 60, views: 5 },
+    { uuid: 'ptB', name: 'my fursona speedpaint about the protest', duration: 60, views: 5 }, // art: refused with no detail call
+    { uuid: 'ptC', name: 'zzz qqq', duration: 60, views: 5 },                                  // no tag: refused with no detail call
+  ];
+  const file = (id: number) => ({ fileUrl: `https://h.example/${id}.mp4`, resolution: { id } });
+  const detail = { files: [file(1080), file(720), file(480)], streamingPlaylists: [], previewPath: '/p.jpg', duration: 60 };
+  core.configureCore({
+    storage: core.createMemoryStorage(), session: core.createMemoryStorage(), now: () => NOW, random: mulberry32(3), proxyBase: '',
+    fetch: (async (u: string) => {
+      calls.push(u);
+      const isDetail = /\/videos\/pt[A-C]$/.test(u);
+      return { ok: true, json: async () => (isDetail ? detail : { data: rows }) };
+    }) as any,
+  });
+  core._badStreams.clear(); core.resetStories(); core.resetStore();
+  assert.equal(await core.pullPeerTubeSearch(), 1);
+  const details = calls.filter(u => /\/videos\/pt[A-C]$/.test(u));
+  assert.deepEqual(details.map(u => u.slice(-3)), ['ptA'], 'only the row that passes the gates costs a detail call');
+  assert.equal(core.reelPosts[0]._video, 'https://h.example/720.mp4');
+  assert.equal(core.reelPosts[0]._img!.endsWith('/p.jpg'), true);
 });
