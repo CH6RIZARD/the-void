@@ -22,7 +22,7 @@ import { ScrollView } from 'react-native-gesture-handler';
 import { Image } from 'expo-image';
 import { LiveDot, TileLabel, TileLoader } from './TileChrome';
 import { StreamTile, type StreamTileHandle } from './StreamTile';
-import { applyPlacement, clearPlacement, evictedIds, placementOf, usePlacement } from './placementStore';
+import { applyPlacement, clearPlacement, evictedIds, parkedIds, placementOf, usePlacement } from './placementStore';
 import { holdCreates, livePlayerCount, releaseQueueDepth } from './pacedPlayer';
 import { wallScrollAtSV } from './wallScrollSignal';
 import { useStreamCascade, type CascadeResult } from './useStreamCascade';
@@ -165,6 +165,8 @@ export const LiveWall = memo(forwardRef<LiveWallHandle, LiveWallProps>(function 
     // This lives on the wall, so a returning tile reconnects to the stream it was
     // actually playing in ONE attempt instead of re-walking its chain.
     lastGood: new Map<number, StreamSource>(),
+    // Connection rank per tile id, surviving band-cull remounts (see onFirstSettled).
+    rankById: new Map<number, number>(),
     healBusy: 0,
     scrollY: 0,
     fingerDown: false,
@@ -278,7 +280,14 @@ export const LiveWall = memo(forwardRef<LiveWallHandle, LiveWallProps>(function 
     // back every 2.5s, so a dead visible tile heals one or two ticks later once
     // the pressure clears; the 12s per-tile cooldown already prevents thrash.
     // Nudges stay ungated - they only resume paused players, zero codec cost.
-    if (releaseQueueDepth() > 3 || livePlayerCount() > playerBudgetNow() + 2) return;
+    // The audible rides as a +1 overlay above every budget (see recomputePlacement):
+    // billing it here kept this gate tripped for as long as something played sound
+    // on a degraded-budget phone, so dead visible tiles never healed.
+    const audibleNow = audibleIdRef.current || '';
+    const audId = audibleNow.startsWith('wall:') ? Number(audibleNow.slice(5)) : -1;
+    const audEntry = w.registry.get(audId);
+    const overlay = audEntry && (audEntry.phase === 'playing' || audEntry.phase === 'connecting') ? 1 : 0;
+    if (releaseQueueDepth() > 3 || livePlayerCount() - overlay > playerBudgetNow() + 2) return;
     if (!w.activeRef || AppState.currentState !== 'active') return;
     const g = geo.current;
     for (const e of w.registry.values()) {
@@ -313,7 +322,11 @@ export const LiveWall = memo(forwardRef<LiveWallHandle, LiveWallProps>(function 
 
   const onFirstSettled = useCallback(
     (rec: TileRec, res: CascadeResult) => {
-      if (res.ok) {
+      if (res.ok && !w.rankById.has(rec.id)) {
+        // A RANK IS PER TILE ID, ASSIGNED ONCE. A band-cull remount re-settles
+        // with a fresh s.first, and handing the same tile a NEW rank re-ordered
+        // regions the reader had already seen - "the reorder is failing". The
+        // id->rank map outlives the component, so a remount keeps its place.
         // EVERY batch packs by connection order now - but never under a live
         // gesture. Packing all batches as they connected was tried once and
         // made content "sit randomly and jump around under an active scroll";
@@ -326,6 +339,7 @@ export const LiveWall = memo(forwardRef<LiveWallHandle, LiveWallProps>(function 
         // mid-gesture connect queues and rises in one commit at settle,
         // beside the placement pass that already owns that moment.
         const o = w.wallConn++;
+        w.rankById.set(rec.id, o);
         if (rec.batch === 1 || (!w.fingerDown && !w.momentum)) {
           setOrder((prev) => ({ ...prev, [rec.id]: o })); // connected tiles rise
         } else {
@@ -354,6 +368,7 @@ export const LiveWall = memo(forwardRef<LiveWallHandle, LiveWallProps>(function 
     w.slots = wallSlots();
     w.slotIdx = 0;
     w.wallConn = 0;
+    w.rankById.clear();
     w.pendingOrder = [];
     w.busy = false;
     w.batchPending.clear();
@@ -469,7 +484,22 @@ export const LiveWall = memo(forwardRef<LiveWallHandle, LiveWallProps>(function 
     // imperatively through the registry by the effect below - no React state, no
     // commit proportional to the number of tiles. Placement is recomputed when
     // the wall comes back, where it means something again.
-    if (!w.activeRef) return;
+    //
+    // ONE exception: the asleep evict-all. Deferring it to the return commit
+    // meant resume-all -> evict-all -> ~9 paced releases -> ~8 serial ExoPlayer
+    // rebuilds ON THE FRAMES the user came back - seconds of JS saturation
+    // freezing tap handling - while the nation screen they left FOR was starved
+    // of the very decoders the paused wall still held. So while away AND asleep,
+    // run only the evict-all: no placement, no restores, no watchdog work; the
+    // decoders drain through the normal paced release queue during the visit,
+    // and the return commit has nothing left to tear down.
+    if (!w.activeRef) {
+      if (!w.asleepRef) return;
+      const evicted = evictedIds();
+      for (const e of w.registry.values()) evicted.add(e.id);
+      applyPlacement(parkedIds(), evicted);
+      return;
+    }
     const g = geo.current;
     const vh = Math.max(1, g.viewportH);
     const dist = new Map<number, number>();
@@ -498,7 +528,16 @@ export const LiveWall = memo(forwardRef<LiveWallHandle, LiveWallProps>(function 
     const parked = new Set<number>();
     // Distance only. The inactive case returned above.
     for (const [id, d] of dist) if (d > PARK_SCREENS && id !== keepId) parked.add(id);
-    const live = [...w.registry.values()].filter((e) => e.phase === 'playing' || e.phase === 'connecting');
+    // THE AUDIBLE RIDES AS A +1 OVERLAY, OUTSIDE EVERY BUDGET. It was already
+    // exempt from parking (above) and from eviction (evictFarthest below), but
+    // still BILLED here: with 8 visible restored, a far audible made the pool
+    // 9-on-8, so every pass had mustCut > 0 and shed VISIBLE tiles want-based,
+    // which the d=0 restore undid a pass later - the load-and-drop ping-pong.
+    // And `room` below sat at -1 for ever, so the runway ring never refilled
+    // and newly scrolled rows always loaded cold. Excluded from the arithmetic
+    // entirely, its own lifecycle is unchanged (never parked, never evicted,
+    // never muted); CREATE_CAP's slack absorbs the one extra player.
+    const live = [...w.registry.values()].filter((e) => (e.phase === 'playing' || e.phase === 'connecting') && e.id !== keepId);
     const web = live.filter((e) => e.kind === 'youtube' || e.kind === 'iframe');
     const evicted = evictedIds();
     // Hoisted above the restore, which now spends it: the ask is the ring,
@@ -547,7 +586,7 @@ export const LiveWall = memo(forwardRef<LiveWallHandle, LiveWallProps>(function 
     // several hundred file descriptors that abort this ROM at 1024.
     // Distance is the ORDER to shed in, not a precondition for shedding: farthest
     // first, and keep going until the count is inside the budget.
-    const evictFarthest = (pool: WallEntry[], max: number) => {
+    const evictFarthest = (pool: WallEntry[], max: number, hard = MAX_MOUNTED_PLAYERS) => {
       let over = pool.length - max;
       if (over <= 0) return;
       const rank = (e: WallEntry) => dist.get(e.id) ?? 0;
@@ -575,13 +614,20 @@ export const LiveWall = memo(forwardRef<LiveWallHandle, LiveWallProps>(function 
       // So the candidates are the tiles more than a screen away. Within that ring
       // they stay parked and keep their picture.
       const offscreen = pool.filter((e) => (dist.get(e.id) ?? 0) > PARK_SCREENS);
-      const mustCut = pool.length - MAX_MOUNTED_PLAYERS;
+      // The hard ceiling belongs to the CALL SITE. It was MAX_MOUNTED_PLAYERS
+      // for both pools, which the webview pool can never exceed - so the
+      // webview cap was never enforced on visible tiles and a parked YouTube
+      // audible could leak WebView renderers past it (the fd class).
+      const mustCut = Math.max(0, pool.length - hard);
       // Farthest first. Sorting by distance means the tiles nobody is looking at
       // go before any tile near the viewport does, and the loop simply stops once
       // the count is inside the budget - so a nearby tile is only ever taken when
       // there is nothing further away left to take.
       const usable = offscreen.length >= over ? offscreen : mustCut > 0 ? pool : offscreen;
       if (usable === offscreen && offscreen.length < over) over = offscreen.length;
+      // Visible tiles are only ever spent on the hard ceiling's account: a want
+      // degraded below the ceiling must never cut past what the ceiling demands.
+      else over = Math.min(over, offscreen.length + mustCut);
       const candidates = usable.filter((e) => !evicted.has(e.id) && e.id !== keepId).sort((a, b) => rank(b) - rank(a));
       for (const e of candidates) {
         if (over <= 0) break;
@@ -612,7 +658,7 @@ export const LiveWall = memo(forwardRef<LiveWallHandle, LiveWallProps>(function 
     // screen of runway above and below. Those are exactly the tiles you are
     // about to see or have just seen, and keeping them connected is what makes
     // scrolling feel like nothing is loading at all.
-    evictFarthest(web, MAX_MOUNTED_WEBVIEWS);
+    evictFarthest(web, MAX_MOUNTED_WEBVIEWS, MAX_MOUNTED_WEBVIEWS);
     evictFarthest(live, want);
     const same = (a: Set<number>, b: Set<number>) => a.size === b.size && [...a].every((x) => b.has(x));
     // Tells only the tiles whose state actually flipped - usually none, and at
@@ -795,7 +841,12 @@ export const LiveWall = memo(forwardRef<LiveWallHandle, LiveWallProps>(function 
           // of the chain.
           const top = gridY + p.top - w.scrollY;
           const band = viewportH * (EVICT_SCREENS + 1);
-          if (viewportH > 0 && (top > viewportH + band || top + rowH < -band)) return null;
+          // THE AUDIBLE NEVER LEAVES THE TREE. For every other tile the cull
+          // tears down nothing (placement released its player long ago) - but
+          // the one tile that owns the sound is exempt from placement, so
+          // unmounting it here hit StreamTile's unmount releaseStream and
+          // killed the audio the moment it drifted past three screens.
+          if (viewportH > 0 && (top > viewportH + band || top + rowH < -band) && `wall:${rec.id}` !== audio.audibleId) return null;
           return (
             <WallTile
               key={`${gen}:${rec.id}`}

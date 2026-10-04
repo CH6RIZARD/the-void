@@ -42,7 +42,7 @@ export interface WorkletGlobeShared {
   dragSV: SharedValue<number>;
   // control
   runningSV: SharedValue<number>;   // 1 = render; 0 = hold last frame
-  canceledSV: SharedValue<number>;  // 1 = loop exits for good (dispose)
+  genSV: SharedValue<number>;       // live generation; a loop exits when this is no longer ITS generation
   wallScrollAtSV: SharedValue<number>; // Date.now() of the wall's last scroll event; fresh = hold the frame
   hotSV: SharedValue<number>;       // hovered marker index, -1 none
   // state the loop reports back (JS picking + health watchdog read these)
@@ -122,40 +122,57 @@ function markerPixels(hot: boolean): Uint8Array {
  * the marker sprites. The upload uses the 9-arg raw form the fallback and
  * markers already use; nothing native decodes anything.
  */
-export function deliverEarthPixels(exglCtxId: number, sv: WorkletGlobeShared): void {
+let earthPxOnUI = false; // the 8.4MB map already lives in the UI runtime; stop re-serializing it per trip
+export function deliverEarthPixels(exglCtxId: number, sv: WorkletGlobeShared, gen: number): void {
+  const send = (px: Uint8Array | null) => {
+    runOnUI((ctxId: number, pixels: Uint8Array | null, w: number, h: number, myGen: number) => {
+      'worklet';
+      // Plain closure, no nested directive (the 7b-7e lesson).
+      const g = globalThis as any;
+      // ONE retained copy per app run. The pixels never change, and carrying
+      // 8.4MB across runtimes again on every nation return was a measured
+      // UI-thread block; after the first delivery the worklet reads its own
+      // cached copy and the JS side sends nothing but this call.
+      if (pixels) g.__voidEarthPx = pixels;
+      const data: Uint8Array | undefined = g.__voidEarthPx;
+      if (!data) return; // the navy fallback stays - the spec's own degraded look
+      const tryUpload = () => {
+        if (sv.genSV.value !== myGen) return; // a newer context owns the texture now
+        const gl = g.__EXGLContexts?.[String(ctxId)];
+        if (!gl) return; // context died; the rebuild delivers again
+        const id = sv.texIdSV.value;
+        if (!(id > 0)) {
+          // The render worklet publishes the id on its first statement after
+          // texture creation; one or two frames at most.
+          g.requestAnimationFrame(tryUpload);
+          return;
+        }
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, { id } as any); // EXGL unwraps args by their .id
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+        gl.generateMipmap(gl.TEXTURE_2D);
+        const ext = gl.getExtension('EXT_texture_filter_anisotropic');
+        if (ext) {
+          const maxA = gl.getParameter(ext.MAX_TEXTURE_MAX_ANISOTROPY_EXT) || 1;
+          gl.texParameterf(gl.TEXTURE_2D, ext.TEXTURE_MAX_ANISOTROPY_EXT, maxA);
+        }
+        sv.texStateSV.value = 1;
+        try {
+          console.warn('[globe] worklet map: ' + w + 'x' + h + ' uploaded');
+        } catch {}
+      };
+      tryUpload();
+    })(exglCtxId, px, EARTH_W, EARTH_H, gen);
+  };
+  if (earthPxOnUI) {
+    send(null);
+    return;
+  }
   bundledEarthPixelsAsync()
     .then((px) => {
       if (!px) return; // the navy fallback stays - the spec's own degraded look
-      runOnUI((ctxId: number, pixels: Uint8Array, w: number, h: number) => {
-        'worklet';
-        // Plain closure, no nested directive (the 7b-7e lesson).
-        const tryUpload = () => {
-          if (sv.canceledSV.value === 1) return;
-          const gl = (globalThis as any).__EXGLContexts?.[String(ctxId)];
-          if (!gl) return; // context died; the rebuild delivers again
-          const id = sv.texIdSV.value;
-          if (!(id > 0)) {
-            // The render worklet publishes the id on its first statement after
-            // texture creation; one or two frames at most.
-            (globalThis as any).requestAnimationFrame(tryUpload);
-            return;
-          }
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, { id } as any); // EXGL unwraps args by their .id
-          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-          gl.generateMipmap(gl.TEXTURE_2D);
-          const ext = gl.getExtension('EXT_texture_filter_anisotropic');
-          if (ext) {
-            const maxA = gl.getParameter(ext.MAX_TEXTURE_MAX_ANISOTROPY_EXT) || 1;
-            gl.texParameterf(gl.TEXTURE_2D, ext.TEXTURE_MAX_ANISOTROPY_EXT, maxA);
-          }
-          sv.texStateSV.value = 1;
-          try {
-            console.warn('[globe] worklet map: ' + w + 'x' + h + ' uploaded');
-          } catch {}
-        };
-        tryUpload();
-      })(exglCtxId, px, EARTH_W, EARTH_H);
+      earthPxOnUI = true;
+      send(px);
     })
     .catch(() => {});
 }
@@ -165,19 +182,22 @@ export function deliverEarthPixels(exglCtxId: number, sv: WorkletGlobeShared): v
  * JS side must hold: steering, health and picking all flow through the shared
  * values above.
  */
+let mkCache: { markers: Float32Array; sprite: Uint8Array; spriteHot: Uint8Array } | null = null;
 export function startWorkletGlobe(
   exglCtxId: number,
   countries: Country[],
   viewW: number,
   viewH: number,
   sv: WorkletGlobeShared,
+  gen: number,
 ): void {
-  const markers = markerPositions(countries);
+  // Pure functions of the fixed country list: rasterising the two 128x128
+  // marker sprites again on every context re-create bought nothing.
+  if (!mkCache) mkCache = { markers: markerPositions(countries), sprite: markerPixels(false), spriteHot: markerPixels(true) };
+  const { markers, sprite, spriteHot } = mkCache;
   const markerCount = countries.length;
-  const sprite = markerPixels(false);
-  const spriteHot = markerPixels(true);
 
-  runOnUI((ctxId: number, mk: Float32Array, mkN: number, sp: Uint8Array, spHot: Uint8Array, vw: number, vh: number) => {
+  runOnUI((ctxId: number, mk: Float32Array, mkN: number, sp: Uint8Array, spHot: Uint8Array, vw: number, vh: number, myGen: number) => {
     'worklet';
     // The raw global, not an import: expo-gl's own getWorkletContext is just
     // this lookup, and whether a library function survives workletization
@@ -206,82 +226,124 @@ export function startWorkletGlobe(
       return p;
     };
 
-    // ─── sphere geometry 72x72, three r128 construction (spec §5) ──────────
-    const SEG = 72;
-    const verts: number[] = [];
-    const uvs: number[] = [];
-    for (let iy = 0; iy <= SEG; iy++) {
-      const v = iy / SEG;
-      const uOff = iy === 0 ? 0.5 / SEG : iy === SEG ? -0.5 / SEG : 0;
-      for (let ix = 0; ix <= SEG; ix++) {
-        const u = ix / SEG;
-        const theta = v * Math.PI, phi = u * 2 * Math.PI;
-        verts.push(-Math.cos(phi) * Math.sin(theta), Math.cos(theta), Math.sin(phi) * Math.sin(theta));
-        // Sample v DIRECTLY. The uploaded pixels are bundledEarthPixels: the
-        // authored EARTH_Z rows are south-first (measured - the bright
-        // northern-cities band sits in the high rows), textures.ts flipRows
-        // makes row 0 north, and glTexImage2D puts row 0 at t=0, which is this
-        // sphere's north pole (iy=0, cos(theta)=+1). Flip anything twice here
-        // and the planet meets the user Antarctica-first (build 6's bug).
-        uvs.push(u + uOff, v);
+    // ─── CPU-side scene build, CACHED ACROSS CONTEXT RE-CREATES ────────────
+    // A nation round trip destroys the GL context but never this runtime, and
+    // every one of these arrays comes out the same every time (the stars and
+    // the fallback's glow rects are random once - a retained copy is pixel-
+    // identical to itself). Rebuilding them per return blocked the UI thread
+    // for hundreds of ms on the MediaTek. Built once per app run; the GL
+    // objects (buffers, textures, shader compiles) still rebuild below, as
+    // they must on a new context.
+    const gg = globalThis as any;
+    let cpu = gg.__voidGlobeCPU;
+    if (!cpu) {
+      // ─── sphere geometry 72x72, three r128 construction (spec §5) ────────
+      const SEG = 72;
+      const verts: number[] = [];
+      const uvs: number[] = [];
+      for (let iy = 0; iy <= SEG; iy++) {
+        const v = iy / SEG;
+        const uOff = iy === 0 ? 0.5 / SEG : iy === SEG ? -0.5 / SEG : 0;
+        for (let ix = 0; ix <= SEG; ix++) {
+          const u = ix / SEG;
+          const theta = v * Math.PI, phi = u * 2 * Math.PI;
+          verts.push(-Math.cos(phi) * Math.sin(theta), Math.cos(theta), Math.sin(phi) * Math.sin(theta));
+          // Sample v DIRECTLY. The uploaded pixels are bundledEarthPixels: the
+          // authored EARTH_Z rows are south-first (measured - the bright
+          // northern-cities band sits in the high rows), textures.ts flipRows
+          // makes row 0 north, and glTexImage2D puts row 0 at t=0, which is this
+          // sphere's north pole (iy=0, cos(theta)=+1). Flip anything twice here
+          // and the planet meets the user Antarctica-first (build 6's bug).
+          uvs.push(u + uOff, v);
+        }
       }
-    }
-    const idx: number[] = [];
-    for (let iy = 0; iy < SEG; iy++) {
-      for (let ix = 0; ix < SEG; ix++) {
-        const a = iy * (SEG + 1) + ix, b = a + SEG + 1;
-        if (iy !== 0) idx.push(a, b, a + 1);
-        if (iy !== SEG - 1) idx.push(b, b + 1, a + 1);
+      const idx: number[] = [];
+      for (let iy = 0; iy < SEG; iy++) {
+        for (let ix = 0; ix < SEG; ix++) {
+          const a = iy * (SEG + 1) + ix, b = a + SEG + 1;
+          if (iy !== 0) idx.push(a, b, a + 1);
+          if (iy !== SEG - 1) idx.push(b, b + 1, a + 1);
+        }
       }
-    }
-    const sphereVB = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, sphereVB);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verts), gl.STATIC_DRAW);
-    const sphereUVB = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, sphereUVB);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uvs), gl.STATIC_DRAW);
-    const sphereIB = gl.createBuffer();
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, sphereIB);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(idx), gl.STATIC_DRAW);
-    const sphereIdxCount = idx.length;
 
-    // ─── atmosphere shell 1.06 r, 32x32 (spec §7) ──────────────────────────
-    const ASEG = 32;
-    const averts: number[] = [];
-    for (let iy = 0; iy <= ASEG; iy++) {
-      const v = iy / ASEG;
-      for (let ix = 0; ix <= ASEG; ix++) {
-        const u = ix / ASEG;
-        const theta = v * Math.PI, phi = u * 2 * Math.PI;
-        averts.push(-1.06 * Math.cos(phi) * Math.sin(theta), 1.06 * Math.cos(theta), 1.06 * Math.sin(phi) * Math.sin(theta));
+      // ─── atmosphere shell 1.06 r, 32x32 (spec §7) ────────────────────────
+      const ASEG = 32;
+      const averts: number[] = [];
+      for (let iy = 0; iy <= ASEG; iy++) {
+        const v = iy / ASEG;
+        for (let ix = 0; ix <= ASEG; ix++) {
+          const u = ix / ASEG;
+          const theta = v * Math.PI, phi = u * 2 * Math.PI;
+          averts.push(-1.06 * Math.cos(phi) * Math.sin(theta), 1.06 * Math.cos(theta), 1.06 * Math.sin(phi) * Math.sin(theta));
+        }
       }
-    }
-    const aidx: number[] = [];
-    for (let iy = 0; iy < ASEG; iy++) {
-      for (let ix = 0; ix < ASEG; ix++) {
-        const a = iy * (ASEG + 1) + ix, b = a + ASEG + 1;
-        if (iy !== 0) aidx.push(a, b, a + 1);
-        if (iy !== ASEG - 1) aidx.push(b, b + 1, a + 1);
+      const aidx: number[] = [];
+      for (let iy = 0; iy < ASEG; iy++) {
+        for (let ix = 0; ix < ASEG; ix++) {
+          const a = iy * (ASEG + 1) + ix, b = a + ASEG + 1;
+          if (iy !== 0) aidx.push(a, b, a + 1);
+          if (iy !== ASEG - 1) aidx.push(b, b + 1, a + 1);
+        }
       }
-    }
-    const atmoVB = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, atmoVB);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(averts), gl.STATIC_DRAW);
-    const atmoIB = gl.createBuffer();
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, atmoIB);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(aidx), gl.STATIC_DRAW);
-    const atmoIdxCount = aidx.length;
 
-    // ─── star fields (spec §4): [3000, .04, 0x0d0835], [400, .07, 0x1e1270] ─
-    const mkStars = (n: number) => {
-      const p = new Float32Array(n * 3);
-      for (let i = 0; i < p.length; i++) p[i] = (Math.random() - 0.5) * 200;
+      // ─── star fields (spec §4): [3000, .04, 0x0d0835], [400, .07, 0x1e1270]
+      const mkStars = (n: number) => {
+        const p = new Float32Array(n * 3);
+        for (let i = 0; i < p.length; i++) p[i] = (Math.random() - 0.5) * 200;
+        return p;
+      };
+
+      // fallback earth (spec §5): 512x256 gradient + 900 glow rects
+      const FW = 512, FH = 256;
+      const fpx = new Uint8Array(FW * FH * 4);
+      const c0 = [10, 7, 51], c1 = [20, 11, 58];
+      for (let y = 0; y < FH; y++) {
+        const t = y / FH;
+        const k = t <= 0.5 ? t / 0.5 : (1 - t) / 0.5;
+        const r = c0[0] + (c1[0] - c0[0]) * k, g = c0[1] + (c1[1] - c0[1]) * k, b = c0[2] + (c1[2] - c0[2]) * k;
+        for (let x = 0; x < FW; x++) {
+          const o = (y * FW + x) * 4;
+          fpx[o] = r; fpx[o + 1] = g; fpx[o + 2] = b; fpx[o + 3] = 255;
+        }
+      }
+      for (let i = 0; i < 900; i++) {
+        const a = 0.03 + Math.random() * 0.07;
+        const w = 6 + Math.random() * 40;
+        const x0 = Math.floor(Math.random() * FW), y0 = Math.floor(Math.random() * FH);
+        const x1 = Math.min(FW, Math.floor(x0 + w)), y1 = Math.min(FH, Math.floor(y0 + w * 0.5));
+        for (let y = y0; y < y1; y++) {
+          for (let x = x0; x < x1; x++) {
+            const o = (y * FW + x) * 4;
+            fpx[o] = fpx[o] * (1 - a) + 90 * a;
+            fpx[o + 1] = fpx[o + 1] * (1 - a) + 60 * a;
+            fpx[o + 2] = fpx[o + 2] * (1 - a) + 190 * a;
+          }
+        }
+      }
+
+      cpu = {
+        sphereV: new Float32Array(verts), sphereUV: new Float32Array(uvs), sphereI: new Uint16Array(idx),
+        atmoV: new Float32Array(averts), atmoI: new Uint16Array(aidx),
+        stars1: mkStars(3000), stars2: mkStars(400),
+        fpx,
+      };
+      gg.__voidGlobeCPU = cpu;
+    }
+
+    const mkBuf = (target: number, arr: Float32Array | Uint16Array) => {
       const b = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, b);
-      gl.bufferData(gl.ARRAY_BUFFER, p, gl.STATIC_DRAW);
+      gl.bindBuffer(target, b);
+      gl.bufferData(target, arr, gl.STATIC_DRAW);
       return b;
     };
-    const stars1 = mkStars(3000), stars2 = mkStars(400);
+    const sphereVB = mkBuf(gl.ARRAY_BUFFER, cpu.sphereV);
+    const sphereUVB = mkBuf(gl.ARRAY_BUFFER, cpu.sphereUV);
+    const sphereIB = mkBuf(gl.ELEMENT_ARRAY_BUFFER, cpu.sphereI);
+    const sphereIdxCount = cpu.sphereI.length;
+    const atmoVB = mkBuf(gl.ARRAY_BUFFER, cpu.atmoV);
+    const atmoIB = mkBuf(gl.ELEMENT_ARRAY_BUFFER, cpu.atmoI);
+    const atmoIdxCount = cpu.atmoI.length;
+    const stars1 = mkBuf(gl.ARRAY_BUFFER, cpu.stars1), stars2 = mkBuf(gl.ARRAY_BUFFER, cpu.stars2);
 
     // ─── marker buffers (spec §8): position + aIdx; hot via uniform compare ─
     const mkVB = gl.createBuffer();
@@ -305,34 +367,8 @@ export function startWorkletGlobe(
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       return t;
     };
-    // fallback earth (spec §5): 512x256 gradient + 900 glow rects
-    const FW = 512, FH = 256;
-    const fpx = new Uint8Array(FW * FH * 4);
-    const c0 = [10, 7, 51], c1 = [20, 11, 58];
-    for (let y = 0; y < FH; y++) {
-      const t = y / FH;
-      const k = t <= 0.5 ? t / 0.5 : (1 - t) / 0.5;
-      const r = c0[0] + (c1[0] - c0[0]) * k, g = c0[1] + (c1[1] - c0[1]) * k, b = c0[2] + (c1[2] - c0[2]) * k;
-      for (let x = 0; x < FW; x++) {
-        const o = (y * FW + x) * 4;
-        fpx[o] = r; fpx[o + 1] = g; fpx[o + 2] = b; fpx[o + 3] = 255;
-      }
-    }
-    for (let i = 0; i < 900; i++) {
-      const a = 0.03 + Math.random() * 0.07;
-      const w = 6 + Math.random() * 40;
-      const x0 = Math.floor(Math.random() * FW), y0 = Math.floor(Math.random() * FH);
-      const x1 = Math.min(FW, Math.floor(x0 + w)), y1 = Math.min(FH, Math.floor(y0 + w * 0.5));
-      for (let y = y0; y < y1; y++) {
-        for (let x = x0; x < x1; x++) {
-          const o = (y * FW + x) * 4;
-          fpx[o] = fpx[o] * (1 - a) + 90 * a;
-          fpx[o + 1] = fpx[o + 1] * (1 - a) + 60 * a;
-          fpx[o + 2] = fpx[o + 2] * (1 - a) + 190 * a;
-        }
-      }
-    }
-    const earthTex = texFromPixels(fpx, FW, FH);
+    // fallback earth (spec §5): 512x256 gradient + 900 glow rects, from the cache above
+    const earthTex = texFromPixels(cpu.fpx, 512, 256);
     // Publish the texture's EXGL id: deliverEarthPixels uploads the real night
     // map into this exact texture from a second dispatch. (Id is written by
     // createWebGLObject on the wrapper; same native context both ways.)
@@ -553,7 +589,10 @@ export function startWorkletGlobe(
     // builds 7b-7e). As a plain closure inside the outer worklet, the
     // self-reference is ordinary JS and safe.
     const loop = (ts: number) => {
-      if (sv.canceledSV.value === 1) return;
+      // Not a cancel flag: the loop lives exactly as long as it IS the live
+      // generation. A re-created context mints the next one, and this loop
+      // simply stops re-arming - no zombie 60Hz loops accumulating per trip.
+      if (sv.genSV.value !== myGen) return;
       (globalThis as any).requestAnimationFrame(loop);
       if (sv.runningSV.value !== 1) { gT = 0; return; }   // hold the last frame
       // THE WALL'S SCROLL HOLDS THE FRAME, RIGHT HERE, SAME THREAD.
@@ -703,7 +742,7 @@ export function startWorkletGlobe(
       sv.lastFrameSV.value = ts;
     };
     (globalThis as any).requestAnimationFrame(loop);
-  })(exglCtxId, markers, markerCount, sprite, spriteHot, viewW, viewH);
+  })(exglCtxId, markers, markerCount, sprite, spriteHot, viewW, viewH, gen);
 }
 
 /**
