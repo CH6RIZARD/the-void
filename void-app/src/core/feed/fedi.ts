@@ -49,10 +49,10 @@ export function lemmyToPost(v: any, c: NationRef): Post | null {
 
 // VIDEO — a real file from the video's own instance: a web-video mp4 near 480p,
 // else the HLS fragmented mp4, else the HLS master. No file -> no post (never an iframe).
-export function peertubeSrc(j: any): string {
+export function peertubeSrc(j: any, want = 480): string {
   if (!j || j.isLive || (j.privacy && j.privacy.id !== 1)) return '';
   const near = (fs: any[]) => (fs || []).filter(f => f && f.fileUrl && f.hasVideo !== false && f.resolution && f.resolution.id > 0 && f.resolution.id <= 1080)
-    .sort((a, b) => Math.abs(a.resolution.id - 480) - Math.abs(b.resolution.id - 480))[0];
+    .sort((a, b) => Math.abs(a.resolution.id - want) - Math.abs(b.resolution.id - want))[0];
   const w = near(j.files); if (w) return w.fileUrl;
   const sp = (j.streamingPlaylists || [])[0]; if (!sp) return '';
   const h = near(sp.files); return h ? h.fileUrl : (sp.playlistUrl || '');

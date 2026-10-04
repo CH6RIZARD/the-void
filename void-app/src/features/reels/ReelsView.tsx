@@ -142,16 +142,39 @@ export const ReelsView = memo(function ReelsView({ active, nation, postId, overl
     });
   }, []);
 
+  // THE RAIL NEVER DEAD-ENDS. It only grew when the card in view changed or a pull
+  // added something, so a pull that came back empty while someone sat on the last
+  // card left nothing to trigger the next one (snap list, no bounce): reels stopped
+  // until they left and came back. The web retries every 2.5s while dry (vwTopUp).
+  // With the art gate thinning the supply that is the normal case, not the rare one.
+  const liveRef = useRef(live);
+  liveRef.current = live;
+  const dryT = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const topUpRef = useRef<() => void>(() => {});
+  const topUp = useCallback(() => {
+    if (dryT.current) clearTimeout(dryT.current);
+    dryT.current = null;
+    if (!liveRef.current || !nearEnd(curRef.current, itemsRef.current.length)) return;
+    // Under a finger it waits for the settle, which calls back in here.
+    if (moving.current) {
+      wantAppend.current = true;
+      return;
+    }
+    const add = appendMore(); // also kicks a pull when the pool is thin
+    if (add.length) append(add);
+    else dryT.current = setTimeout(() => topUpRef.current(), 2500);
+  }, [append]);
+  topUpRef.current = topUp;
+  useEffect(() => () => { if (dryT.current) clearTimeout(dryT.current); }, []);
+
   const settle = useCallback(() => {
     moving.current = false;
     if (settleT.current) clearTimeout(settleT.current);
     settleT.current = null;
     setWin(curRef.current);
-    if (wantAppend.current || nearEnd(curRef.current, itemsRef.current.length)) {
-      wantAppend.current = false;
-      append(appendMore());
-    }
-  }, [append]);
+    wantAppend.current = false;
+    topUpRef.current();
+  }, []);
   const settleRef = useRef(settle);
   settleRef.current = settle;
   useEffect(() => () => { if (settleT.current) clearTimeout(settleT.current); }, []);
@@ -213,12 +236,9 @@ export const ReelsView = memo(function ReelsView({ active, nation, postId, overl
         }
         return;
       }
-      if (!nearEnd(curRef.current, itemsRef.current.length)) return;
-      // A fetch that lands under a finger waits for the settle.
-      if (moving.current) wantAppend.current = true;
-      else append(appendMore());
+      topUpRef.current(); // near the end only; a fetch that lands under a finger waits for the settle
     });
-  }, [mode, live, append]);
+  }, [mode, live]);
 
   // NEVER A PERMANENT SPINNER. Every source can fail (offline, a blocked media host,
   // a dry pool) and pullReelPage then returns without emitting anything, so the surface
@@ -276,7 +296,7 @@ export const ReelsView = memo(function ReelsView({ active, nation, postId, overl
     // counter / FOR YOU tag, dwell signal, play. (Spine fill is marked in
     // renderItem, in the same commit; the append rides the settle.)
     dwell(current);
-    if (!moving.current && nearEnd(cur, items.length)) append(appendMore());
+    topUpRef.current();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current && current._vid, live]);
 
