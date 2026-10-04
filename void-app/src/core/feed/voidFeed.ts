@@ -33,10 +33,16 @@ export async function pullVoidFeed(): Promise<FeedPullResult> {
     }
     let ok = (await pullBlueskyPage()).length > 0;
     if (!ok) ok = (await pullRedditPage()).length > 0;
-    trimStore(new Set(_rendered));   // keep the store bounded; on-screen rows are safe
     if (ok) scheduleFeedCacheSave();
     return ok ? 'ok' : 'empty';
-  } catch { return 'error'; } finally { feedLoading = false; }
+  } catch { return 'error'; } finally {
+    // In finally, not mid-body: the proxy branch returned at 'ok' ABOVE the old
+    // trim call, so on the shipped config the store ceiling never applied and
+    // allPosts grew for the whole session (the measured 2s->9s tab-block class).
+    // Every exit path trims now; on-screen rows stay protected.
+    trimStore(new Set(_rendered));
+    feedLoading = false;
+  }
 }
 
 // ─── WARM-LAUNCH FIRST PAINT ─────────────────────────────────────────────
@@ -213,6 +219,9 @@ export async function pullSupabasePosts(force?: boolean): Promise<{ added: numbe
     const p = sbPostToApp(row); if (!p) continue;
     allPosts.push(p); added++; if (p._user) mine++;
   }
-  if (added) emitPostsChanged('feed');
+  if (added) {
+    emitPostsChanged('feed');
+    trimStore(new Set(_rendered)); // the 20s boot/refresh poll must not grow the store past its ceiling
+  }
   return { added, mine };
 }
