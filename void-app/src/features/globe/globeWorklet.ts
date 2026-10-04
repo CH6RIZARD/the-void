@@ -498,8 +498,14 @@ export function startWorkletGlobe(
     let tRotX = 0, tRotY = 0, tZoom = 2.9, rVelX = 0, rVelY = 0;
     const rot = new Float32Array(9);
 
+    // NO nested 'worklet' directive here. A directive makes the babel plugin
+    // factory-ize this function separately, and the factory captures `loop`
+    // ITSELF in its closure - still undefined while its own initializer runs -
+    // so the recursive requestAnimationFrame(loop) queued undefined and the
+    // next frame flush fataled ("undefined is not a function at executeQueue",
+    // builds 7b-7e). As a plain closure inside the outer worklet, the
+    // self-reference is ordinary JS and safe.
     const loop = (ts: number) => {
-      'worklet';
       if (sv.canceledSV.value === 1) return;
       (globalThis as any).requestAnimationFrame(loop);
       if (sv.runningSV.value !== 1) { gT = 0; return; }   // hold the last frame
