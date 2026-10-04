@@ -1,5 +1,5 @@
 // Search LIVE-NOW tiles — liveFeatSlot / liveTileSlot / liveRow + hydrateLiveTiles:
-//   connectTile(el, [{type:'youtube', id:<channel>, label:'LIVE'}, ...real substitutes])
+//   connectTile(el, <chain from searchLivePool(): HLS only>, src => caption = country · channel)
 // with data-nolabel (no stream label strip on connect). Sequential cascade through the
 // shared live engine (useStreamCascade + StreamTile); tap a PLAYING tile for sound.
 //
@@ -14,7 +14,7 @@
 // .search-live-tile-lbl{bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.85));
 //   padding:3px 7px 4px;font:'Syne Mono' 7px;color:var(--gold);letter-spacing:.08em}
 import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { StreamTile, type StreamTileHandle } from '../live/StreamTile';
 import { LiveDot, TileLoader } from '../live/TileChrome';
 import { useStreamCascade, type CascadeResult } from '../live/useStreamCascade';
@@ -23,66 +23,29 @@ import type { StreamSource } from '../live/core';
 import { useTheme } from '../../theme/tokens';
 import { FONTS, em } from '../../theme/palettes';
 import { MAX_MOUNTED_WEBVIEWS, playerBudgetNow } from '../live/constants';
-import { channels } from './searchModel';
 import type { LiveChannelRef } from './searchModel';
 
 type Phase = 'connecting' | 'playing' | 'offline' | 'waiting';
 
-// ─── WHAT A DEAD CHANNEL FALLS BACK TO ───────────────────────────────────
-// Every slot's cascade was [its own channel, ...GLOBAL_POOL], and GLOBAL_POOL is
-// two hard-coded test streams. So any channel that would not start landed on the
-// same test feed - the same picture, again and again, session after session, and
-// with only two of them the rest of the slots just said NO SIGNAL.
+// ─── REAL HLS, NOTHING ELSE ──────────────────────────────────────────────
+// The web's searchLivePool, HLS only like the wall: every probed stream, shuffled
+// one by one, the caption following whatever connected.
 //
-// A live news channel that is down should be replaced by another live news
-// channel. The forty in the pool are exactly that, so the fallback walks them,
-// in a different order for each slot, before it ever reaches the test streams.
-function fallbacksFor(ch: LiveChannelRef): StreamSource[] {
-  const all = channels().filter((c) => c.id !== ch.id);
-  // Shuffled per slot and per call, so two failing tiles do not queue up behind
-  // the same substitute and so a retry is not a repeat of the last attempt.
-  for (let i = all.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [all[i], all[j]] = [all[j], all[i]];
-  }
-  // Every other channel, not the first eight of them. Eight substitutes over a
-  // thirteen-channel list meant a tile could exhaust its chain in seconds and sit
-  // on NO SIGNAL while sources it had never tried were still live.
-  return all.map((c) => ({ type: 'youtube', id: c.id, label: c.n }) as StreamSource);
-}
-
-/**
- * The channel itself, then real substitutes. Nothing else.
- *
- * GLOBAL_POOL USED TO BE ON THE END OF THIS, and GLOBAL_POOL is two TEST
- * STREAMS - mux.dev's x36xhzz (Big Buck Bunny) and an Akamai test master -
- * labelled 'GLOBAL FEED' as though they were channels. So a tile that could not
- * reach Al Jazeera or Sky News AU quietly dropped to a cartoon and kept the
- * newsroom's name over it. It was the most-watched thing in the app.
- *
- * A tile with nothing real to show says NO SIGNAL. That is a true statement,
- * and the viewer can act on it; a rabbit in a tree is neither.
- */
-function sourcesFor(ch: LiveChannelRef): StreamSource[] {
-  // THE CHANNEL, THEN SOMETHING THAT WORKS, THEN THE REST OF YOUTUBE.
-  //
-  // The chain used to be 39 YouTube embeds followed by HLS, so nothing reached
-  // the HLS unless all 39 failed. And 29 of those 39 fail in ZERO MILLISECONDS:
-  // refuseInstantly only lets a YouTube source mount if it carries an explicit
-  // video id or its channel is in VOID_LIVE, and VOID_LIVE is four channels
-  // resolved on 2026-08-03. So the viewer watched the same handful of channels
-  // cycle on months-old pinned videos while two thousand working HLS streams sat
-  // at the back of the queue.
-  //
-  // The tile still leads with its OWN channel - that is what the tile claims to
-  // be. What follows is real HLS, so a tile that cannot mount its channel shows
-  // a working picture within one attempt instead of after thirty-nine. The other
-  // channels stay on the end as a last resort rather than a wall to climb.
-  return [
-    { type: 'youtube', id: ch.id, label: ch.n } as StreamSource,
-    ...(hlsSpread(14) as unknown as StreamSource[]),
-    ...fallbacksFor(ch),
-  ];
+// Native led each slot with its channel's YouTube embed and kept the other 38
+// channels' embeds behind the HLS. 29 of those 39 are refused in 0 ms (no confirmed
+// live id), and of the 10 that mount, four are dead or mislabelled - while on the
+// phone even a live, embeddable TRT World sat on its title and sparkle until its
+// 7 s budget ran out. GLOBAL_POOL stays off the end too: it is two TEST STREAMS.
+// A tile with nothing real to show says NO SIGNAL.
+//
+// What a slot last played leads its next walk, so a tile that scrolls back into
+// view, or a tab that comes back, reconnects to the same picture in one attempt
+// (the wall's lastGood).
+const lastGood = new Map<string, StreamSource>();
+function sourcesFor(slotKey: string): StreamSource[] {
+  const spread = hlsSpread(14) as unknown as StreamSource[];
+  const last = lastGood.get(slotKey);
+  return last ? [last, ...spread.filter((s) => s.url !== last.url)] : spread;
 }
 
 // ─── NINE LIVE STREAMS AT ONCE IS NOT A SEARCH SCREEN ────────────────────
@@ -99,8 +62,10 @@ function sourcesFor(ch: LiveChannelRef): StreamSource[] {
 // is what the loader was always for.
 //
 // Admission is held while a slot is playing, not just while it is connecting -
-// a playing YouTube tile is a live WebView, and that is the resource being
-// rationed. Slots release on blur and on unmount.
+// a playing tile holds a hardware decoder, and that is the resource being
+// rationed. Slots release on blur, on unmount, and off screen: SearchScreen marks
+// a slot active only while it is on screen, so the turns go to the tiles in view,
+// not to the first three that mounted (which left six of nine on their titles).
 const MAX_LIVE_SEARCH = Math.max(2, Math.min(3, MAX_MOUNTED_WEBVIEWS + playerBudgetNow() - 3));
 /** Slots currently allowed to hold a player, and slots waiting for a turn. */
 const admitted = new Set<object>();
@@ -117,7 +82,12 @@ function pump(): void {
 
 /** Ask for a turn. Calls `go` now if there is room, or later when there is. */
 function admit(token: object, go: () => void): void {
-  if (admitted.has(token)) return;
+  // Already holding a turn means it is healing: restart it on that turn. Returning
+  // here left a healed tile torn down on its loader for good, still holding the turn.
+  if (admitted.has(token)) {
+    go();
+    return;
+  }
   if (admitted.size < MAX_LIVE_SEARCH) {
     admitted.add(token);
     go();
@@ -136,16 +106,20 @@ function unadmit(token: object): void {
 
 const gradient = (g: string): any => ({ experimental_backgroundImage: g });
 
-function useLiveSlot(ch: LiveChannelRef, active: boolean) {
+function useLiveSlot(slotKey: string, active: boolean) {
   const [phase, setPhase] = useState<Phase>('waiting');
   const player = useRef<StreamTileHandle>(null);
   // One identity per slot, for the admission set. A ref, so it survives renders.
   const token = useRef<object>({});
-  const onResult = useCallback((r: CascadeResult) => {
-    setPhase(r.ok ? 'playing' : 'offline');
-    // A slot that found nothing is holding a turn it cannot use. Hand it on.
-    if (!r.ok) unadmit(token.current);
-  }, []);
+  const onResult = useCallback(
+    (r: CascadeResult) => {
+      setPhase(r.ok ? 'playing' : 'offline');
+      if (r.ok && r.src) lastGood.set(slotKey, r.src);
+      // A slot that found nothing is holding a turn it cannot use. Hand it on.
+      if (!r.ok) unadmit(token.current);
+    },
+    [slotKey],
+  );
   const cascade = useStreamCascade(onResult);
   useEffect(() => {
     const me = token.current;
@@ -158,44 +132,32 @@ function useLiveSlot(ch: LiveChannelRef, active: boolean) {
     setPhase('waiting');
     admit(me, () => {
       setPhase('connecting');
-      cascade.start(sourcesFor(ch));
+      cascade.start(sourcesFor(slotKey));
     });
     return () => {
       cascade.cancel();
       unadmit(me);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ch.id, active]);
+  }, [slotKey, active]);
   // A playing HLS tile that went to colour bars / slate mid-stream (StreamTile frame
   // check) is already refused by markBadStream: re-walk the chain so the slot refills.
   // Healing needs a turn like anything else; it already holds one if it is playing.
   const heal = useCallback(() => {
+    lastGood.delete(slotKey); // it just died: the new walk must not lead with it
     setPhase('waiting');
     admit(token.current, () => {
       setPhase('connecting');
-      cascade.start(sourcesFor(ch));
+      cascade.start(sourcesFor(slotKey));
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ch.id]);
-  // WHAT IS THIS TILE ACTUALLY PLAYING?
-  // The cascade starts on the channel's own stream and, if that fails, walks the
-  // global pool until something works. The tile went on showing the channel's
-  // name either way - so a slot labelled AL JAZEERA could be playing a pool
-  // stream that has nothing to do with Al Jazeera, and two differently-named
-  // tiles could be showing the same broadcast from two different feeds. The name
-  // was a claim the tile had no basis for.
-  //
-  // The first source in the list is the channel itself; anything after it is a
-  // substitute, and says so. The label follows the picture.
-  const a = cascade.attempt;
-  const own = !!a && a.src && (a.src as { id?: string }).id === ch.id;
-  // The attempt's label is empty now (nothing says CONNECTING any more), and this
-  // used to fall through that emptiness to the words 'LIVE FEED' - so a tile still
-  // working on its first source sat there announcing LIVE FEED over a black
-  // square. The SOURCE carries its own name; use that, and say nothing while it
-  // is still connecting, because it does not yet know what it is.
-  const srcLabel = a && a.src ? String((a.src as { label?: string }).label || '') : '';
-  const name = !a || own ? ch.n : srcLabel.toUpperCase();
+  }, [slotKey]);
+  // WHAT IS THIS TILE ACTUALLY PLAYING? The caption follows the source - its
+  // country, then its channel - exactly as the web's hydrateLiveTiles writes it.
+  // Nothing before there is a source: a tile still waiting for its turn does not
+  // know yet what it will show.
+  const s = cascade.attempt?.src as { n?: string; label?: string } | undefined;
+  const name = s ? (s.n || '') + (s.label ? (s.n ? ' \u00b7 ' : '') + s.label : '') : '';
   return { phase, player, cascade, heal, name };
 }
 
@@ -235,11 +197,11 @@ function SlotBody({ tileId, radius, slot }: { tileId: string; radius: number; sl
   );
 }
 
-export const SearchLiveFeat = memo(function SearchLiveFeat({ ch, active, slotKey }: { ch: LiveChannelRef; active: boolean; slotKey: string }) {
+export const SearchLiveFeat = memo(function SearchLiveFeat({ active, slotKey, onLayout }: { active: boolean; slotKey: string; onLayout?: (e: LayoutChangeEvent) => void }) {
   const { colors } = useTheme();
-  const slot = useLiveSlot(ch, active);
+  const slot = useLiveSlot(slotKey, active);
   return (
-    <Pressable onPress={() => slot.player.current?.tap()} style={styles.feat}>
+    <Pressable onPress={() => slot.player.current?.tap()} onLayout={onLayout} style={styles.feat}>
       <SlotBody tileId={'search:' + slotKey} radius={18} slot={slot} />
       <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.z4, gradient('linear-gradient(to top, rgba(4,2,12,0.88) 0%, transparent 55%)')]} />
       <View pointerEvents="none" style={styles.featInfo}>
@@ -257,9 +219,9 @@ export const SearchLiveFeat = memo(function SearchLiveFeat({ ch, active, slotKey
   );
 });
 
-export const SearchLiveTile = memo(function SearchLiveTile({ ch, active, slotKey }: { ch: LiveChannelRef; active: boolean; slotKey: string }) {
+export const SearchLiveTile = memo(function SearchLiveTile({ active, slotKey }: { active: boolean; slotKey: string }) {
   const { colors } = useTheme();
-  const slot = useLiveSlot(ch, active);
+  const slot = useLiveSlot(slotKey, active);
   return (
     <Pressable onPress={() => slot.player.current?.tap()} style={styles.tile}>
       <SlotBody tileId={'search:' + slotKey} radius={14} slot={slot} />
@@ -272,12 +234,12 @@ export const SearchLiveTile = memo(function SearchLiveTile({ ch, active, slotKey
   );
 });
 
-export const SearchLiveRow = memo(function SearchLiveRow({ chs, active, rowKey }: { chs: LiveChannelRef[]; active: boolean; rowKey: string }) {
+export const SearchLiveRow = memo(function SearchLiveRow({ chs, active, rowKey, onLayout }: { chs: LiveChannelRef[]; active: boolean; rowKey: string; onLayout?: (e: LayoutChangeEvent) => void }) {
   return (
-    <View style={styles.row}>
+    <View style={styles.row} onLayout={onLayout}>
       {chs.map((ch, i) => (
         <View key={ch.id + ':' + i} style={styles.cell}>
-          <SearchLiveTile ch={ch} active={active} slotKey={rowKey + ':' + i} />
+          <SearchLiveTile active={active} slotKey={rowKey + ':' + i} />
         </View>
       ))}
     </View>

@@ -46,6 +46,10 @@ const STEP_MS = 90;
 
 /** At most this many search clips decode at once. */
 const MAX_DECODING = 2;
+/** A LIVE NOW tile may connect while at least this much of it is on screen, */
+const LIVE_VISIBLE = 0.5;
+/** once the on-screen set has held this long: a fling past a row is not a visit. */
+const LIVE_SETTLE_MS = 250;
 import { SearchLiveFeat, SearchLiveRow } from './SearchLiveTile';
 
 /** Web renders SEARCH content on a delay after load (setTimeout(pullSearchDiscovery, 5000)). */
@@ -162,18 +166,46 @@ export default function SearchScreen() {
   // callbacks the feed uses are computed here by hand: card rects from onLayout, the
   // viewport from onScroll/onLayout. Same semantics as usePostViewability's video pair:
   // >=60% visible -> in view (play muted), otherwise out (pause). Capped at 2.
-  const vis = useRef({ y: 0, h: 0, resultsY: 0, cards: new Map<string, { y: number; h: number }>(), last: '' }).current;
+  const vis = useRef({
+    y: 0,
+    h: 0,
+    resultsY: 0,
+    cards: new Map<string, { y: number; h: number }>(),
+    last: '',
+    live: new Map<string, { y: number; h: number }>(),
+    liveLast: '',
+    liveT: undefined as ReturnType<typeof setTimeout> | undefined,
+  }).current;
+  // ── LIVE NOW connects what is on screen ─────────────────────────────────
+  // Only MAX_LIVE_SEARCH (3) slots may hold a player, and every slot asked for its
+  // turn the moment it mounted - so the feature tile and the first row took all
+  // three for as long as they played, and the six tiles further down showed a title
+  // and a sparkle for the whole visit. A slot is active only while at least half of
+  // it is on screen now; one that scrolls away hands its turn to one scrolled in.
+  const [liveOn, setLiveOn] = useState<ReadonlySet<string>>(() => new Set());
   const recomputeView = useCallback(() => {
     const top = vis.y;
     const bottom = vis.y + vis.h;
+    const onScreen = (r: { y: number; h: number }) => {
+      const y0 = vis.resultsY + r.y;
+      return r.h > 0 ? Math.max(0, Math.min(bottom, y0 + r.h) - Math.max(top, y0)) / r.h : 0;
+    };
     const hits: Array<{ id: string; frac: number }> = [];
+    const on: string[] = [];
     if (focusedRef.current && vis.h > 0) {
       vis.cards.forEach((r, id) => {
-        const y0 = vis.resultsY + r.y;
-        const y1 = y0 + r.h;
-        const frac = r.h > 0 ? Math.max(0, Math.min(bottom, y1) - Math.max(top, y0)) / r.h : 0;
+        const frac = onScreen(r);
         if (frac >= VIDEO_VISIBLE) hits.push({ id, frac });
       });
+      vis.live.forEach((r, key) => {
+        if (onScreen(r) >= LIVE_VISIBLE) on.push(key);
+      });
+    }
+    const liveSig = on.sort().join('|');
+    if (liveSig !== vis.liveLast) {
+      vis.liveLast = liveSig;
+      clearTimeout(vis.liveT);
+      vis.liveT = setTimeout(() => setLiveOn(new Set(on)), LIVE_SETTLE_MS);
     }
     hits.sort((a, b) => b.frac - a.frac);
     const ids = hits.slice(0, MAX_DECODING).map((x) => x.id);
@@ -192,14 +224,16 @@ export default function SearchScreen() {
   );
   const cardLayout = useRef(new Map<string, (e: LayoutChangeEvent) => void>()).current;
   const layoutFor = useCallback(
-    (id: string) => {
-      let fn = cardLayout.get(id);
+    (id: string, live = false) => {
+      const k = (live ? 'live\u0000' : '') + id;
+      let fn = cardLayout.get(k);
       if (!fn) {
+        const rects = live ? vis.live : vis.cards;
         fn = (e: LayoutChangeEvent) => {
-          vis.cards.set(id, { y: e.nativeEvent.layout.y, h: e.nativeEvent.layout.height });
+          rects.set(id, { y: e.nativeEvent.layout.y, h: e.nativeEvent.layout.height });
           recomputeView();
         };
-        cardLayout.set(id, fn);
+        cardLayout.set(k, fn);
       }
       return fn;
     },
@@ -209,6 +243,8 @@ export default function SearchScreen() {
   useEffect(() => {
     const live = new Set(blocks.filter((b) => b.kind === 'post' && !!(b as any).post._video).map((b) => (b as any).post.id as string));
     for (const id of [...vis.cards.keys()]) if (!live.has(id)) vis.cards.delete(id);
+    const slots = new Set(blocks.filter((b) => b.kind === 'feat' || b.kind === 'row').map((b) => b.key));
+    for (const k of [...vis.live.keys()]) if (!slots.has(k)) vis.live.delete(k);
     recomputeView();
   }, [blocks, vis, recomputeView]);
   // Leaving the tab pauses every clip (usePostViewability unmount / blur).
@@ -216,7 +252,13 @@ export default function SearchScreen() {
     vis.last = '';
     recomputeView();
   }, [focused, vis, recomputeView]);
-  useEffect(() => () => setInView(SEARCH_SURFACE, []), []);
+  useEffect(
+    () => () => {
+      setInView(SEARCH_SURFACE, []);
+      clearTimeout(vis.liveT);
+    },
+    [vis],
+  );
 
   const openPost = useCallback((id: string) => {
     const p = searchPostById(id) || findPost(id);
@@ -241,9 +283,9 @@ export default function SearchScreen() {
           </View>
         );
       case 'feat':
-        return <SearchLiveFeat key={b.key} ch={b.ch} active={focused} slotKey={b.key} />;
+        return <SearchLiveFeat key={b.key} active={focused && liveOn.has(b.key)} slotKey={b.key} onLayout={layoutFor(b.key, true)} />;
       case 'row':
-        return <SearchLiveRow key={b.key} chs={b.chs} active={focused} rowKey={b.key} />;
+        return <SearchLiveRow key={b.key} chs={b.chs} active={focused && liveOn.has(b.key)} rowKey={b.key} onLayout={layoutFor(b.key, true)} />;
       case 'post':
         return <SearchPostCard key={b.key} post={b.post} onOpen={openPost} onLayout={b.post._video ? layoutFor(b.post.id) : undefined} />;
       case 'empty':

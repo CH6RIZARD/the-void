@@ -119,7 +119,7 @@ function elsewhere(name: string, want = 14): StreamSource[] {
  * plays fine on the same screen.
  *
  * So search gets the same pools the wall and the nation screens use: real HLS,
- * shuffled, de-duplicated, as substitutes AFTER the channel's own embed.
+ * shuffled, de-duplicated - and, like the web's searchLivePool, nothing else.
  *
  * IPTV ONLY, AND DELIBERATELY SO NOW. This used to list LIFE_POOL as well and
  * then throw every one of its 487 entries away, because a LIFE entry is a
@@ -128,22 +128,25 @@ function elsewhere(name: string, want = 14): StreamSource[] {
  * gets 'fixed' later by someone who notices the filter and removes it. LIFE is
  * YouTube; a chain that exists to escape YouTube embeds has no use for it.
  */
+// Every HLS stream, tagged with its country as the web's pool is ({...s, n}). Built once.
+let _hlsAll: StreamSource[] | null = null;
 export function hlsSpread(want = 20): StreamSource[] {
-  const names = Object.keys(IPTV_POOL);
-  for (let i = names.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [names[i], names[j]] = [names[j], names[i]];
-  }
+  // Shuffled one STREAM at a time, as the web's searchLivePool is. Shuffling the
+  // countries and taking each one whole made a third of all chains one country
+  // (54 of 156 hold 14+ streams), so one geo-blocked or off-air country sank the lot.
+  if (!_hlsAll) _hlsAll = Object.keys(IPTV_POOL).flatMap((n) => iptvFor(n).filter((s) => s.type === 'hls').map((s) => ({ ...s, n })));
+  const all = _hlsAll;
   const out: StreamSource[] = [];
   const seen = new Set<string>();
-  for (const n of names) {
-    for (const src of iptvFor(n)) {
-      const k = String((src as { url?: string }).url || '');
-      if (!k || seen.has(k)) continue;
-      seen.add(k);
-      out.push(src);
-      if (out.length >= want) return out;
-    }
+  // A partial Fisher-Yates from the end, in place: whatever order it leaves behind
+  // is as good a start as any for the next call.
+  for (let i = all.length - 1; i >= 0 && out.length < want; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [all[i], all[j]] = [all[j], all[i]];
+    const k = String(all[i].url || '');
+    if (!k || seen.has(k)) continue;
+    seen.add(k);
+    out.push(all[i]);
   }
   return out;
 }

@@ -221,6 +221,16 @@ test('reels PeerTube lane: gates run before the detail calls; a clip with no HLS
   assert.equal(core.reelPosts[0]._img!.endsWith('/p.jpg'), true);
 });
 
+test('search LIVE NOW spread: HLS shuffled stream by stream, each tagged with its country, never one country', () => {
+  for (let k = 0; k < 20; k++) {
+    const s = core.hlsSpread(14);
+    assert.equal(s.length, 14);
+    assert.ok(s.every((x) => x.type === 'hls' && typeof x.n === 'string' && x.n), 'HLS only, with the country the caption shows');
+    assert.equal(new Set(s.map((x) => x.url)).size, 14, 'no stream twice in one chain');
+    assert.ok(new Set(s.map((x) => x.n)).size > 3, 'a spread across countries, not one country taken whole');
+  }
+});
+
 test('reels pull is single-flight: a second caller gets the pull in progress, not an instant false', async () => {
   let searches = 0;
   core.configureCore({
