@@ -165,7 +165,11 @@ export function startWorkletGlobe(
         const u = ix / SEG;
         const theta = v * Math.PI, phi = u * 2 * Math.PI;
         verts.push(-Math.cos(phi) * Math.sin(theta), Math.cos(theta), Math.sin(phi) * Math.sin(theta));
-        uvs.push(u + uOff, 1 - v);
+        // three uses (u, 1-v) WITH a flipY upload; our localUri upload does not
+        // flip, so the image's top row (north) sits at texture v=0 - sample v
+        // directly or the planet meets the user Antarctica-first (build 6's bug,
+        // inherited from the same convention mismatch).
+        uvs.push(u + uOff, v);
       }
     }
     const idx: number[] = [];

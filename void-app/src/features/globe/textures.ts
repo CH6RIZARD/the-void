@@ -40,6 +40,26 @@ const RAW_W = 2048;
 const RAW_H = 1024;
 
 let bundledCache: Uint8Array | null = null;
+
+// THE MAP MUST BE FLIPPED FOR A DataTexture. The bundled pixels were authored
+// row-flipped for the direct-GL path (flipY=false upload); a three DataTexture
+// also uploads without flipping, so the globe rendered UPSIDE DOWN the first
+// time the real map ever finished decoding (build 6 - the user met Antarctica
+// face-on, washed pale by the ice cap: "globe is not centered, shit"). Every
+// earlier session showed the purple fallback, which is why this stayed latent.
+// One in-place row swap puts north back on top for every DataTexture consumer;
+// the direct-GL path keeps its own convention via the untouched asset file.
+function flipRows(px: Uint8Array, w: number, h: number): Uint8Array {
+  const row = w * 4;
+  const tmp = new Uint8Array(row);
+  for (let y = 0; y < h >> 1; y++) {
+    const a = y * row, b = (h - 1 - y) * row;
+    tmp.set(px.subarray(a, a + row));
+    px.copyWithin(a, b, b + row);
+    px.set(tmp, b);
+  }
+  return px;
+}
 /**
  * The night map's pixels, out of the bundle rather than off the filesystem.
  *
@@ -129,7 +149,7 @@ export function bundledEarthPixelsAsync(): Promise<Uint8Array | null> {
         } catch {}
         return null;
       }
-      bundledCache = px;
+      bundledCache = flipRows(px, EARTH_W, EARTH_H);
       try {
         console.warn('[globe] bundled map (sliced): ' + EARTH_W + 'x' + EARTH_H + ' in ' + (Date.now() - t0) + 'ms');
       } catch {}
@@ -200,7 +220,7 @@ async function earthRawPixels(): Promise<Uint8Array | null> {
       } catch {}
       return null;
     }
-    rawCache = new Uint8Array(buf);
+    rawCache = flipRows(new Uint8Array(buf), RAW_W, RAW_H); // same DataTexture convention as the bundled path
     try {
       console.warn('[globe] raw map: ' + RAW_W + 'x' + RAW_H + ' in ' + (Date.now() - t0) + 'ms');
     } catch {}
