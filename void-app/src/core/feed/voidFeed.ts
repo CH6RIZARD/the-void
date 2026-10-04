@@ -79,6 +79,11 @@ export function restoreFeedCache(): number {
       if (!p || !p.id || have.has(p.id)) continue;
       allPosts.push(p as Post); added++;
     }
+    // console.warn, not log: release builds keep warn. This line is the
+    // on-device proof that the warm-launch paint path ran - a first-open
+    // watch keys on it, because this path's failure mode is a silently blank
+    // feed, which no crash buffer will ever report.
+    try { console.warn('[boot] feed cache painted ' + added + ' posts'); } catch {}
     return added;
   } catch { return 0; }
 }
@@ -105,7 +110,11 @@ function nextFeedBatchInner(hidden?: (p: Post) => boolean, exclude?: Set<string>
   // The FIRST deal is two screenfuls, not the whole pool. Committing ~100 ranked
   // cards in one go was the other half of the post-boot stall; the remainder
   // stays fresh and deals on the next append (a scroll, or the next arrival).
-  if (!_rendered.size && fresh.length > 12) fresh = fresh.slice(0, 12);
+  if (!_rendered.size) {
+    if (fresh.length > 12) fresh = fresh.slice(0, 12);
+    // The first-open watch's second key: cards actually dealt to the screen.
+    try { console.warn('[feed] first deal ' + fresh.length + ' cards'); } catch {}
+  }
   fresh.forEach(p => { _rendered.add(p.id); laneClaim(p, 'feed'); surfaceClaim(p, 'feed'); });
   return fresh;
 }

@@ -27,6 +27,76 @@
   hands the phone to the peer for their functional half (drag after nation
   round trips, search card, TRENDING card). NOBODY promotes to the user phone
   until both halves pass.
+- WALL-UNDER-REELS (peer's analyst + reels7m.pftrace: 9 playback threads +
+  wall HLS loaders alive during reels): mechanism = stopAll's pause undone by
+  tiles' playingChange resume listeners + asleep evict-all blocked by the
+  inactive early-return. ALREADY FIXED as B2 in the parked bundle - presented
+  to the user as part of ONE wall-fix OK (A1/A3/A4/A5 + B2), sparkle overlay
+  separate. My gate half adds an empirical check: flip to REELS, 30s, count
+  playback threads/sessions/loader hosts.
+- USER PHONE NOW RUNS b8a (peer's passive-fallback install 08:49: run
+  37201525842's APK = 7n + search/globe/TRENDING, no reels; crash watcher +
+  auto-rollback to 7m armed by the peer; The Void not launched). Standing
+  fallback honored - accepted. Do NOT install over it until 7o is gated (or
+  the user asks for reels now; then passive fallback again, one watcher only,
+  message-first between sessions).
+- COORDINATION FINAL (peer confirmed): 7o waits for a real lab gate; only
+  watcher b45eoicml touches a phone for it; if the lab phone stays away, the
+  peer repeats the passive fallback for reels ONLY after their independent
+  code review of the reels diff returns clean, message-first. Peer reports
+  the b8a crash-watch verdict when it self-ends (180s foreground clean / 45
+  min).
+- 7q BUILT GREEN (run 37205623732; APK at peer's E:/tmp/apk-b8q and my
+  watcher will fetch /e/tmp/apk-b7q when gating). Sequence agreed: second
+  independent review of a7b759d..f7ba23a in progress; lab gate is the verdict
+  if the phone returns (my watcher bhadpzm0w waiting); else peer passive-
+  installs 7q on the user phone after a clean review - I added a condition:
+  the watch must also treat a blank/stale feed within ~10s of first
+  foreground as a rollback trigger (7q carries my boot-path changes whose
+  failure mode is silence, not a crash: grep ReactNativeJS feed|boot|
+  hydrate|cache + error-boundary text). Review findings -> 7r via the same
+  swap procedure.
+- b8a VERDICT: NONE YET - the user never opened The Void during the peer's
+  45-min watch (ezersaves foreground throughout), so b8a has had zero
+  on-device runtime. Peer re-armed the passive watch for 3h (auto-rollback to
+  7m, ends after 180s Void-foreground or cable-out). First user open of The
+  Void is also b8a's first real run - the globe fix is UNPROVEN until then.
+- 7p CANCELLED too (it carried the art gate without the dry-rail retry; the
+  content analyst measured the gate cutting the Bluesky reel lane ~43% ->
+  dead-end rail risk). f7ba23a merged (sample-built art regex 60/60 w/ 1 FP
+  in 48; full topic gate on the allPosts backstop; 2.5s dry-rail topUp retry;
+  PeerTube title-gate-before-detail + Promise.all + 480p default; affect ->
+  BIO.setAffect not root React state). Verified: tsc, 27/27, transforms,
+  wall-lock 0. Main at e97d3dd. 7q = run 37205623732, watcher bhadpzm0w.
+- PROXY DEPLOY: peer's curl confirmed the live proxy does NOT serve the new
+  code (no content-encoding/cache-control/vary on /feed) - Railway does not
+  auto-deploy from main. My deploy attempt (railway up --service void-proxy
+  --detach from void-proxy/) was DENIED by the permission classifier
+  [Production Deploy] - THE USER must run it or grant the permission; do not
+  route around it, do not ask the peer (laundering). After deploy, verify:
+  curl -D - -H "Accept-Encoding: gzip" .../feed?limit=5 -> expect
+  content-encoding: gzip + cache-control + vary; /health still up.
+  Remaining code-side proxy items: /social key allowlist+LRU, upstream
+  timeouts (unwritten).
+- 7o CANCELLED (peer's code review found two reels defects in it: quick-flick
+  chains starved the momentum-end settle - frozen heavy window, feed ran dry;
+  placeholder showed graphic posters unveiled). Fix 4f23cea merged, verified
+  (tsc/26/transforms/wall-lock 0), main at 9a3225c. 7p DISPATCHED: run
+  37205141623, watcher bkoh4m64k (standard half + REELS wall-release
+  measurement, no auto-promote). b8a stands on the user phone (review found
+  nothing blocking in globe/TRENDING/search). Peer note: the globe now draws
+  through wall flings while a finger is on it (deliberate, globe file only).
+- superseded: 7o run 37203535355 off main 1cba112. Watcher b45eoicml (old one
+  killed) gates it on the lab phone when present+idle - standard half + the
+  REELS wall-release measurement - no auto-promote. Peer may send one more
+  fix sha only if their code review finds a real defect.
+- UNION COMPLETE: a7b759d (memo(ReelsView), visible-card-first attach +900ms
+  neighbours, poster until onFirstFrameRender w/ 1.5s net, RN-Animated spine)
+  merged + verified (tsc, 26/26, transforms, wall diff vs lock = 0); main at
+  1cba112. Peer confirms the user ask = TWO OKs: parked bundle
+  (A1/A3/A4/A5+B2) and the sparkle overlay. DISPATCH 7o the moment run
+  37201525842 completes (watcher b0c9p3awx then also runs my gate half +
+  the REELS wall-release measurement, then hand phone to peer).
 - UNION DISPATCH HELD: a 4th peer commit (reels settle-gated window, entry
   hold, placeholder far cells, hoisted rail buttons, scaleX spine, stable
   toggleSound; ReelsView+ReelItem only) lands shortly - merge its sha into
