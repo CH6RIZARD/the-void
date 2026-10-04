@@ -119,8 +119,33 @@ interface CreateJob {
 }
 const createQueue: CreateJob[] = [];
 let createTimer: ReturnType<typeof setTimeout> | null = null;
+// ─── THE FLING GETS A HOLIDAY FROM THE BUILDER TOO. ─────────────────────
+//
+// Pacing spread the builds out; it did not move them off the gesture. A fling
+// still paid for one synchronous ExoPlayer.Builder().build() on the JS thread
+// every 40ms - each one 0.3-1.7s under load - exactly while that thread was
+// supposed to be feeding scroll events. So the wall can HOLD the queue for the
+// duration of a gesture: nothing is dropped, the jobs simply wait their turn
+// until the fling is over, then run 40ms apart as before.
+//
+// The hold is a DEADLINE, not a flag. The wall extends it while scroll events
+// keep arriving and shortens it when the gesture ends; if the end event never
+// comes (the latch-that-stuck lesson from the globe), the deadline simply
+// passes and the builds resume by themselves. A stuck hold is structurally
+// impossible, which matters because a stuck hold would starve the wall.
+let createHoldUntil = 0;
+/** Hold player builds for the next `ms` milliseconds. Self-expiring; call again to extend or shorten. */
+export function holdCreates(ms: number) {
+  createHoldUntil = Date.now() + ms;
+}
 function stepCreate() {
   createTimer = null;
+  if (!createQueue.length) return;
+  if (Date.now() < createHoldUntil) {
+    // Held: a gesture owns the thread. Check back soon without building.
+    createTimer = setTimeout(stepCreate, 80);
+    return;
+  }
   let job: CreateJob | undefined;
   while ((job = createQueue.shift()) && job.cancelled) {
     /* skipped: its tile unmounted or changed source before its turn */

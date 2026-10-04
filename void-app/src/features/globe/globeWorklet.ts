@@ -43,6 +43,7 @@ export interface WorkletGlobeShared {
   // control
   runningSV: SharedValue<number>;   // 1 = render; 0 = hold last frame
   canceledSV: SharedValue<number>;  // 1 = loop exits for good (dispose)
+  wallScrollAtSV: SharedValue<number>; // Date.now() of the wall's last scroll event; fresh = hold the frame
   hotSV: SharedValue<number>;       // hovered marker index, -1 none
   // state the loop reports back (JS picking + health watchdog read these)
   rotXSV: SharedValue<number>;
@@ -555,6 +556,13 @@ export function startWorkletGlobe(
       if (sv.canceledSV.value === 1) return;
       (globalThis as any).requestAnimationFrame(loop);
       if (sv.runningSV.value !== 1) { gT = 0; return; }   // hold the last frame
+      // THE WALL'S SCROLL HOLDS THE FRAME, RIGHT HERE, SAME THREAD.
+      // The wall stamps wallScrollAtSV on every scroll event (see
+      // wallScrollSignal.ts); while the stamp is fresh the globe holds its last
+      // frame - it is above the wall and barely in view - and the hold expires
+      // by itself when the stamps stop. No JS commit engages it, so it lands
+      // the same UI frame the gesture starts; nothing can leave it stuck.
+      if (Date.now() - sv.wallScrollAtSV.value < 450) { gT = 0; return; }
 
       // consume gesture deltas - same thread as the writers, race-free
       const dY = sv.accY.value; if (dY !== 0) { sv.accY.value = 0; tRotY += dY; }

@@ -19,11 +19,12 @@ import React, { memo, useCallback, useEffect, useImperativeHandle, useMemo, useR
 import { mark } from '../../core/slow';
 import { AppState, Pressable, StyleSheet, Text, View, useWindowDimensions, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
-import { RefreshControl } from 'react-native';
 import { Image } from 'expo-image';
 import { LiveDot, TileLabel, TileLoader } from './TileChrome';
 import { StreamTile, type StreamTileHandle } from './StreamTile';
 import { applyPlacement, clearPlacement, evictedIds, placementOf, usePlacement } from './placementStore';
+import { holdCreates } from './pacedPlayer';
+import { wallScrollAtSV } from './wallScrollSignal';
 import { useStreamCascade, type CascadeResult } from './useStreamCascade';
 import { liveVidFor, rememberStream, wallCascadeFor, wallSlots, streamKey, type StreamSource, type StreamType, type WallSlot } from './core';
 import {
@@ -93,8 +94,6 @@ class Lanes {
 export interface LiveWallProps {
   /** Defer background work (watchdog, healing, new batches) - something else needs the thread. */
   quiet?: boolean;
-  /** True while the wall is being dragged or still gliding. */
-  onScrollActive?: (active: boolean) => void;
   /** Pull-to-refresh also ran: refresh whatever else shares this screen. */
   onRefresh?: () => void;
   /** Globe tab focused AND mode === 'globe' AND nothing covering it. */
@@ -114,10 +113,12 @@ export interface LiveWallHandle {
 
 const GAP = 6;
 const PAD = 10;
-// How far off the top a finger may land and still count as a pull from rest.
-const ARM_SLOP = 6;
 
-export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveWall({ active, grid3 = false, bottomInset = 0, onRefresh: onRefreshOuter, onScrollActive, quiet = false }, ref) {
+// memo on top of the forwardRef: GlobeScreen still flips its own state
+// (refreshing, sliding, globeTouching), and without this each flip walked
+// tiles.map over every loaded tile - 10-40ms a commit - for a wall whose props
+// had not changed. Every prop here is primitive, so shallow equality holds.
+export const LiveWall = memo(forwardRef<LiveWallHandle, LiveWallProps>(function LiveWall({ active, grid3 = false, bottomInset = 0, onRefresh: onRefreshOuter, quiet = false }, ref) {
   const t = useLiveTheme();
   const win = useWindowDimensions();
   // TWO COLUMNS, ALWAYS.
@@ -165,6 +166,9 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
     healBusy: 0,
     scrollY: 0,
     fingerDown: false,
+    // True from MomentumScrollBegin to MomentumScrollEnd: with fingerDown it
+    // extends the placement holiday across the whole fling, not just the drag.
+    momentum: false,
     lanes: new Lanes(WALL_LANES),
     activeRef: active,
     asleepRef: false,
@@ -550,27 +554,17 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
   }, [w]);
 
   useEffect(() => {
+    // Mid-gesture, a tiles/order commit (a batch slice landing, a tile
+    // settling) must not buy a placement pass - that pass destroys up to a
+    // screenful of SurfaceViews in one commit, on the frame being judged. The
+    // EndDrag and MomentumEnd passes are unconditional, so whatever commits
+    // during the fling is picked up the moment it settles.
+    if (w.fingerDown || w.momentum) return;
     recomputePlacement();
-  }, [active, asleep, tiles, order, recomputePlacement]);
+  }, [w, active, asleep, tiles, order, recomputePlacement]);
 
-  // ─── PULL TO REFRESH, BUT ONLY A PULL THAT MEANS IT ──────────────────
-  //
-  // A refresh may only be armed by a gesture that BEGINS at the top. Scroll
-  // down the wall, flick back up and overshoot, and nothing happens: that
-  // drag started at 900px, so it can never refresh, however far past zero it
-  // carries. To refresh you lift your finger and pull again from rest.
-  //
-  // This is the difference between a control you can trust and one that fires
-  // while you are just getting back to the top - which on this screen would
-  // tear down every playing stream on the way past.
+  // Refresh is the header button (GlobeScreen); refreshing only debounces it.
   const [refreshing, setRefreshing] = useState(false);
-  const [pullArmed, setPullArmed] = useState(true);
-  const onScrollBeginDrag = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    scrollActiveRef.current?.(true);
-    // ARM_SLOP, not zero: the wall rests a hair off the top while the first
-    // batch settles, and a finger that lands there is still a finger at the top.
-    setPullArmed(e.nativeEvent.contentOffset.y <= ARM_SLOP && !refreshing);
-  }, []);
   const onRefresh = useCallback(() => {
     // An explicit refresh resets the heal budget: a leaked counter (a heal whose
     // tile vanished mid-flight) must never make the button a no-op.
@@ -616,23 +610,26 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
   // Read inside intervals and callbacks that must not be rebuilt when it flips.
   const quietRef = useRef(quiet);
   quietRef.current = quiet;
-  const scrollActiveRef = useRef(onScrollActive);
-  scrollActiveRef.current = onScrollActive;
   const lastPlaceAt = useRef(0);
   const onScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       w.scrollY = e.nativeEvent.contentOffset.y;
-      // Keeps the globe's pause alive while a scroll is genuinely in progress;
-      // it expires on its own if these stop arriving.
-      scrollActiveRef.current?.(true);
-      if (sentinelNear()) loadBatchRef.current(WALL_BATCH);
       const now = Date.now();
-      // Placement walks every tile, sorts them and rebuilds two Sets. Even at
-      // twice a second that work landed on the thread the gesture is handled
-      // on and was felt as the scroll not following the finger - so while the
-      // finger is DOWN nothing recomputes at all; EndDrag runs one pass the
-      // moment it lifts, and momentum-end catches the rest.
-      if (!w.fingerDown && now - lastPlaceAt.current > 500) {
+      // Keeps the globe's hold alive while a scroll is genuinely in progress
+      // (a shared-value write, no commit); it expires on its own up on the UI
+      // thread if these stamps stop arriving. See wallScrollSignal.ts.
+      wallScrollAtSV.value = now;
+      // And keeps the player builder on holiday - a timestamp, not a timer,
+      // so a fling longer than any guess still never pays for a build mid-air.
+      holdCreates(900);
+      if (sentinelNear()) loadBatchRef.current(WALL_BATCH);
+      // Placement walks every tile, sorts them and rebuilds two Sets. That
+      // work lands on the thread the gesture is handled on and was felt as
+      // the scroll not following the finger - so for the WHOLE gesture,
+      // finger down and fling alike, nothing recomputes at all. EndDrag runs
+      // one pass the moment the finger lifts, and momentum-end catches the
+      // rest; new tiles mid-fling just show their loaders until then.
+      if (!w.fingerDown && !w.momentum && now - lastPlaceAt.current > 500) {
         lastPlaceAt.current = now;
         recomputePlacement();
       }
@@ -669,12 +666,20 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
         setViewportH(e.nativeEvent.layout.height);
       }}
       onScroll={onScroll}
-      onScrollBeginDrag={(e) => { w.fingerDown = true; onScrollBeginDrag(e); }}
-      onScrollEndDrag={() => { w.fingerDown = false; lastPlaceAt.current = Date.now(); recomputePlacement(); scrollActiveRef.current?.(false); }}
-      onMomentumScrollBegin={() => scrollActiveRef.current?.(true)}
+      // A finger catching a mid-air fling clears `momentum` here too: Android is
+      // not owed a MomentumScrollEnd for a fling that a touch interrupted, and a
+      // stale true would hold placement passes hostage until the next fling.
+      onScrollBeginDrag={() => { w.fingerDown = true; w.momentum = false; wallScrollAtSV.value = Date.now(); holdCreates(900); }}
+      // EndDrag's pass is a gesture-boundary pass and stays. If a fling follows,
+      // MomentumBegin re-arms the create hold before the 300ms trailing release
+      // can let a build through the EndDrag->MomentumBegin gap.
+      onScrollEndDrag={() => { w.fingerDown = false; lastPlaceAt.current = Date.now(); recomputePlacement(); holdCreates(300); }}
+      onMomentumScrollBegin={() => { w.momentum = true; wallScrollAtSV.value = Date.now(); holdCreates(900); }}
       onMomentumScrollEnd={() => {
-        scrollActiveRef.current?.(false);
+        w.momentum = false;
         recomputePlacement();
+        // The fling is over: let the held builds run, a beat after the pass.
+        holdCreates(300);
       }}
       // NO PULL-TO-REFRESH.
       //
@@ -745,7 +750,7 @@ export const LiveWall = forwardRef<LiveWallHandle, LiveWallProps>(function LiveW
       ) : null}
     </ScrollView>
   );
-});
+}));
 
 // ─── one wall tile (.gl-tile) ────────────────────────────────────────────────
 interface WallTileProps {

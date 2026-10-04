@@ -1,5 +1,52 @@
 # NATIVE PERF LOOP — state
 
+## WALL SCROLL (user 2026-10-04: "2/10 on scrolls") — MEASURED, workflow running
+- stage-of.mjs wall on 7i, lab, scripted scroll: total p50 204.6ms (~5fps UI)
+  p90 414.9 worst 968; animation p50 58.3 p90 117.6 DOMINANT, gpu 25.5/41.3.
+  Per-stream decode unaffected (30.2fps) - this is mount/marshal churn on the
+  main thread during scroll: globe loop GL marshal (7j halves it), Fabric tile
+  mounts + SurfaceView create/destroy on reveal, sparkle clocks, re-renders.
+- WORKFLOW DONE, 5 safe fixes APPLIED (uncommitted until 7j's chain ends;
+  chain /e/tmp/chain7k.sh ready): F1 fling holiday (placement passes defer to
+  momentum-end; paced creates take a self-expiring deadline hold - the 968ms
+  worst frame was a synchronous ExoPlayer build mid-gesture); F2 pullArmed
+  deleted (write-only state re-rendering the whole wall at every gesture
+  start); F3 globe holds frames during wall scroll via wallScrollSignal.ts
+  shared-value timestamp read in the render worklet (450ms self-expiry;
+  watchdog taught held!=dead; WATCHED TRADE: static header during fling -
+  fallback is a 10fps tick if it reads dead on film); F4 LiveWall+GlobeCanvas
+  memoized; F5 one shared sparkle clock for all loaders (bit-identical math,
+  sleeps when all paused). Transform-proofed both worklet files (2 + 5
+  factories, no self-capture), tsc clean.
+- Ledger highlights for later: watchdog nudge storms are NOT scroll-gated
+  (quiet=globeTouching only); 15-25 loaders animate mid-fling because fresh
+  batch tiles have no placement entry; gated F6 (reanimated sync-props flag),
+  F7 (TextureView A/B for the gpu 25ms term), F8 (player pool) remain.
+- Workflow wf_8de78f1e-575 (task wjkp3x6zq): scroll-path census + list infra
+  -> design (defer mounts to settle / cell-boundary re-renders / mount batching
+  / globe-throttle-during-scroll with look-risk flagged / report items) ->
+  implement safe subset. 7j (globe governor) in CI meanwhile (task bip5yu9k4);
+  its commit 30e8701 is pushed. NEXT: when both land, commit scroll fixes as
+  7k, gate, re-run stage-of wall (honest bar: p50 <=66ms this round, target
+  <=33) + guards (per-layer 30fps intact, players<=11, sw=0).
+
+## Build 7i MEASURED: WALL TARGET MET · 7j in flight (globe governor, task bip5yu9k4)
+- 7i gate PASSED and PROMOTED TO THE USER PHONE (02:55): players 9, hw
+  sessions 9, sw 0, aac 0 after settle. Per-layer fps on the settled wall:
+  7/7 live layers at 30.2fps median (33.1ms cadence = full source rate);
+  baseline was 3.2-7.6. Two layers frame-less (mid-connect/queue corpses).
+  Width histogram now shows 426x36 + 416x6 sessions (was zero <=480).
+- Globe drag on 7i: total p50 118ms still, but the bottleneck FLIPPED:
+  gpu p50 35->26ms, 'animation' (the worklet loop's UI-thread window) now
+  dominant at p50 37ms = 60Hz GL marshaling for ~8 presented fps. 7j makes
+  the ~30fps governor apply during drag too (one line; busy flag removed;
+  transform + tsc verified). Expect animation p50 to roughly halve and
+  pacing to steady out; re-run stage-of.mjs globe after 7j installs.
+- Remaining benched levers if needed: B1 release-gap 150ms (soak-gated),
+  F4 expo-video decoder-fallback patch (sessions<=10 + sw=0 now proven on
+  7i - eligible), GLView buffer-scale (pixel-compare gated).
+- User phone: ON 7I. The user's next look at the wall is the real verdict.
+
 ## Build 7i in flight (chain /e/tmp/chain7i.sh, task bnfod6tl0) — THE GLOBAL BUDGET
 - Carries (one commit): feed/profile release players on tab blur (surface-focus
   flag -> videoStore releasePaced, Search's path); PostMedia unconditional

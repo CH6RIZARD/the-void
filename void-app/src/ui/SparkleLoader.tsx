@@ -11,7 +11,7 @@
 //   14 particles: left random 0-100%, bottom random 0-40px, duration 2.5-6.5s,
 //   delay -(0-6)s (always mid-flight), animation ignores prefers-reduced-motion.
 import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { useFrameCallback, useSharedValue } from 'react-native-reanimated';
+import { runOnUI, useSharedValue, type SharedValue } from 'react-native-reanimated';
 import { Atlas, Canvas, Circle, rect, useColorBuffer, useRSXformBuffer, useTexture } from '@shopify/react-native-skia';
 import { mark } from '../core/slow';
 import { Pressable, StyleSheet, type StyleProp, type ViewStyle, View } from 'react-native';
@@ -75,17 +75,88 @@ const DOT = 2;    // px on screen, the web's 2x2 particle
 const TEX = 12;   // px the sprite is DRAWN at - a 2x2 texture is a square blob
                   // (the user: "little blocks... not round, rigid"); at 12px the
                   // circle antialiases properly and the atlas scales it to 2px.
+
+// ─── ONE CLOCK HAND FOR EVERY LOADER ────────────────────────────────────
+//
+// Each field used to carry its own useFrameCallback, so twenty loaders meant
+// twenty separate Reanimated frame-callback dispatches per UI frame, mid-fling,
+// just to add the same dt to twenty clocks. One UI-thread loop now walks a
+// registry and advances every running clock; the per-loader t, the random birth
+// offset and the accumulate-on-pause semantics are untouched, so every dot's
+// position and alpha per frame is bit-identical. The loop stops itself when
+// nothing is registered-and-running (the rest of the app must not be woken
+// every frame by paused loaders behind a hidden tab) and is kicked back awake
+// when a clock turns on. Each tick guards per entry: an unmount racing a tick
+// must drop one dt, never throw on the UI thread.
+type SparkleClock = { t: SharedValue<number>; on: SharedValue<number> };
+function ensureSparkleLoop() {
+  'worklet';
+  const g = globalThis as any;
+  if (g.__sparkleLoop) return;
+  const reg = g.__sparkleClocks as SparkleClock[] | undefined;
+  if (!reg || !reg.length) return;
+  g.__sparkleLoop = true;
+  let last = 0;
+  // Plain closure, no nested 'worklet' directive - the recursive rAF lesson
+  // globeWorklet.ts documents.
+  const tick = (ts: number) => {
+    const r = g.__sparkleClocks as SparkleClock[];
+    let any = false;
+    const dt = last ? ts - last : 16.7;
+    last = ts;
+    for (let i = 0; i < r.length; i++) {
+      try {
+        if (r[i].on.value) {
+          r[i].t.value += dt;
+          any = true;
+        }
+      } catch {}
+    }
+    if (!any) {
+      g.__sparkleLoop = false; // everything paused or gone; a kick restarts us
+      return;
+    }
+    g.requestAnimationFrame(tick);
+  };
+  g.requestAnimationFrame(tick);
+}
+function registerSparkleClock(t: SharedValue<number>, on: SharedValue<number>) {
+  runOnUI((tSV: SharedValue<number>, onSV: SharedValue<number>) => {
+    'worklet';
+    const g = globalThis as any;
+    if (!g.__sparkleClocks) g.__sparkleClocks = [];
+    (g.__sparkleClocks as SparkleClock[]).push({ t: tSV, on: onSV });
+    ensureSparkleLoop();
+  })(t, on);
+}
+function unregisterSparkleClock(t: SharedValue<number>) {
+  runOnUI((tSV: SharedValue<number>) => {
+    'worklet';
+    const g = globalThis as any;
+    const reg = g.__sparkleClocks as SparkleClock[] | undefined;
+    if (!reg) return;
+    for (let i = reg.length - 1; i >= 0; i--) if (reg[i].t === tSV) reg.splice(i, 1);
+  })(t);
+}
+function kickSparkleLoop() {
+  runOnUI(ensureSparkleLoop)();
+}
+
 function SparkleField({ particles, running, color }: { particles: Particle[]; running: boolean; color: string }) {
   const n = particles.length;
   const boxW = useSharedValue(0);
   const boxH = useSharedValue(0);
   const t = useSharedValue(Math.random() * 6000); // a fresh loader is already mid-flight
-  const frame = useFrameCallback((info) => {
-    t.value += info.timeSincePreviousFrame ?? 16.7;
-  }, running);
+  const on = useSharedValue(running ? 1 : 0);
   useEffect(() => {
-    frame.setActive(running);
-  }, [frame, running]);
+    on.value = running ? 1 : 0;
+    if (running) kickSparkleLoop(); // the shared loop may have gone to sleep
+  }, [on, running]);
+  useEffect(() => {
+    registerSparkleClock(t, on);
+    return () => unregisterSparkleClock(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // plain arrays capture cleanly into worklets
   const fx = useMemo(() => particles.map((pp) => parseFloat(pp.left) / 100), [particles]);
   const fb = useMemo(() => particles.map((pp) => pp.bottom), [particles]);

@@ -1,6 +1,6 @@
 // #globe-canvas-wrap: the three.js globe on expo-gl + its overlays
 // (#gtip tap label, #globe-search-icon, .globe-hint-line, #globe-search-modal).
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, AppState, Easing, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { GLView, type ExpoWebGLRenderingContext } from 'expo-gl';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -12,6 +12,7 @@ import { createGlobeScene, type GlobeScene } from './globeScene';
 import { deliverEarthPixels, pickCountry, startWorkletGlobe } from './globeWorklet';
 import { GlobeSearch } from './GlobeSearch';
 import { countries, type Country } from '../live/core';
+import { wallScrollAtSV } from '../live/wallScrollSignal';
 import { em, useLiveTheme } from '../live/liveTheme';
 import { useObserve } from 'expo-observe';
 
@@ -37,7 +38,10 @@ export function useGlobeHeight() {
   return Math.max(240, Math.min(height * 0.42, 320));
 }
 
-export function GlobeCanvas({ running, onOpenCountry, refreshNonce = 0, gestureRef, onTouching }: GlobeCanvasProps) {
+// memo: GlobeScreen's own state flips (refreshing, sliding, globeTouching) must
+// not re-run this body - every prop it receives is primitive or referentially
+// stable, so shallow equality is the whole job.
+export const GlobeCanvas = memo(function GlobeCanvas({ running, onOpenCountry, refreshNonce = 0, gestureRef, onTouching }: GlobeCanvasProps) {
   const t = useLiveTheme();
   const { width } = useWindowDimensions();
   const height = useGlobeHeight();
@@ -136,6 +140,7 @@ export function GlobeCanvas({ running, onOpenCountry, refreshNonce = 0, gestureR
         const shared = {
           accX, accY, accZoom, velX, velY, dragSV,
           runningSV, canceledSV, hotSV, rotXSV, rotYSV, zoomSV, lastFrameSV, texStateSV, texIdSV,
+          wallScrollAtSV,
         };
         startWorkletGlobe((gl as any).contextId, cs, size.current.w, size.current.h, shared);
         deliverEarthPixels((gl as any).contextId, shared);
@@ -207,6 +212,11 @@ export function GlobeCanvas({ running, onOpenCountry, refreshNonce = 0, gestureR
           markedRef.current = true;
           interactiveRef.current({ params: { surface: 'globe' } });
         }
+      } else if (Date.now() - wallScrollAtSV.value < 2000) {
+        // No frame because the wall is scrolling and the worklet is HOLDING
+        // frames on purpose (wallScrollSignal.ts). A long doomscroll must not
+        // read as a dead loop - that rebuilt a healthy canvas mid-gesture.
+        strikes = 0;
       } else if (++strikes >= 3) {
         clearInterval(iv);
         console.warn('[globe] worklet loop stopped producing frames - rebuilding');
@@ -295,7 +305,10 @@ export function GlobeCanvas({ running, onOpenCountry, refreshNonce = 0, gestureR
       openRef.current(c);
     }
   }, []);
-  const gesture = Gesture.Manual()
+  // Built once: the handlers are worklets over shared values, and rebuilding
+  // the gesture object on every render made each parent re-render re-register
+  // it with the gesture handler for nothing.
+  const gesture = useMemo(() => Gesture.Manual()
     .withRef(gestureRef as any)
     .onTouchesDown((e, mgr) => {
       'worklet';
@@ -348,7 +361,10 @@ export function GlobeCanvas({ running, onOpenCountry, refreshNonce = 0, gestureR
       'worklet';
       dragSV.value = 0;
       mgr.end();
-    });
+    }),
+    // every dep is referentially stable, so this computes exactly once
+    [accX, accY, accZoom, velX, velY, dragSV, tg, gestureRef, onTouchStartJS, onTapJS],
+  );
 
   // .globe-hint-line{animation:fout 5s ease forwards 3s}
   const hintO = useRef(new Animated.Value(1)).current;
@@ -427,7 +443,7 @@ export function GlobeCanvas({ running, onOpenCountry, refreshNonce = 0, gestureR
       ) : null}
     </View>
   );
-}
+});
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 

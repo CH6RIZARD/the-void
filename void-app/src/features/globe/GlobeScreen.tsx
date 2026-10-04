@@ -163,18 +163,12 @@ function GlobeSurfaces({
   // and a GONE SurfaceView releases its surface. Only the surface goes - players,
   // buffers and sockets survive, so settling re-attaches instead of reconnecting.
   const [sliding, setSliding] = useState(false);
-  // THE GLOBE DOES NOT RENDER WHILE YOU ARE SCROLLING THE WALL.
-  //
-  // The globe's frame loop runs on the same JS thread that handles the wall's
-  // gesture, and it runs whether or not the globe is the thing being touched.
-  // Scrolling the wall therefore competes with a full 3D render every frame,
-  // and the scroll stops following the finger.
-  //
-  // While the wall is being dragged the globe holds its last frame - it is above
-  // the wall and barely in view at that point - and resumes the moment the
-  // scroll settles. Nothing is torn down; the loop simply stops asking.
-  const [wallScrolling, setWallScrolling] = useState(false);
-  // True while a finger is on the globe. Same expiry trick as the scroll latch:
+  // THE GLOBE DOES NOT RENDER WHILE YOU ARE SCROLLING THE WALL - but that
+  // lives on the UI thread now. The wall stamps wallScrollAtSV on every scroll
+  // event and the render worklet holds its own frame while the stamp is fresh
+  // (see wallScrollSignal.ts). The React latch that used to carry this signal
+  // engaged frames late under load and cost a whole-tree commit per gesture.
+  // True while a finger is on the globe. Expires by itself:
   // a gesture that ends without a clean release must not leave the wall asleep.
   const [globeTouching, setGlobeTouching] = useState(false);
   const touchOffT = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -184,29 +178,6 @@ function GlobeSurfaces({
     if (on) touchOffT.current = setTimeout(() => setGlobeTouching(false), 1200);
   }, []);
   useEffect(() => () => { if (touchOffT.current) clearTimeout(touchOffT.current); }, []);
-  // A LATCH THAT CANNOT STICK.
-  //
-  // Pausing the globe while the wall is dragged was right; trusting the scroll
-  // events to turn it back on was not. onMomentumScrollEnd does not fire when a
-  // drag ends without a fling - a slow scroll, or a finger that stops before
-  // lifting - so `true` could be set and never cleared, and the globe simply
-  // never rendered again. It came back as a blank half-screen, which is exactly
-  // what the device watcher caught.
-  //
-  // So the ON state expires by itself. Any scroll event refreshes the deadline;
-  // if none arrives for a beat, the globe resumes whether or not the event that
-  // was supposed to say so ever came.
-  const scrollOffT = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const markWallScrolling = useCallback((on: boolean) => {
-    if (scrollOffT.current) clearTimeout(scrollOffT.current);
-    if (!on) {
-      setWallScrolling(false);
-      return;
-    }
-    setWallScrolling(true);
-    scrollOffT.current = setTimeout(() => setWallScrolling(false), 900);
-  }, []);
-  useEffect(() => () => { if (scrollOffT.current) clearTimeout(scrollOffT.current); }, []);
   const wallRef = useRef<LiveWallHandle>(null);
   const [refreshing, setRefreshing] = useState(false);
   // One button refreshes the whole tab - the globe above and the wall below are
@@ -322,12 +293,12 @@ function GlobeSurfaces({
             <Animated.View style={[styles.view, { top: insets.top }, mapStyle]} pointerEvents={mode === 'globe' ? 'auto' : 'none'}>
               <LoaderActiveContext.Provider value={globeVisible}>
                 {globeSeen ? (
-                  <GlobeCanvas running={globeVisible && !wallScrolling} onOpenCountry={openCountry} refreshNonce={globeNonce} gestureRef={globeGesture} onTouching={markGlobeTouching} />
+                  <GlobeCanvas running={globeVisible} onOpenCountry={openCountry} refreshNonce={globeNonce} gestureRef={globeGesture} onTouching={markGlobeTouching} />
                 ) : (
                   <View style={{ height: globeH, backgroundColor: '#04020c' }} />
                 )}
                 {/* Built the first time GLOBE is shown (web: buildGlobeGrid inside setGlobeMode). */}
-                <LiveWall ref={wallRef} active={globeVisible && !sliding} grid3={grid3} bottomInset={bottomInset} onScrollActive={markWallScrolling} quiet={globeTouching} />
+                <LiveWall ref={wallRef} active={globeVisible && !sliding} grid3={grid3} bottomInset={bottomInset} quiet={globeTouching} />
               </LoaderActiveContext.Provider>
             </Animated.View>
           </View>
