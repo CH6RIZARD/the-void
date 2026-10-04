@@ -21,7 +21,7 @@ import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { AudioRing, TileLoader } from './TileChrome';
 import { useAudioOwner, type AudioTarget } from './AudioOwner';
 import { liveVidFor, markBadStream, type StreamSource } from './core';
-import { createSignalChecker, frameVerdict, FRAME_H, FRAME_JUDGE_DELAY, FRAME_W } from '../../core';
+import { createSignalChecker, frameVerdict, noteWallMount, noteWallUnmount, FRAME_H, FRAME_JUDGE_DELAY, FRAME_W } from '../../core';
 import { sampleFrame, sampleFramePaced } from './frameSample';
 import { variantCached, variantFor } from './hlsVariant';
 import { CONNECT_TIMEOUT, WALL_BUFFER, YT_DEAD_CODES, YT_NUDGE_MS, YT_VEIL_MIN_MS, YT_VEIL_MS, noteDecoderFailure, youtubeEmbedSrc } from './constants';
@@ -375,6 +375,16 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
   });
   const parkedRef = useRef(parked);
   parkedRef.current = parked;
+  // The wall's expensive-stream census (wall.ts soft cap): this tile's decode
+  // counts while its player exists, and the same unmount that paces the
+  // player's release drops it. Wall tiles only - they are the ones sharing
+  // the one VPU; the url passed is the variant actually decoded.
+  useEffect(() => {
+    if (!player || surface !== 'surface') return;
+    noteWallMount(source, url);
+    return () => noteWallUnmount(source);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [player, source, surface]);
   // When the park began - a resume after a long park must rejoin the live
   // edge, not replay where the buffer stopped (the user: coming back after
   // some time is "really laggy and delayed").

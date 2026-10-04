@@ -6,7 +6,13 @@
 // over SLOW_MS with its own name, so the device says it outright.
 //
 // console.warn, not log: release builds strip console.log and keep warn.
-import { AppState } from 'react-native';
+// react-native, lazily: this is core's stall diagnostic and half of core
+// imports it, so it must load under plain node too - the golden parity tests
+// run core modules outside Metro, where react-native's Flow source won't parse.
+let AppState: { currentState?: string; addEventListener(e: string, f: (st: string) => void): unknown } | null = null;
+try {
+  AppState = require('react-native').AppState;
+} catch {}
 
 const SLOW_MS = 250;
 
@@ -93,9 +99,9 @@ const LATE_MS = 300;
  * user is actually looking at the app is unaffected, which is the only kind worth
  * knowing about.
  */
-let appActive = AppState.currentState === 'active';
+let appActive = !AppState || AppState.currentState === 'active';
 let rearm = false;
-AppState.addEventListener('change', (st) => {
+AppState?.addEventListener('change', (st) => {
   const now = st === 'active';
   if (now && !appActive) rearm = true; // skip the gap we were asleep for
   appActive = now;

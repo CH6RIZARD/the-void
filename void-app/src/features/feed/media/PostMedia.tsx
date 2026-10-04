@@ -19,7 +19,7 @@ import { VText } from '../../../ui/Text';
 import { FONTS, em } from '../../../theme/palettes';
 import { settingsAutoplay } from '../format';
 import { openPhoto, openReel } from '../navigation';
-import { useInView, useLifted } from '../stores';
+import { useInView, useLifted, useSurfaceFocused } from '../stores';
 import { hasSharedPlayer, isSharedPlaying, useSharedPlayer } from '../videoStore';
 import { GraphicVeil, VeilDim } from './GraphicVeil';
 
@@ -51,9 +51,15 @@ export const PostMedia = memo(function PostMedia({ post: p, mode = 'feed', surfa
   const inView = useInView(p.id, surface);
 
   // preload="none": no player until the card has been in view once (or a thread borrows one).
+  // Tab blur drops `focused` and the latch with it, so the player is RELEASED
+  // (videoStore -> releasePaced, Search's pattern), not just paused - a paused
+  // player still holds a MediaCodec the wall under the globe is starved of.
+  // Focus re-sends the last in-view ids, which re-latch only the visible cards.
+  const focused = useSurfaceFocused(surface);
   const everInView = useRef(false);
+  if (!focused) everInView.current = false;
   if (inView) everInView.current = true;
-  const wantPlayer = !!video && !videoFailed && !veiled && (inThread || (!lifted && (everInView.current || hasSharedPlayer(p.id)) && settingsAutoplay()));
+  const wantPlayer = !!video && !videoFailed && !veiled && (inThread || (focused && !lifted && (everInView.current || hasSharedPlayer(p.id)) && settingsAutoplay()));
   const player = useSharedPlayer(p.id, video, wantPlayer);
   // Thread: remember whether the clip arrived playing (borrowed from the card).
   const borrowedPlaying = useRef(inThread ? isSharedPlaying(p.id) : false);
@@ -63,7 +69,11 @@ export const PostMedia = memo(function PostMedia({ post: p, mode = 'feed', surfa
     if (!player || inThread || lifted) return;
     try {
       if (inView && settingsAutoplay()) player.play();
-      else if (player.playing) player.pause();
+      // Unconditional: a card whose play() was requested while buffering reports
+      // playing=false here, and skipping the pause left playWhenReady set - an
+      // ACTIVE decoder behind the globe. pause() on a non-playing player is a
+      // no-op, so the old guard only ever protected that bug.
+      else player.pause();
     } catch {}
   }, [player, inView, inThread, lifted]);
 

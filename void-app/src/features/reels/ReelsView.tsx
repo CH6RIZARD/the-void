@@ -295,19 +295,20 @@ export function ReelsView({ active, nation, postId, overlay: overlayProp, onClos
         height={h}
         current={index === cur}
         want={live && index === cur}
-        // THE HIDDEN SIDE WARMS ONE CLIP, NOT THREE.
+        // THE HIDDEN SIDE HOLDS ZERO PLAYERS.
         //
         // Attached meant a player exists - the web's window: the card in view
         // plus two ahead, warming so the next flick is instant. That window
         // stayed open while the REELS side was hidden behind the globe, so
-        // three ExoPlayers sat attached and prepared on the side nobody was
-        // looking at, holding decoders the wall under the globe was giving up
-        // tiles for want of.
+        // ExoPlayers sat attached and prepared on the side nobody was looking
+        // at, holding decoders the wall under the globe was giving up tiles
+        // for want of.
         //
-        // The current card stays attached while hidden, so the toggle to REELS
-        // is as instant as it was; the two ahead attach the moment the side is
-        // live, which is the only moment a flick can happen.
-        attached={index === cur || (live && Math.abs(index - cur) <= 2)}
+        // Even the one warm current card was 1/8th of the VPU budget spent on
+        // a nicety. Hidden now means cold: the current card shows its poster,
+        // and the swipe to REELS creates its player on the paced queue - the
+        // poster covers the ~0.5s to first frame, same as every cold reel.
+        attached={live && (index === cur || Math.abs(index - cur) <= 2)}
         viewed={viewed.has(item._vid || item.id)}
         railBottom={railBottom}
         soundOn={soundOn}

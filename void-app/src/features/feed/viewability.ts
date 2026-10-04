@@ -9,7 +9,7 @@ import { NavigationContext } from 'expo-router/build/react-navigation/core';
 import type { ViewToken } from 'react-native';
 import { learnDwell, type Post } from '../../core';
 import { Sensing } from '../../lib/sensing';
-import { setInView } from './stores';
+import { setInView, setSurfaceFocused } from './stores';
 
 export function usePostViewability(surface: string, getPost: (item: any) => Post | null | undefined = (x) => x as Post) {
   const entered = useRef<Record<string, { at: number; post: Post }>>({});
@@ -75,18 +75,26 @@ export function usePostViewability(surface: string, getPost: (item: any) => Post
   // not move, so those ids are still the ones in view. Dwell timing is left
   // alone: an impression that was interrupted by a tab switch is still the
   // impression it was.
+  //
+  // Blur also drops the surface's FOCUS flag, which is what lets PostMedia
+  // release the players outright (a paused player still holds its MediaCodec);
+  // focus raises it again and the restored in-view ids rebuild only the
+  // visible cards' players.
   const nav = useContext(NavigationContext);
   const focusedRef = useRef(nav ? nav.isFocused() : true);
   const lastIds = useRef<string[]>([]);
   useEffect(() => {
     if (!nav) return;
     focusedRef.current = nav.isFocused();
+    setSurfaceFocused(surface, focusedRef.current);
     const offBlur = nav.addListener('blur', () => {
       focusedRef.current = false;
+      setSurfaceFocused(surface, false);
       setInView(surface, []);
     });
     const offFocus = nav.addListener('focus', () => {
       focusedRef.current = true;
+      setSurfaceFocused(surface, true);
       setInView(surface, lastIds.current);
     });
     return () => {

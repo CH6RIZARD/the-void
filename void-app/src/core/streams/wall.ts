@@ -8,6 +8,42 @@ import { C } from '../data/regions.ts';
 import { CAM_SOURCES, RAW_FOOTAGE, iptvFor, lifeFor, rankOf } from '../data/sources.ts';
 import { ensureHealth, healthDead, healthMsBucket } from './health.ts';
 import { EMBEDDABLE_IFRAME, IFRAME_PLAYER_URL, _badStreams, isBadStream, streamKey, usedStreamKeys } from './keys.ts';
+// Pure, no imports of its own - the ladder widths it measures are the only
+// live decode-cost signal there is, and this module is where cost decides order.
+import { widthFor } from '../../features/live/hlsVariant.ts';
+
+// ─── DECODE COST ─────────────────────────────────────────────────────────
+// One VPU, eight tiles: what a stream COSTS to decode is as real a property as
+// whether it connects. widthFor() is the ladder hlsVariant actually read this
+// session; `w` is the sentinel's annotation (smallest advertised RESOLUTION
+// width, written onto the pool by source-sentinel.mjs); 0 is unknown.
+const decodeWidth = (s: StreamSource): number => widthFor(s.url) ?? (Number(s.w) || 0);
+/** Sort bucket: known-cheap (<=480) first, unknown middle, known-expensive last. */
+const wBucket = (s: StreamSource): number => { const w = decodeWidth(s); return w > 0 && w <= 480 ? 0 : !w ? 1 : 2; };
+
+// SOFT CAP: AT MOST 2 CONCURRENT >480-WIDE WALL STREAMS. The VPU affords
+// roughly 8x 426x240 OR 2x 1080p, so 6 cheap + 2 expensive stays inside the
+// envelope. StreamTile reports each wall player's life (noteWallMount /
+// noteWallUnmount, keyed by streamKey - one stream never plays in two places);
+// at the cap, cascades and heals merely REORDER their chains cheap-first.
+// Never a filter: a tile with only expensive candidates still places, because
+// grid-fullness beats cheapness.
+export const WALL_EXPENSIVE_MAX = 2;
+const expensiveLive = new Set<string>();
+export function noteWallMount(src: StreamSource, playedUrl?: string | null): void {
+  const w = (playedUrl ? widthFor(playedUrl) : undefined) ?? decodeWidth(src);
+  if (w > 480) { const k = streamKey(src); if (k) expensiveLive.add(k); }
+}
+export function noteWallUnmount(src: StreamSource): void {
+  const k = streamKey(src);
+  if (k) expensiveLive.delete(k);
+}
+/** At the cap, stable-partition a chain so <=480/unknown candidates lead. */
+function capExpensive(chain: StreamSource[]): StreamSource[] {
+  if (expensiveLive.size < WALL_EXPENSIVE_MAX) return chain;
+  const cheap = chain.filter(s => wBucket(s) < 2);
+  return cheap.length === chain.length ? chain : cheap.concat(chain.filter(s => wBucket(s) === 2));
+}
 
 // User-set ratio: windows of 10 tiles, 3 city-life at positions 3, 6, 9 and 7 news /
 // live TV, so life is spread through every screenful and each window opens on an HLS
@@ -66,12 +102,16 @@ export function wallSlots(): WallSlot[] {
     // sparkles, the globe and every gesture run on. YouTube stays available to
     // the nation cinema, which is its own surface with its own rules.
     const life = lifeMix([...(CAM_SOURCES[n] || []), ...(RAW_FOOTAGE[n] || []), ...lifeFor(n)].filter(s => s && s.type !== 'youtube' && usable(s)), shuffle);
-    // Fastest first by the POPULATION's median connect ms (400ms buckets), the
-    // shuffle deciding inside each bucket - the wall leads with streams that
-    // connect near-instantly for everyone while still varying every visit.
+    // Cheapest first, then fastest: known <=480-wide streams lead (the ~16% of
+    // the pool the sentinel annotated saturate 8 tiles many times over, and a
+    // tile decoding 426x240 costs 10-20x fewer pixels/s than native 1080p),
+    // unknowns in the middle, known-expensive last. Ordering only, never a
+    // filter - every stream stays in the pool. Inside each cost bucket the
+    // POPULATION's median connect ms (400ms buckets) still rules, the shuffle
+    // deciding inside each, so the wall varies every visit.
     const news = shuffle(iptvFor(n).filter(usable))
-      .map((s, i) => [s, healthMsBucket(s), i] as const)
-      .sort((a, b) => a[1] - b[1] || a[2] - b[2])
+      .map((s, i) => [s, wBucket(s), healthMsBucket(s), i] as const)
+      .sort((a, b) => a[1] - b[1] || a[2] - b[2] || a[3] - b[3])
       .map(x => x[0]);
     return { n, life, news };
   });
@@ -125,7 +165,7 @@ export function wallCascadeFor(name: string, first?: StreamSource | null): Strea
     (CAM_SOURCES[name] || []).forEach(push);
     (RAW_FOOTAGE[name] || []).forEach(push);
     lifeFor(name).forEach(push);
-    return hls.concat(rest).slice(0, 3);
+    return capExpensive(hls.concat(rest).slice(0, 3));
   }
   // Life-first: push() still filters; hls/rest split is ignored for life items.
   push(first);
@@ -137,7 +177,7 @@ export function wallCascadeFor(name: string, first?: StreamSource | null): Strea
   for (const s of pool) { const before = seen.size; push(s); if (seen.size > before) lifeChain.push(s); }
   let lastResort: StreamSource | null = null;
   for (const s of iptv) { const before = seen.size; push(s); if (seen.size > before) { lastResort = s; break; } }
-  return lastResort ? lifeChain.slice(0, 2).concat(lastResort) : lifeChain.slice(0, 3);
+  return capExpensive(lastResort ? lifeChain.slice(0, 2).concat(lastResort) : lifeChain.slice(0, 3));
 }
 
 /** On heal, try a different source first — the previous one just died (connectWallCell rotate). */
@@ -147,7 +187,10 @@ export function healChain(name: string, firstSrc: StreamSource | null | undefine
     const k = streamKey(firstSrc);
     chain = chain.filter(s => streamKey(s) !== k).concat(chain.filter(s => streamKey(s) === k));
   }
-  return chain;
+  // At the expensive cap the cost ordering outranks even the rotation: with two
+  // >480-wide streams already live, a cheap retry - including the one that just
+  // died - beats mounting a third expensive decode.
+  return capExpensive(chain);
 }
 
 /**

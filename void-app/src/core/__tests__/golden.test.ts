@@ -32,7 +32,12 @@ const STORY = ['TENSION_TAGS', 'SPIKE_HALF_LIFE_H', 'hasTension', 'postAgeH', 'v
   'STORY_STOP', 'storyTokens', 'storyInfo', '_stories', '_storyTokIdx', 'storyOf', 'noteStory', 'storySources', 'storyBoostsLeft', 'breakingLift', 'controversyLift'];
 const SEEN = ['_SEEN_CAP', '_h', '_loadSeen', '_seenIds', '_seenDirty', '_normText', '_linkKey', 'admitPost'];
 const WALL = ['TENSION_RANK', 'rankOf', 'CAM_SOURCES', 'RAW_FOOTAGE', 'NEWS_SOURCES', 'IPTV_JSON', 'LIFE_JSON', '_iptvPool', 'iptvFor', '_lifePool', 'lifeFor',
-  'EMBEDDABLE_IFRAME', 'IFRAME_PLAYER_URL', '_badStreams', 'markBadStream', 'isBadStream', 'USED_STREAMS_KEY', 'streamKey', 'usedStreamKeys', 'rememberStream', 'lifeMix', 'wallSlots', 'wallCascadeFor'];
+  'EMBEDDABLE_IFRAME', 'IFRAME_PLAYER_URL', '_badStreams', 'markBadStream', 'isBadStream', 'USED_STREAMS_KEY', 'streamKey', 'usedStreamKeys', 'rememberStream',
+  // The wall's filters grew health + proven-dead maps after this list was last
+  // touched; with empty sandbox storage they all answer "fine", which is what
+  // the native side assumes too - the suite was unrunnable while they drifted.
+  '_health', 'healthOf', 'healthDead', 'healthMsBucket', 'PROVEN_KEY', '_proven', 'provenAll', 'provenOf', 'provenDead',
+  'lifeMix', 'wallSlots', 'wallCascadeFor'];
 
 // ─── constants copied by hand must equal the web's ──────────────────────
 test('hand-ported constants and regexes match the web', () => {
@@ -133,7 +138,24 @@ test('wallCascadeFor: same-kind cascade matches the web', () => {
       const mine = core.wallCascadeFor(n, first);
       setIn(w, '__first', first);
       const theirs = wjson(w, `wallCascadeFor(${JSON.stringify(n)}, __first)`);
-      assert.deepEqual(plain(mine), theirs, n + ' first=' + (first && first.label));
+      // INTENDED divergence: the native wall banned YouTube (2026-10-03 - each
+      // YT tile was a Chromium WebView taxing the UI thread the gestures run
+      // on); the web keeps it, and it slices to 3 BEFORE any such filter. So:
+      // news-first chains are pure HLS on both sides and must match exactly;
+      // life/null chains can only be held to order-parity on the streams both
+      // sides actually chose (a shared-items subsequence check), plus the
+      // native chain's own invariants.
+      const ms = plain(mine) as any[];
+      const webNoYt = (theirs as any[]).filter((s) => s.type !== 'youtube');
+      if (first === news && news) {
+        assert.deepEqual(ms, webNoYt, n + ' news-first');
+      } else {
+        const key = (s: any) => s.url || s.id || s.label;
+        const webOrder = new Map(webNoYt.map((s, i) => [key(s), i]));
+        const sharedIdx = ms.filter((s) => webOrder.has(key(s))).map((s) => webOrder.get(key(s))!);
+        assert.deepEqual(sharedIdx, [...sharedIdx].sort((a, b) => a - b), n + ' shared order first=' + (first && first.label));
+        assert.ok(ms.every((s) => s.type !== 'youtube'), n + ' native chain is youtube-free');
+      }
       assert.ok(mine.length <= 3);
     }
   }

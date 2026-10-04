@@ -9,7 +9,7 @@ import { LIFE_POOL } from './life.generated.ts';
 // 302K of literals and 2589 objects - and it happens on whichever JS tick first
 // touches it, which is a tick that was doing something else. Named so a stall
 // that lands here says so instead of saying 'idle'.
-import { mark as _mark } from '../slow';
+import { mark as _mark } from '../slow.ts';
 _mark('data:sources');
 
 export { CAM_SOURCES, COUNTRY_CH, GLOBAL_POOL, LIVE_CHANNELS, NEWS_SOURCES, RAW_FOOTAGE, VOID_LIVE, IPTV_POOL, LIFE_POOL };

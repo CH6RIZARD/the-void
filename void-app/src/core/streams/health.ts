@@ -13,8 +13,19 @@
 // wallSlots() of a cold launch runs exactly as before and later builds (heals,
 // refreshes, next launch) get the knowledge. Nothing here can block or fail a
 // wall build.
-import { VOID_PROXY_BASE } from '../../lib/config';
 import type { StreamSource } from '../types.ts';
+
+// Lazy require, not import: lib/config pulls expo-constants (react-native),
+// and this module must stay runnable under plain node - the golden parity
+// tests load it through wall.ts. The base only matters when ensureHealth
+// actually fetches, which a test never does.
+function proxyBase(): string {
+  try {
+    return (require('../../lib/config') as { VOID_PROXY_BASE: string }).VOID_PROXY_BASE || '';
+  } catch {
+    return '';
+  }
+}
 
 type H = [number, number, number, number]; // [okPct, viaPct, reports, medMs]
 let map: Record<string, H> = {};
@@ -22,9 +33,10 @@ let fetchedAt = 0;
 let inflight = false;
 
 export function ensureHealth(): void {
-  if (!VOID_PROXY_BASE || inflight || Date.now() - fetchedAt < 10 * 60_000) return;
+  const base = proxyBase();
+  if (!base || inflight || Date.now() - fetchedAt < 10 * 60_000) return;
   inflight = true;
-  fetch(VOID_PROXY_BASE + '/streams/health')
+  fetch(base + '/streams/health')
     .then((r) => (r.ok ? r.json() : null))
     .then((d) => {
       if (d && d.h) {

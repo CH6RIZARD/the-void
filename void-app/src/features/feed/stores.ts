@@ -62,6 +62,22 @@ export function useInView(id: string, surface: string): boolean {
   );
 }
 
+// ─── per-surface focus (tab blur gives the codecs back) ──────────────────
+// Blur used to only PAUSE a surface's clips (empty in-view set), which keeps
+// every ExoPlayer and its MediaCodec alive behind the globe - and the wall's
+// one VPU pays for all of them. The flag below lets PostMedia drop the player
+// entirely on blur (Search's pattern) and re-acquire on focus, when the
+// restored in-view ids re-latch the visible cards.
+const surfaceFocus: Record<string, boolean> = {};
+export function setSurfaceFocused(surface: string, focused: boolean): void {
+  surfaceFocus[surface] = focused;
+  view.emit();
+}
+/** false only while the surface's tab is blurred (default true). */
+export function useSurfaceFocused(surface: string): boolean {
+  return useSyncExternalStore(view.sub, () => surfaceFocus[surface] !== false, () => true);
+}
+
 // ─── thread FLIP hand-off ─────────────────────────────────────────────────
 export interface Rect {
   x: number;

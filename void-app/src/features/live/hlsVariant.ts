@@ -16,6 +16,15 @@
 // play because of this.
 const cache = new Map<string, string>();
 const inflight = new Map<string, Promise<string>>();
+// What the ladder said, kept from the same read: the master url maps to its
+// SMALLEST advertised width (can this stream ever be cheap?), the picked
+// variant url to its own width (what a tile playing it actually decodes).
+// wall.ts reads these to keep expensive streams from stacking up (widthFor).
+const widths = new Map<string, number>();
+/** Ladder width measured when a master playlist was read; undefined if never seen. */
+export function widthFor(url: string | null | undefined): number | undefined {
+  return url ? widths.get(url) : undefined;
+}
 const FETCH_TIMEOUT_MS = 2500;
 /**
  * Below this the picture is visibly soft on a 2x tile, whatever the tile size says.
@@ -90,8 +99,13 @@ export async function variantFor(url: string, targetW: number): Promise<string> 
       const res = await fetch(url, { signal: ctl?.signal as any });
       const text = res.ok ? await res.text() : '';
       clearTimeout(t);
-      const pick = pickVariant(parseMaster(text, url), targetW);
-      if (pick) out = pick.url;
+      const variants = parseMaster(text, url);
+      if (variants.length) widths.set(url, Math.min(...variants.map((v) => v.width)));
+      const pick = pickVariant(variants, targetW);
+      if (pick) {
+        out = pick.url;
+        widths.set(pick.url, pick.width);
+      }
     } catch {
       // keep the original
     }

@@ -98,7 +98,9 @@ const corsOk = (r) => {
   return a === '*' || (a || '').includes('thevoid.app');
 };
 
-/** number = ms to first byte of a playable manifest; string = why it is not. */
+/** { ms, w? } = playable: ms to first byte, w = smallest advertised RESOLUTION
+ *  width (the stream's cheapest possible decode - omitted for media playlists
+ *  and ladders without RESOLUTION tags); string = why it is not playable. */
 async function probe(url) {
   if (!/^https:/i.test(url)) return 'http';
   const t0 = Date.now();
@@ -108,6 +110,7 @@ async function probe(url) {
     if (!corsOk(r)) return 'no-cors';
     const text = (await r.text()).slice(0, 65536);
     if (!text.includes('#EXTM3U')) return 'not-m3u8';
+    let w = 0;
     if (/#EXT-X-STREAM-INF/i.test(text)) {
       const line = text.split(/\r?\n/).map((s) => s.trim()).find((s) => s && !s.startsWith('#'));
       if (!line) return 'no-variant';
@@ -117,8 +120,10 @@ async function probe(url) {
       if (!v.ok) return 'variant ' + v.status;
       if (!corsOk(v)) return 'variant-no-cors';
       if (!/#EXTINF/i.test((await v.text()).slice(0, 65536))) return 'variant-empty';
+      // The app sorts the wall cheap-first by this (wall.ts wBucket).
+      for (const m of text.matchAll(/RESOLUTION=(\d+)x/gi)) if (!w || +m[1] < w) w = +m[1];
     } else if (!/#EXTINF/i.test(text)) return 'empty';
-    return Date.now() - t0;
+    return w ? { ms: Date.now() - t0, w } : { ms: Date.now() - t0 };
   } catch {
     return 'error';
   }
@@ -252,11 +257,15 @@ async function cycle(n) {
   const newlyQuarantined = [];
   for (const { country, src, r } of results) {
     const h = health[src.url] || { firstSeen: now(), failStreak: 0 };
-    if (typeof r === 'number') {
+    if (typeof r !== 'string') {
       ok++;
       h.lastOk = now();
-      h.ms = r;
+      h.ms = r.ms;
       h.failStreak = 0;
+      // Annotate the pool entry itself: `w` rides into the app data wholesale
+      // (inject-iptv.js / generate-data.ts keep unknown fields).
+      if (r.w) src.w = r.w;
+      else delete src.w;
     } else {
       h.lastFail = now();
       h.why = r;
@@ -279,7 +288,9 @@ async function cycle(n) {
     const checks = quarantinedUrls.map((u) => quarantine[u]);
     const back = await pooled(checks, async (q) => ({ q, r: await probe(q.src.url) }), CONCURRENCY);
     for (const { q, r } of back) {
-      if (typeof r !== 'number') continue;
+      if (typeof r === 'string') continue;
+      if (r.w) q.src.w = r.w;
+      else delete q.src.w;
       pool[q.country] = pool[q.country] || [];
       if (!pool[q.country].some((s) => s.url === q.src.url)) pool[q.country].push(q.src);
       delete quarantine[q.src.url];
