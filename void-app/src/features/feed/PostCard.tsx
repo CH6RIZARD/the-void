@@ -6,9 +6,9 @@
 //         box-shadow:var(--elev),inset 0 1px 0 rgba(255,255,255,.06);animation:vfadeIn .28s ease both}
 //   .post.highlight (i===0){background:linear-gradient(160deg,rgba(124,58,237,.14),rgba(13,8,32,.9) 60%)}
 //   .post:active{opacity:.72}   .pa:active{opacity:.6;transform:scale(.94)}
-import React, { memo, useCallback, useEffect, useRef } from 'react';
+import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { onRepliesChanged, type Post } from '../../core';
 import { useTheme } from '../../theme/ThemeProvider';
@@ -70,10 +70,29 @@ export const PostCard = memo(function PostCard({ post: p, index: i, onOpenThread
   const ref = useRef<View>(null);
 
   const fade = useSharedValue(faded.has(p.id) ? 1 : 0);
+  // THE FADE'S END STATE IS WRITTEN INTO REACT. React's own props for this view
+  // keep the first render's opacity 0 for the card's whole life; the animated 1
+  // lives in Reanimated's registry, which syncs it back to React only if a 500ms
+  // JS poll lands 1-2s after the fade, then forgets it. A JS stall in that window
+  // (opening a nation: 35-60 requests) lost it, and the next React commit sent
+  // opacity 0 again - "the nation feed is loaded but you can't see anything
+  // until you scroll". Settled, the card drops the animated style: no opacity 0
+  // left in React to go back to. Same look, one render per post per session.
+  const [settled, setSettled] = useState(() => faded.has(p.id));
   useEffect(() => {
-    if (faded.has(p.id)) return;
+    if (faded.has(p.id)) {
+      // Already faded (a re-mount, or a second card for the same post in the same
+      // commit): show it as settled rather than leave this instance at fade 0.
+      setSettled(true);
+      return;
+    }
     faded.add(p.id);
-    fade.value = withDelay(Math.min(i, 8) * 40, withTiming(1, { duration: 280, easing: EASE }));
+    fade.value = withDelay(
+      Math.min(i, 8) * 40,
+      withTiming(1, { duration: 280, easing: EASE }, (done) => {
+        if (done) runOnJS(setSettled)(true);
+      }),
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [p.id]);
   const fadeStyle = useAnimatedStyle(() => ({ opacity: fade.value, transform: [{ translateY: (1 - fade.value) * 3 }] }));
@@ -108,7 +127,7 @@ export const PostCard = memo(function PostCard({ post: p, index: i, onOpenThread
     : { backgroundColor: col, boxShadow: p._user ? '0px 0px 0px 2px rgba(201,168,76,0.35)' : '0px 0px 0px 2px rgba(124,58,237,0.35)' };
 
   return (
-    <Animated.View ref={ref as any} collapsable={false} style={[styles.outer, fadeStyle, style]}>
+    <Animated.View ref={ref as any} collapsable={false} style={[styles.outer, settled ? null : fadeStyle, style]}>
       <Pressable
         onPress={open}
         style={({ pressed }) => [
