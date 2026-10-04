@@ -9,7 +9,7 @@ import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { createGlobeScene, type GlobeScene } from './globeScene';
-import { pickCountry, resolveEarthUri, startWorkletGlobe } from './globeWorklet';
+import { deliverEarthPixels, pickCountry, startWorkletGlobe } from './globeWorklet';
 import { GlobeSearch } from './GlobeSearch';
 import { countries, type Country } from '../live/core';
 import { em, useLiveTheme } from '../live/liveTheme';
@@ -116,7 +116,7 @@ export function GlobeCanvas({ running, onOpenCountry, refreshNonce = 0, gestureR
   const zoomSV = useSharedValue(2.9);
   const lastFrameSV = useSharedValue(0);
   const texStateSV = useSharedValue(0);
-  const earthUriSV = useSharedValue('');
+  const texIdSV = useSharedValue(0);
   const onContextCreate = useCallback((gl: ExpoWebGLRenderingContext) => {
     // See the guard in app/_layout.tsx: a re-created surface can hand back a context
     // that is not real. Building a renderer on it would fail in a dozen places.
@@ -132,11 +132,13 @@ export function GlobeCanvas({ running, onOpenCountry, refreshNonce = 0, gestureR
         const cs = countries();
         canceledSV.value = 0;
         lastFrameSV.value = 0;
-        startWorkletGlobe((gl as any).contextId, cs, size.current.w, size.current.h, {
+        texIdSV.value = 0; // a fresh context mints a fresh texture id; never upload into a stale one
+        const shared = {
           accX, accY, accZoom, velX, velY, dragSV,
-          runningSV, canceledSV, hotSV, rotXSV, rotYSV, zoomSV, lastFrameSV, texStateSV, earthUriSV,
-        });
-        resolveEarthUri(earthUriSV);
+          runningSV, canceledSV, hotSV, rotXSV, rotYSV, zoomSV, lastFrameSV, texStateSV, texIdSV,
+        };
+        startWorkletGlobe((gl as any).contextId, cs, size.current.w, size.current.h, shared);
+        deliverEarthPixels((gl as any).contextId, shared);
         // A JS-side shim with the old scene's surface: picking + hover live
         // here (plain math on the rotation the worklet reports), everything
         // else is a shared-value flip.

@@ -28,11 +28,9 @@ import { runOnUI, type SharedValue } from 'react-native-reanimated';
 // the GLView class does not survive the trip (7c crash), and even the module
 // export depends on babel workletizing a node_modules file (7d crash). The
 // worklet reads the global expo-gl itself writes - see below.
-import { Asset } from 'expo-asset';
 import type { Country } from '../live/core';
-
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const EARTH_JPG = require('../../../assets/globe/earth-night.jpg');
+import { bundledEarthPixelsAsync } from './textures';
+import { EARTH_W, EARTH_H } from './earthPixels';
 
 export interface WorkletGlobeShared {
   // gesture (written by the Gesture.Manual worklets in GlobeCanvas)
@@ -52,7 +50,7 @@ export interface WorkletGlobeShared {
   zoomSV: SharedValue<number>;
   lastFrameSV: SharedValue<number>; // timestamp of the last drawn frame
   texStateSV: SharedValue<number>;  // 0 fallback showing · 1 real map showing
-  earthUriSV: SharedValue<string>;  // '' until JS resolves the bundled jpg's localUri
+  texIdSV: SharedValue<number>;     // the earth texture's EXGL object id, 0 until created
 }
 
 /** Marker positions: lat/lon -> unit sphere x1.02, the scene's exact formula. */
@@ -109,12 +107,55 @@ function markerPixels(hot: boolean): Uint8Array {
   return px;
 }
 
-/** Kick the async resolve of the bundled night map; the worklet uploads it the
- *  moment the uri lands (native JPEG decode - no JS bytes, no base64). */
-export function resolveEarthUri(sv: SharedValue<string>): void {
-  const a = Asset.fromModule(EARTH_JPG);
-  a.downloadAsync()
-    .then(() => { sv.value = a.localUri || a.uri || ''; })
+/**
+ * Pipe the decoded night map into the render worklet's texture.
+ *
+ * NOT { localUri }. That is a native stbi path which this device family
+ * refuses (textures.ts measured GL 1282 and years of fallback globes), and
+ * EXGL's 6-arg form is worse than a no-op on failure: width/height stay 0 and
+ * it still redefines level 0, leaving the texture INCOMPLETE - the pure-black
+ * planet of build 7f. Pixels come from the bundle instead (bundledEarthPixels,
+ * warmed at boot, row 0 = north after textures.ts's flipRows - measured from
+ * EARTH_Z: the authored rows are south-first), and ride a second runOnUI
+ * dispatch as a typed-array argument - the exact serialization 7f proved with
+ * the marker sprites. The upload uses the 9-arg raw form the fallback and
+ * markers already use; nothing native decodes anything.
+ */
+export function deliverEarthPixels(exglCtxId: number, sv: WorkletGlobeShared): void {
+  bundledEarthPixelsAsync()
+    .then((px) => {
+      if (!px) return; // the navy fallback stays - the spec's own degraded look
+      runOnUI((ctxId: number, pixels: Uint8Array, w: number, h: number) => {
+        'worklet';
+        // Plain closure, no nested directive (the 7b-7e lesson).
+        const tryUpload = () => {
+          if (sv.canceledSV.value === 1) return;
+          const gl = (globalThis as any).__EXGLContexts?.[String(ctxId)];
+          if (!gl) return; // context died; the rebuild delivers again
+          const id = sv.texIdSV.value;
+          if (!(id > 0)) {
+            // The render worklet publishes the id on its first statement after
+            // texture creation; one or two frames at most.
+            (globalThis as any).requestAnimationFrame(tryUpload);
+            return;
+          }
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, { id } as any); // EXGL unwraps args by their .id
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+          gl.generateMipmap(gl.TEXTURE_2D);
+          const ext = gl.getExtension('EXT_texture_filter_anisotropic');
+          if (ext) {
+            const maxA = gl.getParameter(ext.MAX_TEXTURE_MAX_ANISOTROPY_EXT) || 1;
+            gl.texParameterf(gl.TEXTURE_2D, ext.TEXTURE_MAX_ANISOTROPY_EXT, maxA);
+          }
+          sv.texStateSV.value = 1;
+          try {
+            console.warn('[globe] worklet map: ' + w + 'x' + h + ' uploaded');
+          } catch {}
+        };
+        tryUpload();
+      })(exglCtxId, px, EARTH_W, EARTH_H);
+    })
     .catch(() => {});
 }
 
@@ -175,10 +216,12 @@ export function startWorkletGlobe(
         const u = ix / SEG;
         const theta = v * Math.PI, phi = u * 2 * Math.PI;
         verts.push(-Math.cos(phi) * Math.sin(theta), Math.cos(theta), Math.sin(phi) * Math.sin(theta));
-        // three uses (u, 1-v) WITH a flipY upload; our localUri upload does not
-        // flip, so the image's top row (north) sits at texture v=0 - sample v
-        // directly or the planet meets the user Antarctica-first (build 6's bug,
-        // inherited from the same convention mismatch).
+        // Sample v DIRECTLY. The uploaded pixels are bundledEarthPixels: the
+        // authored EARTH_Z rows are south-first (measured - the bright
+        // northern-cities band sits in the high rows), textures.ts flipRows
+        // makes row 0 north, and glTexImage2D puts row 0 at t=0, which is this
+        // sphere's north pole (iy=0, cos(theta)=+1). Flip anything twice here
+        // and the planet meets the user Antarctica-first (build 6's bug).
         uvs.push(u + uOff, v);
       }
     }
@@ -289,9 +332,12 @@ export function startWorkletGlobe(
       }
     }
     const earthTex = texFromPixels(fpx, FW, FH);
+    // Publish the texture's EXGL id: deliverEarthPixels uploads the real night
+    // map into this exact texture from a second dispatch. (Id is written by
+    // createWebGLObject on the wrapper; same native context both ways.)
+    sv.texIdSV.value = (earthTex as any)?.id ?? 0;
     const mkTex = texFromPixels(sp, 128, 128);
     const mkTexHot = texFromPixels(spHot, 128, 128);
-    let realMapLoaded = false;
 
     // ─── shaders ───────────────────────────────────────────────────────────
     // Earth: r128 Blinn-Phong, spec §6 verbatim. Lights are world-fixed; the
@@ -517,24 +563,11 @@ export function startWorkletGlobe(
       const drag = sv.dragSV.value === 1;
       if (drag) { rVelX = sv.velX.value; rVelY = sv.velY.value; }
 
-      // real-map upload, once, the moment JS has resolved the uri - native
-      // JPEG decode on this thread's GL queue, zero JS-thread bytes
-      if (!realMapLoaded && sv.earthUriSV.value !== '') {
-        realMapLoaded = true;
-        gl.bindTexture(gl.TEXTURE_2D, earthTex);
-        try {
-          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, { localUri: sv.earthUriSV.value } as any);
-          gl.generateMipmap(gl.TEXTURE_2D);
-          const ext = gl.getExtension('EXT_texture_filter_anisotropic');
-          if (ext) {
-            const maxA = gl.getParameter(ext.MAX_TEXTURE_MAX_ANISOTROPY_EXT) || 1;
-            gl.texParameterf(gl.TEXTURE_2D, ext.TEXTURE_MAX_ANISOTROPY_EXT, maxA);
-          }
-          sv.texStateSV.value = 1;
-        } catch (e) {
-          // fallback stays; nothing breaks
-        }
-      }
+      // (The real night map arrives via deliverEarthPixels - a separate
+      // dispatch into this same texture. The in-loop { localUri } upload that
+      // used to sit here nuked the texture to incomplete-black on 7f: EXGL's
+      // 6-arg form redefines level 0 as 0x0 when its native decode fails, and
+      // batched ops never throw back into JS, so the try/catch saw nothing.)
 
       // idle governor ~30fps (spec §9)
       const busy = drag || Math.abs(rVelX) > 1e-4 || Math.abs(rVelY) > 1e-4 || Math.abs(tZoom - globeZoom) > 1e-3;
