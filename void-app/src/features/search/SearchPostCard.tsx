@@ -120,6 +120,7 @@ export const SearchPostCard = memo(function SearchPostCard({
   const isImg = p.style === 'image';
   const take = !(p.style === 'drop' || p.style === 'image');
   const hue = p.imgHue || 270;
+  const hasCover = !!p._video || (isImg && !!p._img);
 
   return (
     <Pressable
@@ -153,7 +154,7 @@ export const SearchPostCard = memo(function SearchPostCard({
           ) : null}
         </View>
       ) : null}
-      <View style={styles.head}>
+      <View style={[styles.head, hasCover && styles.headUnderCover]}>
         <Icon name="pin" size={11} color={colors.dim} />
         <Text allowFontScaling={false} style={[styles.headText, { color: colors.dim }]}>
           {p.country || 'world'}
@@ -202,9 +203,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(13,8,32,0.85)',
     boxShadow: '0px 10px 30px rgba(0,0,0,0.45), inset 0px 1px 0px rgba(255,255,255,0.06)',
   } as any,
-  cover: { marginHorizontal: -14, marginBottom: 10, aspectRatio: 2, overflow: 'hidden', position: 'relative' },
+  // The web's 10px gap under the cover lives on the head (headUnderCover), not here.
+  // Yoga sizes a stretched aspect-ratio box short by its own vertical margin, so a
+  // marginBottom of 10 made the cover 20dp too narrow and pinned left (measured on device).
+  cover: { marginHorizontal: -14, aspectRatio: 2, overflow: 'hidden', position: 'relative' },
   z1: { zIndex: 1 },
   head: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 8 },
+  headUnderCover: { marginTop: 10 },
   headText: { fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.07) },
   badge: { fontFamily: FONTS.mono, fontSize: 7, letterSpacing: em(7, 0.08), paddingVertical: 1, paddingHorizontal: 5, borderRadius: 2, overflow: 'hidden', marginLeft: 4 },
   tag: { alignSelf: 'flex-start', borderWidth: 1, borderColor: 'rgba(201,168,76,0.25)', paddingVertical: 1, paddingHorizontal: 7, borderRadius: 3, marginBottom: 7 },
