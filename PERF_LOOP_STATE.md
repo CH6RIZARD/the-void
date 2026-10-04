@@ -1,5 +1,26 @@
 # NATIVE PERF LOOP — state
 
+## 7L COMMITTED (93b74c3) — budget-holds + settle-gated packing. DISPATCH AFTER 7K GATE.
+- Budget root cause (workflow wf_0417bc43-10d): fillCount()=20 geometry + the
+  one-way un-evict valve (restore unconditional within PARK_SCREENS, no pass
+  ever runs at rest). Calm-hour 9 = the other attractor of the same code.
+  Fixes applied F1-F5 (budget-gated nearest-first restore with visible always;
+  watchdog pass at rest; pacedPlayer hard cap at MAX+4 w/ 5s self-expiry;
+  heal pressure gate; reliability-before-cost-before-speed sort, web-mirrored,
+  golden 14/14). F6 (drain 150ms) correctly SKIPPED: drain is request-limited.
+- Settle-gated packing (user-ordered) applied: every batch earns a rank;
+  commit immediate at batch 1 / at rest, queued -> one flush at settle
+  (flushPendingOrder beside the settle placement passes). tsc clean.
+- 7k CI SUCCEEDED but its gate found the lab phone off cable - no install,
+  no scroll numbers; APK saved at /e/tmp/apk-b7k. 7k stays ungated (never
+  goes to the user phone). 7l DISPATCHED (chain task bjwi5m1id); if the lab
+  phone is still absent at its gate, gate manually on reconnect: install
+  /e/tmp/apk-b7l (or 7k as fallback), crash+texture check, budget counts,
+  stage-of wall scroll, settle-reorder film.
+- 7l gate must verify: players <=12 after settle IN A CHURN HOUR, sw=0,
+  texture breadcrumb, scroll stage numbers (7k fixes carried), and film the
+  settle reorder (fast tiles rising at finger-lift, nothing moving mid-drag).
+
 ## ORDERED BY USER (2026-10-04, reversing the wontfix below): settle-gated packing
 - Implement: every batch gets a connection rank (w.wallConn++) in
   onFirstSettled; commit immediately when batch===1 OR wall at rest
