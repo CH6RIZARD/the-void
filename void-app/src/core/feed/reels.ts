@@ -5,7 +5,7 @@
 // playable video is ever admitted, and reels never borrow the feed's sources.
 import { env, onConfigure } from '../env.ts';
 import type { Post } from '../types.ts';
-import { REEL_BLOCK_TOPIC, isArticleDrop, isFeedMeta, isMuted, isNewsAccount, reelBlocked } from '../rank/filters.ts';
+import { REEL_BLOCK_ART, REEL_BLOCK_TOPIC, isArticleDrop, isFeedMeta, isMuted, isNewsAccount, reelBlocked } from '../rank/filters.ts';
 import { diversify, VW_STYLES, vwScore } from '../rank/order.ts';
 import { admitPost } from '../rank/seen.ts';
 import { inferTags } from '../rank/tags.ts';
@@ -195,7 +195,8 @@ export function vwRemember(p: Post): void {
 }
 let _vwPullAt = 0;
 export function vwFill(n = 5, any = false): Post[] {
-  const eligible = (p: Post) => (any ? true : VW_STYLES.includes(p.style)) && laneFree(p, 'reel');
+  // The art gate again, at the queue: the allPosts backstop below never went through the reel ingest.
+  const eligible = (p: Post) => (any ? true : VW_STYLES.includes(p.style)) && laneFree(p, 'reel') && !REEL_BLOCK_ART.test(p.body || '');
   const fresh = (p: Post) => !!p._video && !vwSeen.has(p.id) && !vwRecentHas(p);
   // Top the reel pool up in the background when thin (throttled: a source that fails
   // instantly must not spin).

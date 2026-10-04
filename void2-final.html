@@ -3486,7 +3486,11 @@ const REEL_BLOCK_AUTHOR_LABELS=/!no-unauthenticated/i;
 // platform the emoji often IS the only signal.
 const REEL_BLOCK_TOPIC_WORDS=/\b(cat|cats|kitten|kitty|catto|dog|dogs|doggo|puppy|pupper|hedgehog|hoglet|squirrel|bunny|rabbit|hamster|guinea pig|parrot|budgie|meow|purr|caturday|petsky|toe.?beans?|zoomies|birdwatch\w*|aquarium|zoo)\b/i;
 const REEL_BLOCK_TOPIC_EMOJI=/[\u{1F400}-\u{1F43F}\u{1F980}-\u{1F9AE}]|\u{1F408}|\u{1F415}|\u{1F43E}|\u{1F98A}|\u{1F994}|\u{1F99C}/u;
-const REEL_BLOCK_TOPIC={test:(t)=>REEL_BLOCK_TOPIC_WORDS.test(t)||REEL_BLOCK_TOPIC_EMOJI.test(t)};
+// Drawn and furry art is the other diluter: reels is real footage. Phrases and
+// hashtags as people write them on the reel feeds. A bare "art" or "sketch" is NOT
+// here - a painter filmed at work, or a comedy sketch, is real footage.
+const REEL_BLOCK_ART=/\b(furry|furries|fursuit\w*|fursona|furryart|anthro|kemono|hand[- ]?drawn|fan ?art|digital ?art|my art|art by me|speedpaint\w*|animatic|animation meme)\b|#(art|artwork|illustration|drawing|doodle|animation|2danimation|commissions?|artistsonbluesky|artsky|furry\w*)\b/i;
+const REEL_BLOCK_TOPIC={test:(t)=>REEL_BLOCK_TOPIC_WORDS.test(t)||REEL_BLOCK_TOPIC_EMOJI.test(t)||REEL_BLOCK_ART.test(t)};
 // PeerTube lane — the genuinely UNHINGED end. The Bluesky feeds above top out at
 // "hobbyist high-variance" (cats, animation, K-pop); this is the absurd/eerie
 // register they cannot reach. Keyless, CORS '*', verified end-to-end: list -> video
@@ -8840,7 +8844,8 @@ function vwRemember(p){
   while(_vwRecent.length>VW_NO_REPEAT)_vwRecentSet.delete(_vwRecent.shift());
 }
 function vwFill(n=5,any){
-  const eligible=p=>(any?true:VW_STYLES.includes(p.style))&&laneFree(p,'reel');
+  // The art gate again, at the queue: the allPosts backstop below never went through the reel ingest.
+  const eligible=p=>(any?true:VW_STYLES.includes(p.style))&&laneFree(p,'reel')&&!REEL_BLOCK_ART.test(p.body||'');
   // Top the dedicated reel pool up in the background whenever it runs thin.
   // Throttled so a source that fails instantly cannot spin.
   const fresh=p=>p._video&&!vwSeen.has(p.id)&&!vwRecentHas(p);
