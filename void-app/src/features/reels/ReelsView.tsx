@@ -102,7 +102,6 @@ export const ReelsView = memo(function ReelsView({ active, nation, postId, overl
   const [win, setWin] = useState(0);
   const moving = useRef(false); // from drag start until the scroll settles
   const dragging = useRef(false); // a finger is down
-  const wantAppend = useRef(false);
   const settleT = useRef<ReturnType<typeof setTimeout> | null>(null);
   const viewed = useRef(new Set<string>()).current;
   const [cleared, setCleared] = useState<Record<string, true>>({});
@@ -147,22 +146,24 @@ export const ReelsView = memo(function ReelsView({ active, nation, postId, overl
   // card left nothing to trigger the next one (snap list, no bounce): reels stopped
   // until they left and came back. The web retries every 2.5s while dry (vwTopUp).
   // With the art gate thinning the supply that is the normal case, not the rare one.
+  // Each dry tick can start a full pull pass (a search, its detail calls, up to ten
+  // feed pages), so the retry backs off - 2.5s doubling to 30s - instead of
+  // hammering volunteer hosts from a phone parked on the last card or offline.
   const liveRef = useRef(live);
   liveRef.current = live;
   const dryT = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dryN = useRef(0);
   const topUpRef = useRef<() => void>(() => {});
   const topUp = useCallback(() => {
     if (dryT.current) clearTimeout(dryT.current);
     dryT.current = null;
     if (!liveRef.current || !nearEnd(curRef.current, itemsRef.current.length)) return;
-    // Under a finger it waits for the settle, which calls back in here.
-    if (moving.current) {
-      wantAppend.current = true;
-      return;
-    }
+    if (moving.current) return; // under a finger it waits for the settle, which calls back in here
     const add = appendMore(); // also kicks a pull when the pool is thin
-    if (add.length) append(add);
-    else dryT.current = setTimeout(() => topUpRef.current(), 2500);
+    if (add.length) {
+      dryN.current = 0;
+      append(add);
+    } else dryT.current = setTimeout(() => topUpRef.current(), Math.min(2500 * 2 ** dryN.current++, 30000));
   }, [append]);
   topUpRef.current = topUp;
   useEffect(() => () => { if (dryT.current) clearTimeout(dryT.current); }, []);
@@ -172,7 +173,6 @@ export const ReelsView = memo(function ReelsView({ active, nation, postId, overl
     if (settleT.current) clearTimeout(settleT.current);
     settleT.current = null;
     setWin(curRef.current);
-    wantAppend.current = false;
     topUpRef.current();
   }, []);
   const settleRef = useRef(settle);
@@ -227,8 +227,7 @@ export const ReelsView = memo(function ReelsView({ active, nation, postId, overl
   useEffect(() => {
     return onPostsChanged((reason) => {
       if ((reason !== 'reels' && reason !== 'feed') || !live) return;
-      if (!itemsRef.current.length) {
-        if (mode !== 'inline') return;
+      if (!itemsRef.current.length && mode === 'inline') {
         const picks = seedInline();
         if (picks.length) {
           setItems(picks);
@@ -236,9 +235,17 @@ export const ReelsView = memo(function ReelsView({ active, nation, postId, overl
         }
         return;
       }
-      topUpRef.current(); // near the end only; a fetch that lands under a finger waits for the settle
+      // Near the end only; a fetch that lands under a finger waits for the settle.
+      // An overlay that seeded empty lands here too (0 cards is "near the end"),
+      // instead of staying black until the user backs out.
+      topUpRef.current();
     });
   }, [mode, live]);
+  // That empty overlay has no card whose arrival would trigger anything: start the
+  // top-up (and its retry) when it goes live.
+  useEffect(() => {
+    if (live && mode !== 'inline' && !itemsRef.current.length) topUpRef.current();
+  }, [live, mode]);
 
   // NEVER A PERMANENT SPINNER. Every source can fail (offline, a blocked media host,
   // a dry pool) and pullReelPage then returns without emitting anything, so the surface
