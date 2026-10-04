@@ -171,3 +171,18 @@ test('nation TRENDING is the nation\'s own fastest-moving post, the same pick as
   assert.equal(core.nationTrending(c), null);
   assert.equal(core.nationCards(c).trending!.id, 'quiet');
 });
+
+test('reels art gate: furry and hand-drawn art never reach a reel, real footage does', () => {
+  fresh();
+  const blocked = ['new #furry animation wip', 'Fursuit dance at the con', 'hand-drawn, frame by frame', 'my art for today #artsky', 'speedpaint of my fursona',
+    'commission finished! #art', 'fan art of the finale', 'Handdrawn map of the old town', 'an animatic I made', 'Anthro wolf turnaround #digitalart'];
+  const allowed = ['Comedy sketch from last night', 'Street artist paints a mural in Lagos', 'Flooding in Bangkok tonight', 'Protest outside the art museum',
+    'the state of the art in drone racing', 'Cartagena at dawn', 'Anthropology lecture, day two', 'Martial artist lands a spinning kick'];
+  for (const t of blocked) assert.ok(core.REEL_BLOCK_TOPIC.test(t), 'blocked: ' + t);
+  for (const t of allowed) assert.ok(!core.REEL_BLOCK_ART.test(t), 'allowed: ' + t);
+  // The queue's allPosts backstop never went through the reel ingest: the gate holds there too.
+  const mk = (id: string, body: string) => ({ id, style: 'video', body, tags: ['conflict'], score: 10, replies: 0, time: NOW - 3600000, source: 'x', country: '', iso: '', _video: 'https://v.example/' + id + '.m3u8' });
+  core.allPosts.push(mk('real', 'Convoy crossing the river at dawn') as any, mk('drawn', 'my fursona walk cycle #furryart') as any);
+  const picked = core.vwFill(5, true).map(p => p.id);
+  assert.ok(picked.includes('real') && !picked.includes('drawn'), 'vwFill picked ' + picked.join(','));
+});

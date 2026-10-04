@@ -74,6 +74,36 @@ export interface ReelItemProps {
 }
 
 const bg = (g: string): any => ({ experimental_backgroundImage: g });
+const coverOf = (p: Post) => p._isoColor || `hsl(${p.imgHue || 270},55%,14%)`;
+
+/**
+ * A card outside the heavy window: the cover and the poster, nothing else. It is
+ * off screen when it mounts and is swapped for the full card once the scroll has
+ * settled next to it, so no swipe pays for a rail, a loader or a player.
+ */
+export const ReelPlaceholder = memo(function ReelPlaceholder({ item: p, height }: { item: Post; height: number }) {
+  return (
+    <View style={[styles.item, { height }]}>
+      <View style={[StyleSheet.absoluteFill, bg(`radial-gradient(120% 90% at 30% 20%, ${coverOf(p)}, #05020e 65%)`)]} />
+      {p._img && p.style !== 'audio' ? <Image source={{ uri: p._img }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} /> : null}
+    </View>
+  );
+});
+
+// .vw-act — at module level: defined inside ReelItem it was a new component type
+// on every render, so all five buttons unmounted and remounted each time.
+function RailAct({ icon, label, onPress, tone, custom }: { icon?: IconName; label: string; onPress(): void; tone?: 'gold' | 'dim'; custom?: React.ReactNode }) {
+  const c = tone === 'gold' ? '#c9a84c' : tone === 'dim' ? '#6a58a0' : '#f4f0ff';
+  const lc = tone === 'gold' ? '#c9a84c' : tone === 'dim' ? '#6a58a0' : 'rgba(255,255,255,0.6)';
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.act, { opacity: pressed ? 0.72 : 1 }]} accessibilityRole="button" accessibilityLabel={label}>
+      {custom ?? <Icon name={icon!} size={17} color={c} />}
+      <Text allowFontScaling={false} style={[styles.actText, { color: lc }]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
 
 export const ReelItem = memo(function ReelItem(props: ReelItemProps) {
   const { item: p, index, height, want, attached, viewed, railBottom, soundOn, loaderCleared, current } = props;
@@ -81,18 +111,21 @@ export const ReelItem = memo(function ReelItem(props: ReelItemProps) {
   const { height: winH } = useWindowDimensions();
   const pid = baseId(p.id);
   const vid = p._vid || p.id;
-  const col = p._isoColor || `hsl(${p.imgHue || 270},55%,14%)`;
+  const col = coverOf(p);
   const [open, setOpen] = useState(false);
   const [imgState, setImgState] = useState<'loading' | 'shown' | 'failed'>('loading');
   const [revealed, setRevealed] = useState(false);
   const veiled = moderation.isGraphic(p) && moderation.graphicVeilOn() && !revealed;
 
-  // ── spine: width 0 → 100% over 6s linear, once the card has been in view
+  // ── spine: width 0 → 100% over 6s linear, once the card has been in view.
+  // Drawn as scaleX from the left edge: the same bar and the same squeezed
+  // gradient, but a transform - animating `width` relaid out the card on every
+  // frame for six seconds after each swipe.
   const spine = useSharedValue(0);
   useEffect(() => {
     if (viewed) spine.value = withTiming(1, { duration: 6000, easing: Easing.linear });
   }, [viewed, spine]);
-  const spineStyle = useAnimatedStyle(() => ({ width: `${spine.value * 100}%` }));
+  const spineStyle = useAnimatedStyle(() => ({ transform: [{ scaleX: spine.value }] }));
 
   // ── bolt burst
   const burst = useSharedValue(0);
@@ -150,13 +183,14 @@ export const ReelItem = memo(function ReelItem(props: ReelItemProps) {
   } else if (p._video) {
     media = (
       <>
-        {!loaderCleared ? <SparkleLoader surface="media" style={styles.z1} /> : null}
-        {attached ? (
-          <ReelVideo uri={p._video} want={want} muted={!(soundOn && current)} onMediaReady={onMediaReady} />
-        ) : p._img ? (
-          // released / not yet attached: the <video poster>
+        {attached ? <ReelVideo uri={p._video} want={want} muted={!(soundOn && current)} onMediaReady={onMediaReady} /> : null}
+        {/* The <video poster>: shown whenever there is no player, and - as on the
+            web - kept over the player until its first sign of media, so a cold
+            reel opens on its picture instead of an empty gradient. */}
+        {p._img && (!attached || !loaderCleared) ? (
           <Image source={{ uri: p._img }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} />
         ) : null}
+        {!loaderCleared ? <SparkleLoader surface="media" style={styles.z1} /> : null}
       </>
     );
   } else if (p._img) {
@@ -180,19 +214,6 @@ export const ReelItem = memo(function ReelItem(props: ReelItemProps) {
   const who = p._author || p.country || 'void';
   const body = String(p.body || '');
   const following = isFollowing(p);
-
-  const Act = ({ icon, label, onPress, tone, custom }: { icon?: IconName; label: string; onPress(): void; tone?: 'gold' | 'dim'; custom?: React.ReactNode }) => {
-    const c = tone === 'gold' ? '#c9a84c' : tone === 'dim' ? '#6a58a0' : '#f4f0ff';
-    const lc = tone === 'gold' ? '#c9a84c' : tone === 'dim' ? '#6a58a0' : 'rgba(255,255,255,0.6)';
-    return (
-      <Pressable onPress={onPress} style={({ pressed }) => [styles.act, { opacity: pressed ? 0.72 : 1 }]} accessibilityRole="button" accessibilityLabel={label}>
-        {custom ?? <Icon name={icon!} size={17} color={c} />}
-        <Text allowFontScaling={false} style={[styles.actText, { color: lc }]}>
-          {label}
-        </Text>
-      </Pressable>
-    );
-  };
 
   return (
     <View style={[styles.item, { height }]}>
@@ -229,11 +250,11 @@ export const ReelItem = memo(function ReelItem(props: ReelItemProps) {
       </GestureDetector>
 
       <View style={[styles.rail, { bottom: railBottom }]} pointerEvents="box-none">
-        <Act icon="heart" tone="gold" label={fmt(boltCount(p))} onPress={fire} />
-        <Act icon="reply" label={fmt(p.replies || 0)} onPress={() => props.onReply(pid)} />
-        <Act icon="repost" label={fmt(repostCount(p))} onPress={() => props.onRepost(pid)} />
-        <Act icon="share" label="SHARE" onPress={() => props.onShare(pid)} />
-        <Act icon="less" tone="dim" label="LESS" onPress={() => props.onLess(p, index)} />
+        <RailAct icon="heart" tone="gold" label={fmt(boltCount(p))} onPress={fire} />
+        <RailAct icon="reply" label={fmt(p.replies || 0)} onPress={() => props.onReply(pid)} />
+        <RailAct icon="repost" label={fmt(repostCount(p))} onPress={() => props.onRepost(pid)} />
+        <RailAct icon="share" label="SHARE" onPress={() => props.onShare(pid)} />
+        <RailAct icon="less" tone="dim" label="LESS" onPress={() => props.onLess(p, index)} />
       </View>
 
       <View style={[styles.info, bg('linear-gradient(transparent, rgba(4,2,12,0.95) 70%)')]} pointerEvents="box-none">
@@ -338,5 +359,5 @@ const styles = StyleSheet.create({
   meta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 },
   metaText: { fontFamily: FONTS.mono, fontSize: 8, color: 'rgba(255,255,255,0.45)', letterSpacing: em(8, 0.12) },
   spine: { height: 2, borderRadius: 1, marginTop: 12, backgroundColor: 'rgba(255,255,255,0.12)', overflow: 'hidden' },
-  spineFill: { height: '100%', backgroundColor: '#9a6fb0' },
+  spineFill: { height: '100%', width: '100%', transformOrigin: 'left', backgroundColor: '#9a6fb0' },
 });

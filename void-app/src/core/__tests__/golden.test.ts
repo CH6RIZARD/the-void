@@ -43,11 +43,11 @@ const WALL = ['TENSION_RANK', 'rankOf', 'CAM_SOURCES', 'RAW_FOOTAGE', 'NEWS_SOUR
 test('hand-ported constants and regexes match the web', () => {
   const w = web();
   w.load(...REGION, ...TAGS, ...STORY, 'SUBJECTS', 'BSKY_FEEDS', 'REEL_FEEDS_META', 'REEL_FEEDS', 'REEL_BLOCK_LABELS', 'REEL_BLOCK_AUTHOR_LABELS',
-    'REEL_BLOCK_TOPIC_WORDS', 'REEL_BLOCK_TOPIC_EMOJI', 'REEL_TOPIC_HOSTS', 'REEL_TOPIC_TERMS', 'REEL_PEERTUBE', 'ANIMAL_WORDS', 'ANIMAL_CJK', 'ANIMAL_EMOJI',
+    'REEL_BLOCK_TOPIC_WORDS', 'REEL_BLOCK_TOPIC_EMOJI', 'REEL_BLOCK_ART', 'REEL_TOPIC_HOSTS', 'REEL_TOPIC_TERMS', 'REEL_PEERTUBE', 'ANIMAL_WORDS', 'ANIMAL_CJK', 'ANIMAL_EMOJI',
     'CONNECT_TIMEOUT', 'EMBEDDABLE_IFRAME', 'IFRAME_PLAYER_URL', 'NATION_GLOBAL_BRANDS', 'TENSION_RANK', 'SEARCH_BSKY_FEEDS', 'FEED_SUBS', 'SUB_TAGS',
     'GLOBAL_POOL', 'LIVE_CHANNELS', 'COUNTRY_CH', 'VOID_LIVE', 'CAM_SOURCES', 'RAW_FOOTAGE', 'NEWS_SOURCES', 'NATION_VOCAB', 'NF_RADIO_HOSTS', 'NF_GAP', 'NF_RETRY', 'STORY_TOP_N');
   assert.deepEqual(core.TAG_KEYWORDS, wjson(w, 'TAG_KEYWORDS'));
-  for (const n of ['CRISIS_WEAK', 'CRISIS_INTL', 'REEL_BLOCK_LABELS', 'REEL_BLOCK_AUTHOR_LABELS', 'REEL_BLOCK_TOPIC_WORDS', 'REEL_BLOCK_TOPIC_EMOJI', 'ANIMAL_WORDS', 'ANIMAL_CJK', 'ANIMAL_EMOJI', 'EMBEDDABLE_IFRAME', 'IFRAME_PLAYER_URL'])
+  for (const n of ['CRISIS_WEAK', 'CRISIS_INTL', 'REEL_BLOCK_LABELS', 'REEL_BLOCK_AUTHOR_LABELS', 'REEL_BLOCK_TOPIC_WORDS', 'REEL_BLOCK_TOPIC_EMOJI', 'REEL_BLOCK_ART', 'ANIMAL_WORDS', 'ANIMAL_CJK', 'ANIMAL_EMOJI', 'EMBEDDABLE_IFRAME', 'IFRAME_PLAYER_URL'])
     assert.equal(reSig((core as any)[n]), w.run(`${n}.source+'/'+${n}.flags`), n);
   assert.deepEqual(core.STORY_KIND.map(([k, r]) => [k, reSig(r)]), w.run(`JSON.stringify(STORY_KIND.map(([k,r])=>[k,r.source+'/'+r.flags]))`) && wjson(w, `STORY_KIND.map(([k,r])=>[k,r.source+'/'+r.flags])`));
   assert.deepEqual(core.SUBJECTS.map(([k, r]) => [k, reSig(r)]), wjson(w, `SUBJECTS.map(([k,r])=>[k,r.source+'/'+r.flags])`));

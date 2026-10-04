@@ -29,7 +29,7 @@ import { voidToast } from '../../ui/Toast';
 import { useTheme } from '../../theme/tokens';
 import { FONTS, em } from '../../theme/palettes';
 import { baseId } from '../search/format';
-import { ReelItem } from './ReelItem';
+import { ReelItem, ReelPlaceholder } from './ReelItem';
 import { ReelModSheet, type ModTarget } from './ReelModSheet';
 import {
   appendMore,
@@ -66,6 +66,10 @@ export interface ReelsViewProps {
 
 /** Near the end when fewer than three screens remain below (ct.scrollTop + clientHeight*3 > scrollHeight). */
 const nearEnd = (idx: number, len: number) => len - idx < 3;
+/** The GLOBE-REELS slide is 340ms; players are built once it has landed, not under it. */
+const ENTRY_HOLD_MS = 380;
+/** Momentum end is the settle. This is only the net under it (a programmatic scroll, a missed event). */
+const SETTLE_FALLBACK_MS = 700;
 /** Nothing to show after this long: say NO SIGNAL and offer a retry (never a spinner forever). */
 const STALL_MS = 12000;
 const STALL_RETRY_MS = 15000;
@@ -83,8 +87,22 @@ export function ReelsView({ active, nation, postId, overlay: overlayProp, onClos
   const [h, setH] = useState(0);
   const [cur, setCur] = useState(0);
   const curRef = useRef(0);
+  // THE SWIPE OWNS THE FRAME; EVERYTHING HEAVY WAITS FOR IT TO LAND.
+  //
+  // Measured on the lab phone (perfetto, six flicks): every swipe inflated a
+  // media3 PlayerView on the main thread (~43ms each, 8 in 6 swipes), mounted a
+  // whole card and released another, re-rendered every cell three times and ran
+  // the ranker - all at the 50% mark, in the middle of the snap animation. The
+  // card in view still changes at 50% (play / pause / sound follow the web), but
+  // that is now a prop flip on two cards. `win` is the centre of the heavy
+  // window - full cards and players for win±1 - and it moves only when the
+  // scroll has settled, so mounts, releases and appends land on a still screen.
+  const [win, setWin] = useState(0);
+  const moving = useRef(false); // from drag start until the scroll settles
+  const dragging = useRef(false); // a finger is down
+  const wantAppend = useRef(false);
+  const settleT = useRef<ReturnType<typeof setTimeout> | null>(null);
   const viewed = useRef(new Set<string>()).current;
-  const [viewedTick, setViewedTick] = useState(0);
   const [cleared, setCleared] = useState<Record<string, true>>({});
   const [soundOn, setSoundOn] = useState(false);
   const [mod, setMod] = useState<ModTarget>(null);
@@ -94,6 +112,17 @@ export function ReelsView({ active, nation, postId, overlay: overlayProp, onClos
   const audio = useSafeClaimAudio();
 
   const live = active && appActive;
+  // Players wait for the slide (or the route push) that reveals this surface:
+  // the cards are all there under it, the heavy part arrives once it has landed.
+  const [warm, setWarm] = useState(false);
+  useEffect(() => {
+    if (!live) {
+      setWarm(false);
+      return;
+    }
+    const t = setTimeout(() => setWarm(true), ENTRY_HOLD_MS);
+    return () => clearTimeout(t);
+  }, [live]);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (s) => setAppActive(s === 'active'));
@@ -108,9 +137,24 @@ export function ReelsView({ active, nation, postId, overlay: overlayProp, onClos
     });
   }, []);
 
+  const settle = useCallback(() => {
+    moving.current = false;
+    if (settleT.current) clearTimeout(settleT.current);
+    settleT.current = null;
+    setWin(curRef.current);
+    if (wantAppend.current || nearEnd(curRef.current, itemsRef.current.length)) {
+      wantAppend.current = false;
+      append(appendMore());
+    }
+  }, [append]);
+  const settleRef = useRef(settle);
+  settleRef.current = settle;
+  useEffect(() => () => { if (settleT.current) clearTimeout(settleT.current); }, []);
+
   // ── seeding ──────────────────────────────────────────────────────────
   const resetView = () => {
     setCur(0);
+    setWin(0);
     curRef.current = 0;
     list.current?.scrollToOffset({ offset: 0, animated: false });
   };
@@ -164,7 +208,10 @@ export function ReelsView({ active, nation, postId, overlay: overlayProp, onClos
         }
         return;
       }
-      if (nearEnd(curRef.current, itemsRef.current.length)) append(appendMore());
+      if (!nearEnd(curRef.current, itemsRef.current.length)) return;
+      // A fetch that lands under a finger waits for the settle.
+      if (moving.current) wantAppend.current = true;
+      else append(appendMore());
     });
   }, [mode, live, append]);
 
@@ -210,20 +257,21 @@ export function ReelsView({ active, nation, postId, overlay: overlayProp, onClos
     if (idx === curRef.current) return;
     curRef.current = idx;
     setCur(idx);
+    if (settleT.current) clearTimeout(settleT.current);
+    // Never under a finger: a held drag settles on its own momentum end.
+    settleT.current = setTimeout(() => {
+      if (!dragging.current) settleRef.current();
+    }, SETTLE_FALLBACK_MS);
   }).current;
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 }).current;
 
   const current = items[cur];
   useEffect(() => {
     if (!current || !live) return;
-    // counter / FOR YOU tag, dwell signal, spine fill, play, warm next two
-    const k = current._vid || current.id;
-    if (!viewed.has(k)) {
-      viewed.add(k);
-      setViewedTick((n) => n + 1);
-    }
+    // counter / FOR YOU tag, dwell signal, play. (Spine fill is marked in
+    // renderItem, in the same commit; the append rides the settle.)
     dwell(current);
-    if (nearEnd(cur, items.length)) append(appendMore());
+    if (!moving.current && nearEnd(cur, items.length)) append(appendMore());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current && current._vid, live]);
 
@@ -231,14 +279,18 @@ export function ReelsView({ active, nation, postId, overlay: overlayProp, onClos
   const soundId = 'reels:' + (overlay ? 'overlay' : 'inline');
   const soundRef = useRef(false);
   soundRef.current = soundOn;
+  // Ref, because useClaimAudio returns a new object each render - as a dep it
+  // gave every card a new onToggleSound on every render and defeated their memo.
+  const audioRef = useRef(audio);
+  audioRef.current = audio;
   const stopSound = useCallback(() => setSoundOn(false), []);
   const toggleSound = useCallback(() => {
     const next = !soundRef.current;
-    if (next) audio?.claimAudio({ id: soundId, stop: stopSound });
-    else audio?.releaseAudio(soundId);
+    if (next) audioRef.current?.claimAudio({ id: soundId, stop: stopSound });
+    else audioRef.current?.releaseAudio(soundId);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     setSoundOn(next);
-  }, [audio, soundId, stopSound]);
+  }, [soundId, stopSound]);
   // stopGlobeReels / closeReel: pause everything and give the slot back.
   useEffect(() => {
     if (!live && soundOn) {
@@ -247,9 +299,7 @@ export function ReelsView({ active, nation, postId, overlay: overlayProp, onClos
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [live]);
-  const audioRef = useRef(audio);
-  audioRef.current = audio;
-  // unmount (closeReel): give the slot back. Ref, because useClaimAudio returns a new object each render.
+  // unmount (closeReel): give the slot back.
   useEffect(() => () => audioRef.current?.releaseAudio(soundId), [soundId]);
 
   // ── rail actions ────────────────────────────────────────────────────
@@ -288,7 +338,15 @@ export function ReelsView({ active, nation, postId, overlay: overlayProp, onClos
   const railBottom = overlay ? 130 : 110;
 
   const renderItem = useCallback(
-    ({ item, index }: { item: Post; index: number }) => (
+    ({ item, index }: { item: Post; index: number }) => {
+      // The heavy window: the card in view, and one each side of where the
+      // scroll last settled. Anything further is a cover and a poster.
+      const near = index === cur || Math.abs(index - win) <= 1;
+      if (!near) return <ReelPlaceholder item={item} height={h} />;
+      const k = item._vid || item.id;
+      // Marked in the commit that shows the card, so the spine fill needs no second pass.
+      if (live && index === cur) viewed.add(k);
+      return (
       <ReelItem
         item={item}
         index={index}
@@ -308,8 +366,8 @@ export function ReelsView({ active, nation, postId, overlay: overlayProp, onClos
         // a nicety. Hidden now means cold: the current card shows its poster,
         // and the swipe to REELS creates its player on the paced queue - the
         // poster covers the ~0.5s to first frame, same as every cold reel.
-        attached={live && (index === cur || Math.abs(index - cur) <= 2)}
-        viewed={viewed.has(item._vid || item.id)}
+        attached={live && warm}
+        viewed={viewed.has(k)}
         railBottom={railBottom}
         soundOn={soundOn}
         surfaceActive={live}
@@ -326,13 +384,21 @@ export function ReelsView({ active, nation, postId, overlay: overlayProp, onClos
         onMenu={onMenu}
         onAuthor={onAuthor}
       />
-    ),
+      );
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [h, cur, live, railBottom, soundOn, storeVersion, cleared, viewedTick, toggleSound, onReply, onShare, onLess, onMenu, onAuthor],
+    [h, cur, win, warm, live, railBottom, soundOn, storeVersion, cleared, toggleSound, onReply, onShare, onLess, onMenu, onAuthor],
   );
 
   const onLayout = useCallback((e: LayoutChangeEvent) => setH(Math.round(e.nativeEvent.layout.height)), []);
-  const extra = useMemo(() => ({ cur, live, soundOn, storeVersion, cleared, h, viewedTick }), [cur, live, soundOn, storeVersion, cleared, h, viewedTick]);
+  const onDragStart = useCallback(() => {
+    moving.current = true;
+    dragging.current = true;
+  }, []);
+  const onDragEnd = useCallback(() => {
+    dragging.current = false;
+  }, []);
+  const extra = useMemo(() => ({ cur, win, warm, live, soundOn, storeVersion, cleared, h }), [cur, win, warm, live, soundOn, storeVersion, cleared, h]);
 
   return (
     <View style={[styles.fill, { backgroundColor: overlay ? '#000' : '#05020e' }]} onLayout={onLayout}>
@@ -353,6 +419,9 @@ export function ReelsView({ active, nation, postId, overlay: overlayProp, onClos
           getItemLayout={(_d, index) => ({ length: h, offset: h * index, index })}
           onViewableItemsChanged={onViewable}
           viewabilityConfig={viewabilityConfig}
+          onScrollBeginDrag={onDragStart}
+          onScrollEndDrag={onDragEnd}
+          onMomentumScrollEnd={settle}
           windowSize={3}
           initialNumToRender={2}
           maxToRenderPerBatch={2}
