@@ -186,17 +186,24 @@ export const ReelsView = memo(function ReelsView({ active, nation, postId, overl
     curRef.current = 0;
     list.current?.scrollToOffset({ offset: 0, animated: false });
   };
+  // True only when an overlay really came up with nothing. (itemsRef cannot say:
+  // in the mount commit the seed's setItems has not rendered yet, so it reads []
+  // whatever was seeded - and a top-up there would add four cards to every overlay.)
+  const emptySeed = useRef(false);
   // openNationReel / openReel: once per (nation, post).
   useEffect(() => {
     if (mode === 'inline') return;
     resetView();
     if (mode === 'nation') {
-      setItems(seedNation(nation!, postId));
+      const seeded = seedNation(nation!, postId);
+      emptySeed.current = !seeded.length;
+      setItems(seeded);
       setPulling(false);
       return;
     }
     if (mode === 'open') {
       const seeded = seedOpenReel(postId!);
+      emptySeed.current = false; // fillOpenReel owns the first fill
       setItems(seeded);
       setPulling(!seeded.length);
       let alive = true;
@@ -204,6 +211,10 @@ export const ReelsView = memo(function ReelsView({ active, nation, postId, overl
         if (!alive) return;
         setPulling(false);
         append(added); // APPEND: never tear out the clip already playing
+        if (!added.length && !itemsRef.current.length) {
+          emptySeed.current = true;
+          topUpRef.current();
+        }
       });
       return () => {
         alive = false;
@@ -244,7 +255,7 @@ export const ReelsView = memo(function ReelsView({ active, nation, postId, overl
   // That empty overlay has no card whose arrival would trigger anything: start the
   // top-up (and its retry) when it goes live.
   useEffect(() => {
-    if (live && mode !== 'inline' && !itemsRef.current.length) topUpRef.current();
+    if (live && mode !== 'inline' && emptySeed.current && !itemsRef.current.length) topUpRef.current();
   }, [live, mode]);
 
   // NEVER A PERMANENT SPINNER. Every source can fail (offline, a blocked media host,
@@ -403,8 +414,9 @@ export const ReelsView = memo(function ReelsView({ active, nation, postId, overl
         // on the wall's paced queue and count against its cap of 12, and a hidden
         // wall keeps its own: simulated on the real pacedPlayer, three reel players
         // beside ten wall players left 7 of 9 reels without a player when they
-        // came into view; two leave none.
-        attached={live && (index === cur || (around && index >= win && index <= win + 1))}
+        // came into view; two leave none. The pair hangs off min(win, cur), so a
+        // BACKWARD swipe moves it at the 50% mark and never holds three either.
+        attached={live && (index === cur || (around && index >= Math.min(win, cur) && index <= Math.min(win, cur) + 1))}
         viewed={viewed.has(k)}
         railBottom={railBottom}
         soundOn={soundOn}
