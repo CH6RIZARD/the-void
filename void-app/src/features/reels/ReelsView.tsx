@@ -398,7 +398,13 @@ export const ReelsView = memo(function ReelsView({ active, nation, postId, overl
         // a nicety. Hidden now means cold: the current card shows its poster,
         // and the swipe to REELS creates its player on the paced queue - the
         // poster covers the ~0.5s to first frame, same as every cold reel.
-        attached={live && (index === cur || around)}
+        // Players: the card in view and the one AHEAD of where the scroll settled.
+        // The card behind stays a full card on its poster. Reel players are built
+        // on the wall's paced queue and count against its cap of 12, and a hidden
+        // wall keeps its own: simulated on the real pacedPlayer, three reel players
+        // beside ten wall players left 7 of 9 reels without a player when they
+        // came into view; two leave none.
+        attached={live && (index === cur || (around && index >= win && index <= win + 1))}
         viewed={viewed.has(k)}
         railBottom={railBottom}
         soundOn={soundOn}

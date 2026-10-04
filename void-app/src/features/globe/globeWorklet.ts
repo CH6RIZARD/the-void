@@ -277,12 +277,24 @@ export function startWorkletGlobe(
           averts.push(-1.06 * Math.cos(phi) * Math.sin(theta), 1.06 * Math.cos(theta), 1.06 * Math.sin(phi) * Math.sin(theta));
         }
       }
+      // THE FAR CAP OF THE SHELL IS NEVER SEEN, SO IT IS NEVER DRAWN.
+      // The shell does not turn (no uRot) and the camera is always on +z, so the
+      // same triangles sit behind the planet every frame. One whose three vertices
+      // are all at z <= AZ is behind it for every zoom in the clamp range [1.5, 4]:
+      // the shader's ray test discards 100% of its fragments (checked numerically -
+      // 656 of 1,984 triangles, 91 samples each at 51 zooms, minimum discriminant
+      // 0.067). Leaving them out changes no pixel and takes the pass from ~275k
+      // rasterised fragments to ~84k at the default zoom - about a third of the
+      // whole frame's fragment work. Revisit AZ if the zoom clamp or the shell
+      // radius ever changes.
+      const AZ = -0.184;
       const aidx: number[] = [];
       for (let iy = 0; iy < ASEG; iy++) {
         for (let ix = 0; ix < ASEG; ix++) {
           const a = iy * (ASEG + 1) + ix, b = a + ASEG + 1;
-          if (iy !== 0) aidx.push(a, b, a + 1);
-          if (iy !== ASEG - 1) aidx.push(b, b + 1, a + 1);
+          const za = averts[a * 3 + 2], zb = averts[b * 3 + 2], zc = averts[(a + 1) * 3 + 2], zd = averts[(b + 1) * 3 + 2];
+          if (iy !== 0 && (za > AZ || zb > AZ || zc > AZ)) aidx.push(a, b, a + 1);
+          if (iy !== ASEG - 1 && (zb > AZ || zd > AZ || zc > AZ)) aidx.push(b, b + 1, a + 1);
         }
       }
 
@@ -635,6 +647,12 @@ export function startWorkletGlobe(
         tRotY += 0.0015 * dt;
         const d = Math.pow(0.92, dt);
         rVelX *= d; rVelY *= d;
+        // The web has ONE rVel that keeps decaying after release. The gesture side
+        // only ever wrote the shared pair on a move, so a touch that never moved (a
+        // tap on a nation, a hold, a pinch) reloaded the LAST drag's full delta and
+        // flung the globe again. Keep the shared pair in step with the decay.
+        if (sv.velX.value !== 0) sv.velX.value = Math.abs(rVelX) < 1e-4 ? 0 : rVelX;
+        if (sv.velY.value !== 0) sv.velY.value = Math.abs(rVelY) < 1e-4 ? 0 : rVelY;
         tRotX = Math.max(-1.3, Math.min(1.3, tRotX + rVelX * 0.04 * dt));
         tRotY += rVelY * 0.04 * dt;
       }
