@@ -133,7 +133,13 @@ export function createGlobeScene(gl: any, countries: Country[], viewW: number, v
   // 360dp globe rasters 576px wide instead of 720 - ~36% fewer shaded pixels -
   // and on a sphere of smooth gradients the softening is invisible at arm's
   // length on this panel.
-  const RASTER_CAP = 1.6;
+  // 1.6 -> BACK TO 2 (2026-10-04): at 1.6 this phone (density exactly 2.0)
+  // rendered into 80% of the buffer while the surface presents ALL of it, so
+  // the whole scene sat shifted toward a corner - the user: "not centered on
+  // the x axis literally". At 2.0 the scale is 1.0 on this panel and the
+  // picture fills the buffer. The perf lever this chased lives in the worklet
+  // renderer now, which needs no raster trick at all.
+  const RASTER_CAP = 2;
   const density = Math.max(1, bufW / Math.max(1, viewW));
   const rasterScale = density > RASTER_CAP ? RASTER_CAP / density : 1;
   renderer.setPixelRatio(1);

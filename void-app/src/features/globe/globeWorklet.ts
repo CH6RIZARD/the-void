@@ -137,12 +137,13 @@ export function startWorkletGlobe(
     if (!gl) return;
 
     // ─── sizing (visual-spec §1) ───────────────────────────────────────────
+    // FULL BUFFER, ALWAYS. A sub-buffer viewport offsets the picture toward a
+    // corner because the surface presents the whole buffer (the raster-cap trick
+    // did exactly that to build 6 - "not centered on the x axis literally").
+    // This renderer runs off the JS thread; it does not need the trick.
     const bufW = gl.drawingBufferWidth, bufH = gl.drawingBufferHeight;
-    const density = Math.max(1, bufW / Math.max(1, vw));
-    const RASTER_CAP = 1.6;
-    const rasterScale = density > RASTER_CAP ? RASTER_CAP / density : 1;
-    const renderW = Math.round(bufW * rasterScale);
-    const renderH = Math.round(bufH * rasterScale);
+    const renderW = bufW;
+    const renderH = bufH;
 
     const compile = (vsSrc: string, fsSrc: string) => {
       const vs = gl.createShader(gl.VERTEX_SHADER);
