@@ -113,7 +113,17 @@ export const GlobeCanvas = memo(function GlobeCanvas({ running, onOpenCountry, r
   // as the instant fallback - flip this to false and everything is as before.
   const WORKLET_GLOBE = true;
   const runningSV = useSharedValue(0);
-  const canceledSV = useSharedValue(0);
+  // A GENERATION COUNTER, NOT A BOOLEAN. The old canceledSV was reset to 0 by
+  // every onContextCreate and set to 1 only by the unmount dispose - which never
+  // runs, because tabs never unmount (detachInactiveScreens=false). So every
+  // nation round trip re-created the surface, started a NEW loop and left the
+  // old one running for ever: a permanent 60Hz UI-thread zombie that ate the
+  // shared gesture deltas (read-and-zero), wrote stale rotation under picking,
+  // and kept stamping lastFrameSV so the watchdog could never see a dead
+  // context. Now each onContextCreate mints a generation and every loop exits
+  // the moment the live value is no longer ITS generation - one shared value,
+  // and the retryGl rebuild path is fixed by the same mechanism.
+  const glGenSV = useSharedValue(0);
   const hotSV = useSharedValue(-1);
   const rotXSV = useSharedValue(0);
   const rotYSV = useSharedValue(0);
@@ -134,16 +144,16 @@ export const GlobeCanvas = memo(function GlobeCanvas({ running, onOpenCountry, r
     try {
       if (WORKLET_GLOBE) {
         const cs = countries();
-        canceledSV.value = 0;
+        const gen = ++glGenSV.value; // retires any previous loop on this canvas
         lastFrameSV.value = 0;
         texIdSV.value = 0; // a fresh context mints a fresh texture id; never upload into a stale one
         const shared = {
           accX, accY, accZoom, velX, velY, dragSV,
-          runningSV, canceledSV, hotSV, rotXSV, rotYSV, zoomSV, lastFrameSV, texStateSV, texIdSV,
+          runningSV, genSV: glGenSV, hotSV, rotXSV, rotYSV, zoomSV, lastFrameSV, texStateSV, texIdSV,
           wallScrollAtSV,
         };
-        startWorkletGlobe((gl as any).contextId, cs, size.current.w, size.current.h, shared);
-        deliverEarthPixels((gl as any).contextId, shared);
+        startWorkletGlobe((gl as any).contextId, cs, size.current.w, size.current.h, shared, gen);
+        deliverEarthPixels((gl as any).contextId, shared, gen);
         // A JS-side shim with the old scene's surface: picking + hover live
         // here (plain math on the rotation the worklet reports), everything
         // else is a shared-value flip.
@@ -164,7 +174,7 @@ export const GlobeCanvas = memo(function GlobeCanvas({ running, onOpenCountry, r
           },
           resize: () => {},
           dispose: () => {
-            canceledSV.value = 1;
+            glGenSV.value += 1; // no loop owns this generation; the live one exits
           },
         } as GlobeScene;
         setSceneReady(true);

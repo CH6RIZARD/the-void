@@ -6318,6 +6318,11 @@ function openCountry(name){const c=C.find(x=>x.n===name)||{n:name,iso:'??',lat:0
 // velocity. Composition is forced: at least one live stream and at least one
 // about-this-nation item when either exists, so the block can never collapse
 // into three of the same thing.
+// Is a post FROM the nation, not merely about it? One test for the ranker and for TRENDING.
+function nationOwns(name,iso){
+  const want=(resolveRegion(name)||{}).code||iso;
+  return p=>!!((want&&p._region===want)||p.country===name||(iso&&p.iso===iso));
+}
 function rankNation(iso){
   const c=C.find(x=>x.iso===iso||x.n===iso)||currentCountry||{};
   const name=c.n||iso;
@@ -6326,12 +6331,12 @@ function rankNation(iso){
   // stream nobody has seen play would be a claim the app cannot back up.
   const streams=(_nationLive[name]||[]).slice(0,4)
     .map(s=>({kind:'stream',live:true,title:s.label||name,country:name,iso:c.iso,src:s}));
-  const want=(resolveRegion(name)||{}).code||c.iso;
+  const owns=nationOwns(name,c.iso);
   const re=c.n?nationMentionRe(c):null;
   const posts=[],about=[],seen=new Set();
   for(const p of allPosts){
     if(!p||seen.has(p.id))continue;
-    const own=(want&&p._region===want)||p.country===name||(c.iso&&p.iso===c.iso);
+    const own=owns(p);
     const ab=!own&&(p._nation===name||(re&&re.test(p.body||'')));
     if(!own&&!ab)continue;
     seen.add(p.id);
@@ -6354,10 +6359,24 @@ function rankNation(iso){
   for(const it of all){if(out.length>=3)break;if(!out.includes(it))out.push(it);}
   return out.slice(0,3);
 }
-// 7e quiet cards. The hero carries the LIVE slot, so the cards take the two post
-// slots from the same ranking: TRENDING = the best post FROM the nation (falls back
-// to the best post about it when local press is quiet), ABOUT = the best post about
-// it. A card with nothing to show hides rather than rendering an empty frame.
+// TRENDING means trending: the nation's own post that is moving fastest right now
+// (engagement velocity, the same measure the feed uses), not the ranker's personal
+// favourite - that put a zero-heart radio bulletin under the word TRENDING.
+const TREND_WINDOW_H=48;
+function nationTrending(c){
+  const owns=nationOwns(c.n,c.iso);
+  let best=null,bestV=0;
+  for(const p of allPosts){
+    if(!p||!owns(p)||postAgeH(p)>TREND_WINDOW_H)continue;
+    const v=velocity(p);
+    if(v>bestV){bestV=v;best=p;}
+  }
+  return best;
+}
+// 7e quiet cards. The hero carries the LIVE slot. TRENDING = what is trending in the
+// nation; when nothing local has any engagement, the best post FROM the nation (else
+// the best post about it) stands in. ABOUT = the best post about it. A card with
+// nothing to show hides rather than rendering an empty frame.
 let currentNationIso=null;
 function nationSetNames(c){
   const N=(c.n||'').toUpperCase(),set=(id,t)=>{const e=document.getElementById(id);if(e)e.textContent=t;};
@@ -6366,9 +6385,10 @@ function nationSetNames(c){
 }
 function renderNationCTA(c){
   const items=nationRankedPosts(c);
-  const trending=items.find(x=>x.kind==='post')||items.find(x=>x.kind==='about');
-  const about=items.find(x=>x.kind==='about'&&x!==trending);
-  mountNationCard('nation-card-trending',trending&&trending.post);
+  const pick=items.find(x=>x.kind==='post')||items.find(x=>x.kind==='about');
+  const trending=nationTrending(c)||(pick&&pick.post)||null;
+  const about=items.find(x=>x.kind==='about'&&x.post!==trending);
+  mountNationCard('nation-card-trending',trending);
   mountNationCard('nation-card-about',about&&about.post);
   const row=document.getElementById('nation-cards');if(row)row.hidden=!(trending||about);
 }
