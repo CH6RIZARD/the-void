@@ -1,0 +1,23 @@
+diff --git a/node_modules/react-native-gesture-handler/android/src/main/java/com/swmansion/gesturehandler/core/NativeViewGestureHandler.kt b/node_modules/react-native-gesture-handler/android/src/main/java/com/swmansion/gesturehandler/core/NativeViewGestureHandler.kt
+index 8329224..2205198 100644
+--- a/node_modules/react-native-gesture-handler/android/src/main/java/com/swmansion/gesturehandler/core/NativeViewGestureHandler.kt
++++ b/node_modules/react-native-gesture-handler/android/src/main/java/com/swmansion/gesturehandler/core/NativeViewGestureHandler.kt
+@@ -336,6 +336,18 @@ class NativeViewGestureHandler : GestureHandler() {
+ 
+   private class ScrollViewHook : NativeViewGestureHandlerHook {
+     override fun shouldCancelRootViewGestureHandlerIfNecessary() = true
++
++    // patch (The Void): android.widget.ScrollView.onTouchEvent can throw
++    // "pointerIndex out of range" for some multi-pointer event streams. React Native
++    // already swallows the same exception in ReactScrollView.onInterceptTouchEvent,
++    // but this hook calls onTouchEvent directly and the throw killed the app
++    // (2026-10-04, FATAL in ScrollView.onTouchEvent via sendTouchEvent). Drop that one
++    // event instead, as React Native does.
++    override fun sendTouchEvent(view: View?, event: MotionEvent): Boolean? = try {
++      view?.onTouchEvent(event)
++    } catch (e: IllegalArgumentException) {
++      false
++    }
+   }
+ 
+   private class ReactViewGroupHook : NativeViewGestureHandlerHook {
