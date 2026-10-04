@@ -85,7 +85,10 @@ export const ReelPlaceholder = memo(function ReelPlaceholder({ item: p, height }
   return (
     <View style={[styles.item, { height }]}>
       <View style={[StyleSheet.absoluteFill, bg(`radial-gradient(120% 90% at 30% 20%, ${coverOf(p)}, #05020e 65%)`)]} />
-      {p._img && p.style !== 'audio' ? <Image source={{ uri: p._img }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} /> : null}
+      {p._img && p.style !== 'audio' ? (
+        // A long drag can bring a placeholder on screen: a graphic post keeps its veil here too.
+        <Image source={{ uri: p._img }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} blurRadius={moderation.graphicVeilOn() && moderation.isGraphic(p) ? 32 : 0} />
+      ) : null}
     </View>
   );
 });
@@ -140,17 +143,23 @@ export const ReelItem = memo(function ReelItem(props: ReelItemProps) {
   // comes earlier (a prepared neighbour has no surface yet) and stays set for the
   // life of the list, which left a returning card on a bare gradient.
   const [frameShown, setFrameShown] = useState(false);
+  // THIS player has reported media. (loaderCleared cannot stand in: it is sticky,
+  // so on a re-attach it is already true before a player even exists.)
+  const [ready, setReady] = useState(false);
   useEffect(() => {
-    if (!attached) setFrameShown(false);
+    if (!attached) {
+      setFrameShown(false);
+      setReady(false);
+    }
   }, [attached]);
   const onFirstFrame = useCallback(() => setFrameShown(true), []);
   // The net under it: a device that never reports a first frame must not keep a
-  // poster over a clip that is playing.
+  // poster over a clip that is playing. A clip that failed keeps its poster.
   useEffect(() => {
-    if (!attached || frameShown || !want || !loaderCleared) return;
+    if (!attached || frameShown || !want || !ready) return;
     const t = setTimeout(() => setFrameShown(true), 1500);
     return () => clearTimeout(t);
-  }, [attached, frameShown, want, loaderCleared]);
+  }, [attached, frameShown, want, ready]);
 
   // ── bolt burst
   const burst = useSharedValue(0);
@@ -196,7 +205,8 @@ export const ReelItem = memo(function ReelItem(props: ReelItemProps) {
 
   const clearedRef = useRef(loaderCleared);
   clearedRef.current = loaderCleared;
-  const onMediaReady = useCallback(() => {
+  const onMediaReady = useCallback((ok?: boolean) => {
+    if (ok !== false) setReady(true);
     if (!clearedRef.current) props.onLoaderCleared(vid);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vid]);

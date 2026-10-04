@@ -19,7 +19,8 @@ export interface ReelVideoProps {
   uri: string;
   want: boolean;
   muted: boolean;
-  onMediaReady(): void;
+  /** First sign of media, or (ok === false) the clip failed: either way the loader goes. */
+  onMediaReady(ok?: boolean): void;
   /** The surface has drawn its first frame (the poster over it can go). */
   onFirstFrame?(): void;
 }
@@ -41,7 +42,7 @@ export const ReelVideo = memo(function ReelVideo({ uri, want, muted, onMediaRead
 
   useEffect(() => {
     if (!player) return; // paced creation: not built yet
-    const clear = () => onMediaReady();
+    const clear = (ok = true) => onMediaReady(ok);
     const subStatus = player.addListener('statusChange', (e: any) => {
       const st = e && e.status;
       if (st === 'readyToPlay') {
@@ -52,14 +53,15 @@ export const ReelVideo = memo(function ReelVideo({ uri, want, muted, onMediaRead
             player.play();
           } catch {}
         }
-      } else if (st === 'error') clear();
+      } else if (st === 'error') clear(false);
     });
     const subPlaying = player.addListener('playingChange', (e: any) => {
       if (e && (e.isPlaying ?? e)) clear();
     });
     // The source may already be ready (or failed) before the listeners attached.
     try {
-      if (player.status === 'readyToPlay' || player.status === 'error' || player.playing) clear();
+      if (player.status === 'error') clear(false);
+      else if (player.status === 'readyToPlay' || player.playing) clear();
     } catch {}
     return () => {
       subStatus.remove();

@@ -397,11 +397,19 @@ export const ReelsView = memo(function ReelsView({ active, nation, postId, overl
 
   const onLayout = useCallback((e: LayoutChangeEvent) => setH(Math.round(e.nativeEvent.layout.height)), []);
   const onDragStart = useCallback(() => {
+    // A touch that lands on a snap still in flight cancels its momentum end
+    // (Android drops the post-touch runnable), so a chain of quick flicks never
+    // settled: the window froze behind the finger and nothing was appended.
+    // The previous swipe is settled here instead, before this one begins.
+    if (moving.current) settleRef.current();
     moving.current = true;
     dragging.current = true;
   }, []);
   const onDragEnd = useCallback(() => {
     dragging.current = false;
+    // iOS sends no momentum end for a drag released at rest; the net covers it.
+    if (settleT.current) clearTimeout(settleT.current);
+    settleT.current = setTimeout(() => settleRef.current(), SETTLE_FALLBACK_MS);
   }, []);
   const extra = useMemo(() => ({ cur, win, around, live, soundOn, storeVersion, cleared, h }), [cur, win, around, live, soundOn, storeVersion, cleared, h]);
 
