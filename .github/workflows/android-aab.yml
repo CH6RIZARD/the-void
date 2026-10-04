@@ -29,10 +29,16 @@ jobs:
       # A React Native release build needs room: the runner image ships ~20GB of
       # toolchains this job never uses, and the first attempt died mid-Gradle.
       # NOT the Android NDK - the native build needs it (deleting it failed a run).
+      # NOT /usr/local/lib/node_modules either: the preinstalled yarn lives there.
+      # The second line came with building expo-gl from source (package.json
+      # buildFromSource): run 37235455411 compiled everything and then died copying
+      # the finished APK - ENOSPC with 25GB free at the start.
       - name: Free disk space
         run: |
           sudo rm -rf /usr/share/dotnet /opt/ghc /usr/share/swift /usr/local/share/powershell "$AGENT_TOOLSDIRECTORY"/Ruby "$AGENT_TOOLSDIRECTORY"/PyPy || true
-          df -h /
+          sudo rm -rf /usr/local/.ghcup "$AGENT_TOOLSDIRECTORY"/CodeQL "$AGENT_TOOLSDIRECTORY"/go /usr/local/share/boost /usr/local/share/chromium /opt/microsoft /opt/google /opt/az /usr/share/az_* /usr/local/julia* /usr/local/aws-cli /usr/local/aws-sam-cli /usr/share/miniconda || true
+          docker system prune -af > /dev/null 2>&1 || true
+          df -h / /mnt
 
       # The C++ side (reanimated, expo-modules-core, worklets) OOM-killed the Gradle
       # daemon on a 16GB runner. 10GB of swap + fewer parallel compile jobs below.
