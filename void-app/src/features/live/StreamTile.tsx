@@ -356,6 +356,9 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
   const player = usePacedPlayer(url ? ({ uri: url, contentType: /\.m3u8(\?|$)/i.test(url) ? 'hls' : 'auto' } as any) : null, (p) => {
     api.began();   // the attempt is real from here - this is what arms the clock
     p.muted = true;
+    // muted only zeroes the volume - the AAC decoder keeps running. Drop the
+    // audio track outright; the AudioOwner tap path re-attaches it (see :517).
+    detachAudio(p, true);
     p.loop = true;
     try {
       (p as any).audioMixingMode = 'mixWithOthers';

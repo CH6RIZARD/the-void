@@ -17,8 +17,13 @@
 const cache = new Map<string, string>();
 const inflight = new Map<string, Promise<string>>();
 const FETCH_TIMEOUT_MS = 2500;
-/** Below this the picture is visibly soft on a 2x tile, whatever the tile size says. */
-const MIN_WIDTH = 480;
+/**
+ * Below this the picture is visibly soft on a 2x tile, whatever the tile size says.
+ * 320, not 240: raw 240p already read as soft to the user (see StreamTile), and
+ * 480 made the 1.6x tile cap dead code - every wall tile asked for >=480 and
+ * decoded 2-4x the pixels it could show.
+ */
+const MIN_WIDTH = 320;
 
 interface Variant {
   url: string;

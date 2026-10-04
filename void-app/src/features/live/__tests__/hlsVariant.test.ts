@@ -36,12 +36,12 @@ test('parseMaster: a media playlist is not a master', () => {
 
 test('pickVariant: smallest that still covers the tile', () => {
   const v = parseMaster(MASTER, 'https://cdn.example.com/live/master.m3u8');
-  // A 350px wall tile: 480p covers it, 720p is wasted memory.
-  assert.equal(pickVariant(v, 350)?.width, 854);
+  // A 350px wall tile: 426x240 covers it, 480p is wasted decode.
+  assert.equal(pickVariant(v, 350)?.width, 426);
   // A full-width hero still gets the big one.
   assert.equal(pickVariant(v, 1080)?.width, 1280);
-  // Never below the readable floor, even for a tiny tile.
-  assert.equal(pickVariant(v, 120)?.width, 854);
+  // Never below the readable floor (320), even for a tiny tile.
+  assert.equal(pickVariant(v, 120)?.width, 426);
 });
 
 test('pickVariant: nothing big enough falls back to the largest', () => {

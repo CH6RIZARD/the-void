@@ -130,20 +130,19 @@ export const MAX_MOUNTED_WEBVIEWS = 2;
  * The ceiling on live players. The wall asks for the VISIBLE ROW PLUS A RING
  * either side (see LiveWall), and this caps that ask.
  *
- * Six covered the visible screen and nothing more, so a tile one row above or
- * below was never connected: scrolling meant waiting for it to start, and a
- * stream you scrolled past was let go and had to come back from nothing. Ten
- * covers a screen of runway in both directions, which is what makes scrolling
- * feel like the streams were already there.
+ * Eight is the visible tile count, and that is deliberate: the ten-player raise
+ * was justified on tiles decoding ~240p each, which turned out to be false -
+ * the picker's floor meant 480p-720p per tile, and the single MediaTek VPU
+ * time-sliced across the extra offscreen sessions dragged every visible stream
+ * to 5-6fps. Eviction is farthest-first, so at eight the survivors are exactly
+ * the visible tiles; the two cut players were always offscreen ones decoding
+ * into placeholder surfaces. A newly scrolled-to tile mounts fresh and shows
+ * its panel for a moment, which is the offscreen budget working as intended.
  *
- * Ten is affordable now in a way six was not before: every tile decodes a 480p
- * variant rather than 720p since the picker was capped at 2x, which is less than
- * half the pixels per frame each. The crash that set the original cap came from
- * about eighteen decoders at full size. And the budget still drops by one on
- * every decoder failure and stays down, so a device that cannot hold ten finds
- * its own number within seconds.
+ * The budget still drops by one on every decoder failure and stays down, so a
+ * device that cannot hold eight finds its own number within seconds.
  */
-export const MAX_MOUNTED_PLAYERS = 10;
+export const MAX_MOUNTED_PLAYERS = 8;
 // ─── THE BUDGET LEARNS THE DEVICE ────────────────────────────────────────
 // A phone has a fixed number of hardware video decoders (commonly 4-8). Past that
 // Android hands out the SOFTWARE decoder, and on the test phone that one dies:
