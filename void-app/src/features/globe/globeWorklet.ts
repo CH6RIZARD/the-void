@@ -569,9 +569,14 @@ export function startWorkletGlobe(
       // 6-arg form redefines level 0 as 0x0 when its native decode fails, and
       // batched ops never throw back into JS, so the try/catch saw nothing.)
 
-      // idle governor ~30fps (spec §9)
-      const busy = drag || Math.abs(rVelX) > 1e-4 || Math.abs(rVelY) > 1e-4 || Math.abs(tZoom - globeZoom) > 1e-3;
-      if (!busy && ts - gLast < 28) return;
+      // ~30fps governor, idle AND dragging (spec §9 governed idle only).
+      // Measured on 7i (stage-of.mjs globe, lab): with the wall's composition
+      // load fixed, the drag bottleneck moved to this loop's own UI-thread
+      // work - 'animation' stage p50 37ms from 60Hz of GL marshaling the
+      // display never kept up with. Gesture deltas accumulate in shared
+      // values between ticks, so a 30fps draw loses no input; it just stops
+      // paying for frames the phone cannot present.
+      if (ts - gLast < 28) return;
       gLast = ts;
       const dt = Math.min(3, Math.max(0.2, gT ? (ts - gT) / 16.667 : 1));
       gT = ts;
