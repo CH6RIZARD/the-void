@@ -487,7 +487,7 @@ export function startWorkletGlobe(
     const loop = (ts: number) => {
       'worklet';
       if (sv.canceledSV.value === 1) return;
-      (global as any).requestAnimationFrame(loop);
+      (globalThis as any).requestAnimationFrame(loop);
       if (sv.runningSV.value !== 1) { gT = 0; return; }   // hold the last frame
 
       // consume gesture deltas - same thread as the writers, race-free
@@ -636,7 +636,7 @@ export function startWorkletGlobe(
       gl.endFrameEXP();
       sv.lastFrameSV.value = ts;
     };
-    (global as any).requestAnimationFrame(loop);
+    (globalThis as any).requestAnimationFrame(loop);
   })(exglCtxId, markers, markerCount, sprite, spriteHot, viewW, viewH);
 }
 
