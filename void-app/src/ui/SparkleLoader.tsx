@@ -14,6 +14,7 @@ import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { runOnUI, useSharedValue, type SharedValue } from 'react-native-reanimated';
 import { Atlas, Canvas, Circle, rect, useColorBuffer, useRSXformBuffer, useTexture } from '@shopify/react-native-skia';
 import { mark } from '../core/slow';
+import { wallScrollAtSV } from '../features/live/wallScrollSignal';
 import { Pressable, StyleSheet, type StyleProp, type ViewStyle, View } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
 import { FONTS, em } from '../theme/palettes';
@@ -97,9 +98,39 @@ function ensureSparkleLoop() {
   if (!reg || !reg.length) return;
   g.__sparkleLoop = true;
   let last = 0;
+  let skip = false;
+  let inScroll = false;
   // Plain closure, no nested 'worklet' directive - the recursive rAF lesson
   // globeWorklet.ts documents.
   const tick = (ts: number) => {
+    // HALF RATE UNDER A WALL SCROLL. Every t advance re-runs each visible
+    // field's RSXform+color buffer worklets (14 dots each, and a fling
+    // reveals 10-20 loaders by design) - the remaining owner of the scroll's
+    // animation window after mounts, creates and the globe left it. A skipped
+    // tick does NOT touch `last`, so the next advance carries the full
+    // elapsed dt: total motion is bit-identical, merely sampled at 30fps
+    // while the display presents ~10. Never frozen - the sparkle mandate
+    // holds - and full rate again the instant the scroll stamps stop.
+    if (Date.now() - (wallScrollAtSV.value || 0) < 450) {
+      skip = !skip;
+      if (skip) {
+        g.requestAnimationFrame(tick);
+        return;
+      }
+      if (!inScroll) {
+        inScroll = true;
+        // Attribution, once per scroll episode: how many fields this scroll
+        // pays for. console.warn survives release builds.
+        try {
+          let c = 0;
+          const rr = g.__sparkleClocks as SparkleClock[];
+          for (let i = 0; i < rr.length; i++) if (rr[i].on.value) c++;
+          console.warn('[sparkle] fields during scroll: ' + c);
+        } catch {}
+      }
+    } else {
+      inScroll = false;
+    }
     const r = g.__sparkleClocks as SparkleClock[];
     let any = false;
     const dt = last ? ts - last : 16.7;

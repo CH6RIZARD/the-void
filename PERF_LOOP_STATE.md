@@ -11,6 +11,20 @@
 - Settle-gated packing (user-ordered) applied: every batch earns a rank;
   commit immediate at batch 1 / at rest, queued -> one flush at settle
   (flushPendingOrder beside the settle placement passes). tsc clean.
+- GATE FALSE ALARM RESOLVED: the "[lab] CRASHES" verdict after the 45-min
+  reconnect was neither a crash nor 7l - the install silently failed at
+  reconnect (lastUpdateTime still 03:45 = 7i-reinstall; no new data_app_crash
+  in dropbox) and ANOTHER APP (com.ezersaves.app) was foreground, screen
+  awake = someone actively using the lab phone. Lesson encoded in
+  gate7l-wait2.sh (task bot0q51l1): wait for present AND idle (screen off /
+  launcher / Void foreground), verify install Success explicitly with one
+  retry, never drive a phone mid-use.
+- REAL 7l (93b74c3 on main, run 37190891412) BUILT; APK at /e/tmp/apk-b7l
+  (94.6MB). Lab phone off cable -> watcher bd2j1lehr waits up to 4h for it,
+  then runs the FULL gate (install, crash+texture, budget counts, stage-of
+  wall scroll, screenshots) and promotes to the user phone only on pass.
+  (The first "7l" run 37188975417 was actually 7k's code - a dirty state
+  file aborted the merge; corrected, do not reuse that run's artifacts.)
 - 7k CI SUCCEEDED but its gate found the lab phone off cable - no install,
   no scroll numbers; APK saved at /e/tmp/apk-b7k. 7k stays ungated (never
   goes to the user phone). 7l DISPATCHED (chain task bjwi5m1id); if the lab
