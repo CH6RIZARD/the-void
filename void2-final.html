@@ -3105,8 +3105,19 @@ addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')
 // Default to the production proxy: the deployed page shipped with '' here, so
 // /feed, /social, translate and stream rescue were all silently off unless
 // someone passed ?proxy=. ?proxy= and localStorage still override.
-const VOID_PROXY_BASE=((new URLSearchParams(location.search).get('proxy'))||localStorage.getItem('void_proxy')||'https://void-proxy-production.up.railway.app').replace(/\/$/,'');
-if(new URLSearchParams(location.search).get('proxy'))localStorage.setItem('void_proxy',VOID_PROXY_BASE);
+// ?proxy= persisted unvalidated let one crafted link point every later visit
+// at an attacker's feed (audit finding 1). Only known origins are accepted -
+// checked on READ too, so previously poisoned storage heals itself.
+const _PROXY_OK=/^https:\/\/void-proxy-production\.up\.railway\.app$|^http:\/\/localhost(:\d+)?$/;
+const VOID_PROXY_BASE=(()=>{
+  const q=(new URLSearchParams(location.search).get('proxy')||'').replace(/\/$/,'');
+  const st=(localStorage.getItem('void_proxy')||'').replace(/\/$/,'');
+  if(q&&_PROXY_OK.test(q)){try{localStorage.setItem('void_proxy',q);}catch(e){}return q;}
+  if(st&&_PROXY_OK.test(st))return st;
+  if(st){try{localStorage.removeItem('void_proxy');}catch(e){}}
+  return 'https://void-proxy-production.up.railway.app';
+})();
+// (persistence handled inside the allowlisted resolver above)
 let feedOffset=0, feedLoading=false;
 function proxyPostToApp(p){
   if(!p?.provenance?.sourceHost||!p?.provenance?.responseHash)return null;
@@ -4496,7 +4507,7 @@ function renderPost(p,i){
     // No "PHOTO"/"VIDEO" caption and no grey/striped stand-in. An image loads
     // behind the orbit spiral; a video loads behind the sparkle float. Whichever
     // one is showing is removed the moment the media paints.
-    const realImg=p._img?`${p.style==='video'?sparkleMarkup(''):IMG_LOADER}<img class="post-media-img" src="${p._img}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onload="imgLoaded(this)" onerror="mediaFailed(this)">`:(p._video?sparkleMarkup(''):'');
+    const realImg=p._img?`${p.style==='video'?sparkleMarkup(''):IMG_LOADER}<img class="post-media-img" src="${safeMediaUrl(p._img)}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onload="imgLoaded(this)" onerror="mediaFailed(this)">`:(p._video?sparkleMarkup(''):'');
     // A video post used to render as a DEAD STILL — the clip only ever played once
     // you opened the reel. Now the real <video> renders in the card and plays in
     // place. It stays muted + playsinline (the only way iOS permits autoplay) and
@@ -4518,7 +4529,7 @@ function renderPost(p,i){
     // A drop recorded in the composer carries its own blob URL and real duration.
     const dur=p._audioDur||97+(i*53)%140;
     const bars=Array.from({length:26},(_,j)=>`<span class="au-bar" style="height:${6+Math.round((Math.sin(j*.9+i)*.5+.5)*20)}px"></span>`).join('');
-    mediaHtml=`<div class="au-pill" data-t="0" data-dur="${dur}"${p._audio?` data-src="${p._audio}"`:''} onclick="event.stopPropagation()">
+    mediaHtml=`<div class="au-pill" data-t="0" data-dur="${dur}"${p._audio?` data-src="${safeMediaUrl(p._audio)}"`:''} onclick="event.stopPropagation()">
       <button class="au-play" onclick="auToggle(this.parentNode)">${VICON.play}</button>
       <div class="au-wave" onclick="auScrub(this.parentNode,event)">${bars}</div>
       <span class="au-time">0:00<em> / ${auFmt(dur)}</em></span></div>`;
@@ -8623,7 +8634,13 @@ function switchTab(tab){
 // tile 8 times. One trailing run is what the user actually meant.
 const _dbT={};
 function debounced(key,fn,ms){clearTimeout(_dbT[key]);_dbT[key]=setTimeout(fn,ms||160);}
-function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')}
+// Quotes too: half the injection sinks interpolate into attributes
+// (src="${...}") or JS strings (onclick="f('${...}')"), where &<> alone is an
+// open door (2026-10-04 security audit, finding 1 - account-takeover chain).
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/\n/g,'<br>')}
+// Only a plain https url may reach a media attribute (finding 1): any other
+// shape - javascript:, data:, quotes, whitespace - renders as nothing.
+function safeMediaUrl(u){u=String(u||'');return /^https:\/\/[^\s"'<>\\]+$/.test(u)?u:'';}
 function fmt(n){return n>=1000?(n/1000).toFixed(1)+'k':String(n)}
 function ago(ts){const d=Math.floor((Date.now()-ts)/1000);if(d<60)return d+'s';if(d<3600)return Math.floor(d/60)+'m';if(d<86400)return Math.floor(d/3600)+'h';return Math.floor(d/86400)+'d';}
 function progress(p,txt){const f=document.getElementById('lfill'),t=document.getElementById('ltxt');if(f)f.style.width=p+'%';if(t)t.textContent=txt;}
@@ -9041,7 +9058,7 @@ function vwItemHtml(p,i){
   // Video buffers under the app's ORIGINAL sparkle/float loader (§8 — the orbit is
   // for images only). vwClearLoad removes it once playback starts.
   else if(p._video)media=cover+sparkleMarkup('')+`<video class="vw-vid" data-src="${p._video}"${p._img?` poster="${p._img}"`:''} muted loop playsinline preload="none"></video>`;
-  else if(p._img)media=cover+IMG_LOADER+`<img class="vw-img" src="${p._img}" referrerpolicy="no-referrer" onload="imgLoaded(this)" onerror="imgLoaded(this);this.remove()">`;
+  else if(p._img)media=cover+IMG_LOADER+`<img class="vw-img" src="${safeMediaUrl(p._img)}" referrerpolicy="no-referrer" onload="imgLoaded(this)" onerror="imgLoaded(this);this.remove()">`;
   else media=cover;
   return `<div class="vw-item" id="vw-${p._vid}" data-pid="${p.id.split('~')[0]}" ondblclick="vwFire(this)">
     ${media}<div class="vw-scan"></div>

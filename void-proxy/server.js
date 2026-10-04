@@ -751,6 +751,30 @@ function readBody(req, max) {
 // Stream health lives in memory and on disk beside the X budget - it survives a
 // restart, and losing it on a redeploy only means re-learning from live traffic.
 const STREAM_HEALTH_FILE = process.env.STREAM_HEALTH_FILE || '/tmp/void-stream-health.json';
+// Daily character budgets: 25k per address, 400k globally - DeepL's free month
+// is 500k, so one bad day can no longer end translation for the month (audit 4).
+let trDay = ''; let trGlobalChars = 0; const trIpChars = new Map();
+function trBudgetOk(ip, chars) {
+  const day = new Date().toISOString().slice(0, 10);
+  if (day !== trDay) { trDay = day; trGlobalChars = 0; trIpChars.clear(); }
+  const mine = (trIpChars.get(ip) || 0) + chars;
+  if (mine > 25_000 || trGlobalChars + chars > 400_000) return false;
+  trIpChars.set(ip, mine);
+  trGlobalChars += chars;
+  return true;
+}
+// 10 report-POSTs per minute per address is far above any honest client
+// (they batch every 2.5s only while actively connecting) - audit finding 3.
+const shHits = new Map();
+function shRateOk(ip) {
+  const now = Date.now();
+  const recent = (shHits.get(ip) || []).filter((t) => now - t < 60_000);
+  if (recent.length >= 10) return false;
+  recent.push(now);
+  shHits.set(ip, recent);
+  if (shHits.size > 5000) { const k = shHits.keys().next().value; shHits.delete(k); }
+  return true;
+}
 let streamHealth = {};
 try { streamHealth = JSON.parse(fs.readFileSync(STREAM_HEALTH_FILE, 'utf8')) || {}; } catch (_) {}
 let _shT = 0;
@@ -759,6 +783,33 @@ function saveStreamHealth() {
   _shT = setTimeout(() => {
     try { fs.writeFileSync(STREAM_HEALTH_FILE, JSON.stringify(streamHealth)); } catch (e) {}
   }, 3000);
+}
+
+// /hls host gate (audit finding 2): literal-IP checks plus DNS resolution
+// against a blocklist. Residual TOCTOU between lookup and connect accepted.
+const net = require('net');
+const dnsp = require('dns').promises;
+const PRIVATE_BLOCK = new net.BlockList();
+PRIVATE_BLOCK.addSubnet('127.0.0.0', 8); PRIVATE_BLOCK.addSubnet('10.0.0.0', 8);
+PRIVATE_BLOCK.addSubnet('172.16.0.0', 12); PRIVATE_BLOCK.addSubnet('192.168.0.0', 16);
+PRIVATE_BLOCK.addSubnet('169.254.0.0', 16); PRIVATE_BLOCK.addSubnet('100.64.0.0', 10);
+PRIVATE_BLOCK.addSubnet('0.0.0.0', 8);
+PRIVATE_BLOCK.addSubnet('::1', 128, 'ipv6'); PRIVATE_BLOCK.addSubnet('fc00::', 7, 'ipv6');
+PRIVATE_BLOCK.addSubnet('fe80::', 10, 'ipv6'); PRIVATE_BLOCK.addSubnet('::ffff:0:0', 96, 'ipv6');
+async function hlsHostOk(u) {
+  let host = u.hostname.toLowerCase();
+  if (host.startsWith('[') && host.endsWith(']')) host = host.slice(1, -1);
+  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.internal')) return false;
+  const fam = net.isIP(host);
+  if (fam) return !PRIVATE_BLOCK.check(host, fam === 6 ? 'ipv6' : 'ipv4');
+  try {
+    const addrs = await dnsp.lookup(host, { all: true });
+    if (!addrs.length) return false;
+    for (const a of addrs) {
+      if (PRIVATE_BLOCK.check(a.address, a.family === 6 ? 'ipv6' : 'ipv4')) return false;
+    }
+    return true;
+  } catch (_) { return false; }
 }
 
 function cors(res) {
@@ -780,20 +831,28 @@ const server = http.createServer(async (req, res) => {
 
     const u = new URL(req.url, `http://localhost:${PORT}`);
     const path = u.pathname;
-    const mode = u.searchParams.get('mode') || 'tension';
+    // mode is a closed set: arbitrary values each minted a fresh 400-item
+    // pool and a full upstream fan-out (audit findings on cache keys).
+    const _m = u.searchParams.get('mode') || 'tension';
+    const mode = ['tension', 'hot', 'recent'].includes(_m) ? _m : 'tension';
     const limit = clampInt(u.searchParams.get('limit'), 40, 1, 100);
     const offset = clampInt(u.searchParams.get('offset'), 0, 0, FEED_POOL);
 
     if (path === '/translate') {
       if (req.method !== 'POST') return sendJson(res, 405, { error: 'POST only' });
       if (!DEEPL_KEY) return sendJson(res, 503, { error: 'translate not configured' });
-      const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+      // Audit finding 4: the FIRST x-forwarded-for entry is client-supplied -
+      // a fresh spoofed IP per request walked straight past the limiter; the
+      // LAST entry is the hop the platform appended.
+      const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',').pop().trim();
       if (!trRateOk(ip)) return sendJson(res, 429, { error: 'slow down' });
       let body;
       try { body = JSON.parse(await readBody(req, TR_MAX_CHARS * 4)); } catch (_) { return sendJson(res, 400, { error: 'bad body' }); }
       const texts = Array.isArray(body && body.texts) ? body.texts.map((t) => String(t == null ? '' : t)) : null;
       if (!texts || !texts.length || texts.length > TR_MAX_TEXTS) return sendJson(res, 400, { error: 'texts: 1-' + TR_MAX_TEXTS + ' strings' });
-      if (texts.reduce((n, t) => n + t.length, 0) > TR_MAX_CHARS) return sendJson(res, 413, { error: 'too much text' });
+      const chars = texts.reduce((n, t) => n + t.length, 0);
+      if (chars > TR_MAX_CHARS) return sendJson(res, 413, { error: 'too much text' });
+      if (!trBudgetOk(ip, chars)) return sendJson(res, 429, { error: 'translation budget exhausted' });
       try {
         return sendJson(res, 200, { translations: await translateTexts(texts, body.target) });
       } catch (e) {
@@ -833,14 +892,24 @@ const server = http.createServer(async (req, res) => {
       try { body = JSON.parse(await readBody(req, 64 * 1024)); } catch (_) { return sendJson(res, 400, { error: 'bad body' }); }
       const reports = Array.isArray(body && body.reports) ? body.reports.slice(0, 50) : null;
       if (!reports || !reports.length) return sendJson(res, 400, { error: 'reports: 1-50' });
+      // Audit finding 3: three unauthenticated bad reports could mark any
+      // stream dead for every client. Per-IP rate limit; a stream only reads
+      // as failing on reports from DISTINCT addresses - one attacker is one
+      // reporter however many posts they send; the size cap is computed once.
+      const rip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',').pop().trim();
+      if (!shRateOk(rip)) return sendJson(res, 429, { error: 'slow down' });
+      const ipTag = rip.slice(0, 40);
       let took = 0;
+      let tableSize = Object.keys(streamHealth).length;
       for (const r of reports) {
         const u = r && typeof r.u === 'string' ? r.u : '';
         if (!/^https?:\/\//.test(u) || u.length > 500) continue;
-        if (!streamHealth[u] && Object.keys(streamHealth).length >= 4000) continue;
-        const e = streamHealth[u] || (streamHealth[u] = { g: 0, b: 0, v: 0, ms: [], at: 0 });
+        if (!streamHealth[u] && tableSize >= 4000) continue;
+        if (!streamHealth[u]) tableSize++;
+        const e = streamHealth[u] || (streamHealth[u] = { g: 0, b: 0, v: 0, ms: [], at: 0, bip: [] });
+        if (!e.bip) e.bip = [];
         if (r.ok) { e.g++; if (r.v) e.v++; const ms = Math.min(30000, Math.max(0, r.ms | 0)); if (ms) { e.ms.push(ms); if (e.ms.length > 15) e.ms.shift(); } }
-        else e.b++;
+        else { e.b++; if (!e.bip.includes(ipTag) && e.bip.length < 8) e.bip.push(ipTag); }
         e.at = Date.now(); took++;
       }
       if (took) saveStreamHealth();
@@ -856,7 +925,12 @@ const server = http.createServer(async (req, res) => {
         const n = e.g + e.b;
         if (!n) continue;
         const med = e.ms.length ? e.ms.slice().sort((a, b) => a - b)[e.ms.length >> 1] : 0;
-        h[u] = [Math.round((e.g / n) * 100), e.g ? Math.round((e.v / e.g) * 100) : 0, Math.min(999, n), med];
+        // reports (index 2) is what clients gate 'dead for everyone' on: for a
+        // stream with ZERO successes it is capped at the count of DISTINCT bad
+        // reporters, so one address can never read as three (finding 3).
+        const distinctBad = (e.bip && e.bip.length) || 0;
+        const reportsOut = e.g === 0 ? Math.min(n, distinctBad) : Math.min(999, n);
+        h[u] = [Math.round((e.g / n) * 100), e.g ? Math.round((e.v / e.g) * 100) : 0, Math.min(999, reportsOut), med];
       }
       cors(res);
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=60' });
@@ -875,19 +949,27 @@ const server = http.createServer(async (req, res) => {
       let target;
       try { target = new URL(raw); } catch (_) { return sendJson(res, 400, { error: 'bad url' }); }
       if (target.protocol !== 'http:' && target.protocol !== 'https:') return sendJson(res, 400, { error: 'http(s) only' });
-      // SSRF guard: never fetch into the network this proxy stands in.
-      const host = target.hostname.toLowerCase();
-      if (host === 'localhost' || host === '0.0.0.0' || /^127\./.test(host) || /^10\./.test(host) || /^192\.168\./.test(host) ||
-          /^172\.(1[6-9]|2\d|3[01])\./.test(host) || /^169\.254\./.test(host) || host === '::1' || /^\[?f[cd][0-9a-f]{2}:/.test(host)) {
-        return sendJson(res, 400, { error: 'refused host' });
-      }
+      // SSRF guard hardened (audit finding 2): the old hostname string checks
+      // missed [::1], IPv4-mapped loopback, CGNAT, DNS names resolving inward,
+      // and redirects into any of those. Every hop is validated AND resolved.
+      if (!(await hlsHostOk(target))) return sendJson(res, 400, { error: 'refused host' });
       const ctl = new AbortController();
       const kill = setTimeout(() => ctl.abort(), 12000);
       let r;
       try {
         const h = { 'User-Agent': 'void-proxy/1.1 hls', Accept: '*/*' };
         if (req.headers.range) h.Range = String(req.headers.range); // segments seek
-        r = await fetch(target.href, { headers: h, redirect: 'follow', signal: ctl.signal });
+        let hops = 0;
+        let cur = target;
+        for (;;) {
+          r = await fetch(cur.href, { headers: h, redirect: 'manual', signal: ctl.signal });
+          if (r.status < 300 || r.status >= 400) break;
+          const loc = r.headers.get('location');
+          if (!loc || ++hops > 3) { clearTimeout(kill); return sendJson(res, 502, { error: 'bad redirect' }); }
+          cur = new URL(loc, cur);
+          if (cur.protocol !== 'http:' && cur.protocol !== 'https:') { clearTimeout(kill); return sendJson(res, 400, { error: 'refused redirect' }); }
+          if (!(await hlsHostOk(cur))) { clearTimeout(kill); return sendJson(res, 400, { error: 'refused redirect host' }); }
+        }
       } catch (e) {
         clearTimeout(kill);
         return sendJson(res, 502, { error: 'upstream unreachable' });
@@ -921,7 +1003,16 @@ const server = http.createServer(async (req, res) => {
       const cr = r.headers.get('content-range'); if (cr) head['Content-Range'] = cr;
       res.writeHead(r.status, head);
       try {
-        if (r.body) { for await (const chunk of r.body) res.write(chunk); }
+        // 30MB cap (finding 2): a live segment is single-digit MB; anything
+        // bigger is relay abuse, not media. Honor backpressure while at it.
+        let sent = 0;
+        if (r.body) {
+          for await (const chunk of r.body) {
+            sent += chunk.length;
+            if (sent > 30 * 1024 * 1024) { try { res.destroy(); } catch (_) {} break; }
+            if (!res.write(chunk)) await new Promise((ok) => res.once('drain', ok));
+          }
+        }
         res.end();
       } catch (e) {
         try { res.destroy(); } catch (_) {}
