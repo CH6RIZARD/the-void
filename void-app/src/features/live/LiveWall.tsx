@@ -22,7 +22,7 @@ import { ScrollView } from 'react-native-gesture-handler';
 import { Image } from 'expo-image';
 import { LiveDot, TileLabel, TileLoader } from './TileChrome';
 import { StreamTile, type StreamTileHandle } from './StreamTile';
-import { applyPlacement, clearPlacement, evictedIds, placementOf, usePlacement } from './placementStore';
+import { applyPlacement, clearPlacement, evictedIds, parkedIds, placementOf, usePlacement } from './placementStore';
 import { holdCreates, livePlayerCount, releaseQueueDepth } from './pacedPlayer';
 import { wallScrollAtSV } from './wallScrollSignal';
 import { useStreamCascade, type CascadeResult } from './useStreamCascade';
@@ -469,7 +469,23 @@ export const LiveWall = memo(forwardRef<LiveWallHandle, LiveWallProps>(function 
     // imperatively through the registry by the effect below - no React state, no
     // commit proportional to the number of tiles. Placement is recomputed when
     // the wall comes back, where it means something again.
-    if (!w.activeRef) return;
+    //
+    // ONE exception: the asleep evict-all (approved by the user 2026-10-04, option
+    // (a): "It releases them while you're away. That frees decoders for nations,
+    // reels and search, but it still rebuilds on return."). Deferring it to the
+    // return commit meant the wall held ~8 paused players and their hardware
+    // decoders for the whole visit - starving the nation hero, reels and search
+    // of the very decoders it was not using - and then tore them all down on the
+    // frames the user came back. So while away AND asleep (SLEEP_AFTER_MS), run
+    // only the evict-all: no placement, no restores, no watchdog work; the
+    // decoders drain through the normal paced release queue during the visit.
+    if (!w.activeRef) {
+      if (!w.asleepRef) return;
+      const evicted = evictedIds();
+      for (const e of w.registry.values()) evicted.add(e.id);
+      applyPlacement(parkedIds(), evicted);
+      return;
+    }
     const g = geo.current;
     const vh = Math.max(1, g.viewportH);
     const dist = new Map<number, number>();

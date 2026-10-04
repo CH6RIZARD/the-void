@@ -88,6 +88,14 @@ export function evictedIds(): Set<number> {
   return out;
 }
 
+/** Every id currently parked - a pass that only wants to evict passes this
+ *  back unchanged, so applyPlacement's diff cannot silently un-park anyone. */
+export function parkedIds(): Set<number> {
+  const out = new Set<number>();
+  for (const [id, p] of current) if (p.parked) out.add(id);
+  return out;
+}
+
 /** One tile's own placement. Re-renders that tile and no other. */
 export function usePlacement(id: number): TilePlacement {
   const subscribe = useCallback(
