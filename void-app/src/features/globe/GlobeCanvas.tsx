@@ -304,12 +304,18 @@ export const GlobeCanvas = memo(function GlobeCanvas({ running, onOpenCountry, r
     setTip(null); // the tap label lives until the next touch
     sc.clearHover();
   }, []);
-  const onTapJS = useCallback((x: number, y: number) => {
-    const sc = scene.current;
-    if (!sc) return;
+  const onTapJS = useCallback((x: number, y: number, rx: number, ry: number, z: number) => {
+    if (!scene.current) return;
     // Mobile web fires the emulated hover on a tap: the marker lights and
     // #gtip shows the name at the finger, then the nation opens.
-    const c = sc.hover(x, y);
+    // Picked against the rotation the finger TOUCHED, captured on the UI thread
+    // at touch-up. Reading it here instead meant the rotation of whenever JS got
+    // round to the tap: the globe had drifted on, and under a busy JS thread the
+    // 16pt pick radius missed, or opened the neighbour.
+    const cs = countries();
+    const i = pickCountry(cs, x, y, size.current.w, size.current.h, rx, ry, z);
+    hotSV.value = i;
+    const c = i >= 0 ? cs[i] : null;
     if (c) {
       setTip({ x: x + 14, y: y + 10, name: c.n });
       openRef.current(c);
@@ -363,7 +369,7 @@ export const GlobeCanvas = memo(function GlobeCanvas({ running, onOpenCountry, r
       const g = tg.value;
       const pt = e.changedTouches[0];
       if (g.tap === 1 && pt && Math.abs(pt.x - g.sx) < 12 && Math.abs(pt.y - g.sy) < 12 && performance.now() - g.st < 280) {
-        runOnJS(onTapJS)(pt.x, pt.y);
+        runOnJS(onTapJS)(pt.x, pt.y, rotXSV.value, rotYSV.value, zoomSV.value);
       }
       mgr.end();
     })
@@ -373,7 +379,7 @@ export const GlobeCanvas = memo(function GlobeCanvas({ running, onOpenCountry, r
       mgr.end();
     }),
     // every dep is referentially stable, so this computes exactly once
-    [accX, accY, accZoom, velX, velY, dragSV, tg, gestureRef, onTouchStartJS, onTapJS],
+    [accX, accY, accZoom, velX, velY, dragSV, tg, rotXSV, rotYSV, zoomSV, gestureRef, onTouchStartJS, onTapJS],
   );
 
   // .globe-hint-line{animation:fout 5s ease forwards 3s}

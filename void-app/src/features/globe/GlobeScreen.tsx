@@ -1,7 +1,7 @@
 // GLOBE TAB — DUAL MODE (patch3 §5). One tab, two surfaces side by side:
 //   REELS (default) ⇄ GLOBE (the original globe screen: globe canvas + LIVE FEEDS wall).
 // web: #screen-globe, setGlobeMode(), initGlobeSwipe(), setGlobeOffset/clearGlobeOffset.
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -237,7 +237,10 @@ function GlobeSurfaces({
   // Drag-to-switch: clearly horizontal only, travel only toward the other surface,
   // commit past 22% of the width, else snap back. Gestures that start on the globe
   // canvas never switch (the canvas' manual gesture activates on touch-down).
-  const swipe = Gesture.Pan()
+  // Built once, like the globe's own gesture. This component re-renders on every
+  // globe touch-down (the touching latch) and again 1.2s later; a new Pan each time
+  // meant a native handler update and all three worklets re-shared to the UI runtime.
+  const swipe = useMemo(() => Gesture.Pan()
     .requireExternalGestureToFail(globeGesture)
     .activeOffsetX([-10, 10])
     .failOffsetY([-10, 10])
@@ -257,7 +260,10 @@ function GlobeSurfaces({
       else drag.value = withTiming(0, SLIDE);
       // Give the slide time to land before the surfaces come back.
       runOnJS(endSlideSoon)();
-    });
+    }),
+    // every dep is referentially stable, so this computes exactly once
+    [W, modeNum, drag, setMode, endSlideSoon],
+  );
 
   // The left panel sits at (drag - mode)·100%; the right one a width further on.
   // Swapping which view is which is the whole change - the geometry is untouched.
