@@ -1,54 +1,50 @@
-diff --git a/node_modules/expo-gl/android/src/main/java/expo/modules/gl/GLModule.kt b/node_modules/expo-gl/android/src/main/java/expo/modules/gl/GLModule.kt
-index 8752ff6..3c2999e 100644
---- a/node_modules/expo-gl/android/src/main/java/expo/modules/gl/GLModule.kt
-+++ b/node_modules/expo-gl/android/src/main/java/expo/modules/gl/GLModule.kt
-@@ -94,6 +94,9 @@ class GLModule : Module() {
-       Prop("enableExperimentalWorkletSupport") { view: GLView, enableExperimentalWorkletSupport: Boolean? ->
-         view.enableExperimentalWorkletSupport = enableExperimentalWorkletSupport ?: false
-       }
-+      Prop("opaque") { view: GLView, opaque: Boolean? ->
-+        view.opaque = opaque ?: false
-+      }
-     }
-   }
+diff --git a/node_modules/expo-gl/android/src/main/java/expo/modules/gl/GLContext.java b/node_modules/expo-gl/android/src/main/java/expo/modules/gl/GLContext.java
+index 082c40f..4efd73a 100644
+--- a/node_modules/expo-gl/android/src/main/java/expo/modules/gl/GLContext.java
++++ b/node_modules/expo-gl/android/src/main/java/expo/modules/gl/GLContext.java
+@@ -38,6 +38,8 @@ import static expo.modules.gl.cpp.EXGL.*;
  
+ public class GLContext {
+   private int mEXGLCtxId = -1;
++  // Run on the GL thread after every frame this context swaps onto its surface.
++  public volatile Runnable onSwap;
+ 
+   private final GLModule mManager;
+   private GLThread mGLThread;
+@@ -127,6 +129,8 @@ public class GLContext {
+               Log.e("EXGL", "Cannot swap buffers!");
+             }
+             EXGLContextDrawEnded(mEXGLCtxId);
++            Runnable swapped = onSwap;
++            if (swapped != null) swapped.run();
+           }
+         }
+       }
 diff --git a/node_modules/expo-gl/android/src/main/java/expo/modules/gl/GLView.kt b/node_modules/expo-gl/android/src/main/java/expo/modules/gl/GLView.kt
-index 72dfb8b..ac97fe3 100644
+index 72dfb8b..07cc94a 100644
 --- a/node_modules/expo-gl/android/src/main/java/expo/modules/gl/GLView.kt
 +++ b/node_modules/expo-gl/android/src/main/java/expo/modules/gl/GLView.kt
-@@ -30,6 +30,18 @@ class GLView(context: Context, appContext: AppContext) : TextureView(context), S
-     get() = glContext.contextId
- 
+@@ -32,9 +32,23 @@ class GLView(context: Context, appContext: AppContext) : TextureView(context), S
    var enableExperimentalWorkletSupport: Boolean = false
-+
-+  // A TextureView marked non-opaque is alpha-blended by HWUI every frame it is
-+  // composited - a read-modify-write over its whole area, whether or not a
-+  // single transparent pixel exists. A scene that clears to a solid colour has
-+  // none, and pays for the blend anyway. `opaque` lets such a scene say so.
-+  // Default false: a scene that clears to alpha 0 (the onboarding globe) must
-+  // keep blending, and upstream behaviour is unchanged unless asked.
-+  var opaque: Boolean = false
-+    set(value) {
-+      field = value
-+      isOpaque = value
-+    }
    val onSurfaceCreate by EventDispatcher<OnSurfaceCreateRecord>()
  
++  // EVERY FRAME THE SCENE SWAPS, SHOWN. A TextureView takes a new frame only in a
++  // draw that follows onFrameAvailable, and its queue silently drops a frame that a
++  // newer one replaces - no second onFrameAvailable. A scene that swaps early in
++  // every UI frame (the app's worklet globe) had every other frame thrown away: only
++  // 37-51% of the globe's rendered frames reached the screen. A setOpaque that
++  // changes the value is the one public call that marks the layer for update; done
++  // twice it changes nothing else. postOnAnimation, not post: it runs inside the
++  // next frame, before that frame's draw, where a plain post queued after the next
++  // vsync runs a frame late. Detached, the view would only queue them up.
++  // ponytail: rides on AOSP TextureView.setOpaque -> updateLayerAndInvalidate; a
++  // SurfaceView-backed GLView is the upgrade if a ROM ever stops doing that.
++  private val showLatest = Runnable { val o = isOpaque; isOpaque = !o; isOpaque = o }
++
    init {
-diff --git a/node_modules/expo-gl/build/GLView.types.d.ts b/node_modules/expo-gl/build/GLView.types.d.ts
-index 1d86d23..d21e653 100644
---- a/node_modules/expo-gl/build/GLView.types.d.ts
-+++ b/node_modules/expo-gl/build/GLView.types.d.ts
-@@ -81,6 +81,12 @@ export type GLViewProps = {
-      * @default 4
-      */
-     msaaSamples?: number;
-+    /**
-+     * Android only. Marks the underlying TextureView opaque, so HWUI composites it
-+     * without alpha blending. Only for a scene that clears to a solid colour; a
-+     * scene that relies on a transparent clear must leave this false (the default).
-+     */
-+    opaque?: boolean;
-     /**
-      * Enables support for interacting with a `gl` object from code running on the Reanimated worklet thread.
-      * @default false
+     surfaceTextureListener = this
+     isOpaque = false
++    glContext.onSwap = Runnable { if (isAttachedToWindow) postOnAnimation(showLatest) }
+   }
+ 
+   // Public interface to allow running events on GL thread
