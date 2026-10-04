@@ -147,15 +147,21 @@ export function deliverEarthPixels(exglCtxId: number, sv: WorkletGlobeShared, ge
           g.requestAnimationFrame(tryUpload);
           return;
         }
+        // ASK BEFORE THE UPLOAD, NOT AFTER IT. On a new EXGL context the first
+        // getExtension is a blocking read, and getParameter blocks again: placed
+        // after texImage2D they parked the UI thread until the GL thread had
+        // finished the 8.4 MB upload and its mipmaps - on every nation return,
+        // since each one re-creates the context. Asked first, they are bare round
+        // trips (the location lookups have already drained the queue) and the
+        // upload runs on the GL thread while the UI thread moves on. Same texture
+        // operations, same order, same anisotropy: the same pixels.
+        const ext = gl.getExtension('EXT_texture_filter_anisotropic');
+        const maxA = ext ? gl.getParameter(ext.MAX_TEXTURE_MAX_ANISOTROPY_EXT) || 1 : 0;
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, { id } as any); // EXGL unwraps args by their .id
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
         gl.generateMipmap(gl.TEXTURE_2D);
-        const ext = gl.getExtension('EXT_texture_filter_anisotropic');
-        if (ext) {
-          const maxA = gl.getParameter(ext.MAX_TEXTURE_MAX_ANISOTROPY_EXT) || 1;
-          gl.texParameterf(gl.TEXTURE_2D, ext.TEXTURE_MAX_ANISOTROPY_EXT, maxA);
-        }
+        if (ext) gl.texParameterf(gl.TEXTURE_2D, ext.TEXTURE_MAX_ANISOTROPY_EXT, maxA);
         sv.texStateSV.value = 1;
         try {
           console.warn('[globe] worklet map: ' + w + 'x' + h + ' uploaded');
