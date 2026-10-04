@@ -116,9 +116,10 @@ export const REEL_BLOCK_AUTHOR_LABELS = /!no-unauthenticated/i;
 export const REEL_BLOCK_TOPIC_WORDS = /\b(cat|cats|kitten|kitty|catto|dog|dogs|doggo|puppy|pupper|hedgehog|hoglet|squirrel|bunny|rabbit|hamster|guinea pig|parrot|budgie|meow|purr|caturday|petsky|toe.?beans?|zoomies|birdwatch\w*|aquarium|zoo)\b/i;
 export const REEL_BLOCK_TOPIC_EMOJI = /[\u{1F400}-\u{1F43F}\u{1F980}-\u{1F9AE}]|\u{1F408}|\u{1F415}|\u{1F43E}|\u{1F98A}|\u{1F994}|\u{1F99C}/u;
 // Drawn and furry art is the other diluter: reels is real footage. Phrases and
-// hashtags as people write them on the reel feeds. A bare "art" or "sketch" is NOT
-// here - a painter filmed at work, or a comedy sketch, is real footage.
-export const REEL_BLOCK_ART = /\b(furry|furries|fursuit\w*|fursona|furryart|anthro|kemono|hand[- ]?drawn|fan ?art|digital ?art|my art|art by me|speedpaint\w*|animatic|animation meme)\b|#(art|artwork|illustration|drawing|doodle|animation|2danimation|commissions?|artistsonbluesky|artsky|furry\w*)\b/i;
+// hashtags as people write them on the reel feeds. The WORD "art" and "sketch" are
+// NOT here (a painter filmed at work, "my art school", a comedy sketch are real
+// footage); the #art hashtag is, because that is how drawn-art posts tag themselves.
+export const REEL_BLOCK_ART = /\b(furry|furries|fursuit\w*|fursona|furryart|anthro|kemono|hand[- ]?drawn|fan ?art|digital ?art|art by me|speedpaint\w*|animatic|animation meme)\b|#(art|artwork|illustration|drawing|doodle|animation|2danimation|commissions|artistsonbluesky|artsky|furry\w*)\b/i;
 export const REEL_BLOCK_TOPIC = { test: (t: string) => REEL_BLOCK_TOPIC_WORDS.test(t) || REEL_BLOCK_TOPIC_EMOJI.test(t) || REEL_BLOCK_ART.test(t) };
 /** Label gate for a raw Bluesky feed item: post labels AND the author's. */
 export function reelBlocked(item: any): boolean {
