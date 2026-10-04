@@ -128,13 +128,15 @@ function elsewhere(name: string, want = 14): StreamSource[] {
  * gets 'fixed' later by someone who notices the filter and removes it. LIFE is
  * YouTube; a chain that exists to escape YouTube embeds has no use for it.
  */
-// Every HLS stream, tagged with its country as the web's pool is ({...s, n}). Built once.
+// Every HLS stream of every country in C, tagged with that country - exactly the web's
+// searchLivePool ([...C].forEach(c => iptvFor(c.n)...)), which also skips any pool key
+// that is not a real country name. Built once.
 let _hlsAll: StreamSource[] | null = null;
 export function hlsSpread(want = 20): StreamSource[] {
   // Shuffled one STREAM at a time, as the web's searchLivePool is. Shuffling the
   // countries and taking each one whole made a third of all chains one country
   // (54 of 156 hold 14+ streams), so one geo-blocked or off-air country sank the lot.
-  if (!_hlsAll) _hlsAll = Object.keys(IPTV_POOL).flatMap((n) => iptvFor(n).filter((s) => s.type === 'hls').map((s) => ({ ...s, n })));
+  if (!_hlsAll) _hlsAll = C.flatMap((c) => iptvFor(c.n).filter((s) => s.type === 'hls').map((s) => ({ ...s, n: c.n })));
   const all = _hlsAll;
   const out: StreamSource[] = [];
   const seen = new Set<string>();

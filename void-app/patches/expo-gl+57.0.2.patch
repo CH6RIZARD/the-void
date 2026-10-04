@@ -21,10 +21,18 @@ index 082c40f..4efd73a 100644
          }
        }
 diff --git a/node_modules/expo-gl/android/src/main/java/expo/modules/gl/GLView.kt b/node_modules/expo-gl/android/src/main/java/expo/modules/gl/GLView.kt
-index 72dfb8b..07cc94a 100644
+index 72dfb8b..9591b62 100644
 --- a/node_modules/expo-gl/android/src/main/java/expo/modules/gl/GLView.kt
 +++ b/node_modules/expo-gl/android/src/main/java/expo/modules/gl/GLView.kt
-@@ -32,9 +32,23 @@ class GLView(context: Context, appContext: AppContext) : TextureView(context), S
+@@ -10,6 +10,7 @@ import expo.modules.kotlin.records.Field
+ import expo.modules.kotlin.records.Record
+ import expo.modules.kotlin.viewevent.EventDispatcher
+ import expo.modules.kotlin.types.OptimizedRecord
++import java.lang.ref.WeakReference
+ 
+ @OptimizedRecord
+ data class OnSurfaceCreateRecord(
+@@ -32,9 +33,27 @@ class GLView(context: Context, appContext: AppContext) : TextureView(context), S
    var enableExperimentalWorkletSupport: Boolean = false
    val onSurfaceCreate by EventDispatcher<OnSurfaceCreateRecord>()
  
@@ -44,7 +52,11 @@ index 72dfb8b..07cc94a 100644
    init {
      surfaceTextureListener = this
      isOpaque = false
-+    glContext.onSwap = Runnable { if (isAttachedToWindow) postOnAnimation(showLatest) }
++    // Weakly: the GLContext is pinned for the life of the process (a JNI global ref
++    // that is never deleted), and a strong onSwap would pin this view - and through
++    // it the Activity - with it.
++    val view = WeakReference(this)
++    glContext.onSwap = Runnable { view.get()?.let { if (it.isAttachedToWindow) it.postOnAnimation(it.showLatest) } }
    }
  
    // Public interface to allow running events on GL thread

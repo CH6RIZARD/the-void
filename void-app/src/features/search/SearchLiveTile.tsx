@@ -111,6 +111,8 @@ function useLiveSlot(slotKey: string, active: boolean) {
   const player = useRef<StreamTileHandle>(null);
   // One identity per slot, for the admission set. A ref, so it survives renders.
   const token = useRef<object>({});
+  const activeRef = useRef(active);
+  activeRef.current = active;
   const onResult = useCallback(
     (r: CascadeResult) => {
       setPhase(r.ok ? 'playing' : 'offline');
@@ -144,6 +146,9 @@ function useLiveSlot(slotKey: string, active: boolean) {
   // check) is already refused by markBadStream: re-walk the chain so the slot refills.
   // Healing needs a turn like anything else; it already holds one if it is playing.
   const heal = useCallback(() => {
+    // Scrolled off or blurred, with its player not yet unmounted: nothing to restart.
+    // Healing here would take a turn and play off screen until the slot came back.
+    if (!activeRef.current) return;
     lastGood.delete(slotKey); // it just died: the new walk must not lead with it
     setPhase('waiting');
     admit(token.current, () => {

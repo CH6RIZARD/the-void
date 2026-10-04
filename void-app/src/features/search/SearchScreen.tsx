@@ -205,7 +205,14 @@ export default function SearchScreen() {
     if (liveSig !== vis.liveLast) {
       vis.liveLast = liveSig;
       clearTimeout(vis.liveT);
-      vis.liveT = setTimeout(() => setLiveOn(new Set(on)), LIVE_SETTLE_MS);
+      const next = new Set(on);
+      // Leaving the screen lets go at once - a turn held off screen is a tile in view
+      // left on its loader. Arriving waits until the set has settled.
+      setLiveOn((cur) => {
+        const kept = new Set([...cur].filter((k) => next.has(k)));
+        return kept.size === cur.size ? cur : kept;
+      });
+      vis.liveT = setTimeout(() => setLiveOn(next), LIVE_SETTLE_MS);
     }
     hits.sort((a, b) => b.frac - a.frac);
     const ids = hits.slice(0, MAX_DECODING).map((x) => x.id);
@@ -239,14 +246,17 @@ export default function SearchScreen() {
     },
     [cardLayout, vis, recomputeView],
   );
-  // Only cards currently rendered with a clip are candidates.
+  // Only cards currently rendered with a clip are candidates - RENDERED, not merely
+  // in `blocks`: a new filter collapses the staircase to FIRST_PAINT, and a card or
+  // live row that unmounted must not keep counting as on screen from its old rect.
   useEffect(() => {
-    const live = new Set(blocks.filter((b) => b.kind === 'post' && !!(b as any).post._video).map((b) => (b as any).post.id as string));
+    const rendered = blocks.slice(0, shown);
+    const live = new Set(rendered.filter((b) => b.kind === 'post' && !!(b as any).post._video).map((b) => (b as any).post.id as string));
     for (const id of [...vis.cards.keys()]) if (!live.has(id)) vis.cards.delete(id);
-    const slots = new Set(blocks.filter((b) => b.kind === 'feat' || b.kind === 'row').map((b) => b.key));
+    const slots = new Set(rendered.filter((b) => b.kind === 'feat' || b.kind === 'row').map((b) => b.key));
     for (const k of [...vis.live.keys()]) if (!slots.has(k)) vis.live.delete(k);
     recomputeView();
-  }, [blocks, vis, recomputeView]);
+  }, [blocks, shown, vis, recomputeView]);
   // Leaving the tab pauses every clip (usePostViewability unmount / blur).
   useEffect(() => {
     vis.last = '';
@@ -306,6 +316,10 @@ export default function SearchScreen() {
         showsVerticalScrollIndicator={false}
         onScroll={onScroll}
         scrollEventThrottle={100}
+        // Where the scroll came to rest: the throttle can drop the last scroll event,
+        // and the end events are never throttled.
+        onScrollEndDrag={onScroll}
+        onMomentumScrollEnd={onScroll}
         onLayout={(e) => {
           vis.h = e.nativeEvent.layout.height;
           recomputeView();

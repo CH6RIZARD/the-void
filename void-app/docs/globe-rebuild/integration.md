@@ -55,12 +55,12 @@ The JS raf loop **consumes by read-and-zero**: `const d = acc.value; if (d!==0){
 
 ## 3. Retry / rebuild flow (GlobeCanvas.tsx:67–122, 162–167)
 
-- `glAttempt` state keys the `<GLView key={glAttempt} ... msaaSamples={0} opaque />` — bumping it mounts a **fresh GLView** (fresh context).
+- `glAttempt` state keys the `<GLView key={glAttempt} ... msaaSamples={0} />` — bumping it mounts a **fresh GLView** (fresh context).
 - `retryGl()` — at most 3 attempts **per outage** (not per session), backoff `400ms × attempt`. Called when: (a) `onContextCreate` receives an unusable context (`!gl`, no `createTexture`, or `__voidMissingContext` — see the guard in `app/_layout.tsx`), (b) `createGlobeScene` throws, (c) `scene.frame()` throws mid-loop (loop sets `alive=false` first).
 - `noteGlHealthy()` — zeroes `glRetries` on any frame that actually drew; 3 failures **in a row** still give up.
 - `refreshNonce` (pull-to-refresh / tab re-tap, from GlobeScreen's `globeNonce`) resets `glRetries=0` and bumps `glAttempt` — an explicit refresh always gets a full budget.
 - There is deliberately **no static-map fallback**: while rebuilding, the panel stays dark (`#04020c`). GlobeSearch still opens every nation regardless of GL health.
-- `opaque` is a **custom prop patched into expo-gl** (`patches/expo-gl`) — the scene clears alpha 1 so the TextureView skips window alpha-blending. The onboarding globe clears alpha 0 and must NOT set it.
+- `opaque` was a custom prop patched into expo-gl, and it never did anything: GLView.js spreads unknown props onto its wrapper View, and CI linked expo-gl as a prebuilt AAR that ignored the patched sources. Removed in 20c1e39. `patches/expo-gl` now re-arms the TextureView after every swap, so every rendered globe frame is shown, and package.json `expo.autolinking.android.buildFromSource: ["expo-gl"]` makes that patch compile.
 
 ## 4. sceneReady gating and loop lifecycle
 
@@ -78,7 +78,7 @@ Gesture (UI thread) qualifies the tap → `runOnJS(onTapJS)(x, y)` → `scene.ho
 
 `createGlobeScene` has **exactly one consumer**: `GlobeCanvas.tsx`. There is **no nation mini-globe** anywhere in `void-app/src`.
 
-- `onboarding/OnboardGlobe.tsx` — explicitly "Deliberately NOT the app's globeScene: no textures, no stars, no raycasting" (its own three.js scene with the same expo-gl shims). `onboarding/GlobeIntro.tsx` renders it; `onboarding/globeBuild.ts` supports it. **Zero coupling to globeScene.ts** — unaffected by the swap, but it shares the expo-gl shim *pattern*, and it must NOT get the `opaque` GLView prop (clears to alpha 0).
+- `onboarding/OnboardGlobe.tsx` — explicitly "Deliberately NOT the app's globeScene: no textures, no stars, no raycasting" (its own three.js scene with the same expo-gl shims). `onboarding/GlobeIntro.tsx` renders it; `onboarding/globeBuild.ts` supports it. **Zero coupling to globeScene.ts** — unaffected by the swap, but it shares the expo-gl shim *pattern*, and it clears to alpha 0 (the expo-gl swap patch leaves a view's opacity as it was).
 - `textures.ts` is shared infrastructure the rebuild will also want: `markerTexture(hot)`, `fallbackEarthTexture()`, `loadEarthTexture(gl, renderer, rawPixelStorei)`, `earthPixelsCached()`, `bundledEarthPixelsAsync()` (pre-warmed by GlobeScreen — keep that call). `earthPixels.ts`/`earthTexture.ts` back it.
 - `index.ts` exports `GlobeScreen`, `GlobeCanvas`, `useGlobeHeight`, `ReelsView` — globeScene is **not** exported; the interface swap is fully internal to the globe feature.
 - Consequence: if the main globe moves to a worklet renderer, `globeScene.ts` has **no remaining consumer** and can be deleted outright rather than kept — unless the new renderer keeps it as the fallback path behind the same `GlobeScene` interface.
@@ -89,4 +89,4 @@ Gesture (UI thread) qualifies the tap → `runOnJS(onTapJS)(x, y)` → `scene.ho
 - `C:/the void/void-main/void-app/src/features/globe/GlobeScreen.tsx`
 - `C:/the void/void-main/void-app/src/features/globe/textures.ts`
 - `C:/the void/void-main/void-app/src/features/onboarding/OnboardGlobe.tsx` (independent, untouched)
-- `C:/the void/void-main/void-app/patches/expo-gl` (the `opaque` prop patch)
+- `C:/the void/void-main/void-app/patches/expo-gl` (re-arms the TextureView after every swap; built from source via package.json)
