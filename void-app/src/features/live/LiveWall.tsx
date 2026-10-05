@@ -1091,7 +1091,7 @@ const WallTile = memo(function WallTile({ rec, left, top, width, height, borderC
           parked={parked}
           showLoader={false}
           tileWidth={width}
-          surface="surface"
+          surface="texture"
           onSettled={(ok) => cascade.settle(a.key, ok)}
           onNeedsHeal={() => {
             entry.needsHeal = true;

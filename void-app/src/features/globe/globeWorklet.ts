@@ -647,7 +647,7 @@ export function startWorkletGlobe(
       // paying for frames the phone cannot present.
       if (ts - gLast < 28) return;
       gLast = ts;
-      const dt = Math.min(3, Math.max(0.2, gT ? (ts - gT) / 16.667 : 1));
+      const dt = Math.min(12, Math.max(0.2, gT ? (ts - gT) / 16.667 : 1));
       gT = ts;
       pt += 0.034 * dt;
       if (!drag) {
