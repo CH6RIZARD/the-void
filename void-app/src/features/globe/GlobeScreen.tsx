@@ -10,7 +10,7 @@ import { onTabReselect } from '../../nav/reselect';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ToastModule from '../../ui/Toast';
 import { GlobeModeToggle } from './GlobeModeToggle';
-import { bundledEarthPixelsAsync } from './textures';
+import { earthAstcAsync } from './astcMap';
 import { GlobeCanvas, useGlobeHeight } from './GlobeCanvas';
 import { ReelsView } from './ReelsView';
 import { LiveWall, type LiveWallHandle } from '../live/LiveWall';
@@ -141,7 +141,7 @@ function GlobeSurfaces({
   // means the pixels are already in hand by the time any scene asks, and no
   // dispose can interrupt them.
   useEffect(() => {
-    bundledEarthPixelsAsync().catch(() => {});
+    earthAstcAsync().catch(() => {});
   }, []);
   // TAP THE GLOBE TAB AGAIN TO REFRESH IT.
   //

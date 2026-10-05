@@ -60,3 +60,33 @@ index 72dfb8b..9591b62 100644
    }
  
    // Public interface to allow running events on GL thread
+diff --git a/node_modules/expo-gl/common/EXWebGLMethodsTextures.cpp b/node_modules/expo-gl/common/EXWebGLMethodsTextures.cpp
+index d4c52d0..e16bee1 100644
+--- a/node_modules/expo-gl/common/EXWebGLMethodsTextures.cpp
++++ b/node_modules/expo-gl/common/EXWebGLMethodsTextures.cpp
+@@ -17,7 +17,24 @@ NATIVE_METHOD(bindTexture) {
+   return nullptr;
+ }
+ 
+-UNIMPL_NATIVE_METHOD(compressedTexImage2D)
++// The app's globe ships its night map pre-compressed (ASTC, every mip level),
++// so a 4096x2048 map costs ~5 MB of GPU memory instead of 43 MB as RGBA.
++// data: a TypedArray/ArrayBuffer holding exactly one level's blocks.
++NATIVE_METHOD(compressedTexImage2D, 7) {
++  CTX();
++  auto target = ARG(0, GLenum);
++  auto level = ARG(1, GLint);
++  auto internalformat = ARG(2, GLenum);
++  auto width = ARG(3, GLsizei);
++  auto height = ARG(4, GLsizei);
++  auto border = ARG(5, GLint);
++  std::vector<uint8_t> vec = rawTypedArray(runtime, ARG(6, jsi::Object));
++  ctx->addToNextBatch([=, vec{std::move(vec)}] {
++    glCompressedTexImage2D(
++      target, level, internalformat, width, height, border, static_cast<GLsizei>(vec.size()), vec.data());
++  });
++  return nullptr;
++}
+ 
+ UNIMPL_NATIVE_METHOD(compressedTexSubImage2D)
+ 

@@ -5,7 +5,7 @@ import 'react-native-reanimated';
 import React, { useEffect, useState } from 'react';
 import { AppState, StyleSheet, View } from 'react-native';
 import { mark, startHeartbeat } from '../src/core/slow';
-import { bundledEarthPixelsAsync } from '../src/features/globe/textures';
+import { earthAstcAsync } from '../src/features/globe/astcMap';
 // Module evaluation time: the earliest moment JS can see. [boot] lines count from here.
 const BOOT_T0 = Date.now();
 
@@ -47,11 +47,11 @@ import { Stack } from 'expo-router';
 // the purple fallback "forever" (measured: zero [globe] texture logs in a whole
 // session). Warmed here, a few seconds after launch while the feed idles, the
 // pixels are a cache hit by the time anyone opens the globe tab, and the sphere
-// is textured on its first frame. bundledEarthPixelsAsync is memoized, so the
+// is textured on its first frame. earthAstcAsync is memoized, so the
 // scene's own call simply joins this one.
 function useWarmEarthTexture() {
   useEffect(() => {
-    const t = setTimeout(() => { bundledEarthPixelsAsync().catch(() => {}); }, 2500);
+    const t = setTimeout(() => { earthAstcAsync().catch(() => {}); }, 2500);
     return () => clearTimeout(t);
   }, []);
 }

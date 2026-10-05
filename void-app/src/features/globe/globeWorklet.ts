@@ -22,7 +22,7 @@
 // planet (the Helio P35's depth is broken): the atmosphere discards by
 // analytic ray/sphere, markers fade by facing, stars sit under the opaque
 // sphere in draw order.
-import { runOnUI, type SharedValue } from 'react-native-reanimated';
+import { runOnJS, runOnUI, type SharedValue } from 'react-native-reanimated';
 // getWorkletContext MUST be the module-level export: it is itself a 'worklet'
 // function the babel plugin can carry across runOnUI. The deprecated STATIC on
 // the GLView class does not survive the trip (7c crash), and even the module
@@ -31,6 +31,8 @@ import { runOnUI, type SharedValue } from 'react-native-reanimated';
 import type { Country } from '../live/core';
 import { bundledEarthPixelsAsync } from './textures';
 import { EARTH_W, EARTH_H } from './earthPixels';
+import { earthAstcAsync } from './astcMap';
+import { ASTC_BLOCK, ASTC_H, ASTC_LEVELS, ASTC_W } from './earthAstc';
 
 export interface WorkletGlobeShared {
   // gesture (written by the Gesture.Manual worklets in GlobeCanvas)
@@ -123,7 +125,7 @@ function markerPixels(hot: boolean): Uint8Array {
  * markers already use; nothing native decodes anything.
  */
 let earthPxOnUI = false; // the 8.4MB map already lives in the UI runtime; stop re-serializing it per trip
-export function deliverEarthPixels(exglCtxId: number, sv: WorkletGlobeShared, gen: number): void {
+function deliverEarthRgba(exglCtxId: number, sv: WorkletGlobeShared, gen: number): void {
   const send = (px: Uint8Array | null) => {
     runOnUI((ctxId: number, pixels: Uint8Array | null, w: number, h: number, myGen: number) => {
       'worklet';
@@ -181,6 +183,81 @@ export function deliverEarthPixels(exglCtxId: number, sv: WorkletGlobeShared, ge
       send(px);
     })
     .catch(() => {});
+}
+
+/**
+ * THE WEB'S MAP, AT THE WEB'S RESOLUTION.
+ *
+ * The web globe draws three-globe's 4096x2048 night map; the app drew a 2048x1024
+ * copy, so zoomed in it went soft next to the dev page. The full map rides in the
+ * bundle pre-compressed as ASTC 6x6 with every mip level (scripts/globe-astc.py):
+ * ~5 MB of GPU memory against ~11 MB for the old RGBA map and its mips, and no
+ * generateMipmap. Uploaded with compressedTexImage2D, which patches/expo-gl adds
+ * (upstream EXGL leaves it unimplemented). A GPU without ASTC LDR gets the old
+ * RGBA map, unchanged.
+ */
+const ASTC_6x6 = 0x93b4; // COMPRESSED_RGBA_ASTC_6x6_KHR
+let astcOnUI = false;
+let astcRefused = false;
+export function deliverEarthPixels(exglCtxId: number, sv: WorkletGlobeShared, gen: number): void {
+  if (astcRefused) return deliverEarthRgba(exglCtxId, sv, gen);
+  const noAstc = (ctxId: number, myGen: number) => {
+    astcRefused = true;
+    deliverEarthRgba(ctxId, sv, myGen);
+  };
+  const send = (blob: Uint8Array | null) => {
+    runOnUI((ctxId: number, data0: Uint8Array | null, myGen: number) => {
+      'worklet';
+      // Plain closure, no nested directive (the 7b-7e lesson).
+      const g = globalThis as any;
+      if (data0) g.__voidEarthAstc = data0;
+      const data: Uint8Array | undefined = g.__voidEarthAstc;
+      if (!data) return;
+      const tryUpload = () => {
+        if (sv.genSV.value !== myGen) return;
+        const gl = g.__EXGLContexts?.[String(ctxId)];
+        if (!gl) return;
+        const id = sv.texIdSV.value;
+        if (!(id > 0)) {
+          g.requestAnimationFrame(tryUpload);
+          return;
+        }
+        if (!gl.getExtension('KHR_texture_compression_astc_ldr')) {
+          runOnJS(noAstc)(ctxId, myGen);
+          return;
+        }
+        const ext = gl.getExtension('EXT_texture_filter_anisotropic');
+        const maxA = ext ? gl.getParameter(ext.MAX_TEXTURE_MAX_ANISOTROPY_EXT) || 1 : 0;
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, { id } as any);
+        let w = ASTC_W, h = ASTC_H, off = 0;
+        for (let l = 0; l < ASTC_LEVELS; l++) {
+          const size = Math.ceil(w / ASTC_BLOCK) * Math.ceil(h / ASTC_BLOCK) * 16;
+          gl.compressedTexImage2D(gl.TEXTURE_2D, l, ASTC_6x6, w, h, 0, data.subarray(off, off + size));
+          off += size;
+          w = Math.max(1, w >> 1);
+          h = Math.max(1, h >> 1);
+        }
+        if (ext) gl.texParameterf(gl.TEXTURE_2D, ext.TEXTURE_MAX_ANISOTROPY_EXT, maxA);
+        sv.texStateSV.value = 1;
+        try {
+          console.warn('[globe] worklet map: ' + ASTC_W + 'x' + ASTC_H + ' astc uploaded');
+        } catch {}
+      };
+      tryUpload();
+    })(exglCtxId, blob, gen);
+  };
+  if (astcOnUI) {
+    send(null);
+    return;
+  }
+  earthAstcAsync()
+    .then((blob) => {
+      if (!blob) return deliverEarthRgba(exglCtxId, sv, gen);
+      astcOnUI = true;
+      send(blob);
+    })
+    .catch(() => deliverEarthRgba(exglCtxId, sv, gen));
 }
 
 /**
