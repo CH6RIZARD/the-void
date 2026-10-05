@@ -965,17 +965,17 @@ const WallTile = memo(function WallTile({ rec, left, top, width, height, borderC
   const connect = useCallback(
     (rotate: boolean) => {
       let chain = wallCascadeFor(rec.name, s.lastSrc) || [];
-      // A NEWS TILE WALKS DEEPER THAN THREE. wallCascadeFor stays the web's
-      // three-deep chain (golden-pinned), but on Android 10 most of Turkey's first
-      // streams fail TLS and the one that works is claimed by the other Turkey tile,
-      // so three ran dry in milliseconds and the tile retried every few seconds with
-      // nothing to show ('Turkey ok=false' x14 in two minutes, diag 2026-10-05).
-      // Up to three more of the country's live streams not already known dead.
+      // EVERY TILE WALKS DEEPER THAN THREE. wallCascadeFor stays the web's
+      // three-deep chain (golden-pinned): a cam tile gets two of its country's cams
+      // and ONE news stream as last resort. Turkey's four Istanbul cams answer 502,
+      // and its one last-resort stream already plays on another Turkey tile, so
+      // three of the four Turkey tiles walked dead cams and a claimed stream every
+      // few seconds and stayed empty (diag chain log 2026-10-05). Up to three more
+      // of the country's live streams, not already known dead, go on the end; the
+      // tile is labelled by country, so the label stays true.
       const iptv = iptvFor(rec.name) as unknown as StreamSource[];
-      if (iptv.some((x) => streamKey(x) === streamKey(rec.src))) {
-        const have = new Set(chain.map((x) => streamKey(x)));
-        chain = chain.concat(iptv.filter((x) => x.type === 'hls' && !isBadStream(x) && !have.has(streamKey(x))).slice(0, 3));
-      }
+      const have = new Set(chain.map((x) => streamKey(x)));
+      chain = chain.concat(iptv.filter((x) => x.type === 'hls' && !isBadStream(x) && !have.has(streamKey(x))).slice(0, 3));
       if (rotate && s.lastSrc && chain.length > 1) {
         const k = streamKey(s.lastSrc);
         chain = chain.filter((x) => streamKey(x) !== k).concat(chain.filter((x) => streamKey(x) === k));
