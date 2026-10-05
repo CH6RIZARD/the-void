@@ -40,7 +40,7 @@ import { FONTS, em } from '../../theme/palettes';
 import { ago, baseId, fmt } from '../search/format';
 import { ModIcon } from './ModIcons';
 import { ReelAudioPill } from './ReelAudioPill';
-import { ReelVideo } from './ReelVideo';
+import { ReelVideo, WIDE_ASPECT } from './ReelVideo';
 import { boltCount, isFollowing, repostCount } from './reelStore';
 
 export interface ReelItemProps {
@@ -146,6 +146,8 @@ export const ReelItem = memo(function ReelItem(props: ReelItemProps) {
   // THIS player has reported media. (loaderCleared cannot stand in: it is sticky,
   // so on a re-attach it is already true before a player even exists.)
   const [ready, setReady] = useState(false);
+  // A landscape clip or photo is fitted whole over its own poster, blurred.
+  const [wide, setWide] = useState(false);
   useEffect(() => {
     if (!attached) {
       setFrameShown(false);
@@ -218,7 +220,8 @@ export const ReelItem = memo(function ReelItem(props: ReelItemProps) {
   } else if (p._video) {
     media = (
       <>
-        {attached ? <ReelVideo uri={p._video} want={want} muted={!(soundOn && current)} onMediaReady={onMediaReady} onFirstFrame={onFirstFrame} /> : null}
+        {wide && p._img ? <Image source={{ uri: p._img }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} blurRadius={24} /> : null}
+        {attached ? <ReelVideo uri={p._video} want={want} muted={!(soundOn && current)} onMediaReady={onMediaReady} onFirstFrame={onFirstFrame} onWide={setWide} /> : null}
         {/* The <video poster>: shown whenever there is no player, and - as on the
             web - kept over the player until its first frame, so a cold or
             returning reel opens on its picture instead of an empty gradient. */}
@@ -232,12 +235,17 @@ export const ReelItem = memo(function ReelItem(props: ReelItemProps) {
     media =
       imgState !== 'failed' ? (
         <>
+          {wide ? <Image source={{ uri: p._img }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} blurRadius={24} /> : null}
           <Image
             source={{ uri: p._img }}
-            style={[StyleSheet.absoluteFill, styles.img]}
-            contentFit="cover"
+            style={[StyleSheet.absoluteFill, wide ? null : styles.img]}
+            contentFit={wide ? 'contain' : 'cover'}
             cachePolicy="memory-disk"
             transition={0}
+            onLoad={(e) => {
+              const s = e && e.source;
+              if (s && s.width > 0 && s.height > 0) setWide(s.width / s.height > WIDE_ASPECT);
+            }}
             onDisplay={() => setImgState('shown')}
             onError={() => setImgState('failed')}
           />

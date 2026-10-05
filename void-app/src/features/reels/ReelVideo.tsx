@@ -10,7 +10,7 @@
 // The sparkle loader is cleared on the first sign of media (web: loadeddata / canplay /
 // canplaythrough / playing) AND on failure (a 404 / codec refusal must never leave the
 // loader spinning forever).
-import React, { memo, useEffect } from 'react';
+import React, { memo, useEffect, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { VideoView } from 'expo-video';
 import { isReleasedPlayer, usePacedPlayer } from '../live/pacedPlayer';
@@ -23,9 +23,14 @@ export interface ReelVideoProps {
   onMediaReady(ok?: boolean): void;
   /** The surface has drawn its first frame (the poster over it can go). */
   onFirstFrame?(): void;
+  /** The clip is landscape (or square): it is fitted whole, not cropped to fill. */
+  onWide?(wide: boolean): void;
 }
 
-export const ReelVideo = memo(function ReelVideo({ uri, want, muted, onMediaReady, onFirstFrame }: ReelVideoProps) {
+/** Wider than this (w/h) is fitted whole; anything taller fills the portrait card. */
+export const WIDE_ASPECT = 0.8;
+
+export const ReelVideo = memo(function ReelVideo({ uri, want, muted, onMediaReady, onFirstFrame, onWide }: ReelVideoProps) {
   const player = usePacedPlayer({ uri, contentType: /\.m3u8(\?|$)/i.test(uri) ? 'hls' : 'auto' } as any, (p) => {
     p.muted = true; // v.muted = v.defaultMuted = true
     p.loop = true;
@@ -39,6 +44,28 @@ export const ReelVideo = memo(function ReelVideo({ uri, want, muted, onMediaRead
   });
 
   const wantRef = useWantRef(want);
+
+  // LANDSCAPE CLIPS ARE FITTED, NOT CROPPED. object-fit:cover on a 16:9 clip in a
+  // tall portrait card kept only its middle third, blown up and pixelated - 'the
+  // reel content is too big'. A clip wider than WIDE_ASPECT is shown whole; the
+  // card puts its own poster, blurred, behind it.
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    if (!player) return;
+    const judge = (t: any) => {
+      const s = t && t.size;
+      if (!s || !(s.width > 0) || !(s.height > 0)) return;
+      const w = s.width / s.height > WIDE_ASPECT;
+      setWide(w);
+      onWide?.(w);
+    };
+    try {
+      judge((player as any).videoTrack);
+    } catch {}
+    const sub = player.addListener('videoTrackChange', (e: any) => judge(e && e.videoTrack));
+    return () => sub.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [player]);
 
   useEffect(() => {
     if (!player) return; // paced creation: not built yet
@@ -88,7 +115,16 @@ export const ReelVideo = memo(function ReelVideo({ uri, want, muted, onMediaRead
     } catch {}
   }, [muted, player]);
 
-  return player ? <VideoView player={player} style={[StyleSheet.absoluteFill, styles.vid]} contentFit="cover" nativeControls={false} allowsPictureInPicture={false} onFirstFrameRender={onFirstFrame} /> : null;
+  return player ? (
+    <VideoView
+      player={player}
+      style={[StyleSheet.absoluteFill, wide ? styles.vidWide : styles.vid]}
+      contentFit={wide ? 'contain' : 'cover'}
+      nativeControls={false}
+      allowsPictureInPicture={false}
+      onFirstFrameRender={onFirstFrame}
+    />
+  ) : null;
 });
 
 function useWantRef(want: boolean) {
@@ -100,4 +136,6 @@ function useWantRef(want: boolean) {
 const styles = StyleSheet.create({
   // .vw-vid{object-fit:cover;background:#05020e}
   vid: { backgroundColor: '#05020e' },
+  // Fitted whole: the bars must show the blurred poster behind, not a flat fill.
+  vidWide: { backgroundColor: 'transparent' },
 });
