@@ -159,7 +159,7 @@ export const PostCard = memo(function PostCard({ post: p, index: i, onOpenThread
         <View style={styles.acts}>
           <Pa icon="reply" label={fmt((p.replies || 0) + (r.rank || 0))} color={colors.dim} onPress={open} />
           <Pa icon={r.mf ? 'heartFill' : 'heart'} label={fmt(boltCount(p.score, r))} color={r.mf ? colors.gold : colors.dim} onPress={() => fireBolt(p.id)} />
-          <Pa icon="repost" label={fmt(p.reposts || 0)} color={r.mrp ? colors.gold : colors.dim} onPress={() => toggleRepost(p.id)} />
+          <Pa icon="repost" label={fmt(p.reposts || p._reposts || 0)} color={r.mrp ? colors.gold : colors.dim} onPress={() => toggleRepost(p.id)} />
           <Pa
             icon="globe"
             label="TR"
