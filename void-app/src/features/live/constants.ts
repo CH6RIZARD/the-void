@@ -165,6 +165,7 @@ export function decoderFailureCount(): number { return decoderFailures; }
 export function noteDecoderFailure(): number {
   decoderFailures++;
   playerBudget = Math.max(PLAYER_BUDGET_FLOOR, playerBudget - 1);
+  console.warn('[wd] budget -> ' + playerBudget + ' after ' + decoderFailures + ' failures');
   return playerBudget;
 }
 /** Test seam. */
