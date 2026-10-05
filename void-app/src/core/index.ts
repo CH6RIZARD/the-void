@@ -39,6 +39,7 @@ export type { NationFeedState, NationFeedUI } from './feed/nation.ts';
 export * from './feed/reels.ts';
 export * from './feed/search.ts';
 export * from './feed/voidFeed.ts';
+export * from './feed/feedMixer.ts';
 
 export * from './api/voidApi.ts';
 export * from './api/auth.ts';

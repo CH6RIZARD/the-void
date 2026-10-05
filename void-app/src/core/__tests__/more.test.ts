@@ -252,3 +252,29 @@ test('reels pull is single-flight: a second caller gets the pull in progress, no
   assert.notEqual(c, a, 'a settled pull frees the slot');
   await c;
 });
+
+test('feedMixer: ~NICHE_SHARE niche per page, <=2 per author per page, gates hold', () => {
+  core.configureCore({ storage: core.createMemoryStorage(), session: core.createMemoryStorage(), now: () => NOW, random: mulberry32(9), proxyBase: '', fetch: noNet });
+  const W = 'water roads housing schools rivers markets clinics buses parks bridges ferries libraries farms ports tariffs wages'.split(' ');
+  const mk = (i: number, o: Partial<any>) => ({ id: 'm' + i, source: 'bluesky', style: 'take', country: '', iso: '', tags: [], score: 0, replies: 0,
+    time: NOW - (i % 20) * 3600000, body: 'A considered paragraph about ' + W[i % W.length] + ' and ' + W[(i * 7 + 3) % W.length] + ' that the council decided on ' + W[(i * 3 + 1) % W.length], ...o });
+  const pool: any[] = [];
+  for (let i = 0; i < 40; i++) pool.push(mk(i, { score: 10 + i * 7, replies: i % 5, _handle: 'eng' + (i % 6) }));       // engaged, 6 authors
+  for (let i = 40; i < 80; i++) pool.push(mk(i, { _handle: 'niche' + (i % 12) }));                                      // niche, 12 authors
+  pool.push(mk(90, { body: 'https://example.com/x', _handle: 'linky' }));                                                // link-only
+  pool.push(mk(91, { body: 'KJFK 041851Z 27012KT 10SM FEW250 METAR report', _handle: 'wx' }));                           // weather bot
+  pool.push(mk(92, { _repost: true, _handle: 'rp' }));                                                                   // pure repost
+  const out = core.mixFeed(pool);
+  assert.equal(out.length, pool.length, 'nothing is dropped');
+  const first30 = out.slice(0, 30);
+  const niche = first30.filter((p: any) => core.engagementOf(p) < core.ENGAGED_MIN).length;
+  assert.ok(Math.abs(niche - 30 * core.NICHE_SHARE) <= 2, `niche ${niche}/30 ~ ${30 * core.NICHE_SHARE}`);
+  for (let pg = 0; pg < 3; pg++) {
+    const counts: Record<string, number> = {};
+    for (const p of out.slice(pg * 10, pg * 10 + 10)) counts[p._handle] = (counts[p._handle] || 0) + 1;
+    assert.ok(Object.values(counts).every((n) => n <= core.PER_AUTHOR), 'page ' + pg + ' author cap: ' + JSON.stringify(counts));
+  }
+  const gated = ['m90', 'm91', 'm92'];
+  assert.deepEqual(out.slice(-3).map((p: any) => p.id).sort(), gated, 'link-only, bot and repost posts go last');
+  assert.ok(first30.slice(0, 10).some((p: any) => core.engagementOf(p) >= core.ENGAGED_MIN), 'engaged posts still lead pages');
+});
