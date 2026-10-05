@@ -634,6 +634,14 @@ export const LiveWall = memo(forwardRef<LiveWallHandle, LiveWallProps>(function 
     // Tells only the tiles whose state actually flipped - usually none, and at
     // most a handful as a boundary is crossed.
     mark('wall:apply');
+    {
+      const sig = 'b' + playerBudgetNow() + ' want' + want + ' ring' + inRing + ' live' + live.length + ' ev[' + [...evicted].sort((a, b) => a - b).join(',') + '] pk' + parked.size;
+      if (sig !== (globalThis as any).__wdLast) {
+        (globalThis as any).__wdLast = sig;
+        const vis = [...dist].filter(([, d]) => d === 0).map(([id]) => id).sort((a, b) => a - b).join(',');
+        console.warn('[wd] pass ' + sig + ' vis[' + vis + ']');
+      }
+    }
     applyPlacement(parked, evicted);
     mark('idle');
   }, [w]);
@@ -888,6 +896,7 @@ const WallTile = memo(function WallTile({ rec, left, top, width, height, borderC
 
   const onResult = useCallback((res: CascadeResult) => {
     if (!s.alive) return;
+    console.warn('[wd] result ' + rec.id + ' ' + rec.name + ' ok=' + res.ok + ' ' + String((res.src as any)?.label || '').slice(0, 40));
     if (res.ok && res.src) {
       s.lastSrc = res.src;
       lastGood.set(rec.id, res.src); // remembered past this tile's own lifetime

@@ -464,6 +464,7 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
         // before healing, so the wall asks for one fewer from here on.
         try {
           const msg = String((e && (e.error?.message || e.message)) || '');
+          console.warn('[wd] error ' + tileId + ' done=' + api.isDone() + ' msg=' + msg.slice(0, 120));
           if (/codec|decoder|MediaCodec/i.test(msg) || !msg) noteDecoderFailure();
         } catch {}
         if (!api.isDone()) api.finish(false);
@@ -593,6 +594,7 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
       }
       if (Date.now() - lastMovedAt > STALL_DEAD_MS) {
         lastMovedAt = Date.now();
+        console.warn('[wd] stall ' + tileId);
         api.needsHeal();
       }
     });
@@ -628,6 +630,7 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
         const px = await sampleFramePaced(shotRef.current);
         if (px && check(px, Date.now())) {
           dead = true;
+          console.warn('[wd] slate ' + tileId);
           markBadStream(source);
           api.needsHeal();
         }
