@@ -86,7 +86,12 @@ export default function VoidFeedScreen() {
   }, []);
 
   // renderFeed(): append whatever is fresh, then window the list.
-  const append = useCallback(() => timed('feed.append', () => {
+  // `atEnd`: the reader scrolled to the bottom and asked for more. Appending there
+  // inserts nothing above them, so nothing is held: the hold below kept every post
+  // NEWER than the newest card for pull-to-refresh, and since almost every fresh
+  // arrival is newer, the main feed stopped dead at ~20 cards while the nation feed
+  // (no hold) kept scrolling. The hold still applies to background arrivals.
+  const append = useCallback((atEnd = false) => timed('feed.append', () => {
     let held: Set<string> | undefined;
     if (dealt.length) {
       if (Date.now() - firstAt.current < FEED_SETTLE_MS) {
@@ -94,7 +99,7 @@ export default function VoidFeedScreen() {
           replaceAll(rebuildFeedBatch(hiddenFn));
           return;
         }
-      } else {
+      } else if (!atEnd) {
         held = new Set(peekFeedFresh(hiddenFn).filter((p) => (p.time || 0) > newest.current).map((p) => p.id));
       }
     }
@@ -126,7 +131,7 @@ export default function VoidFeedScreen() {
     const res = await pullVoidFeed();
     if (!alive.current) return;
     if ((res === 'empty' || res === 'error') && !allPosts.length) setStatus('error');
-    else append();
+    else append(true);
   }, [append]);
 
   useEffect(() => {

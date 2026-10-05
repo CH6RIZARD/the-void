@@ -440,7 +440,7 @@ function Thread({ post: p }: { post: Post }) {
                   </View>
                   <Pressable onPress={() => toggleRepost(p.id)} style={styles.act} hitSlop={8}>
                     <Icon name="repost" size={13} color={r.mrp ? colors.gold : colors.navDim} />
-                    <VText style={[styles.actT, { color: r.mrp ? colors.gold : colors.navDim }]}>{fmt(p.reposts || 0)}</VText>
+                    <VText style={[styles.actT, { color: r.mrp ? colors.gold : colors.navDim }]}>{fmt(p.reposts || p._reposts || 0)}</VText>
                   </Pressable>
                   <Pressable onPress={share} style={[styles.act, { marginLeft: 'auto' }]} hitSlop={8} accessibilityLabel="Share">
                     <Icon name="share" size={13} color={colors.navDim} />
