@@ -464,7 +464,7 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
         // before healing, so the wall asks for one fewer from here on.
         try {
           const msg = String((e && (e.error?.message || e.message)) || '');
-          console.warn('[wd] error ' + tileId + ' done=' + api.isDone() + ' msg=' + msg.slice(0, 120));
+          console.warn('[wd] error ' + tileId + ' done=' + api.isDone() + ' msg=' + msg + ' src=' + String((source as any)?.url || '').slice(0, 90));
           if (/codec|decoder|MediaCodec/i.test(msg) || !msg) noteDecoderFailure();
           // A source this phone can never open stays shut for the session: a TLS
           // chain Android 10 does not trust (javax.net...) or a 4xx. Without this every
