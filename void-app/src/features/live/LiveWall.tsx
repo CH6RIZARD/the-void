@@ -489,11 +489,22 @@ export const LiveWall = memo(forwardRef<LiveWallHandle, LiveWallProps>(function 
     const g = geo.current;
     const vh = Math.max(1, g.viewportH);
     const dist = new Map<number, number>();
+    // How much of a visible tile is on screen (0..1). dist is 0 for every tile with
+    // a single pixel in view, so 'visible' alone cannot order them.
+    const shown = new Map<number, number>();
     for (const [id, p] of posRef.current) {
       const top = g.gridY + p.top - w.scrollY;
       const d = top > vh ? (top - vh) / vh : top + g.tileH < 0 ? -(top + g.tileH) / vh : 0;
       dist.set(id, d);
+      if (d === 0) shown.set(id, Math.max(0, Math.min(vh, top + g.tileH) - Math.max(0, top)) / Math.max(1, g.tileH));
     }
+    // One order for both directions: the cut sheds from the top of it, the restore
+    // fills from the bottom. Off-screen tiles by distance, then visible tiles from
+    // the least shown to the most shown.
+    const shedRank = (id: number) => {
+      const d = dist.get(id) ?? 0;
+      return d > 0 ? d : -(shown.get(id) ?? 1);
+    };
     // WHATEVER YOU ARE LISTENING TO KEEPS PLAYING.
     //
     // Unmute a stream, scroll on, and it was parked the moment it left the
@@ -540,14 +551,35 @@ export const LiveWall = memo(forwardRef<LiveWallHandle, LiveWallProps>(function 
       // left. A tile this declines is already evicted and already showing its
       // poster, so nothing visible changes; the next pass picks it up in budget.
       let room = want - live.length;
+      // VISIBLE TILES COME BACK ONLY UP TO THE HARD CEILING.
+      //
+      // With the wall resting mid-row, 10-12 tiles have a pixel on screen against a
+      // ceiling of MAX_MOUNTED_PLAYERS. Restoring every one of them put the count
+      // over the ceiling, the cut below then took visible tiles back out, and the
+      // next pass (every 2.5s) restored them again: 2-4 tiles torn down and
+      // reconnected every couple of seconds at rest - 'the last 3 keep breaking'
+      // (diag log 2026-10-05, vis 10, live 12 -> ev[1,2,3,4] -> ev[2,4] -> ...).
+      // Now the most-shown visible tiles come back first and only while the count
+      // stays under the ceiling; to make room, a live tile off screen gives way.
+      let slots = MAX_MOUNTED_PLAYERS - live.length;
+      const ringLive = live
+        .filter((e) => (dist.get(e.id) ?? 0) > 0 && !evicted.has(e.id) && e.id !== keepId)
+        .sort((a, b) => shedRank(b.id) - shedRank(a.id));
       const near = [...evicted]
         .map((id) => [id, dist.get(id) ?? 0] as const)
         .filter(([, d]) => d <= PARK_SCREENS)
-        .sort((a, b) => a[1] - b[1]);
+        .sort((a, b) => shedRank(a[0]) - shedRank(b[0]));
       for (const [id, d] of near) {
         if (d > 0 && room <= 0) break; // sorted: nothing nearer is coming
+        if (d === 0 && slots <= 0) {
+          const give = ringLive.shift();
+          if (!give) continue; // every live tile is visible and more shown than this one
+          evicted.add(give.id);
+          slots++;
+        }
         evicted.delete(id);
         room--;
+        slots--;
       }
     }
     // Two budgets, farthest first. A PAUSED player is not a free player: an off-screen
@@ -566,7 +598,7 @@ export const LiveWall = memo(forwardRef<LiveWallHandle, LiveWallProps>(function 
     const evictFarthest = (pool: WallEntry[], max: number) => {
       let over = pool.length - max;
       if (over <= 0) return;
-      const rank = (e: WallEntry) => dist.get(e.id) ?? 0;
+      const rank = (e: WallEntry) => shedRank(e.id);
       // A TILE YOU ARE LOOKING AT IS NOT A CANDIDATE.
       //
       // The budget shrinks by one on every decoder failure, so on a phone that
