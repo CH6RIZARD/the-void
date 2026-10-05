@@ -26,7 +26,8 @@ import { applyPlacement, clearPlacement, evictedIds, parkedIds, placementOf, use
 import { holdCreates, livePlayerCount, releaseQueueDepth } from './pacedPlayer';
 import { wallScrollAtSV } from './wallScrollSignal';
 import { useStreamCascade, type CascadeResult } from './useStreamCascade';
-import { liveVidFor, rememberStream, wallCascadeFor, wallSlots, streamKey, type StreamSource, type StreamType, type WallSlot } from './core';
+import { isBadStream, liveVidFor, rememberStream, wallCascadeFor, wallSlots, streamKey, type StreamSource, type StreamType, type WallSlot } from './core';
+import { iptvFor } from '../../core';
 import {
   FIRST_BATCH_DELAY_MS,
   playerBudgetNow,
@@ -955,6 +956,17 @@ const WallTile = memo(function WallTile({ rec, left, top, width, height, borderC
   const connect = useCallback(
     (rotate: boolean) => {
       let chain = wallCascadeFor(rec.name, s.lastSrc) || [];
+      // A NEWS TILE WALKS DEEPER THAN THREE. wallCascadeFor stays the web's
+      // three-deep chain (golden-pinned), but on Android 10 most of Turkey's first
+      // streams fail TLS and the one that works is claimed by the other Turkey tile,
+      // so three ran dry in milliseconds and the tile retried every few seconds with
+      // nothing to show ('Turkey ok=false' x14 in two minutes, diag 2026-10-05).
+      // Up to three more of the country's live streams not already known dead.
+      const iptv = iptvFor(rec.name) as unknown as StreamSource[];
+      if (iptv.some((x) => streamKey(x) === streamKey(rec.src))) {
+        const have = new Set(chain.map((x) => streamKey(x)));
+        chain = chain.concat(iptv.filter((x) => x.type === 'hls' && !isBadStream(x) && !have.has(streamKey(x))).slice(0, 3));
+      }
       if (rotate && s.lastSrc && chain.length > 1) {
         const k = streamKey(s.lastSrc);
         chain = chain.filter((x) => streamKey(x) !== k).concat(chain.filter((x) => streamKey(x) === k));
