@@ -60,8 +60,8 @@ export function useStreamCascade(onResult: (r: CascadeResult) => void) {
       while (idx.current < chain.current.length) {
         const i = idx.current++;
         const src = chain.current[i];
-        if (refuseInstantly(src)) continue;
-        if (!claimLiveKey(src)) continue; // already on screen elsewhere
+        if (refuseInstantly(src)) { console.warn('[wd] refuse ' + String((src as any)?.label || '') + ' bad=' + isBadStream(src) + ' type=' + src?.type); continue; }
+        if (!claimLiveKey(src)) { console.warn('[wd] claimed ' + String((src as any)?.label || '')); continue; } // already on screen elsewhere
         claimed.current = src;
         const key = `a${++attemptSeq}`;
         curKey.current = key;

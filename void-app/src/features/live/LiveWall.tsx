@@ -983,6 +983,7 @@ const WallTile = memo(function WallTile({ rec, left, top, width, height, borderC
       entry.needsHeal = false;
       setPhaseBoth('connecting');
       setLabel(null);
+      console.warn('[wd] chain ' + rec.id + ' ' + rec.name + ' src=' + String((rec.src as any)?.label || '') + ' last=' + String((s.lastSrc as any)?.label || '-') + ' :: ' + chain.map((x) => String((x as any).label || x.type)).join(' | '));
       cascade.start(chain);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
