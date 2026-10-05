@@ -466,6 +466,11 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
           const msg = String((e && (e.error?.message || e.message)) || '');
           console.warn('[wd] error ' + tileId + ' done=' + api.isDone() + ' msg=' + msg.slice(0, 120));
           if (/codec|decoder|MediaCodec/i.test(msg) || !msg) noteDecoderFailure();
+          // A source this phone can never open stays shut for the session: a TLS
+          // chain Android 10 does not trust (javax.net...) or a 4xx. Without this every
+          // heal re-walked the same dead streams - one Turkey tile failed ten times in
+          // three minutes, and each failure reshuffled the wall's players.
+          if (/javax\.net|SSL|CertPath|Trust anchor|Response code: 4\d\d/i.test(msg)) markBadStream(source);
         } catch {}
         if (!api.isDone()) api.finish(false);
         else api.needsHeal();
