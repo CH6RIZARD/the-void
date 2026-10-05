@@ -160,7 +160,8 @@
       "expo-video",
       "expo-apple-authentication",
       "expo-web-browser",
-      "./modules/expo-void-sensing/app.plugin.js"
+      "./modules/expo-void-sensing/app.plugin.js",
+      "./plugins/withStreamTrust.js"
     ],
     "experiments": {
       "typedRoutes": false
