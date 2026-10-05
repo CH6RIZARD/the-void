@@ -5,6 +5,7 @@ import type { Post } from '../types.ts';
 import { VoidAPI } from '../api/voidApi.ts';
 import { VoidAuth } from '../api/auth.ts';
 import { orderFeedBatch } from '../rank/order.ts';
+import { mixFeed } from './feedMixer.ts';
 import { setRefreshBoost } from '../rank/bio.ts';
 import { admitPost } from '../rank/seen.ts';
 import { pullBlueskyPage } from './bluesky.ts';
@@ -106,7 +107,8 @@ export function nextFeedBatch(hidden?: (p: Post) => boolean, exclude?: Set<strin
 function nextFeedBatchInner(hidden?: (p: Post) => boolean, exclude?: Set<string>): Post[] {
   let fresh = peekFeedFresh(hidden, exclude);
   if (!fresh.length) return [];
-  fresh = staleLast(orderFeedBatch(fresh));
+  // The ranker orders, the mixer deals the engaged / niche mix (feedMixer.ts).
+  fresh = staleLast(mixFeed(orderFeedBatch(fresh)));
   // The FIRST deal is two screenfuls, not the whole pool. Committing ~100 ranked
   // cards in one go was the other half of the post-boot stall; the remainder
   // stays fresh and deals on the next append (a scroll, or the next arrival).
