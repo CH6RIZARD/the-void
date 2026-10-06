@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//d/void-patch/**)",
+      "PowerShell(Get-Volume | Select-Object DriveLetter, FileSystemLabel, FileSystem, DriveType, @{n='SizeGB';e={[math]::Round\\($_.Size/1GB,1\\)}}, @{n='FreeGB';e={[math]::Round\\($_.SizeRemaining/1GB,1\\)}} | Format-Table -AutoSize)",
+      "PowerShell(Get-ChildItem E:\\\\ -Force | Select-Object Mode, Name, Length | Format-Table -AutoSize; \\(Get-Process -Name GoogleDriveFS -ErrorAction SilentlyContinue\\) -ne $null)",
+      "PowerShell(Get-ChildItem C:\\\\Users\\\\chiagozie\\\\.config\\\\higgsfield -Force | Select Name,Length; foreach \\($d in @\\(\"C:\\\\Users\\\\chiagozie\",\"D:\\\\\",\"E:\\\\\"\\)\\) { Get-ChildItem $d -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.Name -match 'airbnb' } | Select-Object -First 20 -ExpandProperty FullName })",
+      "PowerShell(graphify query \"real-content reels feed: how does app/reels.tsx fetch from void-proxy, rank items, and render video tiles; what does the sensing provider expose \\(AffectState\\)\")",
+      "Read(//e/void-main/void-app/src/features/search/**)"
+    ],
+    "additionalDirectories": [
+      "D:\\void-patch"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "C:/Users/chiagozie/AppData/Roaming/uv/tools/graphifyy/Scripts/graphify.exe hook-guard search",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "C:/Users/chiagozie/AppData/Roaming/uv/tools/graphifyy/Scripts/graphify.exe hook-guard read",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

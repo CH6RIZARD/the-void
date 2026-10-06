@@ -45,3 +45,6 @@ scripts/railway/.cache/
 
 # Stream-patches review site (regenerated in CI by build-review-site.js)
 /public/
+
+# graphify knowledge graph (generated locally)
+graphify-out/

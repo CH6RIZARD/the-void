@@ -102,7 +102,12 @@ const PROBE_DECODERS = `(async()=>{
 async function main() {
   const port = await freePort(), dbgPort = await freePort();
   const srv = await serve(port);
-  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'void-perf-'));
+  // --profile=dir keeps the Chrome profile between runs, so a second run is a
+  // RETURNING user: localStorage (seen-sets, reel cursors) carries over. A fresh
+  // profile can never reproduce bugs that only appear after real use.
+  const keepProfile = !!args.profile;
+  const profile = keepProfile ? path.resolve(String(args.profile)) : fs.mkdtempSync(path.join(os.tmpdir(), 'void-perf-'));
+  if (keepProfile) fs.mkdirSync(profile, { recursive: true });
   const UA = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36';
   const chrome = spawn(CHROME, [
     '--headless=new', `--remote-debugging-port=${dbgPort}`, `--user-data-dir=${profile}`,
@@ -112,7 +117,7 @@ async function main() {
     'about:blank',
   ], { stdio: 'ignore' });
   let cdp;
-  const cleanup = async () => { cdp?.close(); try { if (process.platform === 'win32') spawn('taskkill', ['/pid', String(chrome.pid), '/T', '/F'], { stdio: 'ignore' }); else chrome.kill(); } catch {} srv.close(); await sleep(1200); for (let i = 0; i < 5; i++) { try { fs.rmSync(profile, { recursive: true, force: true }); break; } catch { await sleep(800); } } };
+  const cleanup = async () => { cdp?.close(); try { if (process.platform === 'win32') spawn('taskkill', ['/pid', String(chrome.pid), '/T', '/F'], { stdio: 'ignore' }); else chrome.kill(); } catch {} srv.close(); await sleep(1200); if (keepProfile) return; for (let i = 0; i < 5; i++) { try { fs.rmSync(profile, { recursive: true, force: true }); break; } catch { await sleep(800); } } };
   try {
     let target;
     for (let i = 0; i < 60 && !target; i++) {
@@ -131,6 +136,12 @@ async function main() {
       }
     });
     await cdp.send('Runtime.enable'); await cdp.send('Page.enable');
+    // --slow (3G-ish, 2 Mbit) or --slow=4g (9 Mbit): a phone on mobile data. Fast desktop fetches hid a whole class of
+    // bugs where the UI moved faster than the reel pool could fill.
+    if (args.slow) {
+      await cdp.send('Network.enable');
+      await cdp.send('Network.emulateNetworkConditions', args.slow === '4g' ? { offline: false, latency: 120, downloadThroughput: 9e6 / 8, uploadThroughput: 3e6 / 8 } : { offline: false, latency: 350, downloadThroughput: 2e6 / 8, uploadThroughput: 7.5e5 / 8 });
+    }
     await cdp.send('Emulation.setDeviceMetricsOverride', { width: 412, height: 915, deviceScaleFactor: 1, mobile: true });
     await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true });
     const url = `http://127.0.0.1:${port}/void2-final.html`;
@@ -190,11 +201,13 @@ async function main() {
             wallPlaying:[...document.querySelectorAll('.gl-tile video')].filter(v=>!v.paused).length
           };
         })()`);
-        if (reel && reel.playing > 0) break;
+        // --eager: start swiping the moment a card exists, like an impatient thumb.
+        if (reel && (args.eager ? reel.items > 0 : reel.playing > 0)) break;
         await sleep(1000);
       }
       summary.reels = { firstCard: reel };
       await shot('reels');
+      if (!args.eager) {
       // Swipe to the next card: the warmed item should take over quickly.
       await ev(`(()=>{const ct=document.getElementById('greel-container');if(ct)ct.scrollBy({top:ct.clientHeight});return 1})()`);
       await sleep(6000);
@@ -214,6 +227,63 @@ async function main() {
         };
       })()`);
       summary.reels.fps = await ev(PROBE_DECODERS, true);
+      }
+      // SCROLL-THROUGH. The reported failure: reels stop after 2 cards. Swipe like a
+      // user would, one card at a time, and record where each swipe actually lands and
+      // whether that card plays. A pass means the index keeps climbing and cards play.
+      const SWIPES = Number(args.swipes || 15);
+      summary.reels.scroll = [];
+      for (let i = 0; i < SWIPES; i++) {
+        await ev(`(()=>{const ct=document.getElementById('greel-container');if(ct)ct.scrollBy({top:ct.clientHeight});return 1})()`);
+        await sleep(Number(args.dwell || 3000));
+        summary.reels.scroll.push(await ev(`(()=>{
+          const ct=document.getElementById('greel-container');if(!ct)return null;
+          const items=[...ct.querySelectorAll('.vw-item')];
+          const idx=Math.round(ct.scrollTop/Math.max(1,ct.clientHeight));
+          const cur=items[idx],v=cur&&cur.querySelector('.vw-vid');
+          return {swipe:${i + 1},idx,items:items.length,
+            atEnd:ct.scrollTop+ct.clientHeight>=ct.scrollHeight-2,
+            playing:!!(v&&!v.paused&&v.readyState>2),rs:v?v.readyState:-1,
+            src:v?String(v.dataset.src||'').split('?')[0]:'',tail:!!ct.querySelector('.vw-tail'),
+            hlsOn:!!(v&&v.__hls),net:v?v.networkState:-1,rdy:!!(v&&v.dataset.ready),want:!!(v&&v.__want),gone:!!(v&&v.__gone),err:v&&v.error?v.error.code:0,host:v?(String(v.dataset.src||'').split('/')[2]||''):'',
+            pool:(typeof reelPosts!=='undefined'?reelPosts.length:-1),
+            seen:(typeof vwSeen!=='undefined'?vwSeen.size:-1),
+            pulling:!!(typeof _reelPromise!=='undefined'&&_reelPromise)};
+        })()`));
+      }
+      // LEAVE AND COME BACK: switch tab, return, and keep swiping. The rail must keep
+      // growing and playing - a returning user must never find a rail stuck in place.
+      await ev(`(()=>{try{switchTab('void');}catch(e){}return 1})()`);
+      await sleep(2000);
+      await ev(`(()=>{try{switchTab('globe');setGlobeMode('reels',1);}catch(e){}return 1})()`);
+      await sleep(1500);
+      summary.reels.afterReturn = [];
+      for (let i = 0; i < 6; i++) {
+        await ev(`(()=>{const ct=document.getElementById('greel-container');if(ct)ct.scrollBy({top:ct.clientHeight});return 1})()`);
+        await sleep(Number(args.dwell || 3000));
+        summary.reels.afterReturn.push(await ev(`(()=>{
+          const ct=document.getElementById('greel-container');if(!ct)return null;
+          const items=[...ct.querySelectorAll('.vw-item')];
+          const idx=Math.round(ct.scrollTop/Math.max(1,ct.clientHeight));
+          const v=items[idx]&&items[idx].querySelector('.vw-vid');
+          return {idx,items:items.length,playing:!!(v&&!v.paused&&v.readyState>2)};
+        })()`));
+      }
+      const ar = summary.reels.afterReturn.filter(Boolean);
+      summary.reels.returnVerdict = {
+        advanced: ar.length ? ar[ar.length - 1].idx - ar[0].idx : 0,
+        playing: ar.filter(x => x.playing).length + '/' + ar.length,
+      };
+      const sc = summary.reels.scroll.filter(Boolean);
+      summary.reels.scrollVerdict = {
+        furthestIdx: Math.max(0, ...sc.map(s => s.idx)),
+        playedOnLanding: sc.filter(s => s.playing).length + '/' + sc.length,
+        stuckAt: sc.length > 3 && sc.slice(-4).every(s => s.idx === sc[sc.length - 1].idx) ? sc[sc.length - 1].idx : null,
+        // The other half of the report: the same clip over and over.
+        distinctClips: new Set(sc.map(s => s.src).filter(Boolean)).size,
+        maxSameClip: Math.max(0, ...Object.values(sc.reduce((m, s) => { if (s.src) m[s.src] = (m[s.src] || 0) + 1; return m; }, {}))),
+        backToBack: sc.filter((s, i) => i && s.src && s.src === sc[i - 1].src && s.idx !== sc[i - 1].idx).length,
+      };
     }
 
     await cleanup();

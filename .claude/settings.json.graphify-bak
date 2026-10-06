@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//d/void-patch/**)"
+    ],
+    "additionalDirectories": [
+      "D:\\void-patch"
+    ]
+  }
+}
