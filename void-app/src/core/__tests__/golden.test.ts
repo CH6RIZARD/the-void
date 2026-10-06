@@ -89,6 +89,12 @@ test('wallSlots: identical slot order to the web (seeded), 3 life : 7 news at po
   for (const seed of [1, 42, 2026]) {
     freshCore(seed);
     const w = web(seed); loadWall(w);
+    // Cost ordering is a PHONE policy, not a wall rule. The web runs with it off: a
+    // browser decodes one wall video at a time, so leading with the cheapest rung only
+    // costs it picture quality - which is what made the dev wall look worse than the
+    // app. Native runs with it on: 8 tiles, one VPU. Flip it on here so the two
+    // orderings are still compared like for like; everything else must stay identical.
+    w.run('globalThis.WALL_COST_ORDER = true;');
     const mine = core.wallSlots();
     const theirs = wjson(w, 'wallSlots()');
     assert.equal(mine.length, theirs.length);
@@ -106,6 +112,8 @@ test('wallSlots: session sink + bad streams behave like the web', () => {
   const seed = 99;
   freshCore(seed);
   const w = web(seed); loadWall(w);
+  // Same phone-policy flag as the test above: compare the two orderings like for like.
+  w.run('globalThis.WALL_COST_ORDER = true;');
   const first = core.wallSlots().slice(0, 25);
   // Remember the first 20 (shown), mark 5 bad — same on both sides.
   first.slice(0, 20).forEach(s => core.rememberStream(s.src));

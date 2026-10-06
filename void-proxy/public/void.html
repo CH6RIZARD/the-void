@@ -202,6 +202,10 @@ html,body{height:100%;background:var(--bg);background-image:var(--bg-radial);col
 @keyframes fout{to{opacity:0}}
 #globe-search-icon{position:absolute;top:10px;left:12px;z-index:15;width:30px;height:30px;background:rgba(4,2,12,.8);border:1px solid var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;backdrop-filter:blur(8px);transition:border-color .2s}
 #globe-search-icon:hover{border-color:var(--glow)}
+#globe-refresh-icon{position:absolute;top:10px;right:12px;z-index:15;width:30px;height:30px;background:rgba(4,2,12,.8);border:1px solid var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;backdrop-filter:blur(8px);transition:border-color .2s,transform .5s}
+#globe-refresh-icon:hover{border-color:var(--glow)}
+#globe-refresh-icon.spin{transform:rotate(360deg)}
+#globe-refresh-icon .vi{width:14px;height:14px}
 #globe-search-modal{display:none;position:absolute;inset:0;z-index:20;background:rgba(4,2,12,.97);backdrop-filter:blur(20px);padding:12px;flex-direction:column}
 #globe-search-modal.open{display:flex}
 .gsm-row{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-shrink:0}
@@ -4695,7 +4699,7 @@ async function pullLivePosts(){await pullVoidFeed();}
 
 // Globe
 let globeReady=false,globeDrag=false,globePrevM={x:0,y:0},tRotY=0,tRotX=0,cRotX=0,cRotY=0,globeZoom=2.9,tZoom=2.9,rVelX=0,rVelY=0,globePanOpen=false;
-function initGlobe(){const gsi=document.getElementById('globe-search-icon');if(gsi&&!gsi.innerHTML)gsi.innerHTML=VICON.search;const wrap=document.getElementById('globe-canvas-wrap');const W=wrap.clientWidth,H=wrap.clientHeight;
+function initGlobe(){const gsi=document.getElementById('globe-search-icon');if(gsi&&!gsi.innerHTML)gsi.innerHTML=VICON.search;const gri=document.getElementById('globe-refresh-icon');if(gri&&!gri.innerHTML)gri.innerHTML=VICON.repost;const wrap=document.getElementById('globe-canvas-wrap');const W=wrap.clientWidth,H=wrap.clientHeight;
   // Mobile perf gate: coarse pointer (touch) or a small viewport = phone/tablet.
   // Desktop keeps the exact original renderer settings and geometry below —
   // nothing here changes how the globe looks on a mouse/trackpad device.
@@ -5964,7 +5968,15 @@ function wallSlots(){
     // 400ms, shuffle deciding inside each bucket) - a personal fast-first here
     // would replay the same channels every day. The dead, locally or globally,
     // drop out entirely.
-    const wBucket=s=>{const w=Number(s.w)||0;return w>0&&w<=480?0:(!w?1:2);};
+    // COST ORDERING IS A PHONE POLICY, NOT A WALL RULE.
+    // The phone shares one VPU across 8 tiles, so it must lead with the cheapest
+    // rung. A browser decodes these one at a time with power to spare, so the same
+    // sort only costs it picture quality - it was handing the dev wall the worst
+    // available version of every stream. Off here, on for native; everything else
+    // about the order stays identical, and the golden parity test flips this on so
+    // it still compares the two orderings like for like.
+    const WALL_COST_ORDER = (typeof globalThis!=="undefined" && globalThis.WALL_COST_ORDER) === true;
+    const wBucket=s=>{if(!WALL_COST_ORDER)return 0;const w=Number(s.w)||0;return w>0&&w<=480?0:(!w?1:2);};
     // Reliability before cost, cost before speed: proven-flaky streams sink
     // behind everything, whatever their width - a flaky lead is a cascade
     // advance per tile per visit. The native wall sorts the same way (wall.ts).
@@ -6292,6 +6304,16 @@ function wallSentinelNear(){
   const r=s.getBoundingClientRect();
   if(r.right<=0||r.left>=window.innerWidth)return false;    // translated off sideways
   return r.top <= window.innerHeight+400;
+}
+// REFRESH THE HALF OF THE SCREEN YOU ARE LOOKING AT.
+// Pull-to-refresh belongs to the page scroll below the globe, and the globe
+// swallows a drag to turn the sphere - so the live wall had no way to be
+// refreshed from here. The native app grew a button for exactly this
+// (GlobeScreen refreshAll); this is the web half of that pair.
+function refreshGlobeWall(){
+  const b=document.getElementById("globe-refresh-icon");
+  if(b){b.classList.add("spin");setTimeout(()=>b.classList.remove("spin"),520);}
+  try{ buildGlobeGrid(); }catch(e){ console.error("[globe] refresh failed",e); }
 }
 function buildGlobeGrid(){
   const grid=document.getElementById('gl-grid');
