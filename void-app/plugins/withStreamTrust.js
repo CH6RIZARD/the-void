@@ -29,15 +29,38 @@ const XML = `<?xml version="1.0" encoding="utf-8"?>
 </network-security-config>
 `;
 
+// A networkSecurityConfig OVERRIDES android:usesCleartextTraffic. The debug manifest
+// sets that true so Metro can serve the JS bundle over plain http, and pointing the
+// app at a config with no base-config silently took it away: the dev client died on
+// "CLEARTEXT communication not permitted" and could not load the bundle at all.
+// So the debug variants get their own copy with a localhost-only cleartext exemption.
+// Release is untouched and still refuses cleartext everywhere.
+const DEBUG_XML = XML.replace(
+  '</network-security-config>',
+  `  <!-- Metro serves the bundle over plain http from the dev machine. Debug only. -->
+  <domain-config cleartextTrafficPermitted="true">
+    <domain includeSubdomains="true">localhost</domain>
+    <domain includeSubdomains="true">127.0.0.1</domain>
+    <domain includeSubdomains="true">10.0.2.2</domain>
+  </domain-config>
+</network-security-config>`,
+);
+
 module.exports = function withStreamTrust(config) {
   config = withDangerousMod(config, [
     'android',
     async (c) => {
-      const res = path.join(c.modRequest.platformProjectRoot, 'app', 'src', 'main', 'res');
-      fs.mkdirSync(path.join(res, 'xml'), { recursive: true });
-      fs.mkdirSync(path.join(res, 'raw'), { recursive: true });
-      fs.writeFileSync(path.join(res, 'xml', 'network_security_config.xml'), XML);
-      fs.copyFileSync(path.join(__dirname, 'certs', CERT + '.pem'), path.join(res, 'raw', CERT + '.pem'));
+      const src = path.join(c.modRequest.platformProjectRoot, 'app', 'src');
+      const write = (dir, xml) => {
+        fs.mkdirSync(path.join(dir, 'xml'), { recursive: true });
+        fs.mkdirSync(path.join(dir, 'raw'), { recursive: true });
+        fs.writeFileSync(path.join(dir, 'xml', 'network_security_config.xml'), xml);
+        fs.copyFileSync(path.join(__dirname, 'certs', CERT + '.pem'), path.join(dir, 'raw', CERT + '.pem'));
+      };
+      write(path.join(src, 'main', 'res'), XML);
+      // Variant resources win over main/, so debug gets the cleartext exemption
+      // without release ever seeing it.
+      for (const v of ['debug', 'debugOptimized']) write(path.join(src, v, 'res'), DEBUG_XML);
       return c;
     },
   ]);
