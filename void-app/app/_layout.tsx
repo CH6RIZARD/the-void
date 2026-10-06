@@ -115,34 +115,11 @@ function Shell() {
     } catch {}
   }, [ready]);
 
-  // Backgrounding is the one safe moment to hand the decoded-image cache back: the
-  // disk cache still has every file, so returning re-decodes at the size now needed
-  // instead of holding the old bitmaps. Measured 2026-09-20: ~162 MB of graphics memory.
-  // THE GLOBE TAB SHOULD NOT PAY FOR THREE.JS ON THE FRAME IT IS PRESSED.
-  // The globe screen's module graph pulls in the whole of three, and the tab is
-  // lazy, so the first press paid to evaluate it - several hundred milliseconds of
-  // JS before anything to do with the globe had even started. Evaluating it at
-  // startup would only move that cost onto the splash screen, so it happens a few
-  // seconds after first paint instead, while the feed is being read: by the time
-  // the tab is pressed the module is already in the registry and the press does
-  // nothing but build the scene.
-  useEffect(() => {
-    const t = setTimeout(() => {
-      try {
-        // Named, because a synchronous require of three.js and the scene builder
-        // is one of the largest single blocks the app can run, and it runs on a
-        // timer with nothing else to blame it on. The stall detector was
-        // reporting 300-450ms blocks around the four-second mark attributed to
-        // 'idle' - this is the first candidate to confirm or clear.
-        mark('boot:globeScene');
-        require('../src/features/globe/globeScene');
-        mark('idle');
-      } catch {
-        /* the tab still works, it just pays for itself again */
-      }
-    }, 4000);
-    return () => clearTimeout(t);
-  }, []);
+  // NO globeScene PREFETCH. A boot+4s timer used to require globeScene.ts (three.js
+  // + the three scene builder) so the globe tab press would not pay for it - the
+  // stall detector's 300-450ms block at the four-second mark. The globe draws with
+  // globeWorklet (GlobeCanvas WORKLET_GLOBE = true); createGlobeScene never runs,
+  // so that block warmed a renderer nobody uses, on every launch.
 
   // The search discovery pool is session-global, and the first SEARCH open used
   // to start it from nothing - a blank grid for a full network round. Stocked a
@@ -159,6 +136,9 @@ function Shell() {
     return () => clearTimeout(t);
   }, []);
 
+  // Backgrounding is the one safe moment to hand the decoded-image cache back: the
+  // disk cache still has every file, so returning re-decodes at the size now needed
+  // instead of holding the old bitmaps. Measured 2026-09-20: ~162 MB of graphics memory.
   useEffect(() => {
     const stopHeartbeat = startHeartbeat();
     const sub = AppState.addEventListener('change', (st) => {

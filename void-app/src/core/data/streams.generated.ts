@@ -2,7 +2,7 @@
 import type { StreamSource, LiveChannel } from '../types.ts';
 
 // Resolved by scripts/resolve-live.js: only these were CONFIRMED broadcasting at _resolvedAt.
-export const VOID_LIVE: { _resolvedAt: string; items: LiveChannel[] } = {"_resolvedAt":"2026-10-01T15:17:09.634Z","items":[{"n":"DW NEWS","id":"UCknLrEdhRCp1aegoMqRaCZg","vid":"LuKwFajn37U"},{"n":"BLOOMBERG","id":"UCIALMKvObZNtJ6AmdCLP7Lg","vid":"QB5BNdBFujE"},{"n":"TIMES NOW","id":"UCt4t-jeY85JegMlZ-E5UWtA","vid":"kXlSrKm9FjU"},{"n":"TRT WORLD","id":"UC7fWeaHhqgM4Ry-RMpM2YYw","vid":"qBe59l6p_EU"}]};
+export const VOID_LIVE: { _resolvedAt: string; items: LiveChannel[] } = {"_resolvedAt":"2026-10-04T21:51:18.055Z","items":[{"n":"DW NEWS","id":"UCknLrEdhRCp1aegoMqRaCZg","vid":"LuKwFajn37U"},{"n":"BLOOMBERG","id":"UCIALMKvObZNtJ6AmdCLP7Lg","vid":"QB5BNdBFujE"},{"n":"AAJ TAK","id":"UCt4t-jeY85JegMlZ-E5UWtA","vid":"0e_sINcMyo4"},{"n":"TRT WORLD","id":"UC7fWeaHhqgM4Ry-RMpM2YYw","vid":"qBe59l6p_EU"}]};
 
 // Channels ordered by embed reliability (DW confirmed working in tests).
 export const LIVE_CHANNELS: LiveChannel[] = [
@@ -11,9 +11,9 @@ export const LIVE_CHANNELS: LiveChannel[] = [
   {"n":"WION","id":"UCc5yBAMxXBGEoF9oPTw3WbQ"},
   {"n":"BLOOMBERG","id":"UCIALMKvObZNtJ6AmdCLP7Lg","vid":"QB5BNdBFujE"},
   {"n":"EURONEWS","id":"UCctIIFkY0LRSjR-zzXaiDDg"},
-  {"n":"TIMES NOW","id":"UCt4t-jeY85JegMlZ-E5UWtA","vid":"fuqnTZm94us"},
+  {"n":"AAJ TAK","id":"UCt4t-jeY85JegMlZ-E5UWtA","vid":"0e_sINcMyo4"},
   {"n":"CGTN","id":"UCnl2bFHLjn-1x7j_kXvQQdg"},
-  {"n":"TRT WORLD","id":"UC7fWeaHhqgM4Ry-RMpM2YYw","vid":"b8lPrtjmnmw"},
+  {"n":"TRT WORLD","id":"UC7fWeaHhqgM4Ry-RMpM2YYw","vid":"qBe59l6p_EU"},
   {"n":"AL JAZEERA","id":"UCNye-wNBqNL5ZzHSJdpkiXA"},
   {"n":"FRANCE 24","id":"UCQfwfsi5VrQ8yKZ-UWmAGNA"},
   {"n":"ABC NEWS","id":"UCBi2mrWuNuyYy4gbM6fU18A"},
@@ -362,9 +362,7 @@ export const NEWS_SOURCES: Record<string, StreamSource[]> = {
   "Russia": [
     {"type":"youtube","id":"UCnGayDD1TlHdczUsPVnbMsA","label":"Moscow 24 (Москва 24) 24/7 live"}
   ],
-  "Israel": [
-    {"type":"youtube","id":"c0vWf3BQ_bc","label":"i24NEWS English - LIVE Broadcast"}
-  ],
+  "Israel": [],
   "Palestinian Territories": [],
   "Syria": [
     {"type":"youtube","id":"h6cB5IUmVF0","label":"Syria TV - Live (تلفزيون سوريا)"}
@@ -398,14 +396,12 @@ export const NEWS_SOURCES: Record<string, StreamSource[]> = {
     {"type":"youtube","id":"UCuaRmKJLYaVMDHrnjhWUcHw","label":"DVB TV News (Democratic Voice of Burma) - independent Burmese news"}
   ],
   "Pakistan": [
-    {"type":"youtube","id":"RqUZ2Fv9l8w","label":"ARY News LIVE - Pakistan 24/7"},
     {"type":"youtube","id":"t3fvgmDDmdc","label":"Geo News LIVE - Pakistan 24/7"}
   ],
   "Taiwan": [
     {"type":"youtube","id":"UC7c6rvyAZLpKGk8ttVnpnLA","label":"TaiwanPlus Livestream — 24/7 News (English)"}
   ],
   "South Korea": [
-    {"type":"youtube","id":"CJVBX7KI5nU","label":"Arirang TV — Live from Korea 24/7 (English)"},
     {"type":"youtube","id":"UCzznO4xSV8BKnUBPyswtCUw","label":"Arirang News (English)"}
   ],
   "North Korea": [

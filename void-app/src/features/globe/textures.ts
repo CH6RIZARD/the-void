@@ -11,11 +11,21 @@
 //                        networks) is uploaded by expo-gl straight from the file ({ localUri })
 //                        into a raw GL texture handed to three.js (three never re-uploads a
 //                        version-0 texture).
-import * as THREE from 'three';
+//
+// THREE IS NOT LOADED HERE AT MODULE SCOPE. app/_layout imports this file at boot
+// for bundledEarthPixelsAsync (the worklet globe's pixels), and a top-level three
+// import evaluated all of three.js during startup for a renderer (globeScene.ts)
+// that WORKLET_GLOBE never runs. The pixel functions are three-free; the texture
+// functions below - the three renderer's - pull three (and the 765 KB base64 PNG)
+// in on first call. Types stay checked via `import type`.
+import type * as THREE from 'three';
 import { mark } from '../../core/slow';
 import { Asset } from 'expo-asset';
 import { b64ToBytes, decodePngRGBA } from '../live/frameSample';
-import { EARTH_PNG_B64 } from './earthTexture';
+
+// require('./three'), never require('three'): see three.ts (one copy of three, not two).
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const three = (): typeof import('three') => require('./three').THREE;
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const EARTH = require('../../../assets/globe/earth-night.jpg');
@@ -272,6 +282,7 @@ function rasterRadial(size: number, stops: Stop[]): Uint8Array {
 }
 
 function canvasLikeTexture(data: Uint8Array, w: number, h: number): THREE.DataTexture {
+  const THREE = three();
   const tex = new THREE.DataTexture(data, w, h, THREE.RGBAFormat, THREE.UnsignedByteType);
   // CanvasTexture defaults (DataTexture defaults to Nearest / no mipmaps).
   tex.magFilter = THREE.LinearFilter;
@@ -414,6 +425,8 @@ function earthPixels(): { w: number; h: number; data: Uint8Array } | null {
   }
   const t0 = Date.now();
   try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { EARTH_PNG_B64 } = require('./earthTexture') as typeof import('./earthTexture');
     const bytes = b64ToBytes(EARTH_PNG_B64);
     const tB64 = Date.now();
     const px = decodePngRGBA(bytes);
@@ -443,6 +456,7 @@ function earthPixels(): { w: number; h: number; data: Uint8Array } | null {
   }
 }
 export async function loadEarthTexture(gl: any, renderer: THREE.WebGLRenderer, rawPixelStorei: (p: number, v: any) => void): Promise<THREE.Texture> {
+  const THREE = three();
   // three's state reset reads gl.canvas.width; expo-gl's context has no canvas, so
   // renderer.resetState() throws "Cannot read property 'width' of undefined" - which
   // is what the device reported once the decode path finally ran, and what the

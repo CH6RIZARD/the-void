@@ -208,8 +208,11 @@ function SparkleField({ particles, running, color }: { particles: Particle[]; ru
     const a = 0.4 * (1 - ph);
     c[0] = 1; c[1] = 1; c[2] = 1; c[3] = a;
   });
+  // onLayout lives on a wrapper with the Canvas's exact box: Skia 2.x
+  // console.errors on every render of a <Canvas onLayout> under Fabric.
+  // Not onSize - that is a per-frame measure worklet per canvas.
   return (
-    <Canvas
+    <View
       pointerEvents="none"
       style={StyleSheet.absoluteFill}
       onLayout={(e) => {
@@ -217,8 +220,10 @@ function SparkleField({ particles, running, color }: { particles: Particle[]; ru
         boxH.value = e.nativeEvent.layout.height;
       }}
     >
-      <Atlas image={texture} sprites={sprites} transforms={transforms} colors={colors} />
-    </Canvas>
+      <Canvas pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <Atlas image={texture} sprites={sprites} transforms={transforms} colors={colors} />
+      </Canvas>
+    </View>
   );
 }
 export interface SparkleLoaderProps {

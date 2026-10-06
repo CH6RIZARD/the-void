@@ -1,5 +1,76 @@
 # NATIVE PERF LOOP — state
 
+## STATE @ 2026-10-04 evening (resync after a long peer-traffic backlog)
+- USER PHONE: b8t (peer's crash-fix build, run 37229980621 @ 7c2ba6f,
+  passive install 16:29): RNGH pointerIndex crash patch (94171d8 - 7s
+  crashed on the user's phone 14:26 in the wall ScrollView; patch drops the
+  malformed event; not a mechanics change), nation cards visible without a
+  tap (20883a0), globe first-frame + upload-order fixes, bounded reels pull.
+  6h crash-buffer watch by the peer.
+- MY 7s LAB GATE (13:56, ran when the lab phone briefly returned): PASS -
+  players 7 / hw 7 / sw 0, globe textured, wall scroll p50 207ms (locked-7m
+  level, expected - the scroll fixes are the parked sparkle overlay).
+- WALL LOCK: ONE user-approved exception now SHIPPED on the peer branch:
+  fb7ee50 = B2 verbatim (hidden+asleep wall evicts all; user chose option
+  (a), quoted in the code). Verified: the only diff under features/live vs
+  wall-locked-7m. A1/A3/A4/A5 (audio-starve) remain PARKED. Memory file
+  wall-mechanics-locked.md lists the exception.
+- web/parity FAST-FORWARDED to peer tip 2ed7fa3 (tsc + 29/29 here). main
+  STAYS at 7cc3e99 until run 37237477459 (@2ed7fa3) is green - 2ed7fa3 adds
+  expo.autolinking.android.buildFromSource ["expo-gl"] (CI was linking a
+  PREBUILT expo-gl AAR, so the old opaque patch NEVER ran) + a rewritten
+  expo-gl patch (TextureView re-armed after each swap; perfetto showed only
+  37-51% of rendered globe frames reached the screen). Gotcha: local
+  node_modules/expo-gl still has the OLD patch applied - irrelevant for CI
+  (fresh install) and tsc, but reinstall before any local gradle attempt.
+- Peer CI: 37235455411 (@20c1e39) COMPILED expo-gl from source (CMake +
+  Kotlin + Java, APK 90.2MB) then died ENOSPC copying the APK. Fix 4434a41
+  (workflow-only: frees more unused runner toolchains + docker prune; keeps
+  SDK/NDK/yarn/node/java caches; tsc + npm test gates intact - REVIEWED OK).
+  37237477459 (@2ed7fa3, old workflow) expected to ENOSPC - ignore it.
+  MAIN FF GATES ON run 37237848725 (@4434a41) GREEN.
+- LAB PHONE: in someone's hands (Claude app foreground). Peer's script waits
+  for 3 min screen-off, installs b8v for a globe perfetto check, then
+  restores my 13:55 build from E:/tmp/apk-lab-backup/. I run NO watcher.
+- Killed my own stale PID 21720 (7c-era malformed commit chain incl. a push
+  to main, aimed at the dead C:/the void/void-main path; inert but dangerous).
+- MY LANE IN FLIGHT: workflow wf_2431dcda-223 (task wfmt7qwd1): (A) dead YT
+  sources (TIMES NOW is Aaj Tak's channel -> relabel AAJ TAK; drop i24
+  c0vWf3BQ_bc, ARY RqUZ2Fv9l8w, Arirang CJVBX7KI5nU; resolve-live re-run;
+  regen), (B) three.js off the boot path (textures.ts lazy three; keep the
+  pixel warm-up; GlobeCanvas globeScene import is the PEER's if needed),
+  (C) Skia '<Canvas onLayout> not supported' console.error spam (~110/80s)
+  -> wrapper View, pixel-identical. Each item adversarially verified. Peer
+  is staying out of those files until I send the sha.
+- USER DECISIONS STILL OPEN: proxy deploy (Railway; my attempt was
+  permission-denied), A1/A3/A4/A5 audio-starve, sparkle single-canvas
+  overlay, opaque nod (now moot? - peer removed the dead opaque prop; their
+  new frame-pickup patch is pixel-identical by their claim).
+
+## 7r IN CI (run 37210509668, main c511527) — the globe-complaint build
+- Carries peer 33434bc (tap no longer re-flings the last drag's velocity -
+  the 'reacts after lifting then freezes' mechanism; tap-pick uses
+  worklet-captured rot/zoom at touch-up; atmosphere far cap dropped from the
+  index buffer: 656/1984 always-discarded tris gone, ~275k->~84k fragments,
+  pixel-identical per analyst proof; GlobeScreen Pan memoised) + 962fd0d
+  (reels players = in-view + 1 ahead; virtual-clock proof: 10 wall + 3 reels
+  = 7/9 late, with 2 reels = 0/9) + e250d15 + 3092e19 breadcrumbs. Verified:
+  tsc/27/transform/wall-lock 0. Watcher b7usr7nlg (7q lab watcher stopped -
+  7q's verdict is the user-phone first-open watch).
+- USER-DECISION LIST now: (1) proxy deploy [railway up, or approve my
+  permission prompt]; (2) parked wall bundle A1/A3/A4/A5+B2; (3) sparkle
+  single-canvas overlay; (4) NEW minor: expo-gl opaque JS-forwarding fix -
+  the patch's native prop is dead, TextureView still blended; fixing costs
+  ~1-3/255 on atmosphere ring/marker halos (invisible in practice, not
+  bit-identical) - needs the nod because the look is locked.
+- MY NEXT-BUILD LANE ITEM: boot graph (audit rank 7) - lazy-require three.js
+  in textures.ts (dead globeScene branch still evaluates it at boot,
+  ~300-450ms), keep bundledEarthPixelsAsync warm (worklet needs it), drop
+  only the dead three-renderer warm-up.
+- Lock-scope clarification agreed with peer: nation.ts is OUTSIDE the wall
+  lock (hero-source selection, never imported by wall.ts); lock scope =
+  src/features/live/** + core/streams/{wall,health,keys}.ts + web wall block.
+
 ## MERGED THE PEER'S BRANCH · two CI runs in flight · lab phone back
 - web/parity = 51a0143: union of 7n + my 2e31b73/5acc349/fe6064b (CI test
   gate, trim+gzip, DM fixes) + peer's fix/globe-reels (search card centred;
