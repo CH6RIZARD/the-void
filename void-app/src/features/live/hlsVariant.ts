@@ -25,6 +25,16 @@ const widths = new Map<string, number>();
 export function widthFor(url: string | null | undefined): number | undefined {
   return url ? widths.get(url) : undefined;
 }
+/**
+ * The width a player actually DECODED. A single-rendition stream advertises no
+ * RESOLUTION, so its cost was unknown - and unknown slipped past the wall's
+ * expensive-stream cap: the compositor's table on the phone showed 1920x1080 and
+ * 1280x720 decodes behind 330-px tiles, each GPU-converted on every refresh.
+ * The player reports what it got; the cap and the cheap-first ordering read it.
+ */
+export function noteDecodedWidth(url: string | null | undefined, w: number): void {
+  if (url && w > 0) widths.set(url, w);
+}
 const FETCH_TIMEOUT_MS = 2500;
 /**
  * Below this the picture is visibly soft on a 2x tile, whatever the tile size says.

@@ -13,7 +13,7 @@
 // one-stream-one-place claim before mounting this, and releases the claim on unmount.
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { mark } from '../../core/slow';
-import { Animated, AppState, Easing, Image, PixelRatio, StyleSheet, View } from 'react-native';
+import { Animated, AppState, Dimensions, Easing, Image, PixelRatio, StyleSheet, View } from 'react-native';
 import { VideoView, type VideoPlayer } from 'expo-video';
 import { Image as ExpoImage } from 'expo-image';
 import { isReleasedPlayer, usePacedPlayer } from './pacedPlayer';
@@ -23,7 +23,7 @@ import { useAudioOwner, type AudioTarget } from './AudioOwner';
 import { liveVidFor, markBadStream, type StreamSource } from './core';
 import { createSignalChecker, frameVerdict, noteWallMount, noteWallUnmount, FRAME_H, FRAME_JUDGE_DELAY, FRAME_W } from '../../core';
 import { sampleFrame, sampleFramePaced } from './frameSample';
-import { variantCached, variantFor } from './hlsVariant';
+import { noteDecodedWidth, variantCached, variantFor } from './hlsVariant';
 import { CONNECT_TIMEOUT, WALL_BUFFER, YT_DEAD_CODES, YT_NUDGE_MS, YT_VEIL_MIN_MS, YT_VEIL_MS, noteDecoderFailure, youtubeEmbedSrc } from './constants';
 import { PLAYER_WEBVIEW_PROPS, YT_BASE_URL, parseYtMsg, ytCmd, ytPlayerHtml } from './ytHtml';
 
@@ -317,7 +317,15 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
   // starving on it. Fullscreen/nation players pick their own larger target.
   // 1.25 -> 1.6 (2026-10-03): 240p read as soft to the user; ~300p is crisp at
   // tile size and still ~40% of the original 480p decode load.
-  const targetW = Math.round((tileWidth || 180) * Math.min(1.6, PixelRatio.get()));
+  // The wall (surface tiles, eight at once on one VPU) asks for just enough to
+  // cover its small tile. Everywhere else - the nation hero, search - one or two
+  // streams play, and they passed no width at all, so they were treated as a 180 px
+  // tile and got the lowest variant: soft on a full-width hero. They ask for the
+  // screen's width at full density now, i.e. the sharpest variant the screen shows.
+  const targetW =
+    surface === 'surface'
+      ? Math.round((tileWidth || 180) * Math.min(1.6, PixelRatio.get()))
+      : Math.round((tileWidth || Dimensions.get('window').width) * PixelRatio.get());
   // ONE PLAYER PER TILE, NOT TWO.
   //
   // This started the player on the master playlist and then called setUrl once
@@ -382,7 +390,25 @@ function HlsPlayer({ tileId, source, parked, api, tileWidth, surface = 'texture'
   useEffect(() => {
     if (!player || surface !== 'surface') return;
     noteWallMount(source, url);
-    return () => noteWallUnmount(source);
+    // What it really decodes, once the player knows: a stream with no advertised
+    // ladder was 'unknown' cost and never counted toward the cap. Recorded for the
+    // source AND the played url, then counted again with the real width. Expensive
+    // streams stay in the pool - they just yield to cheaper ones at the cap.
+    const judge = (t: any) => {
+      const w = Number(t && t.size && t.size.width) || 0;
+      if (!w) return;
+      noteDecodedWidth((source as { url?: string }).url, w);
+      noteDecodedWidth(url, w);
+      noteWallMount(source, url);
+    };
+    try {
+      judge((player as any).videoTrack);
+    } catch {}
+    const sub = player.addListener('videoTrackChange', (e: any) => judge(e && e.videoTrack));
+    return () => {
+      sub.remove();
+      noteWallUnmount(source);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [player, source, surface]);
   // When the park began - a resume after a long park must rejoin the live

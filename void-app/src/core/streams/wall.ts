@@ -28,7 +28,10 @@ const wBucket = (s: StreamSource): number => { const w = decodeWidth(s); return 
 // at the cap, cascades and heals merely REORDER their chains cheap-first.
 // Never a filter: a tile with only expensive candidates still places, because
 // grid-fullness beats cheapness.
-export const WALL_EXPENSIVE_MAX = 2;
+// 4 = half the wall's eight, the user's mix (2026-10-06: 'half higher res, half
+// lower res'). Real decoded widths now count too (hlsVariant noteDecodedWidth), so
+// the cap holds for single-rendition 720p/1080p streams that advertise no ladder.
+export const WALL_EXPENSIVE_MAX = 4;
 const expensiveLive = new Set<string>();
 export function noteWallMount(src: StreamSource, playedUrl?: string | null): void {
   const w = (playedUrl ? widthFor(playedUrl) : undefined) ?? decodeWidth(src);
