@@ -218,13 +218,21 @@ export function CardGate({ stepLabel, initialMode = 'create', onEnter }: { stepL
   // size - but the lanyard SVG covers the whole screen, so its 402x874 space is
   // the screen's, not the zone's. Everything landed short and high: the ribbon
   // stopped in mid-air and the clipped copy fell across the tag's face.
+  // AND IT IS MEASURED AGAINST THE STRAP'S OWN BOX, NOT THE WINDOW.
+  // Dimensions.get('window') SHRINKS on Android the moment the keyboard opens, but
+  // the lanyard SVG is absolutely filled over the full-screen root and does not.
+  // The two coordinate spaces then disagree by the keyboard's height: with the
+  // handle field focused the crimp stranded itself near the top of the screen and
+  // the ribbons waved across it. The root's own measured box is the SVG's box, so
+  // it stays right whether the keyboard is up or down.
+  const rootSize = useRef({ w: 0, h: 0 }).current;
   const measureSlot = useCallback(() => {
     const z = zoneRef.current as any;
     const sl = slotRef.current as any;
     if (!z || !sl || !z.measure || !sl.measure) return;
     const win = Dimensions.get('window');
-    const kx = LANYARD_W / win.width;
-    const ky = LANYARD_H / win.height;
+    const kx = LANYARD_W / (rootSize.w || win.width);
+    const ky = LANYARD_H / (rootSize.h || win.height);
     sl.measure((_a: number, _b: number, sw: number, sh: number, spx: number, spy: number) => {
       if (!sw || !sh) return;
       // measure() gives page coordinates, which is what the full-screen SVG wants.
@@ -237,7 +245,7 @@ export function CardGate({ stepLabel, initialMode = 'create', onEnter }: { stepL
       strapIn.value = withTiming(1, { duration: 400 });
     });
     void z;
-  }, []);
+  }, [rootSize]);
 
   const reset = (m: Mode) => {
     setMode(m);
@@ -324,7 +332,19 @@ export function CardGate({ stepLabel, initialMode = 'create', onEnter }: { stepL
   );
 
   return (
-    <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0a0620' }]}>
+    <View
+      style={[StyleSheet.absoluteFill, { backgroundColor: '#0a0620' }]}
+      onLayout={(e) => {
+        // The strap's coordinate space IS this box. Re-measure when it changes so the
+        // ribbons keep meeting the slot through a rotation or a keyboard.
+        const { width, height } = e.nativeEvent.layout;
+        if (width && height && (width !== rootSize.w || height !== rootSize.h)) {
+          rootSize.w = width;
+          rootSize.h = height;
+          measureSlot();
+        }
+      }}
+    >
       <RadialFill spec={BG} />
       {/* The strap spans the SCREEN - its 402x874 space is the screen's, which is
           why the slot is measured in page coordinates. Behind everything: the
