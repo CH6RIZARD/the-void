@@ -16,6 +16,10 @@ on:
         default: production
         required: true
 
+# contents: write - preview APKs are published as release assets (see the last step).
+permissions:
+  contents: write
+
 jobs:
   aab:
     runs-on: ubuntu-latest
@@ -102,9 +106,22 @@ jobs:
           echo "EXT=$ext" >> "$GITHUB_ENV"
           eas build -p android --profile "${{ inputs.profile }}" --local --non-interactive --output "$GITHUB_WORKSPACE/the-void.$ext"
 
+      # The artifact store is a quota the 90 MB test APKs exhausted (2026-10-05:
+      # 'Artifact storage quota has been hit' failed eight finished builds at this
+      # step). Kept short-lived and non-fatal; the APK of a preview build ships as a
+      # prerelease asset instead, which that quota does not count.
       - uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: the-void-${{ env.EXT }}
           path: the-void.${{ env.EXT }}
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 3
+
+      - name: Publish preview APK as a prerelease asset
+        if: inputs.profile == 'preview'
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "apk-${{ github.run_id }}" "the-void.${{ env.EXT }}" \n            --prerelease --target "${{ github.sha }}" \n            --title "preview ${{ github.ref_name }} ${{ github.sha }}" \n            --notes "Preview APK from run ${{ github.run_id }} (${{ github.ref_name }} @ ${{ github.sha }})."
