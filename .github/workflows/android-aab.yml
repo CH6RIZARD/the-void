@@ -124,4 +124,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "apk-${{ github.run_id }}" "the-void.${{ env.EXT }}" \n            --prerelease --target "${{ github.sha }}" \n            --title "preview ${{ github.ref_name }} ${{ github.sha }}" \n            --notes "Preview APK from run ${{ github.run_id }} (${{ github.ref_name }} @ ${{ github.sha }})."
+          gh release create "apk-${{ github.run_id }}" "the-void.${{ env.EXT }}" --prerelease --target "${{ github.sha }}" --title "preview ${{ github.ref_name }} ${{ github.sha }}" --notes "Preview APK from run ${{ github.run_id }} (${{ github.ref_name }} @ ${{ github.sha }})."
