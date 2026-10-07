@@ -19,6 +19,7 @@ export function useSwitchTiming(label: string): void {
   useFocusEffect(
     useCallback(() => {
       const g = globalThis as any;
+      try { console.warn('[navdiag] focus ' + label); } catch {}
       const at = g.__voidTabPressAt;
       if (!at) return;
       g.__voidTabPressAt = 0;
