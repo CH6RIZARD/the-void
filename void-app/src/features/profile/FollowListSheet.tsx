@@ -4,7 +4,7 @@
 // the creators you followed from reels (Bluesky, PeerTube, YouTube...) are added
 // from this device - the table cannot hold them (reelStore's followedCreators).
 import React, { useEffect, useState } from 'react';
-import { Pressable } from 'react-native';
+import { Pressable, View, useWindowDimensions } from 'react-native';
 import { srcName, VoidAPI } from '../../core';
 import { Sheet } from '../../ui/Sheet';
 import { openUser } from '../feed/navigation';
@@ -41,6 +41,7 @@ export function localFollowingExtra(serverIds: Set<string>): number {
 
 export function FollowListSheet({ kind: open, uid, own, onClose }: { kind: FollowKind | null; uid: string | null; own: boolean; onClose: () => void }) {
   const [rows, setRows] = useState<Row[] | null>(null);
+  const { height } = useWindowDimensions();
   // The sheet keeps its content through the exit slide after `open` goes null, so
   // the last list is what it shows on the way out - not the other list's title.
   const [kind, setKind] = useState<FollowKind>('following');
@@ -58,6 +59,9 @@ export function FollowListSheet({ kind: open, uid, own, onClose }: { kind: Follo
   return (
     <Sheet visible={!!open} onClose={onClose}>
       <VHeader title={kind === 'followers' ? 'FOLLOWERS' : 'FOLLOWING'} onClose={onClose} />
+      {/* One height from the first frame: the sheet slid up holding a LOADING row,
+          then its top edge jumped when the names arrived. */}
+      <View style={{ minHeight: Math.round(height * 0.4) }}>
       {rows === null ? (
         <VEmpty>LOADING…</VEmpty>
       ) : !rows.length ? (
@@ -77,6 +81,7 @@ export function FollowListSheet({ kind: open, uid, own, onClose }: { kind: Follo
           );
         })
       )}
+      </View>
     </Sheet>
   );
 }

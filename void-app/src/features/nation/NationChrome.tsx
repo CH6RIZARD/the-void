@@ -4,7 +4,7 @@
 //   .nf-status (nfPulse) and .nf-more.
 import React, { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme';
 import { FONTS, em, type RadialSpec } from '../../theme/palettes';
@@ -79,11 +79,18 @@ export function LabelRow({ kind, text, tail }: { kind: 'cta' | 'feed'; text: str
 export function FeedStatusLine({ text, onPress }: { text: string; onPress?: () => void }) {
   const { colors } = useTheme();
   const o = useSharedValue(0.45);
+  const still = useReducedMotion();
   useEffect(() => {
+    // Reduced motion froze the loop on its first frame - the faintest, 0.45 - on a
+    // line already in the dim colour. Hold it at full strength instead.
+    if (still) {
+      o.value = 1;
+      return;
+    }
     // @keyframes nfPulse{0%,100%{opacity:.45}50%{opacity:1}} — each half 0.9s, CSS ease-in-out.
     o.value = 0.45;
     o.value = withRepeat(withTiming(1, { duration: 900, easing: Easing.bezier(0.42, 0, 0.58, 1) }), -1, true);
-  }, [o]);
+  }, [o, still]);
   const style = useAnimatedStyle(() => ({ opacity: o.value }));
   const line = (
     <Animated.View style={[styles.status, style]}>

@@ -323,7 +323,7 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
                 accessibilityRole={i === 0 ? undefined : 'button'}
                 style={({ pressed }) => [st.stat, { opacity: pressed ? 0.72 : 1 }]}
               >
-                <VText style={{ fontFamily: FONTS.sansExtraBold, fontSize: 22, color: colors.white }}>{fmt(stats[i])}</VText>
+                <VText style={{ fontFamily: FONTS.sansExtraBold, fontSize: 22, color: colors.white }}>{(i === 0 ? drops : counts) === null ? '–' : fmt(stats[i])}</VText>
                 <VText style={{ fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.14), color: '#8d7cc0', marginTop: 3 }}>{lbl}</VText>
               </Pressable>
             ))}

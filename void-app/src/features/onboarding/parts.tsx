@@ -2,7 +2,7 @@
 import React, { useEffect } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withTiming } from 'react-native-reanimated';
 import { FONTS, em } from '../../theme/palettes';
 import { VText } from '../../ui/Text';
 
@@ -17,7 +17,7 @@ export const RED = '#ef4444';
 export function Enter({ children, style, delay = 0 }: { children: React.ReactNode; style?: StyleProp<ViewStyle>; delay?: number }) {
   const v = useSharedValue(0);
   useEffect(() => {
-    v.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.quad) });
+    v.value = withDelay(delay, withTiming(1, { duration: 500, easing: Easing.out(Easing.quad) }));
   }, [v, delay]);
   const a = useAnimatedStyle(() => ({ opacity: v.value, transform: [{ translateY: (1 - v.value) * 14 }] }));
   return <Animated.View style={[style, a]}>{children}</Animated.View>;

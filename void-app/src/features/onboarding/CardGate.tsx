@@ -138,11 +138,13 @@ function Shimmer({ width }: { width: number }) {
 function Success({ via, handle, onDone }: { via: Via; handle: string; onDone: () => void }) {
   const bar = useSharedValue(0);
   useEffect(() => {
-    bar.value = withTiming(1, { duration: 1600, easing: Easing.out(Easing.quad) });
+    // Linear: it stands for the 1.6s wait, so it must not look nearly done early.
+    bar.value = withTiming(1, { duration: 1600, easing: Easing.linear });
     const id = setTimeout(onDone, 1600);
     return () => clearTimeout(id);
   }, [bar, onDone]);
-  const fill = useAnimatedStyle(() => ({ width: `${bar.value * 100}%` }));
+  // scaleX from the left edge: no layout pass per frame (width re-ran Yoga for the bar).
+  const fill = useAnimatedStyle(() => ({ transform: [{ scaleX: bar.value }] }));
   const welcome =
     via === 'anon' ? t('s3.done.anon') : via === 'login' ? (handle ? t('s3.done.login', { handle }) : t('s3.done.login.noHandle')) : t('s3.done.new', { handle });
   return (
@@ -152,7 +154,7 @@ function Success({ via, handle, onDone }: { via: Via; handle: string; onDone: ()
         {welcome}
       </VText>
       <View style={s.barTrack}>
-        <Animated.View style={[{ height: '100%', overflow: 'hidden' }, fill]}>
+        <Animated.View style={[{ height: '100%', width: '100%', overflow: 'hidden', transformOrigin: 'left' }, fill]}>
           <LinearGradient colors={['#7c3aed', GOLD]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ width: 150, height: '100%' }} />
         </Animated.View>
       </View>
