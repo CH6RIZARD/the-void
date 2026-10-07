@@ -208,8 +208,21 @@ function SparkleField({ particles, running, color }: { particles: Particle[]; ru
     const a = 0.4 * (1 - ph);
     c[0] = 1; c[1] = 1; c[2] = 1; c[3] = a;
   });
+  // THE BOX IS MEASURED ON A VIEW, NOT ON THE CANVAS.
+  //
+  // onLayout on a Skia <Canvas> does nothing under Fabric - it logs "<Canvas
+  // onLayout={onLayout} /> is not supported on the new architecture" and never
+  // fires. boxW/boxH therefore stayed 0, and the worklet above parks every
+  // particle off-screen at (-10,-10) while the box is unknown. So the sparkle was
+  // EMPTY until some unrelated re-layout happened to set it: the few seconds of
+  // "glitching" before the loaders settle, everywhere they are used - onboarding,
+  // the globe's first paint, the wall and search.
+  //
+  // A plain View does support onLayout. It wraps the Canvas at the same
+  // absoluteFill box, so the Canvas is laid out exactly where it was and not one
+  // pixel of the look changes.
   return (
-    <Canvas
+    <View
       pointerEvents="none"
       style={StyleSheet.absoluteFill}
       onLayout={(e) => {
@@ -217,8 +230,10 @@ function SparkleField({ particles, running, color }: { particles: Particle[]; ru
         boxH.value = e.nativeEvent.layout.height;
       }}
     >
-      <Atlas image={texture} sprites={sprites} transforms={transforms} colors={colors} />
-    </Canvas>
+      <Canvas pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <Atlas image={texture} sprites={sprites} transforms={transforms} colors={colors} />
+      </Canvas>
+    </View>
   );
 }
 export interface SparkleLoaderProps {
