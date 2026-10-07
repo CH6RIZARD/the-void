@@ -200,12 +200,34 @@ const _vwRecentSet = new Set<string>();
 export function vwKey(p: Post | null | undefined): string {
   return String((p && (p._video || p.id)) || '').split('?')[0].split('#')[0];
 }
-export function vwRecentHas(p: Post): boolean { return _vwRecentSet.has(vwKey(p)); }
-export function vwRemember(p: Post): void {
-  const k = vwKey(p); if (!k || _vwRecentSet.has(k)) return;
-  _vwRecent.push(k); _vwRecentSet.add(k);
-  while (_vwRecent.length > VW_NO_REPEAT) _vwRecentSet.delete(_vwRecent.shift() as string);
+// The same post can also arrive as two videos (two hosts, two accounts reposting
+// it): its caption is the second identity. Short captions are too generic to key on.
+function vwBodyKey(p: Post): string {
+  const b = String(p.body || '').toLowerCase().replace(/https?:\/\/\S+/g, '').replace(/\s+/g, ' ').trim();
+  return b.length >= 24 ? 'b:' + b.slice(0, 100) : '';
 }
+export function vwRecentHas(p: Post): boolean {
+  const b = vwBodyKey(p);
+  return _vwRecentSet.has(vwKey(p)) || (!!b && _vwRecentSet.has(b));
+}
+export function vwRemember(p: Post): void {
+  for (const k of [vwKey(p), vwBodyKey(p)]) {
+    if (!k || _vwRecentSet.has(k)) continue;
+    _vwRecent.push(k); _vwRecentSet.add(k);
+  }
+  while (_vwRecent.length > VW_NO_REPEAT * 2) _vwRecentSet.delete(_vwRecent.shift() as string);
+}
+
+// ─── ONE CREATOR DOES NOT FILL THE RAIL ─────────────────────────────────
+// diversify only keeps the same account from appearing twice IN A ROW inside one
+// batch of 4-5, so consecutive batches could each lead with the same creator.
+// Measured on the S22, 30 cards: one Bluesky account 4 times in 6 cards, one
+// PeerTube channel 3 times. An account seen in the last VW_AUTHOR_GAP cards, or
+// already picked in this batch, waits; when nothing else is left a recent one may
+// come back, but never twice in one batch.
+export const VW_AUTHOR_GAP = 8;
+const _vwAuthors: string[] = [];
+const vwWho = (p: Post) => String(p._handle || p._author || '').replace(/^@/, '').toLowerCase();
 let _vwPullAt = 0;
 export function vwFill(n = 5, any = false): Post[] {
   const eligible = (p: Post) => (any ? true : VW_STYLES.includes(p.style)) && laneFree(p, 'reel');
@@ -220,10 +242,32 @@ export function vwFill(n = 5, any = false): Post[] {
   // drawn art) is applied here - or the backstop leaks exactly what the ingest holds
   // back, at cold start, when the reel pool is empty and this branch IS the queue.
   if (pool.length < n) pool = pool.concat(allPosts.filter(p => fresh(p) && eligible(p) && !pool.includes(p) && !REEL_BLOCK_TOPIC.test(p.body || '')));
-  // One card per clip, even when two posts carry the same video.
+  // One card per clip, even when two posts carry the same video or the same caption.
   const byKey = new Set<string>();
-  pool = pool.filter(p => { const k = vwKey(p); if (byKey.has(k)) return false; byKey.add(k); return true; });
-  const picks = diversify(pool.map(p => [vwScore(p), p] as [number, Post]).sort((a, b) => b[0] - a[0]).map(x => x[1])).slice(0, n)
+  pool = pool.filter(p => {
+    const k = vwKey(p), b = vwBodyKey(p);
+    if (byKey.has(k) || (b && byKey.has(b))) return false;
+    byKey.add(k); if (b) byKey.add(b); return true;
+  });
+  const ranked = diversify(pool.map(p => [vwScore(p), p] as [number, Post]).sort((a, b) => b[0] - a[0]).map(x => x[1]));
+  const recentW = new Set(_vwAuthors), usedW = new Set<string>(), chosen: Post[] = [];
+  for (const p of ranked) {
+    if (chosen.length >= n) break;
+    const w = vwWho(p);
+    if (w && (recentW.has(w) || usedW.has(w))) continue;
+    chosen.push(p); if (w) usedW.add(w);
+  }
+  // Thin pool: a recently seen account may return, still once per batch. Anything
+  // short of that waits for the next pull (the view's dry-rail retry), not a run.
+  for (const p of ranked) {
+    if (chosen.length >= n) break;
+    const w = vwWho(p);
+    if (chosen.includes(p) || (w && usedW.has(w))) continue;
+    chosen.push(p); if (w) usedW.add(w);
+  }
+  for (const p of chosen) { const w = vwWho(p); if (w) _vwAuthors.push(w); }
+  while (_vwAuthors.length > VW_AUTHOR_GAP) _vwAuthors.shift();
+  const picks = chosen
     .map(p => {
       const c = { ...p }; vwSeen.add(p.id); vwRemember(p);
       laneClaim(p, 'reel'); c._vid = p.id + '~' + env.random().toString(36).slice(2, 6); return c;

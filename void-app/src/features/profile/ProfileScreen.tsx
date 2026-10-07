@@ -19,6 +19,7 @@ import { voidToast } from '../../ui/Toast';
 import { useBottomNavSpace } from '../../nav/layout';
 import { ROUTES } from '../../nav/routes';
 import { ModerationHost, openThreadRoute, PostCard, usePostViewability } from '../feed';
+import { fmt } from '../feed/format';
 import { ensureCore, useIdentity } from '../auth/coreBridge';
 import { stripHandle } from '../auth/handles';
 import { onDropPosted } from '../composer/drop';
@@ -27,6 +28,7 @@ import { openDmWith } from '../messages/MessagesScreen';
 import { MiniIcon } from '../settings/vmod';
 import { AccountSheet, voidAuthor } from './AccountSheet';
 import { EditProfileSheet } from './EditProfileSheet';
+import { FollowListSheet, localFollowingExtra, type FollowKind } from './FollowListSheet';
 import { ProfileAvatar } from './ProfileAvatar';
 import { fetchDrops, fetchHearted, fetchMyProfile, fetchProfileByHandle, fetchReplies, getLocalAvatar, openReplyThread, registerOffFeed, type ProfileRow } from './profileApi';
 
@@ -149,6 +151,7 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
   const [avatar, setAvatar] = useState<string | null>(null);
   const [drops, setDrops] = useState<Post[] | null>(null);
   const [counts, setCounts] = useState<{ following: number; followers: number } | null>(null);
+  const [followList, setFollowList] = useState<FollowKind | null>(null);
   // DROPS / HEARTED / REPLIES, per the handoff notes. Messages moved off the
   // profile: it is a tab of its own in the nav, and the notes' tab row has no
   // room for it.
@@ -179,7 +182,11 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
       setAvatar((p && p.avatar_url) || local);
       id = VoidAPI._uid();
     }
-    if (!id) return setDrops([]);
+    if (!id) {
+      // Signed out: the creators followed from reels still count.
+      if (!isOther) setCounts({ following: localFollowingExtra(new Set()), followers: 0 });
+      return setDrops([]);
+    }
     // Counts for BOTH profiles. Your own read the local USER counters, which nothing
     // ever wrote, so your own profile always said 0 following / 0 followers.
     const [d, a, b] = await Promise.all([
@@ -188,7 +195,9 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
       VoidAPI._sb('/rest/v1/follows?followee_id=eq.' + id + '&select=follower_id&limit=1000', 'GET').catch(() => []),
     ]);
     setDrops(d);
-    setCounts({ following: (a || []).length, followers: (b || []).length });
+    // Your FOLLOWING also counts the reel creators followed from this device.
+    const extra = isOther ? 0 : localFollowingExtra(new Set((a || []).map((r: any) => r.followee_id)));
+    setCounts({ following: (a || []).length + extra, followers: (b || []).length });
   }, [isOther, requested]);
 
   useFocusEffect(
@@ -303,14 +312,20 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
 
         <View style={st.idRow}>
           <View style={st.avRing}>
-            <ProfileAvatar name={name} url={isOther ? other?.avatar_url : avatar} size={108} />
+            <ProfileAvatar name={name} url={isOther ? other?.avatar_url : avatar} size={108} own={!isOther} uid={isOther ? other?.id : VoidAPI._uid()} />
           </View>
           <View style={st.statsRow}>
             {(['DROPS', 'FOLLOWERS', 'FOLLOWING'] as const).map((lbl, i) => (
-              <View key={lbl} style={st.stat}>
-                <VText style={{ fontFamily: FONTS.sansExtraBold, fontSize: 22, color: colors.white }}>{stats[i]}</VText>
+              <Pressable
+                key={lbl}
+                disabled={i === 0}
+                onPress={() => setFollowList(i === 1 ? 'followers' : 'following')}
+                accessibilityRole={i === 0 ? undefined : 'button'}
+                style={({ pressed }) => [st.stat, { opacity: pressed ? 0.72 : 1 }]}
+              >
+                <VText style={{ fontFamily: FONTS.sansExtraBold, fontSize: 22, color: colors.white }}>{fmt(stats[i])}</VText>
                 <VText style={{ fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.14), color: '#8d7cc0', marginTop: 3 }}>{lbl}</VText>
-              </View>
+              </Pressable>
             ))}
           </View>
         </View>
@@ -467,6 +482,7 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
           }}
         />
       ) : null}
+      <FollowListSheet kind={followList} uid={authorId} own={!isOther} onClose={() => setFollowList(null)} />
       {isOther ? <AccountSheet visible={acct} author={otherAuthor} onClose={() => setAcct(false)} onChanged={() => bump((n) => n + 1)} /> : null}
     </View>
   );

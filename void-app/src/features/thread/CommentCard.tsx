@@ -19,7 +19,8 @@ import { FONTS, em } from '../../theme/palettes';
 import { Icon } from '../../ui/icons';
 import { ImageOrbitLoader } from '../../ui/ImageOrbitLoader';
 import { VText } from '../../ui/Text';
-import { ago, fmt, tcCol } from '../feed/format';
+import { ago, fmt } from '../feed/format';
+import { PersonPfp } from '../../ui/Pfp';
 import { openUser } from '../feed/navigation';
 import { VmodIcon } from '../feed/vmodIcons';
 import { useThreadTokens } from './threadTheme';
@@ -89,15 +90,13 @@ export const CommentCard = memo(function CommentCard({ c, opAuthor, kidsN, paren
         paddingBottom: 12,
       };
   const av = nested ? 20 : 26;
-  const avStyle = isLight
-    ? { backgroundColor: '#ded7c5', boxShadow: 'inset 0px 0px 0px 1px rgba(26,20,36,0.12), 0px 2px 6px rgba(26,20,36,0.12)' }
-    : { backgroundColor: tcCol(c.author) };
+  const avStyle = isLight ? { boxShadow: 'inset 0px 0px 0px 1px rgba(26,20,36,0.12), 0px 2px 6px rgba(26,20,36,0.12)' } : null;
 
   const body = (
     <View style={cardStyle}>
       <View style={[styles.head, { gap: nested ? 7 : 8, marginBottom: nested ? 6 : 8 }]}>
         <Pressable disabled={!toUser} onPress={() => openUser(toUser)} style={[styles.av, { width: av, height: av, borderRadius: av / 2 }, avStyle]}>
-          <VText style={{ fontFamily: FONTS.sansExtraBold, fontSize: nested ? 8 : 9, color: isLight ? '#4a4234' : '#f4f0ff' }}>{(c.author || '?')[0].toUpperCase()}</VText>
+          <PersonPfp uid={c.authorId} handle={c.handle} label={c.author} size={av} />
         </Pressable>
         <VText onPress={toUser ? () => openUser(toUser) : undefined} style={[styles.name, { fontSize: nested ? 10.5 : 11, color: colors.white }]}>
           {c.author || 'anon'}

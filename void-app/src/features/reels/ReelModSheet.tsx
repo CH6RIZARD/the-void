@@ -25,6 +25,7 @@ import { useTheme } from '../../theme/tokens';
 import { FONTS, em } from '../../theme/palettes';
 import { baseId } from '../search/format';
 import { ModIcon, type ModIconName } from './ModIcons';
+import { PersonPfp } from '../../ui/Pfp';
 
 export type ModTarget = { kind: 'menu' | 'author'; post: Post } | null;
 
@@ -137,10 +138,8 @@ export function ReelModSheet({ target, onClose, onChanged }: { target: ModTarget
         body = (
           <>
             <Hdr t={a.external ? srcName(a.source).toUpperCase() + ' ACCOUNT' : 'VOID ACCOUNT'} />
-            <View style={[styles.avBig, { backgroundColor: colors.card2 }]}>
-              <Text allowFontScaling={false} style={[styles.avBigText, { color: colors.white }]}>
-                {String(a.label || '?')[0].toUpperCase()}
-              </Text>
+            <View style={[styles.avBig, { overflow: 'hidden' }]}>
+              <PersonPfp uid={a.uid} handle={a.handle} label={a.label} size={56} />
             </View>
             <Text allowFontScaling={false} style={[styles.title, { color: colors.white, textAlign: 'center' }]}>
               {a.label}

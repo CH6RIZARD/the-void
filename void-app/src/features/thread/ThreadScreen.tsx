@@ -21,7 +21,8 @@ import { FONTS, em } from '../../theme/palettes';
 import { Icon } from '../../ui/icons';
 import { VText } from '../../ui/Text';
 import { voidToast } from '../../ui/Toast';
-import { ago, avatarLetter, AVC, fmt, sourceLabel } from '../feed/format';
+import { ago, fmt, sourceLabel } from '../feed/format';
+import { PersonPfp } from '../../ui/Pfp';
 import { AudioPill } from '../feed/media/AudioPill';
 import { PostCarousel } from '../feed/media/PostCarousel';
 import { PostMedia } from '../feed/media/PostMedia';
@@ -330,7 +331,6 @@ function Thread({ post: p, focus }: { post: Post; focus?: string }) {
   // news article / Lemmy link post: the story's own text + a card out to the article
   const tLink = p.source === 'news' ? p._url || p.sourceUrl || '' : p.source === 'lemmy' && p._link && p._link !== p._url && !/\.(jpe?g|png|webp|gif)(\?|$)/i.test(p._link) ? p._link : '';
   const srcHref = p.sourceUrl || '';
-  const col = p._isoColor || AVC[0];
 
   const countLabel = loading && !all.length ? 'LOADING REPLIES…' : `${all.length} REPL${all.length === 1 ? 'Y' : 'IES'}`;
 
@@ -385,8 +385,8 @@ function Thread({ post: p, focus }: { post: Post; focus?: string }) {
               />
               <View style={styles.opInner}>
                 <View style={styles.head}>
-                  <Pressable onPress={() => openAuthorSheet(p)} style={[styles.av, isLight ? styles.avLight : { backgroundColor: col }]}>
-                    <VText style={{ fontFamily: FONTS.sansExtraBold, fontSize: 11, color: isLight ? '#4a4234' : '#fff' }}>{avatarLetter(p)}</VText>
+                  <Pressable onPress={() => openAuthorSheet(p)} style={[styles.av, isLight ? styles.avLight : null, { overflow: 'hidden' }]}>
+                    <PersonPfp uid={p.author_id || p._authorId} handle={p._handle} label={p._author} size={32} />
                   </Pressable>
                   <Pressable onPress={() => openAuthorSheet(p)} style={styles.meta}>
                     <VText numberOfLines={1} style={[styles.name, { color: colors.white }]}>

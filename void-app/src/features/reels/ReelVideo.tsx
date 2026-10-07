@@ -10,7 +10,7 @@
 // The sparkle loader is cleared on the first sign of media (web: loadeddata / canplay /
 // canplaythrough / playing) AND on failure (a 404 / codec refusal must never leave the
 // loader spinning forever).
-import React, { memo, useEffect, useState } from 'react';
+import React, { memo, useEffect } from 'react';
 import { StyleSheet } from 'react-native';
 import { VideoView } from 'expo-video';
 import { isReleasedPlayer, usePacedPlayer } from '../live/pacedPlayer';
@@ -19,6 +19,9 @@ export interface ReelVideoProps {
   uri: string;
   want: boolean;
   muted: boolean;
+  /** Fit whole (landscape) instead of filling. Owned by the card, which may know it
+   *  from the poster before this player reports a track. */
+  wide: boolean;
   /** First sign of media, or (ok === false) the clip failed: either way the loader goes. */
   onMediaReady(ok?: boolean): void;
   /** The surface has drawn its first frame (the poster over it can go). */
@@ -30,7 +33,7 @@ export interface ReelVideoProps {
 /** Wider than this (w/h) is fitted whole; anything taller fills the portrait card. */
 export const WIDE_ASPECT = 0.8;
 
-export const ReelVideo = memo(function ReelVideo({ uri, want, muted, onMediaReady, onFirstFrame, onWide }: ReelVideoProps) {
+export const ReelVideo = memo(function ReelVideo({ uri, want, wide, muted, onMediaReady, onFirstFrame, onWide }: ReelVideoProps) {
   const player = usePacedPlayer({ uri, contentType: /\.m3u8(\?|$)/i.test(uri) ? 'hls' : 'auto' } as any, (p) => {
     p.muted = true; // v.muted = v.defaultMuted = true
     p.loop = true;
@@ -48,16 +51,14 @@ export const ReelVideo = memo(function ReelVideo({ uri, want, muted, onMediaRead
   // LANDSCAPE CLIPS ARE FITTED, NOT CROPPED. object-fit:cover on a 16:9 clip in a
   // tall portrait card kept only its middle third, blown up and pixelated - 'the
   // reel content is too big'. A clip wider than WIDE_ASPECT is shown whole; the
-  // card puts its own poster, blurred, behind it.
-  const [wide, setWide] = useState(false);
+  // card puts its own poster, blurred, behind it. The track size, when it comes,
+  // corrects the poster's guess.
   useEffect(() => {
     if (!player) return;
     const judge = (t: any) => {
       const s = t && t.size;
       if (!s || !(s.width > 0) || !(s.height > 0)) return;
-      const w = s.width / s.height > WIDE_ASPECT;
-      setWide(w);
-      onWide?.(w);
+      onWide?.(s.width / s.height > WIDE_ASPECT);
     };
     try {
       judge((player as any).videoTrack);

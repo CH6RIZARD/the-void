@@ -8,9 +8,9 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme';
 import { FONTS } from '../../theme/palettes';
-import { MyPfp } from '../../ui/Pfp';
+import { MyPfp, PersonPfp } from '../../ui/Pfp';
 
-export function ProfileAvatar({ name, url, size = 72 }: { name: string; url?: string | null; size?: number }) {
+export function ProfileAvatar({ name, url, size = 72, own = false, uid }: { name: string; url?: string | null; size?: number; own?: boolean; uid?: string | null }) {
   const { colors, name: theme } = useTheme();
   const light = theme === 'light';
   const grad = theme === 'dark' ? [colors.card2, colors.bg2] : ['#1d0d45', '#0a0522'];
@@ -29,10 +29,10 @@ export function ProfileAvatar({ name, url, size = 72 }: { name: string; url?: st
       {url ? (
         <Image source={{ uri: url }} style={[StyleSheet.absoluteFill, { borderRadius: size / 2 }]} contentFit="cover" transition={150} />
       ) : (
-        // No photo: the figure the person chose from the PFP set, or the one
-        // derived from their id. The same face they have in messages - a letter
-        // on a disc here and a figure there was two different people.
-        <MyPfp seed={name} size={size} />
+        // No photo: your own pick from the PFP set, or - on someone else's
+        // profile - the figure derived from their id, the same one their posts
+        // and DMs show. (This used to draw YOUR pick on every profile.)
+        own ? <MyPfp seed={uid || name} size={size} /> : <PersonPfp uid={uid} label={name} size={size} />
       )}
     </View>
   );

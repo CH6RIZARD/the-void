@@ -42,6 +42,7 @@ import { ModIcon } from './ModIcons';
 import { ReelAudioPill } from './ReelAudioPill';
 import { ReelVideo, WIDE_ASPECT } from './ReelVideo';
 import { boltCount, isFollowing, repostCount } from './reelStore';
+import { PersonPfp } from '../../ui/Pfp';
 
 export interface ReelItemProps {
   item: Post;
@@ -56,6 +57,8 @@ export interface ReelItemProps {
   /** Seen at least once → spine filled. */
   viewed: boolean;
   railBottom: number;
+  /** Height of the chrome under the card (nav pill or system nav): the info block starts above it. */
+  bottomClear: number;
   soundOn: boolean;
   surfaceActive: boolean;
   /** Re-render key for reactions/follows. */
@@ -74,6 +77,15 @@ export interface ReelItemProps {
 }
 
 const bg = (g: string): any => ({ experimental_backgroundImage: g });
+// THE SHAPE IS KNOWN BEFORE THE FIRST FRAME. No source carries a video's aspect, and
+// the player reports its track size only once media arrives - so a landscape clip
+// opened cropped and blown up (poster and player both on cover) and then snapped to
+// the fitted size. The poster is the same picture: its size, from expo-image's
+// onLoad, settles the fit before the player has anything to show.
+const isWideSource = (e: any): boolean => {
+  const s = e && e.source;
+  return !!(s && s.width > 0 && s.height > 0 && s.width / s.height > WIDE_ASPECT);
+};
 const coverOf = (p: Post) => p._isoColor || `hsl(${p.imgHue || 270},55%,14%)`;
 
 /**
@@ -82,12 +94,21 @@ const coverOf = (p: Post) => p._isoColor || `hsl(${p.imgHue || 270},55%,14%)`;
  * settled next to it, so no swipe pays for a rail, a loader or a player.
  */
 export const ReelPlaceholder = memo(function ReelPlaceholder({ item: p, height }: { item: Post; height: number }) {
+  const [wide, setWide] = useState(false);
   return (
     <View style={[styles.item, { height }]}>
       <View style={[StyleSheet.absoluteFill, bg(`radial-gradient(120% 90% at 30% 20%, ${coverOf(p)}, #05020e 65%)`)]} />
       {p._img && p.style !== 'audio' ? (
         // A long drag can bring a placeholder on screen: a graphic post keeps its veil here too.
-        <Image source={{ uri: p._img }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} blurRadius={moderation.graphicVeilOn() && moderation.isGraphic(p) ? 32 : 0} />
+        <Image
+          source={{ uri: p._img }}
+          style={StyleSheet.absoluteFill}
+          contentFit={wide ? 'contain' : 'cover'}
+          cachePolicy="memory-disk"
+          transition={0}
+          onLoad={(e) => setWide(isWideSource(e))}
+          blurRadius={moderation.graphicVeilOn() && moderation.isGraphic(p) ? 32 : 0}
+        />
       ) : null}
     </View>
   );
@@ -221,12 +242,12 @@ export const ReelItem = memo(function ReelItem(props: ReelItemProps) {
     media = (
       <>
         {wide && p._img ? <Image source={{ uri: p._img }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} blurRadius={24} /> : null}
-        {attached ? <ReelVideo uri={p._video} want={want} muted={!(soundOn && current)} onMediaReady={onMediaReady} onFirstFrame={onFirstFrame} onWide={setWide} /> : null}
+        {attached ? <ReelVideo uri={p._video} want={want} muted={!(soundOn && current)} wide={wide} onMediaReady={onMediaReady} onFirstFrame={onFirstFrame} onWide={setWide} /> : null}
         {/* The <video poster>: shown whenever there is no player, and - as on the
             web - kept over the player until its first frame, so a cold or
             returning reel opens on its picture instead of an empty gradient. */}
         {p._img && (!attached || !frameShown) ? (
-          <Image source={{ uri: p._img }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" transition={0} />
+          <Image source={{ uri: p._img }} style={StyleSheet.absoluteFill} contentFit={wide ? 'contain' : 'cover'} cachePolicy="memory-disk" transition={0} onLoad={(e) => setWide(isWideSource(e))} />
         ) : null}
         {!loaderCleared ? <SparkleLoader surface="media" style={styles.z1} /> : null}
       </>
@@ -242,10 +263,7 @@ export const ReelItem = memo(function ReelItem(props: ReelItemProps) {
             contentFit={wide ? 'contain' : 'cover'}
             cachePolicy="memory-disk"
             transition={0}
-            onLoad={(e) => {
-              const s = e && e.source;
-              if (s && s.width > 0 && s.height > 0) setWide(s.width / s.height > WIDE_ASPECT);
-            }}
+            onLoad={(e) => setWide(isWideSource(e))}
             onDisplay={() => setImgState('shown')}
             onError={() => setImgState('failed')}
           />
@@ -300,12 +318,10 @@ export const ReelItem = memo(function ReelItem(props: ReelItemProps) {
         <RailAct icon="less" tone="dim" label="LESS" onPress={() => props.onLess(p, index)} />
       </View>
 
-      <View style={[styles.info, bg('linear-gradient(transparent, rgba(4,2,12,0.95) 70%)')]} pointerEvents="box-none">
+      <View style={[styles.info, { paddingBottom: props.bottomClear + 16 }, bg('linear-gradient(transparent, rgba(4,2,12,0.95) 70%)')]} pointerEvents="box-none">
         <View style={styles.idRow}>
-          <Pressable onPress={() => props.onAuthor(p)} style={[styles.av, { backgroundColor: col }]}>
-            <Text allowFontScaling={false} style={styles.avText}>
-              {String(p._author || p.country || 'V')[0]}
-            </Text>
+          <Pressable onPress={() => props.onAuthor(p)} style={styles.av}>
+            <PersonPfp uid={p.author_id || p._authorId} handle={p._handle} label={p._author || p.country} size={28} />
           </Pressable>
           <Pressable onPress={() => props.onAuthor(p)} style={styles.nameWrap}>
             <Text allowFontScaling={false} numberOfLines={1} style={styles.name}>
@@ -387,10 +403,9 @@ const styles = StyleSheet.create({
     gap: 1,
   } as any,
   actText: { fontFamily: FONTS.mono, fontSize: 6.5, letterSpacing: em(6.5, 0.05) },
-  info: { position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 2, paddingTop: 100, paddingRight: 70, paddingBottom: 24, paddingLeft: 18 },
+  info: { position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 2, paddingTop: 100, paddingRight: 70, paddingLeft: 18 },
   idRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  av: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', boxShadow: '0px 0px 0px 2px rgba(201,168,76,0.5)' } as any,
-  avText: { fontFamily: FONTS.sansExtraBold, fontSize: 10, color: '#f4f0ff' },
+  av: { width: 28, height: 28, borderRadius: 14, overflow: 'hidden', boxShadow: '0px 0px 0px 2px rgba(201,168,76,0.5)' } as any,
   nameWrap: { flexShrink: 1 },
   name: { fontFamily: FONTS.sansBold, fontSize: 12, color: '#f4f0ff' },
   follow: { paddingVertical: 2, paddingHorizontal: 10, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(201,168,76,0.5)' },

@@ -99,7 +99,7 @@ export function EditProfileSheet({ visible, onClose, avatarUrl, onSaved }: { vis
             <Image source={{ uri: avatar.uri }} style={StyleSheet.absoluteFill} contentFit="cover" />
           </View>
         ) : (
-          <ProfileAvatar name={name || user.name} url={avatarUrl} />
+          <ProfileAvatar name={name || user.name} url={avatarUrl} own />
         )}
         <VText style={{ fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.2), color: colors.gold }}>CHANGE AVATAR</VText>
       </Pressable>

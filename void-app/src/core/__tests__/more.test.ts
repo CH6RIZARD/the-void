@@ -196,6 +196,24 @@ test('reels art gate: furry and hand-drawn art never reach a reel, real footage 
   assert.ok(picked.includes('real') && !picked.includes('drawn'), 'vwFill picked ' + picked.join(','));
 });
 
+test('vwFill: one creator does not fill the rail, and a caption served twice is one card', () => {
+  fresh();
+  const mk = (id: string, who: string, score: number, body = 'Clip number ' + id + ' from the river crossing at dawn') =>
+    ({ id, style: 'video', body, tags: ['conflict'], score, replies: 0, time: NOW - 3600000, source: 'x', country: '', iso: '', _author: who, _handle: '@' + who, _video: 'https://v.example/' + id + '.m3u8' });
+  // jim outranks everyone four times over; the same caption also arrives as a second video.
+  core.reelPosts.push(...[1, 2, 3, 4].map(k => mk('jim' + k, 'jimdiv', 100 - k)) as any,
+    mk('dupA', 'anna', 50, 'The vixen is still around together with one of her cubs') as any,
+    mk('dupB', 'ben', 49, 'The vixen is still around together with one of her cubs') as any,
+    ...['c', 'd', 'e', 'f'].map((w, k) => mk('o' + w, 'other' + w, 40 - k)) as any);
+  const first = core.vwFill(4, true), second = core.vwFill(4, true);
+  const who = [...first, ...second].map(p => p._author);
+  for (const batch of [first, second]) assert.ok(batch.filter(p => p._author === 'jimdiv').length <= 1, 'jim twice in a batch: ' + who.join(','));
+  assert.ok(who.every((w, i) => i === 0 || w !== who[i - 1]), 'same creator back to back: ' + who.join(','));
+  assert.equal(who[0], 'jimdiv', 'the top post still leads');
+  const vixen = [...first, ...second].filter(p => /vixen/.test(p.body || ''));
+  assert.equal(vixen.length, 1, 'same caption twice: ' + vixen.map(p => p.id).join(','));
+});
+
 test('reels PeerTube lane: gates run before the detail calls; a clip with no HLS gets the 720p file, not the largest', async () => {
   const calls: string[] = [];
   const rows = [

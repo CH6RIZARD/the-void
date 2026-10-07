@@ -54,12 +54,6 @@ export function dmIsBlocked(uid: string, handle?: string): boolean {
     return false;
   }
 }
-const AVC = ['#3b1f8a', '#1f3a8a', '#8a1f3a', '#1f8a3a', '#5b1f8a', '#8a5b1f', '#6b1f5a'];
-export function dmColor(id: string): string {
-  let h = 0;
-  for (const c of String(id || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return AVC[h % AVC.length];
-}
 export function ago(ts: number): string {
   const d = Math.floor((Date.now() - ts) / 1000);
   if (d < 60) return d + 's';

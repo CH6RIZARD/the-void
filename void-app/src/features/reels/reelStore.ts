@@ -18,6 +18,7 @@ import {
   unlearnReact,
   moderation,
   pullReelPage,
+  readJSON,
   reelPosts,
   resolveRegion,
   vwBump,
@@ -27,6 +28,7 @@ import {
   vwRemember,
   vwReset,
   vwSeen,
+  writeJSON,
 } from '../../core';
 import type { Post } from '../../core';
 import { voidToast } from '../../ui/Toast';
@@ -111,20 +113,46 @@ export function repostCount(item: Post): number {
 }
 
 // ─── FOLLOW (vwFollow) ───────────────────────────────────────────────────
-const following = new Set<string>();
+// FOLLOWS ARE KEPT, NOT JUST SHOWN. The set lived in memory only, and the server
+// call resolves the handle against Void `profiles` - so following a Bluesky,
+// PeerTube or YouTube creator, which is nearly every reel, saved nothing anywhere:
+// gone on restart and never on the profile's FOLLOWING. They are stored on this
+// device now (the follows table can only hold Void accounts); a Void author still
+// goes to the server as well.
+// ponytail: device-only for non-Void creators; a server table if follows must sync across installs.
+const FOLLOW_KEY = 'void.follows.v1';
+export interface FollowedCreator { h: string; name: string; source: string; uid?: string | null; at: number }
+let followMeta: Map<string, FollowedCreator> | null = null;
+// Read on first use, not at import: storage is configured by bootCore, after modules load.
+function follows(): Map<string, FollowedCreator> {
+  if (!followMeta) {
+    const rows = readJSON<FollowedCreator[]>(FOLLOW_KEY, []);
+    followMeta = new Map((Array.isArray(rows) ? rows : []).filter((f) => f && f.h).map((f) => [f.h, f] as [string, FollowedCreator]));
+  }
+  return followMeta;
+}
+const saveFollows = () => writeJSON(FOLLOW_KEY, [...follows().values()]);
+/** Everyone followed from this device, newest first. */
+export const followedCreators = (): FollowedCreator[] => [...follows().values()].sort((a, b) => b.at - a.at);
 export const vwHandleOf = (p: Partial<Post> | null | undefined) => String((p && (p._handle || p._author)) || '').replace(/^@/, '').toLowerCase();
-export const isFollowing = (p: Partial<Post> | null | undefined) => following.has(vwHandleOf(p));
+export const isFollowing = (p: Partial<Post> | null | undefined) => follows().has(vwHandleOf(p));
 /** Optimistic, mirrored onto every card by the same author (re-render), rolled back on rejection. */
 export function toggleFollow(item: Post): void {
   const p = findPost(baseId(item.id)) || item;
   const h = vwHandleOf(p);
   if (!h) return;
-  const on = !following.has(h);
-  on ? following.add(h) : following.delete(h);
+  const m = follows();
+  const prev = m.get(h);
+  const on = !prev;
+  if (on) m.set(h, { h, name: p._author || h, source: String(p.source || ''), uid: p.author_id || p._authorId || null, at: env.now() });
+  else m.delete(h);
+  saveFollows();
   tap();
   bump();
   VoidAPI.follow(h, on).catch(() => {
-    on ? following.delete(h) : following.add(h);
+    if (on) m.delete(h);
+    else if (prev) m.set(h, prev);
+    saveFollows();
     bump();
     voidToast(TOAST_LOST);
   });

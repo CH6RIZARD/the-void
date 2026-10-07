@@ -30,6 +30,7 @@ import { useTheme } from '../../theme/tokens';
 import { FONTS, em } from '../../theme/palettes';
 import { baseId } from '../search/format';
 import { openUser } from '../feed/navigation';
+import { useBottomNavSpace } from '../../nav/layout';
 import { ReelItem, ReelPlaceholder } from './ReelItem';
 import { ReelModSheet, type ModTarget } from './ReelModSheet';
 import {
@@ -80,6 +81,7 @@ const STALL_RETRY_MS = 15000;
 export const ReelsView = memo(function ReelsView({ active, nation, postId, overlay: overlayProp, onClose }: ReelsViewProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const navSpace = useBottomNavSpace();
   const overlay = overlayProp ?? (!!nation || !!postId);
   const mode: 'inline' | 'nation' | 'open' = nation ? 'nation' : overlay && postId ? 'open' : 'inline';
 
@@ -380,7 +382,13 @@ export const ReelsView = memo(function ReelsView({ active, nation, postId, overl
   }, []);
   const onLoaderCleared = useCallback((vid: string) => setCleared((c) => (c[vid] ? c : { ...c, [vid]: true })), []);
 
-  const railBottom = overlay ? 130 : 110;
+  // THE CAPTION SITS ABOVE THE CHROME, NOT UNDER IT. The web's fixed 24px / 110px
+  // put the name, caption and LESS under the floating nav pill on the globe's REELS
+  // tab, and the meta line and spine under Android's own nav bar on the full-screen
+  // route (screenshotted on the S22). The info block and the rail now start above
+  // whichever is there.
+  const bottomClear = overlay ? insets.bottom : navSpace;
+  const railBottom = bottomClear + 16;
 
   const renderItem = useCallback(
     ({ item, index }: { item: Post; index: number }) => {
@@ -421,6 +429,7 @@ export const ReelsView = memo(function ReelsView({ active, nation, postId, overl
         attached={live && (index === cur || (around && index >= Math.min(win, cur) && index <= Math.min(win, cur) + 1))}
         viewed={viewed.has(k)}
         railBottom={railBottom}
+        bottomClear={bottomClear}
         soundOn={soundOn}
         surfaceActive={live}
         storeVersion={storeVersion}
@@ -439,7 +448,7 @@ export const ReelsView = memo(function ReelsView({ active, nation, postId, overl
       );
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [h, cur, win, around, live, railBottom, soundOn, storeVersion, cleared, toggleSound, onReply, onShare, onLess, onMenu, onAuthor],
+    [h, cur, win, around, live, railBottom, bottomClear, soundOn, storeVersion, cleared, toggleSound, onReply, onShare, onLess, onMenu, onAuthor],
   );
 
   const onLayout = useCallback((e: LayoutChangeEvent) => setH(Math.round(e.nativeEvent.layout.height)), []);

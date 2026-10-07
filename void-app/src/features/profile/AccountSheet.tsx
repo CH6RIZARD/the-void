@@ -82,7 +82,7 @@ export function AccountSheet({ visible, author, onClose, onChanged }: { visible:
         <VHeader title="VOID ACCOUNT" onClose={onClose} />
         {author ? (
           <>
-            <VAv big label={author.label} seed={author.label} />
+            <VAv big label={author.label} uid={author.uid} handle={author.handle} />
             <VTitle center>{author.label}</VTitle>
             <VP style={{ textAlign: 'center', fontFamily: FONTS.mono, fontSize: 9, letterSpacing: em(9, 0.1) }}>
               {'@' + (author.handle || author.label) + (blocked ? ' · BLOCKED' : '')}

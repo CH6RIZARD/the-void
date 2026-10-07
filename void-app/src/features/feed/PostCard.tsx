@@ -17,7 +17,8 @@ import { Icon, type IconName } from '../../ui/icons';
 import { VText } from '../../ui/Text';
 import { ImageOrbitLoader } from '../../ui/ImageOrbitLoader';
 import { SparkleLoader } from '../../ui/SparkleLoader';
-import { avatarColor, avatarLetter, fmt, ago, typeIco } from './format';
+import { fmt, ago, typeIco } from './format';
+import { PersonPfp } from '../../ui/Pfp';
 import { AudioPill } from './media/AudioPill';
 import { PostCarousel } from './media/PostCarousel';
 import { PostMedia } from './media/PostMedia';
@@ -97,13 +98,12 @@ export const PostCard = memo(function PostCard({ post: p, index: i, onOpenThread
   if (isPostHidden(p)) return null;
 
   const take = p.style === 'take';
-  const col = avatarColor(p, i);
   const highlight = i === 0;
   const media = renderMedia(p, i, surface);
 
   const avatarStyle = isLight
-    ? { backgroundColor: '#ded7c5', boxShadow: 'inset 0px 0px 0px 1px rgba(26,20,36,0.12), 0px 2px 6px rgba(26,20,36,0.12)' }
-    : { backgroundColor: col, boxShadow: p._user ? '0px 0px 0px 2px rgba(201,168,76,0.35)' : '0px 0px 0px 2px rgba(124,58,237,0.35)' };
+    ? { boxShadow: 'inset 0px 0px 0px 1px rgba(26,20,36,0.12), 0px 2px 6px rgba(26,20,36,0.12)' }
+    : { boxShadow: p._user ? '0px 0px 0px 2px rgba(201,168,76,0.35)' : '0px 0px 0px 2px rgba(124,58,237,0.35)' };
 
   // Void accounts only (they have a uid). External/source authors, and drops already
   // on their author's profile (ownerUid), leave the tap to the card, which opens the thread.
@@ -135,7 +135,7 @@ export const PostCard = memo(function PostCard({ post: p, index: i, onOpenThread
 
         <View style={styles.header}>
           <Pressable disabled={!toUser} onPress={() => openUser(toUser)} style={[styles.avatar, avatarStyle]}>
-            <VText style={[styles.avT, { color: isLight ? '#4a4234' : colors.white }]}>{avatarLetter(p)}</VText>
+            <PersonPfp uid={p.author_id || p._authorId} handle={p._handle} label={p._author} size={32} />
           </Pressable>
           <Pressable disabled={!toUser} onPress={() => openUser(toUser)} style={styles.meta}>
             <VText style={[styles.name, { color: colors.white }]}>
@@ -285,7 +285,6 @@ const styles = StyleSheet.create({
   post: { borderRadius: 20, padding: 18 },
   header: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
   avatar: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  avT: { fontFamily: FONTS.sansExtraBold, fontSize: 12 },
   meta: { flex: 1, minWidth: 0 },
   name: { fontFamily: FONTS.sansBold, fontSize: 12 },
   handle: { fontFamily: FONTS.mono, fontSize: 9, letterSpacing: em(9, 0.06) },

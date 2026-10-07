@@ -8,6 +8,7 @@ import { useTheme } from '../../theme';
 import { FONTS, em } from '../../theme/palettes';
 import { VText } from '../../ui/Text';
 import { Icon } from '../../ui/icons/Icon';
+import { PersonPfp } from '../../ui/Pfp';
 
 /** The web's VMod IC set (not in src/ui/icons). stroke 1.5, 24 viewBox. */
 export type MiniIconName = 'more' | 'flag' | 'block' | 'mute' | 'eyeOff' | 'mail' | 'doc' | 'chev' | 'ext' | 'shield' | 'pulse';
@@ -120,25 +121,12 @@ export function VItem({ left, label, sub, pill, onPill, children }: { left?: Rea
   );
 }
 
-/** .vmod-av (32px) / .big (56px). Colour = web _tcCol(label) approximated by AVC hash. */
-export const AVC = ['#3b1f8a', '#1f3a8a', '#8a1f3a', '#1f8a3a', '#5b1f8a', '#8a5b1f', '#6b1f5a'];
-export function avColor(seed: string): string {
-  let h = 0;
-  for (const c of String(seed || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return AVC[h % AVC.length];
-}
-export function VAv({ label, seed, big }: { label: string; seed?: string; big?: boolean }) {
-  const { colors, isLight } = useTheme();
+/** .vmod-av (32px) / .big (56px): the person's figure from the PFP set. */
+export function VAv({ label, uid, handle, big }: { label: string; uid?: string | null; handle?: string | null; big?: boolean }) {
   const size = big ? 56 : 32;
   return (
-    <View
-      style={[
-        { width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: seed ? avColor(seed) : colors.card2 },
-        big ? { marginTop: 4, marginBottom: 10, alignSelf: 'center' } : null,
-        isLight ? { backgroundColor: '#ded7c5', boxShadow: 'inset 0px 0px 0px 1px rgba(26,20,36,0.12), 0px 2px 6px rgba(26,20,36,0.12)' } : null,
-      ]}
-    >
-      <VText style={{ fontFamily: FONTS.sansBold, fontSize: big ? 22 : 13, color: isLight ? '#4a4234' : colors.white }}>{String(label || '?')[0].toUpperCase()}</VText>
+    <View style={[{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden' }, big ? { marginTop: 4, marginBottom: 10, alignSelf: 'center' } : null]}>
+      <PersonPfp uid={uid} handle={handle} label={label} size={size} />
     </View>
   );
 }

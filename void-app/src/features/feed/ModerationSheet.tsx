@@ -15,7 +15,7 @@ import { Icon } from '../../ui/icons';
 import { voidToast } from '../../ui/Toast';
 import { useTheme } from '../../theme/ThemeProvider';
 import { FONTS, em } from '../../theme/palettes';
-import { tcCol } from './format';
+import { PersonPfp } from '../../ui/Pfp';
 import { openUser } from './navigation';
 import { sweepModeration } from './stores';
 import { VmodIcon, type VmodIconName } from './vmodIcons';
@@ -354,10 +354,8 @@ function AuthorView() {
   return (
     <View>
       <Hdr title={a.external ? srcName(a.source).toUpperCase() + ' ACCOUNT' : 'VOID ACCOUNT'} />
-      <View style={[styles.avBig, { backgroundColor: tcCol(a.label) }]}>
-        <VText weight={700} size={22} color={colors.white}>
-          {String(a.label || '?')[0].toUpperCase()}
-        </VText>
+      <View style={[styles.avBig, { overflow: 'hidden' }]}>
+        <PersonPfp uid={a.uid} handle={a.handle} label={a.label} size={56} />
       </View>
       <Title center>{a.label}</Title>
       <P style={{ textAlign: 'center', fontFamily: FONTS.mono, fontSize: 9, letterSpacing: em(9, 0.1) }}>

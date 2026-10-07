@@ -6,7 +6,7 @@
 // so a person keeps one face everywhere they appear.
 import React from 'react';
 import { Pressable, View } from 'react-native';
-import { readJSON, writeJSON } from '../core';
+import { readJSON, VoidAPI, writeJSON } from '../core';
 import Svg, { Defs, Path, RadialGradient, Stop, Circle } from 'react-native-svg';
 
 const GOLD = '#c9a84c';
@@ -130,6 +130,29 @@ export function writePfpChoice(n: number | null): void {
 export function MyPfp({ seed, size = 44, ring = false }: { seed?: string | null; size?: number; ring?: boolean }) {
   const chosen = readPfpChoice();
   return <Pfp seed={seed} figure={chosen ?? undefined} size={size} ring={ring} />;
+}
+
+/**
+ * The seed every surface uses for one person: their Void id, else their handle,
+ * else their name. Messages already seed by id, so a Void user's figure in the
+ * feed, a reel, a thread or a comment is the one in their DM row and profile.
+ */
+export function personSeed(uid?: string | null, handle?: string | null, label?: string | null): string {
+  const h = String(handle || '').replace(/^@/, '').toLowerCase();
+  return uid || (h && h !== 'void' ? h : '') || String(label || '').toLowerCase() || 'void';
+}
+
+/**
+ * Anyone's avatar where there is no photo - which, for posts, is everywhere: no
+ * source carries one. Replaces the letter on a coloured disc. Your own posts show
+ * the figure you picked.
+ */
+export function PersonPfp({ uid, handle, label, size = 44, ring = false }: { uid?: string | null; handle?: string | null; label?: string | null; size?: number; ring?: boolean }) {
+  let mine = false;
+  try {
+    mine = !!uid && uid === VoidAPI._uid();
+  } catch {}
+  return mine ? <MyPfp seed={uid} size={size} ring={ring} /> : <Pfp seed={personSeed(uid, handle, label)} size={size} ring={ring} />;
 }
 
 /** Every figure, for the picker. */

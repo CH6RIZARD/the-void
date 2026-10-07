@@ -1,9 +1,7 @@
-// Small pure helpers ported verbatim from void2-final.html (esc/fmt/ago/AVC/_tcCol/auFmt).
+// Small pure helpers ported verbatim from void2-final.html (esc/fmt/ago/auFmt).
+// Avatars are the PFP set (ui/Pfp), not the web's letter on a coloured disc.
 import type { Post } from '../../core';
 import { env } from '../../core';
-
-/** web AVC — seeded avatar colours. */
-export const AVC = ['#3b1f8a', '#1f3a8a', '#8a1f3a', '#1f8a3a', '#5b1f8a', '#8a5b1f', '#6b1f5a'];
 
 /** web fmt(n) */
 export function fmt(n: number | undefined | null): string {
@@ -23,20 +21,9 @@ export function ago(ts: number | undefined | null): string {
 /** web auFmt(s) */
 export const auFmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
-/** web _tcCol(name): avatar colour keyed to the author, stable across sorts. */
-export function tcCol(name: string | undefined | null): string {
-  let h = 0;
-  for (const ch of String(name || '')) h = (h * 31 + ch.charCodeAt(0)) | 0;
-  return AVC[Math.abs(h) % AVC.length];
-}
-
 /** renderPost typeIco */
 export const TYPE_ICO: Record<string, string> = { drop: '◈', take: '✦', image: '▣', video: '▷', audio: '◉', carousel: '⊞', link_live: '⊕', link_thread: '⊡' };
 export const typeIco = (p: Post) => TYPE_ICO[p.style as string] || '◈';
-
-/** renderPost avatar letter + colour. */
-export const avatarLetter = (p: Post) => String(p._author || p.iso || '?')[0].toUpperCase();
-export const avatarColor = (p: Post, i: number) => p._isoColor || AVC[i % AVC.length] || '#2a1060';
 
 /** SETTINGS.lang (localStorage v_lang, default en). */
 export function settingsLang(): string {

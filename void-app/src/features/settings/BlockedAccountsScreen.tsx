@@ -44,7 +44,7 @@ export default function BlockedAccountsScreen({ onClose }: { onClose?: () => voi
   const item = (b: moderation.Block) => (
     <VItem
       key={b.key}
-      left={<VAv label={b.label || b.handle} seed={b.label} />}
+      left={<VAv label={b.label || b.handle} uid={b.uid} handle={b.handle} />}
       label={b.label || b.handle}
       sub={(b.hostOnly ? 'SOURCE' : '@' + (b.handle || '')) + (b.external ? ' · ' + srcName(b.source).toUpperCase() : '')}
       pill={b.external ? 'SHOW' : 'UNBLOCK'}
