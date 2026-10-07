@@ -300,6 +300,8 @@ export function startWorkletGlobe(
   viewH: number,
   sv: WorkletGlobeShared,
   gen: number,
+  /** 0 under reduced motion: no idle spin (a flick still turns it). */
+  spin = 1,
 ): void {
   // Pure functions of the fixed country list: rasterising the two 128x128
   // marker sprites again on every context re-create bought nothing.
@@ -308,7 +310,7 @@ export function startWorkletGlobe(
   const markerCount = countries.length;
   const thumb = earthThumbOnce();
 
-  runOnUI((ctxId: number, mk: Float32Array, mkN: number, sp: Uint8Array, spHot: Uint8Array, vw: number, vh: number, myGen: number, th: Uint8Array | null) => {
+  runOnUI((ctxId: number, mk: Float32Array, mkN: number, sp: Uint8Array, spHot: Uint8Array, vw: number, vh: number, myGen: number, th: Uint8Array | null, spinK: number) => {
     'worklet';
     // The raw global, not an import: expo-gl's own getWorkletContext is just
     // this lookup, and whether a library function survives workletization
@@ -758,7 +760,7 @@ export function startWorkletGlobe(
       gT = ts;
       pt += 0.034 * dt;
       if (!drag) {
-        tRotY += 0.0015 * dt;
+        tRotY += 0.0015 * dt * spinK;
         const d = Math.pow(0.92, dt);
         rVelX *= d; rVelY *= d;
         // The web has ONE rVel that keeps decaying after release. The gesture side
@@ -891,7 +893,7 @@ export function startWorkletGlobe(
       }
     };
     (globalThis as any).requestAnimationFrame(loop);
-  })(exglCtxId, markers, markerCount, sprite, spriteHot, viewW, viewH, gen, thumb);
+  })(exglCtxId, markers, markerCount, sprite, spriteHot, viewW, viewH, gen, thumb, spin);
 }
 
 /**

@@ -16,6 +16,7 @@ export function GlobeModeToggle({ mode, onChange, topInset = 0 }: { mode: GlobeM
       <Pressable
         key={m}
         onPress={() => onChange(m)}
+        hitSlop={{ top: 10, bottom: 10 }} // ~24pt tall: 44pt to the finger
         style={({ pressed }) => [styles.btn, on && styles.on, { opacity: pressed ? 0.72 : 1 }]}
         accessibilityRole="button"
         accessibilityState={{ selected: on }}

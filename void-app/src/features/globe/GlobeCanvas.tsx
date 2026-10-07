@@ -4,7 +4,7 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from '
 import { Animated, AppState, Easing, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { GLView, type ExpoWebGLRenderingContext } from 'expo-gl';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { runOnJS, useSharedValue } from 'react-native-reanimated';
+import { runOnJS, useReducedMotion, useSharedValue } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
 import Svg, { Circle, Path } from 'react-native-svg';
@@ -120,6 +120,8 @@ export const GlobeCanvas = memo(function GlobeCanvas({ running, onOpenCountry, r
   // JS thread can no longer cost the globe a single frame. globeScene.ts stays
   // as the instant fallback - flip this to false and everything is as before.
   const WORKLET_GLOBE = true;
+  // Reduced motion: the globe holds still until flicked (read once, like the setting).
+  const stillRef = useRef(useReducedMotion());
   const runningSV = useSharedValue(0);
   // A GENERATION COUNTER, NOT A BOOLEAN. The old canceledSV was reset to 0 by
   // every onContextCreate and set to 1 only by the unmount dispose - which never
@@ -161,7 +163,7 @@ export const GlobeCanvas = memo(function GlobeCanvas({ running, onOpenCountry, r
           wallScrollAtSV,
         };
         try { console.warn('[globe] context ' + (gl as any).contextId + ', gen ' + gen); } catch {}
-        startWorkletGlobe((gl as any).contextId, cs, size.current.w, size.current.h, shared, gen);
+        startWorkletGlobe((gl as any).contextId, cs, size.current.w, size.current.h, shared, gen, stillRef.current ? 0 : 1);
         // THE FIRST FRAME DOES NOT WAIT FOR A RENDER. runningSV used to be set
         // only by the effect below, after setSceneReady's commit - two more trips
         // through a JS thread that, at a cold start on the globe tab, is busy

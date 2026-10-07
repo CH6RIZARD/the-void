@@ -4,11 +4,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import { FLICK_VELOCITY, SPRING_SNAP } from '../../theme/motion';
 import { router, useFocusEffect } from 'expo-router';
 import { onTabReselect } from '../../nav/reselect';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as ToastModule from '../../ui/Toast';
 import { GlobeModeToggle } from './GlobeModeToggle';
 import { earthAstcAsync } from './astcMap';
 import { GlobeCanvas, useGlobeHeight } from './GlobeCanvas';
@@ -22,15 +22,6 @@ import { LoaderActiveContext } from '../../ui/loaders/useLoaderClock';
 
 // #globe-reels-view,#globe-map-view{transition:transform .34s cubic-bezier(.22,.61,.36,1)}
 const SLIDE = { duration: 340, easing: Easing.bezier(0.22, 0.61, 0.36, 1) };
-
-function voidToast(msg: string) {
-  const m: any = ToastModule;
-  const fn = m.voidToast || m.showToast || m.toast || m.default;
-  try {
-    if (typeof fn === 'function') fn(msg);
-    else if (fn && typeof fn.show === 'function') fn.show(msg);
-  } catch {}
-}
 
 export interface GlobeScreenProps {
   /** Space the floating nav pill occupies at the bottom (web .screen{bottom:58px}). */
@@ -221,8 +212,6 @@ function GlobeSurfaces({
       modeNum.value = m === 'reels' ? 1 : 0;
       saveGlobeMode(m);
       setModeState(m);
-      // Say where you just landed (silent on initial entry).
-      if (announce) voidToast(m === 'reels' ? 'REELS · FOR YOU' : 'GLOBE · TAP A NATION');
     },
     [modeSV, modeNum, drag],
   );
@@ -231,6 +220,11 @@ function GlobeSurfaces({
   const endSlideSoon = useCallback(() => {
     if (slideT.current) clearTimeout(slideT.current);
     slideT.current = setTimeout(() => setSliding(false), SLIDE.duration + 40);
+  }, []);
+  // A spring has no fixed length: the snap-back brings the surfaces back when it lands.
+  const endSlideNow = useCallback(() => {
+    if (slideT.current) clearTimeout(slideT.current);
+    setSliding(false);
   }, []);
   useEffect(() => () => { if (slideT.current) clearTimeout(slideT.current); }, []);
 
@@ -256,12 +250,21 @@ function GlobeSurfaces({
       const dx = modeNum.value === 0 ? Math.min(0, e.translationX) : Math.max(0, e.translationX);
       drag.value = dx / w;
     })
-    .onEnd(() => {
+    .onEnd((e) => {
       'worklet';
-      if (Math.abs(drag.value) > 0.22) runOnJS(setMode)(modeNum.value === 0 ? 'reels' : 'globe', true);
-      else drag.value = withTiming(0, SLIDE);
-      // Give the slide time to land before the surfaces come back.
-      runOnJS(endSlideSoon)();
+      // Past 22% of the width, or a flick toward the other surface, commits. Short
+      // of that the panel springs home with the finger's velocity, clamped so it
+      // cannot bounce past its edge and show a sliver of the other side.
+      const toward = modeNum.value === 0 ? -e.velocityX : e.velocityX;
+      if (Math.abs(drag.value) > 0.22 || toward > FLICK_VELOCITY) {
+        runOnJS(setMode)(modeNum.value === 0 ? 'reels' : 'globe', true);
+        // Give the slide time to land before the surfaces come back.
+        runOnJS(endSlideSoon)();
+      } else {
+        drag.value = withSpring(0, { ...SPRING_SNAP, overshootClamping: true, velocity: e.velocityX / Math.max(1, W.value) }, (done) => {
+          if (done) runOnJS(endSlideNow)();
+        });
+      }
     });
 
   // The left panel sits at (drag - mode)·100%; the right one a width further on.

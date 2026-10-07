@@ -11,7 +11,7 @@ import React, { useCallback, useEffect, useRef } from 'react';
 import { PixelRatio, StyleSheet, View } from 'react-native';
 import { GLView, type ExpoWebGLRenderingContext } from 'expo-gl';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
 import * as THREE from 'three';
 import { landPositions } from './landDots';
 import { buildGlobe } from './globeBuild';
@@ -49,6 +49,7 @@ function makeRenderer(gl: ExpoWebGLRenderingContext): THREE.WebGLRenderer {
 
 export function OnboardGlobe({ running = true }: { running?: boolean }) {
   const rot = useRef({ x: 0.25, y: -1.2, vel: 0, drag: false });
+  const idleSpin = useReducedMotion() ? 0 : 0.0016; // reduced motion: still until dragged
   const runRef = useRef(running);
   runRef.current = running;
   const raf = useRef<number | null>(null);
@@ -79,7 +80,7 @@ export function OnboardGlobe({ running = true }: { running?: boolean }) {
         if (!runRef.current) return;
         const r = rot.current;
         if (!r.drag) {
-          r.y += 0.0016 + r.vel;
+          r.y += idleSpin + r.vel;
           r.vel *= 0.95;
         }
         group.rotation.set(r.x, r.y, 0);
