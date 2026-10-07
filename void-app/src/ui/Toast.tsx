@@ -6,7 +6,8 @@
 // Usage anywhere (no hook needed):  voidToast('SIGNAL LOST · RETRY')
 import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Animated, { Easing, ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withTiming, useReducedMotion } from 'react-native-reanimated';
+import { WEB } from '../theme/motion';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeProvider';
 import { FONTS, em } from '../theme/palettes';
@@ -30,7 +31,7 @@ export function useToast() {
   return voidToast;
 }
 
-const EASE = Easing.bezier(0.25, 0.1, 0.25, 1);
+const EASE = WEB.EASE;
 
 /** Mount once near the root (app/_layout.tsx does). */
 export function ToastHost() {
@@ -38,6 +39,7 @@ export function ToastHost() {
   const insets = useSafeAreaInsets();
   const [msg, setMsg] = useState('');
   const on = useSharedValue(0);
+  const rise = useReducedMotion() ? 0 : 8; // reduced motion: fade only
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -56,7 +58,7 @@ export function ToastHost() {
     };
   }, [on]);
 
-  const style = useAnimatedStyle(() => ({ opacity: on.value, transform: [{ translateY: (1 - on.value) * 8 }] }));
+  const style = useAnimatedStyle(() => ({ opacity: on.value, transform: [{ translateY: (1 - on.value) * rise }] }));
 
   return (
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.host]}>

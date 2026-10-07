@@ -71,8 +71,8 @@ export const PostCarousel = memo(function PostCarousel({ post: p, style }: { pos
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
-            onScroll={onScroll}
-            scrollEventThrottle={16}
+            // Page index on settle, not a JS handler every frame.
+            onMomentumScrollEnd={onScroll}
             nestedScrollEnabled
             scrollEnabled={!veiled}
           >

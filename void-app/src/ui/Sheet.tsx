@@ -8,12 +8,13 @@
 // Drag the handle area down (or tap the scrim / hardware back) to dismiss.
 import React, { useCallback, useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
-import Animated, { Easing, ReduceMotion, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { ReduceMotion, runOnJS, useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import { SPRING_SNAP, WEB } from '../theme/motion';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeProvider';
 
-const EASE = Easing.bezier(0.25, 0.1, 0.25, 1); // CSS `ease`
+const EASE = WEB.EASE; // CSS `ease`
 
 export interface SheetProps {
   visible: boolean;
@@ -45,10 +46,13 @@ export function Sheet({ visible, onClose, children, scroll = true, maxHeight = 0
   useEffect(() => {
     if (visible) {
       setMounted(true);
-      closing.value = 0;
       drag.value = 0;
-      progress.value = 0;
-      progress.value = withTiming(1, { duration: 220, easing: EASE, reduceMotion: ReduceMotion.Never });
+      // Reopened mid-close: carry on from where it is, on the close's own path,
+      // instead of jumping back to the start of the open.
+      if (progress.value === 0) closing.value = 0;
+      progress.value = withTiming(1, { duration: 220, easing: EASE, reduceMotion: ReduceMotion.Never }, (done) => {
+        if (done) closing.value = 0;
+      });
     } else if (mounted) {
       closing.value = 1;
       progress.value = withTiming(0, { duration: 220, easing: EASE, reduceMotion: ReduceMotion.Never }, (done) => {
@@ -71,14 +75,17 @@ export function Sheet({ visible, onClose, children, scroll = true, maxHeight = 0
       if (drag.value > 90 || e.velocityY > 900) {
         runOnJS(requestClose)();
       } else {
-        drag.value = withTiming(0, { duration: 180, reduceMotion: ReduceMotion.Never });
+        drag.value = withSpring(0, { ...SPRING_SNAP, velocity: e.velocityY });
       }
     });
 
   const scrimStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
+  // Reduced motion: the sheet fades in place (the timings stay on Never so the fade
+  // still runs); the drag still follows the finger.
+  const still = useReducedMotion();
   const sheetStyle = useAnimatedStyle(() => {
     const p = progress.value;
-    const offset = closing.value ? (1 - p) * sheetH.value : (1 - p) * 60;
+    const offset = still ? 0 : closing.value ? (1 - p) * sheetH.value : (1 - p) * 60;
     return { opacity: p, transform: [{ translateY: offset + drag.value }] };
   });
 

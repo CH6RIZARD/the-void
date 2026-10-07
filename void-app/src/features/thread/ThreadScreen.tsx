@@ -9,7 +9,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BackHandler, Dimensions, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { runOnJS, Easing, ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { runOnJS, ReduceMotion, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
+import { EASE_OUT as UI_EASE_OUT, FLICK_VELOCITY, WEB } from '../../theme/motion';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -37,10 +38,13 @@ import { ReplyOverlay } from './ReplyOverlay';
 import { getThreadComments, postReply, setThreadSort, tcSort, tcTree, toggleCommentBolt, useThreadSort, useThreadVersion, viewerName } from './threadModel';
 import { useThreadTokens } from './threadTheme';
 
-const FLIP_EASE = Easing.bezier(0.32, 0.72, 0.28, 1);
-const EASE_OUT = Easing.bezier(0, 0, 0.58, 1);
-const EASE_IN = Easing.bezier(0.42, 0, 1, 1);
+const FLIP_EASE = WEB.SHEET;
+const EASE_OUT = WEB.EASE_OUT;
+// REDUCED MOTION DROPS THE MOVEMENT, NOT THE FADES. The flip (translate + scale)
+// follows the system setting; the scrim, chrome and pop opacity always run - with
+// everything on System, opening a thread under reduced motion was a hard cut.
 const RM = ReduceMotion.System;
+const FADE = ReduceMotion.Never;
 
 interface FlipVec {
   dx: number;
@@ -112,7 +116,7 @@ function Thread({ post: p, focus }: { post: Post; focus?: string }) {
   }, [p.id]);
 
   useEffect(() => {
-    scrim.value = withTiming(1, { duration: 240, easing: EASE_OUT, reduceMotion: RM });
+    scrim.value = withTiming(1, { duration: 240, easing: EASE_OUT, reduceMotion: FADE });
     // However the route goes away (close, swipe-dismiss), the source card comes back.
     return () => endFlip();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -126,7 +130,7 @@ function Thread({ post: p, focus }: { post: Post; focus?: string }) {
     const popIn = () => {
       ready.value = 1;
       chrome.value = 1;
-      pop.value = withTiming(1, { duration: 240, easing: EASE_OUT, reduceMotion: RM });
+      pop.value = withTiming(1, { duration: 240, easing: EASE_OUT, reduceMotion: FADE });
     };
     if (!flip || !flip.rect || !node) return popIn();
     node.measureInWindow((x, y, width, height) => {
@@ -141,7 +145,7 @@ function Thread({ post: p, focus }: { post: Post; focus?: string }) {
       flipP.value = withTiming(1, { duration: 300, easing: FLIP_EASE, reduceMotion: RM });
       chrome.value = 0;
       setTimeout(() => {
-        chrome.value = withTiming(1, { duration: 240, easing: EASE_OUT, reduceMotion: RM });
+        chrome.value = withTiming(1, { duration: 240, easing: EASE_OUT, reduceMotion: FADE });
       }, 120);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -168,12 +172,12 @@ function Thread({ post: p, focus }: { post: Post; focus?: string }) {
       const tops = topCount.current;
       const k = Math.min(tops, 6);
       let dur = 200 + Math.max(0, k - 1) * 30;
-      chrome.value = withTiming(0, { duration: 180, easing: EASE_IN, reduceMotion: RM });
-      scrim.value = withTiming(0, { duration: 240, easing: EASE_OUT, reduceMotion: RM });
+      chrome.value = withTiming(0, { duration: 180, easing: UI_EASE_OUT, reduceMotion: FADE });
+      scrim.value = withTiming(0, { duration: 240, easing: EASE_OUT, reduceMotion: FADE });
       const flip = currentFlip(p.id);
       const node = opRef.current;
       const fallback = () => {
-        opFade.value = withTiming(0, { duration: 200, easing: EASE_IN, reduceMotion: RM });
+        opFade.value = withTiming(0, { duration: 200, easing: UI_EASE_OUT, reduceMotion: FADE });
       };
       const run = (a: Rect | null) => {
         if (a && node) {
@@ -233,16 +237,17 @@ function Thread({ post: p, focus }: { post: Post; focus?: string }) {
   roStackRef.current = roStack;
 
   // ─── animated styles ─────────────────────────────────────────────────────
+  const rise = useReducedMotion() ? 0 : 12; // the pop / fallback's 12px rise
   const swipeOut = Gesture.Pan()
     .activeOffsetX([-9999, 24])
     .failOffsetY([-14, 14])
     .onEnd((e) => {
       'worklet';
       // A deliberate push to the right, not a stray drift while scrolling.
-      if (e.translationX > 80 && e.velocityX > 0) runOnJS(close)();
+      if ((e.translationX > 80 && e.velocityX > 0) || e.velocityX > FLICK_VELOCITY) runOnJS(close)();
     });
   const scrimStyle = useAnimatedStyle(() => ({ opacity: scrim.value }));
-  const popStyle = useAnimatedStyle(() => ({ opacity: pop.value, transform: [{ translateY: (1 - pop.value) * 12 }] }));
+  const popStyle = useAnimatedStyle(() => ({ opacity: pop.value, transform: [{ translateY: (1 - pop.value) * rise }] }));
   const chromeStyle = useAnimatedStyle(() => ({ opacity: chrome.value }));
   const opStyle = useAnimatedStyle(() => {
     let tx = 0,
@@ -270,7 +275,7 @@ function Thread({ post: p, focus }: { post: Post; focus?: string }) {
     }
     return {
       opacity: ready.value * opFade.value,
-      transform: [{ translateX: tx }, { translateY: ty + (1 - opFade.value) * 12 }, { scale: sc }],
+      transform: [{ translateX: tx }, { translateY: ty + (1 - opFade.value) * rise }, { scale: sc }],
     };
   });
   // gold ring + deep shadow: _T_SH0 (none) -> _T_SH1 at .78 -> the card's resting shadow

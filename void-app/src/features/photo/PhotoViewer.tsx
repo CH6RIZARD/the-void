@@ -35,7 +35,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
+import { FLICK_VELOCITY, SPRING_SNAP } from '../../theme/motion';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { findPost, moderation, shareUrl, srcName, VoidAPI, vwBump, type Post } from '../../core';
 import { ImageOrbitLoader } from '../../ui/ImageOrbitLoader';
@@ -129,10 +130,11 @@ export default function PhotoViewer() {
       dragY.value = dy < 0 ? dy * 0.35 : dy; // upward drag resists, downward follows
     })
     .onEnd((e) => {
-      if (Math.abs(e.translationY) > DISMISS_PX) {
+      // Past 110pt or a flick closes; short of that it springs back with the release velocity.
+      if (Math.abs(e.translationY) > DISMISS_PX || Math.abs(e.velocityY) > FLICK_VELOCITY) {
         runOnJS(close)();
       } else {
-        dragY.value = withTiming(0, { duration: 220 });
+        dragY.value = withSpring(0, { ...SPRING_SNAP, velocity: e.velocityY });
       }
     });
 
@@ -195,8 +197,9 @@ export default function PhotoViewer() {
                 showsHorizontalScrollIndicator={false}
                 initialScrollIndex={Math.min(startIdx, n - 1)}
                 getItemLayout={(_, i) => ({ length: W, offset: W * i, index: i })}
-                onScroll={onScroll}
-                scrollEventThrottle={16}
+                // The page index is read when the swipe settles, not on every frame
+                // of a JS scroll handler (each change re-rendered the viewer).
+                onMomentumScrollEnd={onScroll}
                 scrollEnabled={!zoomed && !veiled && n > 1}
                 windowSize={3}
                 initialNumToRender={Math.min(n, startIdx + 2)}

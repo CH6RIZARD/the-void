@@ -15,7 +15,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { Easing, ReduceMotion, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { ReduceMotion, runOnJS, useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import { FLICK_VELOCITY, SPRING_SNAP, WEB } from '../../theme/motion';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { findPost, type Comment } from '../../core';
 import { useAuth } from '../../lib/auth';
@@ -29,8 +30,11 @@ import { ComposePill } from './ComposePill';
 import { getThreadComments, postReply, tcSort, tcTree, toggleCommentBolt, useThreadSort, useThreadVersion, viewerName } from './threadModel';
 import { useThreadTokens } from './threadTheme';
 
-const SHEET_EASE = Easing.bezier(0.32, 0.72, 0.28, 1);
-const EASE_OUT = Easing.bezier(0, 0, 0.58, 1);
+const SHEET_EASE = WEB.SHEET;
+const EASE_OUT = WEB.EASE_OUT;
+// Under reduced motion the sheet and the level swap keep their fades and drop the
+// movement (System snapped both: the scrim and the swap crossfade went with it).
+const FADE = ReduceMotion.Never;
 
 export interface ReplyOverlayProps {
   postId: string;
@@ -59,6 +63,8 @@ export function ReplyOverlay({ postId, stack, onOpen, onBack, onCloseAll, focusK
   const open = stack.length > 0;
   const [mounted, setMounted] = useState(open);
   const shown = useSharedValue(0);
+  const pull = useSharedValue(0); // pull-down drag, follows the finger
+  const still = useReducedMotion();
   const swap = useSharedValue(0); // -1 back, +1 swap, eased to 0
   const prevLen = useRef(stack.length);
   const input = useRef<TextInput>(null);
@@ -69,13 +75,14 @@ export function ReplyOverlay({ postId, stack, onOpen, onBack, onCloseAll, focusK
   useEffect(() => {
     if (open) {
       setMounted(true);
-      shown.value = withTiming(1, { duration: 280, easing: SHEET_EASE, reduceMotion: ReduceMotion.System });
+      pull.value = 0;
+      shown.value = withTiming(1, { duration: 280, easing: SHEET_EASE, reduceMotion: FADE });
     } else if (mounted) {
       if (instant) {
         shown.value = 0;
         setMounted(false);
       } else
-        shown.value = withTiming(0, { duration: 280, easing: SHEET_EASE, reduceMotion: ReduceMotion.System }, (done) => {
+        shown.value = withTiming(0, { duration: 280, easing: SHEET_EASE, reduceMotion: FADE }, (done) => {
           if (done) runOnJS(setMounted)(false);
         });
     }
@@ -90,7 +97,7 @@ export function ReplyOverlay({ postId, stack, onOpen, onBack, onCloseAll, focusK
     setText('');
     setNewId(null);
     swap.value = stack.length > was ? 1 : -1;
-    swap.value = withTiming(0, { duration: 220, easing: EASE_OUT, reduceMotion: ReduceMotion.System });
+    swap.value = withTiming(0, { duration: 220, easing: EASE_OUT, reduceMotion: FADE });
     scroll.current?.scrollTo({ y: 0, animated: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stack.length, stack[stack.length - 1]]);
@@ -104,8 +111,8 @@ export function ReplyOverlay({ postId, stack, onOpen, onBack, onCloseAll, focusK
 
   const sheetTop = 88;
   const scrimStyle = useAnimatedStyle(() => ({ opacity: shown.value }));
-  const sheetStyle = useAnimatedStyle(() => ({ transform: [{ translateY: (1 - shown.value) * (height - sheetTop) }] }));
-  const bodyStyle = useAnimatedStyle(() => ({ opacity: 1 - Math.abs(swap.value), transform: [{ translateX: swap.value * 16 }] }));
+  const sheetStyle = useAnimatedStyle(() => ({ transform: [{ translateY: (still ? 0 : (1 - shown.value) * (height - sheetTop)) + pull.value }] }));
+  const bodyStyle = useAnimatedStyle(() => ({ opacity: 1 - Math.abs(swap.value), transform: [{ translateX: still ? 0 : swap.value * 16 }] }));
 
   const cid = stack[stack.length - 1];
   const all = getThreadComments(postId);
@@ -137,12 +144,19 @@ export function ReplyOverlay({ postId, stack, onOpen, onBack, onCloseAll, focusK
     });
   };
 
+  // The sheet follows the finger down; past 90pt or on a flick it closes, short of
+  // that it springs back with the release velocity.
   const pullDown = Gesture.Pan()
     .activeOffsetY([-9999, 18])
     .failOffsetX([-16, 16])
+    .onUpdate((e) => {
+      'worklet';
+      pull.value = Math.max(0, e.translationY);
+    })
     .onEnd((e) => {
       'worklet';
-      if (e.translationY > 90 && e.velocityY > 0) runOnJS(onCloseAll)();
+      if ((e.translationY > 90 && e.velocityY > 0) || e.velocityY > FLICK_VELOCITY) runOnJS(onCloseAll)();
+      else pull.value = withSpring(0, { ...SPRING_SNAP, velocity: e.velocityY });
     });
 
   return (
