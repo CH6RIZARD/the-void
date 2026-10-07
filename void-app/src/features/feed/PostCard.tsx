@@ -10,7 +10,7 @@ import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { onRepliesChanged, type Post } from '../../core';
+import { moderation, onRepliesChanged, type Post } from '../../core';
 import { useTheme } from '../../theme/ThemeProvider';
 import { FONTS, em } from '../../theme/palettes';
 import { Icon, type IconName } from '../../ui/icons';
@@ -22,7 +22,7 @@ import { AudioPill } from './media/AudioPill';
 import { PostCarousel } from './media/PostCarousel';
 import { PostMedia } from './media/PostMedia';
 import { openPostMenu } from './ModerationSheet';
-import { openCountry, openLive, openThreadRoute } from './navigation';
+import { openCountry, openLive, openThreadRoute, openUser } from './navigation';
 import { boltCount, fireBolt, toggleRepost, touchPost, usePostReaction } from './reactions';
 import { beginFlip, isPostHidden, useLifted, useModerationVersion, type Rect } from './stores';
 import { toggleTranslate, useTranslation } from './translate';
@@ -99,6 +99,11 @@ export const PostCard = memo(function PostCard({ post: p, index: i, onOpenThread
     ? { backgroundColor: '#ded7c5', boxShadow: 'inset 0px 0px 0px 1px rgba(26,20,36,0.12), 0px 2px 6px rgba(26,20,36,0.12)' }
     : { backgroundColor: col, boxShadow: p._user ? '0px 0px 0px 2px rgba(201,168,76,0.35)' : '0px 0px 0px 2px rgba(124,58,237,0.35)' };
 
+  // Void accounts only (they have a uid). External/source authors, and drops already
+  // on their author's profile, leave the tap to the card, which opens the thread.
+  const author = surface === 'profile' ? null : moderation.authorOf(p);
+  const toUser = author?.uid ? author.handle : null;
+
   return (
     <FadeIn id={p.id} index={i} viewRef={ref} style={style}>
       <Pressable
@@ -123,16 +128,16 @@ export const PostCard = memo(function PostCard({ post: p, index: i, onOpenThread
         ) : null}
 
         <View style={styles.header}>
-          <View style={[styles.avatar, avatarStyle]}>
+          <Pressable disabled={!toUser} onPress={() => openUser(toUser)} style={[styles.avatar, avatarStyle]}>
             <VText style={[styles.avT, { color: isLight ? '#4a4234' : colors.white }]}>{avatarLetter(p)}</VText>
-          </View>
-          <View style={styles.meta}>
+          </Pressable>
+          <Pressable disabled={!toUser} onPress={() => openUser(toUser)} style={styles.meta}>
             <VText style={[styles.name, { color: colors.white }]}>
               {p._author || p.iso || 'void'}{' '}
               <VText style={[styles.handle, { color: colors.muted }]}>{p._handle || '@void'}</VText>
             </VText>
             <VText style={[styles.time, { color: colors.muted }]}>{ago(p.time)}</VText>
-          </View>
+          </Pressable>
           <VText style={[styles.typeIco, { color: colors.muted }]}>{typeIco(p)}</VText>
           {!p._user ? (
             <Pressable onPress={() => openPostMenu(p)} style={styles.more} accessibilityLabel="More" hitSlop={6}>

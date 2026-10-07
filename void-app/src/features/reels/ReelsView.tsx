@@ -29,6 +29,7 @@ import { voidToast } from '../../ui/Toast';
 import { useTheme } from '../../theme/tokens';
 import { FONTS, em } from '../../theme/palettes';
 import { baseId } from '../search/format';
+import { openUser } from '../feed/navigation';
 import { ReelItem, ReelPlaceholder } from './ReelItem';
 import { ReelModSheet, type ModTarget } from './ReelModSheet';
 import {
@@ -374,6 +375,7 @@ export const ReelsView = memo(function ReelsView({ active, nation, postId, overl
       if (!p._user) voidToast('NO ACCOUNT TO SHOW');
       return;
     }
+    if (a.uid && openUser(a.handle)) return; // Void account -> profile; external keeps the sheet
     setMod({ kind: 'author', post: item });
   }, []);
   const onLoaderCleared = useCallback((vid: string) => setCleared((c) => (c[vid] ? c : { ...c, [vid]: true })), []);

@@ -16,6 +16,7 @@ import { voidToast } from '../../ui/Toast';
 import { useTheme } from '../../theme/ThemeProvider';
 import { FONTS, em } from '../../theme/palettes';
 import { tcCol } from './format';
+import { openUser } from './navigation';
 import { sweepModeration } from './stores';
 import { VmodIcon, type VmodIconName } from './vmodIcons';
 
@@ -70,6 +71,7 @@ export function openAuthorSheet(p: Post): void {
     if (!p._user) voidToast('NO ACCOUNT TO SHOW');
     return;
   }
+  if (a.uid && openUser(a.handle)) return; // a Void account: its profile has block / report
   target = { kind: 'post', id: baseId(p.id), p, a };
   view = { kind: 'author' };
   emit();

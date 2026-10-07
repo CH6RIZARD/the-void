@@ -6,6 +6,7 @@ import { useTheme } from '../../theme';
 import { FONTS, em } from '../../theme/palettes';
 import { VText } from '../../ui/Text';
 import { Pfp } from '../../ui/Pfp';
+import { openUser } from '../feed/navigation';
 import { ago, dmMe, DM_FOOT, type DmConv, type DmPerson } from './dmStore';
 
 /**
@@ -19,12 +20,14 @@ import { ago, dmMe, DM_FOOT, type DmConv, type DmPerson } from './dmStore';
  * `fontSize` is kept in the signature and ignored: callers pass it, and a figure
  * has no letter to size.
  */
-export function ConvAvatar({ id, name, size = 44, fontSize, ring }: { id: string; name: string; size?: number; fontSize?: number; ring?: boolean }) {
+export function ConvAvatar({ id, name, handle, size = 44, fontSize, ring }: { id: string; name: string; handle?: string; size?: number; fontSize?: number; ring?: boolean }) {
   void fontSize;
+  // With a handle the face opens their profile; without one (the pinned strip) the
+  // tap falls through to the parent, which opens the chat.
   return (
-    <View style={{ flexShrink: 0 }}>
+    <Pressable disabled={!handle} onPress={() => openUser(handle)} accessibilityLabel={handle ? 'Profile of ' + name : undefined} style={{ flexShrink: 0 }}>
       <Pfp seed={id || name} size={size} ring={ring} />
-    </View>
+    </Pressable>
   );
 }
 
@@ -50,7 +53,7 @@ export function ConvRow({ c, onPress, hit }: { c: DmConv; onPress: () => void; h
       {unread ? (
         <LinearGradient pointerEvents="none" colors={['rgba(124,58,237,0.1)', 'rgba(124,58,237,0)']} locations={[0, 0.7]} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={[StyleSheet.absoluteFill, { borderRadius: 18 }]} />
       ) : null}
-      <ConvAvatar id={c.other.id} name={c.other.name} ring={unread} />
+      <ConvAvatar id={c.other.id} name={c.other.name} handle={c.other.handle} ring={unread} />
       <View style={st.info}>
         <NameLine name={c.other.name} handle={c.other.handle} />
         {hit ? (
@@ -90,7 +93,7 @@ export function PersonRow({ p, onPress }: { p: DmPerson; onPress: () => void }) 
   const name = p.display_name || p.handle;
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [st.item, pressed ? { backgroundColor: 'rgba(255,255,255,0.03)' } : null]}>
-      <ConvAvatar id={p.id} name={name} />
+      <ConvAvatar id={p.id} name={name} handle={p.handle} />
       <View style={st.info}>
         <NameLine name={name} handle={p.handle} />
         <VText numberOfLines={1} style={{ fontFamily: FONTS.sans, fontSize: 11.5, color: colors.dim, marginTop: 2 }}>tap to message</VText>

@@ -20,6 +20,7 @@ import { Icon } from '../../ui/icons';
 import { ImageOrbitLoader } from '../../ui/ImageOrbitLoader';
 import { VText } from '../../ui/Text';
 import { ago, fmt, tcCol } from '../feed/format';
+import { openUser } from '../feed/navigation';
 import { VmodIcon } from '../feed/vmodIcons';
 import { useThreadTokens } from './threadTheme';
 
@@ -75,6 +76,7 @@ export const CommentCard = memo(function CommentCard({ c, opAuthor, kidsN, paren
   const edges = kidsN >= 2 ? 2 : kidsN === 1 ? 1 : 0;
   const mb = nested ? (edges ? 18 : 8) : edges ? 26 : 16;
   const canMore = !!onMore && (c.remote || !!c.authorId);
+  const toUser = c.authorId ? c.handle : null; // Void accounts only; remote handles have no /u page
 
   const cardStyle = nested
     ? { borderRadius: 16, backgroundColor: tk.reply, boxShadow: 'inset 0px 1px 0px rgba(255,255,255,0.05), 0px 8px 20px rgba(0,0,0,0.45)', paddingTop: 12, paddingHorizontal: 14, paddingBottom: 11 }
@@ -94,10 +96,10 @@ export const CommentCard = memo(function CommentCard({ c, opAuthor, kidsN, paren
   const body = (
     <View style={cardStyle}>
       <View style={[styles.head, { gap: nested ? 7 : 8, marginBottom: nested ? 6 : 8 }]}>
-        <View style={[styles.av, { width: av, height: av, borderRadius: av / 2 }, avStyle]}>
+        <Pressable disabled={!toUser} onPress={() => openUser(toUser)} style={[styles.av, { width: av, height: av, borderRadius: av / 2 }, avStyle]}>
           <VText style={{ fontFamily: FONTS.sansExtraBold, fontSize: nested ? 8 : 9, color: isLight ? '#4a4234' : '#f4f0ff' }}>{(c.author || '?')[0].toUpperCase()}</VText>
-        </View>
-        <VText style={[styles.name, { fontSize: nested ? 10.5 : 11, color: colors.white }]}>
+        </Pressable>
+        <VText onPress={toUser ? () => openUser(toUser) : undefined} style={[styles.name, { fontSize: nested ? 10.5 : 11, color: colors.white }]}>
           {c.author || 'anon'}
           {isOp ? ' ' : ''}
           {isOp ? <VText style={styles.op}>{' OP '}</VText> : null}

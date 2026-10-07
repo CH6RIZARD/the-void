@@ -1,6 +1,6 @@
 // Where a post's taps go (web openReel / openPhoto / openThread / switchTab / openCountry).
 import { router } from 'expo-router';
-import { findPost } from '../../core';
+import { findPost, moderation } from '../../core';
 import { voidToast } from '../../ui/Toast';
 import { ROUTES } from '../../nav/routes';
 import { isPostHidden } from './stores';
@@ -36,6 +36,19 @@ export function openThreadRoute(postId: string, focus?: string): void {
     return;
   }
   router.push((ROUTES.thread(postId) + (focus ? '?focus=' + encodeURIComponent(focus) : '')) as any);
+}
+
+/**
+ * A Void account's profile, /u/[handle]. Pass a handle ONLY for a Void account (a post
+ * or comment author with a uid, a DM partner): the screen looks the handle up in
+ * `profiles`, so a Bluesky / X / Reddit / news author would land on NO SUCH ACCOUNT, or
+ * on a different Void user who happens to share the name. false = nothing to open.
+ */
+export function openUser(handle: string | null | undefined): boolean {
+  const h = String(handle || '').trim().replace(/^@/, '').toLowerCase();
+  if (!h || moderation.GENERIC.has(h)) return false;
+  router.push(ROUTES.user(h) as any);
+  return true;
 }
 
 export function openLive(): void {
