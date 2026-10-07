@@ -33,6 +33,8 @@ import { bundledEarthPixelsAsync } from './textures';
 import { EARTH_W, EARTH_H } from './earthPixels';
 import { earthAstcAsync } from './astcMap';
 import { ASTC_BLOCK, ASTC_H, ASTC_LEVELS, ASTC_W } from './earthAstc';
+import { unzlibSync } from 'fflate';
+import { THUMB_H, THUMB_W, THUMB_Z } from './earthThumb';
 
 export interface WorkletGlobeShared {
   // gesture (written by the Gesture.Manual worklets in GlobeCanvas)
@@ -266,6 +268,28 @@ export function deliverEarthPixels(exglCtxId: number, sv: WorkletGlobeShared, ge
  * values above.
  */
 let mkCache: { markers: Float32Array; sprite: Uint8Array; spriteHot: Uint8Array } | null = null;
+// THE GLOBE IS BORN ON THE REAL PLANET, BLURRED. A 512x256 copy of the night map
+// (earthThumb.ts, ~138 KB deflated) is small enough to inflate synchronously, so
+// the first frame draws it in place of the procedural fallback and the full map's
+// later upload reads as the planet sharpening, not a different planet appearing.
+// Same shape as the fallback, so the texture the real map overwrites is unchanged.
+// Sent to the UI runtime once per app run, like the full map.
+let thumbOnUI = false;
+function earthThumbOnce(): Uint8Array | null {
+  if (thumbOnUI) return null;
+  const t0 = Date.now();
+  try {
+    const px = unzlibSync(Uint8Array.from(globalThis.atob(THUMB_Z), (c) => c.charCodeAt(0)));
+    if (px.length !== THUMB_W * THUMB_H * 4) return null;
+    thumbOnUI = true;
+    try {
+      console.warn('[globe] thumb map: inflated in ' + (Date.now() - t0) + 'ms');
+    } catch {}
+    return px;
+  } catch {
+    return null;
+  }
+}
 export function startWorkletGlobe(
   exglCtxId: number,
   countries: Country[],
@@ -279,8 +303,9 @@ export function startWorkletGlobe(
   if (!mkCache) mkCache = { markers: markerPositions(countries), sprite: markerPixels(false), spriteHot: markerPixels(true) };
   const { markers, sprite, spriteHot } = mkCache;
   const markerCount = countries.length;
+  const thumb = earthThumbOnce();
 
-  runOnUI((ctxId: number, mk: Float32Array, mkN: number, sp: Uint8Array, spHot: Uint8Array, vw: number, vh: number, myGen: number) => {
+  runOnUI((ctxId: number, mk: Float32Array, mkN: number, sp: Uint8Array, spHot: Uint8Array, vw: number, vh: number, myGen: number, th: Uint8Array | null) => {
     'worklet';
     // The raw global, not an import: expo-gl's own getWorkletContext is just
     // this lookup, and whether a library function survives workletization
@@ -462,8 +487,10 @@ export function startWorkletGlobe(
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       return t;
     };
-    // fallback earth (spec §5): 512x256 gradient + 900 glow rects, from the cache above
-    const earthTex = texFromPixels(cpu.fpx, 512, 256);
+    // First frame: the real map's 512x256 thumb (retained on this runtime), else
+    // the fallback earth (spec §5): 512x256 gradient + 900 glow rects, from the cache above
+    if (th) gg.__voidEarthThumb = th;
+    const earthTex = texFromPixels(gg.__voidEarthThumb ?? cpu.fpx, 512, 256);
     // Publish the texture's EXGL id: deliverEarthPixels uploads the real night
     // map into this exact texture from a second dispatch. (Id is written by
     // createWebGLObject on the wrapper; same native context both ways.)
@@ -861,7 +888,7 @@ export function startWorkletGlobe(
       }
     };
     (globalThis as any).requestAnimationFrame(loop);
-  })(exglCtxId, markers, markerCount, sprite, spriteHot, viewW, viewH, gen);
+  })(exglCtxId, markers, markerCount, sprite, spriteHot, viewW, viewH, gen, thumb);
 }
 
 /**
