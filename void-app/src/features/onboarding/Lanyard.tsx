@@ -43,6 +43,8 @@ export interface SlotGeom {
   y: number;
   /** The tag's own top edge: the overlay is clipped from here to the slot. */
   tagTop: number;
+  /** viewBox height for the box this was measured in, so x and y scale alike. */
+  vbH?: number;
 }
 
 const PURPLE = ['#150c2c', '#2b1b55', '#3a2670', '#2b1b55', '#150c2c'];
@@ -133,7 +135,7 @@ function Clip({ cx, cy, slotY, uid }: { cx: number; cy: number; slotY: number; u
  * Every id carries a per-instance uid: without it a second tag on the same screen
  * steals the first one's gradients and pattern.
  */
-export function Lanyard({ idx, slot, uid, over = false, opacity = 1 }: { idx: number; slot: SlotGeom; uid: string; over?: boolean; opacity?: number }) {
+export function Lanyard({ idx, slot, uid, over = false, opacity = 1, vbH = LANYARD_H }: { idx: number; slot: SlotGeom; uid: string; over?: boolean; opacity?: number; vbH?: number }) {
   const flow = LANYARDS[idx] || LANYARDS[0];
   const cx = slot.x;
   const cy = slot.y - CRIMP_RISE;
@@ -142,7 +144,17 @@ export function Lanyard({ idx, slot, uid, over = false, opacity = 1 }: { idx: nu
     <Svg
       pointerEvents="none"
       style={[StyleSheet.absoluteFill, { opacity }]}
-      viewBox={`0 0 ${LANYARD_W} ${LANYARD_H}`}
+      // THE BOX'S OWN ASPECT, SO NOTHING IS EVER STRETCHED.
+      //
+      // This was a fixed 402x874 viewBox with preserveAspectRatio="none", i.e.
+      // squash the artwork to whatever box it lands in. Full screen that is nearly
+      // proportional and looks almost right, but the moment the keyboard opens the
+      // box loses ~40% of its height and everything is squashed with it: the strap
+      // curves flatten, the print slides off the ribbon it is supposed to ride, and
+      // the clip stops lining up with the slot. The height now follows the box's
+      // real aspect (CardGate measures it), so x and y always scale by the same
+      // factor and the drawing cannot distort.
+      viewBox={`0 0 ${LANYARD_W} ${vbH}`}
       preserveAspectRatio="none"
     >
       <Defs>

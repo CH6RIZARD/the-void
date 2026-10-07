@@ -231,15 +231,21 @@ export function CardGate({ stepLabel, initialMode = 'create', onEnter }: { stepL
     const sl = slotRef.current as any;
     if (!z || !sl || !z.measure || !sl.measure) return;
     const win = Dimensions.get('window');
-    const kx = LANYARD_W / (rootSize.w || win.width);
-    const ky = LANYARD_H / (rootSize.h || win.height);
+    const bw = rootSize.w || win.width;
+    const bh = rootSize.h || win.height;
+    // ONE SCALE FOR BOTH AXES. The lanyard's viewBox is 402 wide and as tall as the
+    // box's own aspect makes it, so x and y map by the same factor and the artwork
+    // never squashes - see Lanyard.tsx. Separate kx/ky is what distorted the strap,
+    // the print and the clip the moment the keyboard shrank the box.
+    const k = LANYARD_W / bw;
     sl.measure((_a: number, _b: number, sw: number, sh: number, spx: number, spy: number) => {
       if (!sw || !sh) return;
       // measure() gives page coordinates, which is what the full-screen SVG wants.
       const next: SlotGeom = {
-        x: (spx + sw / 2) * kx,
-        y: (spy + sh) * ky,
-        tagTop: (spy - 10) * ky, // the tag's top edge, one slot margin above the slot
+        x: (spx + sw / 2) * k,
+        y: (spy + sh) * k,
+        tagTop: (spy - 10) * k, // the tag's top edge, one slot margin above the slot
+        vbH: bh * k,            // the viewBox height this scale implies
       };
       setSlot((p) => (p && Math.abs(p.x - next.x) < 0.5 && Math.abs(p.y - next.y) < 0.5 ? p : next));
       strapIn.value = withTiming(1, { duration: 400 });
@@ -351,7 +357,7 @@ export function CardGate({ stepLabel, initialMode = 'create', onEnter }: { stepL
           notes put the ribbons under all text and buttons. */}
       {slot && !done ? (
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, strapAnim]}>
-          <Lanyard idx={lanyardIdx} slot={slot} uid={uid} />
+          <Lanyard idx={lanyardIdx} slot={slot} uid={uid} vbH={slot.vbH} />
         </Animated.View>
       ) : null}
       {done ? (
@@ -596,7 +602,7 @@ export function CardGate({ stepLabel, initialMode = 'create', onEnter }: { stepL
           read as passing THROUGH the hole rather than lying on the face. */}
       {slot && !done ? (
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, strapAnim]}>
-          <Lanyard idx={lanyardIdx} slot={slot} uid={uid} over />
+          <Lanyard idx={lanyardIdx} slot={slot} uid={uid} vbH={slot.vbH} over />
         </Animated.View>
       ) : null}
     </View>
