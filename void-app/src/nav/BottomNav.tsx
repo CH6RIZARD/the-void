@@ -9,7 +9,7 @@
 // Icons only, no labels.
 import React, { memo, useEffect } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
-import Animated, { Easing, ReduceMotion, runOnJS, useAnimatedReaction, useAnimatedStyle, useDerivedValue, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
+import Animated, { Easing, ReduceMotion, useAnimatedStyle, useDerivedValue, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import { noteTabPress } from './switchTiming';
@@ -61,8 +61,6 @@ const NavItem = memo(function NavItem({ name, index, pos, focused, onPress, onLo
   );
 });
 
-function diagPos(v: number, idx: number) { try { console.warn('[navdiag] pos ' + v + ' (render index ' + idx + ')'); } catch {} }
-
 export function BottomNav({ state, descriptors, navigation }: BottomTabBarProps) {
   const theme = useTheme();
   const { colors, isLight } = theme;
@@ -72,11 +70,7 @@ export function BottomNav({ state, descriptors, navigation }: BottomTabBarProps)
   // The pill's position. The press below moves it at once; this keeps it honest when
   // the route changes some other way (back gesture, deep link).
   const pos = useSharedValue(state.index);
-  // DIAG (temporary): nav pill lit HOME while the globe showed, first globe visit after cold start.
-  useAnimatedReaction(() => Math.round(pos.value), (v, prev) => { if (v !== prev) runOnJS(diagPos)(v, state.index); });
-  useEffect(() => { try { console.warn('[navdiag] mount index ' + state.index + ' nav ' + state.key); } catch {} return () => { try { console.warn('[navdiag] unmount'); } catch {} }; }, []);
   useEffect(() => {
-    try { console.warn('[navdiag] index ' + state.index + ' ' + state.routes[state.index]?.name + ' nav ' + state.key + ' pos ' + pos.value); } catch {}
     pos.value = withTiming(state.index, { duration: 200, easing: EASE, reduceMotion: ReduceMotion.Never });
   }, [state.index, pos]);
 
@@ -96,7 +90,6 @@ export function BottomNav({ state, descriptors, navigation }: BottomTabBarProps)
           if (!(name in NAV_ICONS)) return null;
           const focused = state.index === index;
           const onPress = () => {
-            try { console.warn('[navdiag] press ' + route.name + ' focused=' + focused); } catch {}
             const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
             if (focused && !event.defaultPrevented) {
               // Already here: the tap is a request to start this screen over.
