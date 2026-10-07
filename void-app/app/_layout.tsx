@@ -45,14 +45,14 @@ import { Stack } from 'expo-router';
 // the wall is creating players and connecting streams - meant every slice
 // queued behind that storm, the decode crawled for minutes, and the user saw
 // the purple fallback "forever" (measured: zero [globe] texture logs in a whole
-// session). Warmed here, a few seconds after launch while the feed idles, the
+// session). The map is now a file read natively (astcMap.ts), so it no longer
+// competes with that storm for the JS thread and is warmed at launch: the
 // pixels are a cache hit by the time anyone opens the globe tab, and the sphere
 // is textured on its first frame. earthAstcAsync is memoized, so the
 // scene's own call simply joins this one.
 function useWarmEarthTexture() {
   useEffect(() => {
-    const t = setTimeout(() => { earthAstcAsync().catch(() => {}); }, 2500);
-    return () => clearTimeout(t);
+    earthAstcAsync().catch(() => {});
   }, []);
 }
 import * as SplashScreen from 'expo-splash-screen';

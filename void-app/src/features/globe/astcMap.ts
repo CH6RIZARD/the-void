@@ -1,10 +1,28 @@
-// The web-resolution night map (earthAstc.ts), decoded off the critical path.
+// The web-resolution night map, as GPU-ready ASTC blocks.
 //
-// Same treatment as textures.ts's bundled map, for the same measured reasons: the
-// base64 is converted in slices and the inflate is streamed, so no single step
-// holds the JS thread for more than a few milliseconds.
+// READ AS A FILE, NOT DECODED. The blocks ship as assets/globe/earth-night.astc.bin
+// and expo-file-system reads them natively: no base64, no inflate, nothing on the
+// JS thread but the await. The old path (a 3 MB base64 string atob'd and inflated
+// in yielding slices, ~5-12 s on the phone) stays only as the fallback for a
+// binary without the native module.
 import { Unzlib } from 'fflate';
+import { Asset } from 'expo-asset';
 import { ASTC_BYTES, ASTC_Z } from './earthAstc';
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const ASTC_FILE = require('../../../assets/globe/earth-night.astc.bin');
+
+async function readAstcFile(): Promise<Uint8Array> {
+  const asset = Asset.fromModule(ASTC_FILE);
+  await asset.downloadAsync();
+  if (!asset.localUri) throw new Error('no localUri');
+  // Required here, not imported: on a binary built before the module existed the
+  // import itself would throw at boot; here it only lands in the fallback.
+  const { File } = require('expo-file-system') as typeof import('expo-file-system');
+  const out = new Uint8Array(await new File(asset.localUri).arrayBuffer());
+  if (out.length !== ASTC_BYTES) throw new Error('file size ' + out.length);
+  return out;
+}
 
 const SLICE = 64 * 1024;
 const yieldThread = () => new Promise<void>((r) => setTimeout(r, 0));
@@ -17,6 +35,17 @@ export function earthAstcAsync(): Promise<Uint8Array | null> {
   if (!pending) {
     pending = (async () => {
       const t0 = Date.now();
+      try {
+        cache = await readAstcFile();
+        try {
+          console.warn('[globe] astc map: file read in ' + (Date.now() - t0) + 'ms');
+        } catch {}
+        return cache;
+      } catch (e) {
+        try {
+          console.warn('[globe] astc file failed, decoding the bundled copy: ' + String(e));
+        } catch {}
+      }
       try {
         const bin = globalThis.atob(ASTC_Z);
         const z = new Uint8Array(bin.length);

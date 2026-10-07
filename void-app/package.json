@@ -6,7 +6,9 @@
   "expo": {
     "autolinking": {
       "android": {
-        "buildFromSource": ["expo-gl"]
+        "buildFromSource": [
+          "expo-gl"
+        ]
       }
     }
   },
@@ -38,6 +40,7 @@
     "expo-constants": "~57.0.18",
     "expo-crypto": "~57.0.3",
     "expo-dev-client": "~57.0.19",
+    "expo-file-system": "~57.0.7",
     "expo-font": "~57.0.4",
     "expo-gl": "~57.0.2",
     "expo-haptics": "~57.0.3",
