@@ -499,7 +499,19 @@ export async function nationFeedPull(st: NationFeedState, first: boolean, ui: Na
   let added = 0;
   const needNow = () => {
     const want = ui.wantsNow ? ui.wantsNow(st) : st.rendered < 6;
-    return !want ? 0 : Object.keys(st.inflight).length ? 0 : 3;
+    if (!want) return 0;
+    // AN EMPTY NATION DEALS THE MOMENT ANYTHING LANDS.
+    //
+    // This returned 0 whenever ANY source was still in flight. A dozen sources
+    // start together and each registers in st.inflight before it fetches, so
+    // something was always in flight and the first card could not reach the
+    // screen until the SLOWEST source finished - the 4-5s of nothing after
+    // tapping a nation. Once cards are on screen the quiet rule still applies, so
+    // later arrivals batch instead of shuffling the list under the reader, and
+    // nationFeedHoldMs still guards the case the wait was really for: an
+    // all-radio first screen.
+    if (!st.rendered) return 3;
+    return Object.keys(st.inflight).length ? 0 : 3;
   };
   const detach = (key: string, fn: () => Promise<Post[] | null>) => {
     if (st.inflight[key]) return null;
