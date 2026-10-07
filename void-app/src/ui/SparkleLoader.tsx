@@ -221,6 +221,25 @@ function SparkleField({ particles, running, color }: { particles: Particle[]; ru
   // A plain View does support onLayout. It wraps the Canvas at the same
   // absoluteFill box, so the Canvas is laid out exactly where it was and not one
   // pixel of the look changes.
+  // THE CANVAS ARRIVES A BEAT LATE, AND NOT ALL AT ONCE.
+  //
+  // Each field is its own Skia canvas, i.e. its own GPU surface to create. A wall
+  // mounts eight in the same commit and the creations land on top of each other:
+  // the tiles sat black for about three seconds, then the sparkles stuttered in.
+  // (Until the onLayout fix above they were parked off-screen, so this cost was
+  // real but invisible - the bug was hiding it.)
+  //
+  // Most tiles now get a picture in ~2s, so most of these surfaces were built and
+  // thrown away having never been seen. Arming after a short, per-field staggered
+  // delay means a tile that fills quickly never creates one at all, and the ones
+  // that do are spread over about half a second instead of landing together.
+  // Nothing about the sparkle itself changes: same particles, same clock, same
+  // look from the moment it appears.
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    const id = setTimeout(() => setArmed(true), 140 + Math.random() * 460);
+    return () => clearTimeout(id);
+  }, []);
   return (
     <View
       pointerEvents="none"
@@ -230,9 +249,11 @@ function SparkleField({ particles, running, color }: { particles: Particle[]; ru
         boxH.value = e.nativeEvent.layout.height;
       }}
     >
-      <Canvas pointerEvents="none" style={StyleSheet.absoluteFill}>
-        <Atlas image={texture} sprites={sprites} transforms={transforms} colors={colors} />
-      </Canvas>
+      {armed ? (
+        <Canvas pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <Atlas image={texture} sprites={sprites} transforms={transforms} colors={colors} />
+        </Canvas>
+      ) : null}
     </View>
   );
 }
