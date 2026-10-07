@@ -7,9 +7,8 @@
 //   .ni-badge{top:-1px;right:-2px;4x4;radius 50%;background:var(--gold)}  (DMS unread, no glow/count)
 //   .ni-bar{12x1;transparent}  .ni.on .ni-bar{background:var(--gold);opacity:.7}
 // Icons only, no labels.
-import React, { memo, useEffect } from 'react';
+import React, { memo, useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
-import Animated, { Easing, ReduceMotion, useAnimatedStyle, useDerivedValue, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import { noteTabPress } from './switchTiming';
@@ -21,29 +20,18 @@ import { useDmUnread } from './badges';
 import { NAV_MARGIN, useBottomNavOffset } from './layout';
 
 const LABELS: Record<string, string> = { void: 'Void', globe: 'Globe', search: 'Search', messages: 'Messages', profile: 'Me' };
-const EASE = Easing.bezier(0.25, 0.1, 0.25, 1);
 
-// ONE POSITION FOR THE WHOLE PILL, MOVED ON PRESS.
-// Each item used to own an opacity that an effect animated after React had
-// re-rendered - so on a busy switch the pill lit the new tab late, or lit two at once
-// while the old one finished fading. Now the pill has a single position (which tab is
-// lit, as a number), the press moves it immediately, and every item derives its own
-// opacity from the distance to it on the UI thread. At rest the position is a whole
-// number, so exactly one tab is lit; in between it is a real cross-fade.
-//
-// AND EVERY ITEM ALSO CARRIES ITS RESTING OPACITY AS A PLAIN STYLE, from `focused`.
-// The animated opacity alone was not enough: on the first globe visit after a cold
-// start the screen's mount commits re-applied each item's FIRST-render opacity over
-// the UI thread's value, so the pill snapped back to VOID while the globe showed
-// (measured 10-07: state index 1, pos 1, home gold 1-4s later, no event between).
-// With the resting value in React's own props, a commit can only ever re-apply the
-// right tab; the animated style still drives the cross-fade on top of it.
-const NavItem = memo(function NavItem({ name, index, pos, focused, onPress, onLongPress, badge }: { name: keyof typeof NAV_ICONS; index: number; pos: SharedValue<number>; focused: boolean; onPress: () => void; onLongPress: () => void; badge: boolean }) {
+// WHICH TAB IS LIT IS PLAIN REACT STATE, NOT A UI-THREAD ANIMATION.
+// The pill used to cross-fade one Reanimated position. On the first globe visit after
+// a cold start it snapped back to VOID while the globe showed - for weeks. Measured
+// 10-07 with logging: navigator index 1, pos 1, no event after, and VOID lit again
+// 1-4s later; giving each item a plain resting opacity as well did NOT stop it, so it
+// was Reanimated re-applying a stale (VOID) value during the globe's heavy mount, not
+// React. A lit tab must never be wrong, so it is no longer animated at all: the press
+// sets `lit` at once (so the pill still never waits for a slow screen), and the
+// navigator's index keeps it honest for back gestures and deep links.
+const NavItem = memo(function NavItem({ name, lit, focused, onPress, onLongPress, badge }: { name: keyof typeof NAV_ICONS; lit: boolean; focused: boolean; onPress: () => void; onLongPress: () => void; badge: boolean }) {
   const { colors } = useTheme();
-  const away = useDerivedValue(() => Math.min(1, Math.abs(pos.value - index)));
-  const goldStyle = useAnimatedStyle(() => ({ opacity: 1 - away.value }));
-  const dimStyle = useAnimatedStyle(() => ({ opacity: away.value }));
-  const barStyle = useAnimatedStyle(() => ({ opacity: 0.7 * (1 - away.value) }));
   const icon = NAV_ICONS[name];
   return (
     <Pressable
@@ -56,15 +44,10 @@ const NavItem = memo(function NavItem({ name, index, pos, focused, onPress, onLo
       hitSlop={{ top: 13, bottom: 10 }}
     >
       <View style={styles.icon}>
-        <Animated.View style={[StyleSheet.absoluteFill, { opacity: focused ? 0 : 1 }, dimStyle]}>
-          <Icon name={icon} size={19} color={colors.navDim} />
-        </Animated.View>
-        <Animated.View style={[StyleSheet.absoluteFill, { opacity: focused ? 1 : 0 }, goldStyle]}>
-          <Icon name={icon} size={19} color={colors.gold} />
-        </Animated.View>
+        <Icon name={icon} size={19} color={lit ? colors.gold : colors.navDim} />
         {badge ? <View style={[styles.badge, { backgroundColor: colors.gold }]} /> : null}
       </View>
-      <Animated.View style={[styles.bar, { backgroundColor: colors.gold, opacity: focused ? 0.7 : 0 }, barStyle]} />
+      <View style={[styles.bar, { backgroundColor: colors.gold, opacity: lit ? 0.7 : 0 }]} />
     </Pressable>
   );
 });
@@ -75,12 +58,10 @@ export function BottomNav({ state, descriptors, navigation }: BottomTabBarProps)
   const bottom = useBottomNavOffset();
   const dmUnread = useDmUnread();
 
-  // The pill's position. The press below moves it at once; this keeps it honest when
-  // the route changes some other way (back gesture, deep link).
-  const pos = useSharedValue(state.index);
-  useEffect(() => {
-    pos.value = withTiming(state.index, { duration: 200, easing: EASE, reduceMotion: ReduceMotion.Never });
-  }, [state.index, pos]);
+  // The lit tab. The press below sets it at once; this keeps it honest when the route
+  // changes some other way (back gesture, deep link).
+  const [lit, setLit] = useState(state.index);
+  useEffect(() => setLit(state.index), [state.index]);
 
   const focusedKey = state.routes[state.index]?.key;
   const focusedOptions = focusedKey ? (descriptors[focusedKey]?.options as any) : null;
@@ -108,12 +89,12 @@ export function BottomNav({ state, descriptors, navigation }: BottomTabBarProps)
               // Light the tab NOW: the screen behind it may take a moment, and the
               // pill should never wait for that.
               noteTabPress();
-              pos.value = withTiming(index, { duration: 200, easing: EASE, reduceMotion: ReduceMotion.Never });
+              setLit(index);
               (navigation as any).navigate(route.name, route.params);
             }
           };
           const onLongPress = () => navigation.emit({ type: 'tabLongPress', target: route.key });
-          return <NavItem key={route.key} name={name} index={index} pos={pos} focused={focused} onPress={onPress} onLongPress={onLongPress} badge={name === 'messages' && dmUnread} />;
+          return <NavItem key={route.key} name={name} lit={lit === index} focused={focused} onPress={onPress} onLongPress={onLongPress} badge={name === 'messages' && dmUnread} />;
         })}
         <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.clip, { boxShadow: `inset 0px 1px 0px ${isLight ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.07)'}` }]} />
       </View>
