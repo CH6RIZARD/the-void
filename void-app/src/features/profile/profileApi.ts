@@ -1,7 +1,7 @@
 // Profile data: own identity (local USER + profiles row), other users by handle,
 // drops lists, edit-profile save with avatar upload.
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { env, sbPostToApp, VoidAPI, VoidAuth, voidEnsureSession, type Post } from '../../core';
+import { allPosts, env, sbPostToApp, VoidAPI, VoidAuth, voidEnsureSession, type Post } from '../../core';
 import { ensureCore, getIdentity, saveIdentity } from '../auth/coreBridge';
 import { handleError, stripHandle } from '../auth/handles';
 import { compressImage, uploadLocal, type PickedMedia } from '../composer/media';
@@ -12,6 +12,18 @@ export interface ProfileRow { id: string; handle: string; display_name?: string 
 
 const POST_SELECT = 'id,author_id,body,rank_score,created_at,profiles:author_id(handle,display_name),post_media(url,ordinal,kind,mime,duration_s)';
 const toPosts = (rows: any[]): Post[] => rows.map((r) => sbPostToApp(r)).filter((p): p is Post => !!p);
+
+/**
+ * Profile lists come from their own queries, not the feed pool, and the thread route
+ * resolves an id only through findPost(). A post the feed never pulled (your own drops,
+ * and every reply, since recentPosts filters reply_to=is.null) rendered MissingThread,
+ * which pops straight back: the tap looked dead. So the TAPPED post is registered off
+ * the feed first, as openSearchPost does. One post per tap, not the whole list: _offFeed
+ * posts have their own trim budget, and a 40-row profile would flood it.
+ */
+export function registerOffFeed(p: Post): void {
+  if (!allPosts.some((x) => x.id === p.id)) { p._offFeed = true; allPosts.push(p); }
+}
 
 async function publicGet(path: string): Promise<any> {
   const tok = VoidAPI.token || env.supabaseAnonKey;

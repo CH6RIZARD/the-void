@@ -18,7 +18,7 @@ import { Icon } from '../../ui/icons/Icon';
 import { voidToast } from '../../ui/Toast';
 import { useBottomNavSpace } from '../../nav/layout';
 import { ROUTES } from '../../nav/routes';
-import { ModerationHost, PostCard, usePostViewability } from '../feed';
+import { ModerationHost, openThreadRoute, PostCard, usePostViewability } from '../feed';
 import { ensureCore, useIdentity } from '../auth/coreBridge';
 import { stripHandle } from '../auth/handles';
 import { onDropPosted } from '../composer/drop';
@@ -28,7 +28,7 @@ import { MiniIcon } from '../settings/vmod';
 import { AccountSheet, voidAuthor } from './AccountSheet';
 import { EditProfileSheet } from './EditProfileSheet';
 import { ProfileAvatar } from './ProfileAvatar';
-import { fetchDrops, fetchHearted, fetchMyProfile, fetchProfileByHandle, fetchReplies, getLocalAvatar, type ProfileRow } from './profileApi';
+import { fetchDrops, fetchHearted, fetchMyProfile, fetchProfileByHandle, fetchReplies, getLocalAvatar, registerOffFeed, type ProfileRow } from './profileApi';
 
 /** --prof-glow (VOID): radial-gradient(110% 45% at 50% 0%,#120830 0%,#04020c 58%) */
 const PROF_GLOW: RadialSpec = { rx: 110, ry: 45, cx: 50, cy: 0, stops: [{ color: '#120830', offset: 0 }, { color: '#04020c', offset: 0.58 }] };
@@ -37,6 +37,13 @@ export const PROFILE_SHARE_BASE = 'https://void-app-d35c.pages.dev/';
 function Empty({ text, pad = 30 }: { text: string; pad?: number }) {
   const { colors } = useTheme();
   return <VText align="center" style={{ fontFamily: FONTS.mono, fontSize: 9, letterSpacing: em(9, 0.12), color: colors.muted, padding: pad }}>{text}</VText>;
+}
+
+// Module-level, so PostCard's memo and its `open` callback deps stay stable. Through
+// openThreadRoute, so a hidden post gets the same toast it gets everywhere else.
+function openProfilePost(id: string, p: Post) {
+  registerOffFeed(p);
+  openThreadRoute(id);
 }
 
 const TILE_KEY = 'void.profile.layout';
@@ -385,9 +392,9 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
         updateCellsBatchingPeriod={60}
         renderItem={({ item, index }) =>
           tiles ? (
-            <ProfileTile post={item} size={tileSize} onPress={() => router.push(ROUTES.thread(item.id) as any)} />
+            <ProfileTile post={item} size={tileSize} onPress={() => openProfilePost(item.id, item)} />
           ) : (
-            <PostCard post={item} index={index} surface="profile" />
+            <PostCard post={item} index={index} surface="profile" onOpenThread={openProfilePost} />
           )
         }
         viewabilityConfigCallbackPairs={viewability}
