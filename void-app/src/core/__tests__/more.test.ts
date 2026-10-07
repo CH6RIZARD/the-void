@@ -278,3 +278,30 @@ test('feedMixer: ~NICHE_SHARE niche per page, <=2 per author per page, gates hol
   assert.deepEqual(out.slice(-3).map((p: any) => p.id).sort(), gated, 'link-only, bot and repost posts go last');
   assert.ok(first30.slice(0, 10).some((p: any) => core.engagementOf(p) >= core.ENGAGED_MIN), 'engaged posts still lead pages');
 });
+
+test('pullVoidFeed: a proxy page no longer starves Bluesky - both land in one pull', async () => {
+  const xItem = { id: 'x1', platform: 'x', author: 'a', handle: '@a', text: 'Protesters gathered outside the ministry for a third night over fuel prices', createdAt: NOW - 3600000,
+    url: 'https://x.com/a/status/1', metrics: { score: 0, replies: 0 }, media: [], provenance: { sourceHost: 'x.com', responseHash: 'h1' } };
+  // A topical Bluesky post (the saved fixture's posts all fail the topic-tag gate).
+  const bsky = { feed: [{ post: { uri: 'at://did:plc:t/app.bsky.feed.post/b1', cid: 'b1', author: { handle: 'reporter.bsky.social', displayName: 'R' }, likeCount: 240, replyCount: 31,
+    record: { text: 'Parliament passed the emergency budget after a night of protests, the opposition walked out before the vote', createdAt: new Date(NOW - 7200000).toISOString() } } }], cursor: '' };
+  let bskyCalls = 0;
+  core.configureCore({
+    storage: core.createMemoryStorage(), session: core.createMemoryStorage(), now: () => NOW, random: mulberry32(11), proxyBase: 'https://proxy.test',
+    fetch: (async (u: string) => {
+      if (u.startsWith('https://proxy.test/feed')) return { ok: true, status: 200, json: async () => ({ items: [xItem], nextOffset: 1 }) };
+      if (u.includes('app.bsky.feed.getFeed')) { bskyCalls++; return { ok: true, status: 200, json: async () => bsky }; }
+      return { ok: false, status: 0, json: async () => null };
+    }) as any,
+  });
+  core.resetStore();
+  let emits = 0;
+  const off = core.onPostsChanged((why: string) => { if (why === 'feed') emits++; });
+  assert.equal(await core.pullVoidFeed(), 'ok');
+  off();
+  assert.equal(emits, 1, 'one emit, so both sources are dealt (and mixed) in one batch');
+  assert.ok(bskyCalls > 0, 'Bluesky is asked even though the proxy answered');
+  const sources = new Set(core.allPosts.map((p: any) => p.source));
+  assert.ok(sources.has('x'), 'the proxy post is in the pool');
+  assert.ok(sources.has('bluesky'), 'Bluesky posts are in the pool: ' + [...sources]);
+});

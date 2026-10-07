@@ -1,4 +1,4 @@
-// The VOID feed pipeline: pull (proxy -> Bluesky -> Reddit), Void users' own drops
+// The VOID feed pipeline: pull (proxy + Bluesky, Reddit if both are dry), Void users' own drops
 // from Supabase, and the append-only batch selection renderFeed() did.
 import { env } from '../env.ts';
 import type { Post } from '../types.ts';
@@ -18,21 +18,38 @@ import { timed } from '../slow.ts';
 let feedLoading = false;
 export type FeedPullResult = 'ok' | 'empty' | 'busy' | 'error';
 /**
- * One VOID-feed pull. Proxy first when configured; then Bluesky getFeed (the only
- * source that worked browser-direct); then Reddit. 'empty' with nothing held is
- * the web's "NO VERIFIED SIGNAL — CHECK CONNECTION AND RETRY".
+ * One VOID-feed pull: proxy AND Bluesky together, every time; Reddit only when both
+ * come back dry. 'empty' with nothing held is the web's "NO VERIFIED SIGNAL — CHECK
+ * CONNECTION AND RETRY".
+ *
+ * The proxy used to short-circuit: any proxy page meant Bluesky was never asked.
+ * With the proxy's Reddit blocked (keyless, datacenter IP) its pool is 100% X
+ * keyword-search posts from tiny accounts (0-14 likes), so the feed was that pool
+ * alone and the mixer had nothing engaged to deal (feedMixer.ts). Bluesky's feeds
+ * carry real engagement, so they are always in the pool now.
+ *
+ * ONE emit for both sources: each emit deals what is fresh as its own batch and
+ * the mixer only mixes within a batch, so two emits dealt an all-Bluesky block then
+ * an all-X block. A source slower than FEED_MIX_WAIT_MS lands on its own after.
  */
+export const FEED_MIX_WAIT_MS = 3000;
 export async function pullVoidFeed(): Promise<FeedPullResult> {
   if (feedLoading) return 'busy'; feedLoading = true;
   try {
-    if (env.proxyBase) {
-      try {
-        const posts = await pullProxyPage();
-        let added = 0; for (const p of posts) if (admitPost(p)) { allPosts.push(p); added++; }
-        if (added) { emitPostsChanged('feed'); scheduleFeedCacheSave(); return 'ok'; }
-      } catch { /* fall through to direct sources */ }
-    }
-    let ok = (await pullBlueskyPage()).length > 0;
+    let landed = 0;
+    const px = env.proxyBase
+      ? pullProxyPage().then(ps => { for (const p of ps) if (admitPost(p)) { allPosts.push(p); landed++; } }, () => {})
+      : Promise.resolve();
+    const bs = pullBlueskyPage().then(ps => { landed += ps.length; }, () => {});   // gates and pushes, never emits
+    const both = Promise.all([px, bs]);
+    let t: ReturnType<typeof setTimeout> | undefined;
+    await Promise.race([both, new Promise(r => { t = setTimeout(r, FEED_MIX_WAIT_MS); })]);
+    clearTimeout(t);
+    const dealt = landed;
+    if (dealt) emitPostsChanged('feed');
+    await both;
+    if (landed > dealt) emitPostsChanged('feed');
+    let ok = landed > 0;
     if (!ok) ok = (await pullRedditPage()).length > 0;
     if (ok) scheduleFeedCacheSave();
     return ok ? 'ok' : 'empty';

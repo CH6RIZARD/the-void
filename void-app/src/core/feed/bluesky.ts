@@ -11,7 +11,7 @@ import type { Post } from '../types.ts';
 import { stampRegion } from '../data/regions.ts';
 import { feedGate } from '../rank/filters.ts';
 import { inferTags } from '../rank/tags.ts';
-import { allPosts, emitPostsChanged } from './store.ts';
+import { allPosts } from './store.ts';
 
 export const BSKY_FEEDS = [
   // Ordered by MEASURED yield against inferTags() (50-60 posts sampled per feed):
@@ -111,7 +111,8 @@ export function bskyToPost(item: any): Post {
  * One page of the VOID feed from Bluesky: rotate across the topical feeds (each with
  * its own cursor), gate every item, and keep pulling across feeds until at least
  * MIN_PER_PULL land (ending on 2-3 posts looked broken). Admitted posts are pushed
- * to allPosts. Returns the posts added this pull.
+ * to allPosts. Returns the posts added this pull. Does NOT emit: pullVoidFeed emits
+ * once with the proxy's posts, so the mixer deals both sources in one batch.
  */
 export async function pullBlueskyPage(): Promise<Post[]> {
   const MIN_PER_PULL = 10; const got: Post[] = [];
@@ -126,9 +127,8 @@ export async function pullBlueskyPage(): Promise<Post[]> {
         if (!p || feedGate(p)) continue;
         allPosts.push(p); got.push(p);
       }
-      if (got.length >= MIN_PER_PULL) { emitPostsChanged('feed'); return got; }
+      if (got.length >= MIN_PER_PULL) return got;
     } catch { /* next feed */ }
   }
-  if (got.length) emitPostsChanged('feed');
   return got;
 }

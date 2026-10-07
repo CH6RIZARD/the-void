@@ -33,11 +33,12 @@ export function resetProxyOffset(): void { feedOffset = 0; }
 export async function pullProxyPage(): Promise<Post[]> {
   if (!env.proxyBase) return [];
   const modes = ['tension', 'hot', 'recent'];
-  // The FIRST page is 30, not 100. One screenful is 6 cards and the list windows
-  // at 90 rows, so a 100-item first page bought nothing but parse and rank time
-  // right after boot (the measured 416+359ms stalls). Depth comes from the later
-  // pages, which land while the reader is already reading.
-  const limit = feedPage ? 100 : 30;
+  // Every page is 30, not 100. A 100-item first page bought nothing but parse and
+  // rank time right after boot (the measured 416+359ms stalls). Later pages were
+  // 100, but Bluesky lands 10-30 per pull beside them (pullVoidFeed), so 100 proxy
+  // posts - near-zero-like X while the proxy's Reddit is blocked - swamped the
+  // engaged share after one screen.
+  const limit = 30;
   const mode = modes[(feedPage++) % modes.length];
   const r = await env.fetch(`${env.proxyBase}/feed?mode=${mode}&limit=${limit}&offset=${feedOffset}`);
   if (!r.ok) return [];
