@@ -132,23 +132,28 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
 
   const load = useCallback(async () => {
     await ensureCore();
+    let id: string | null = null;
     if (isOther) {
       const p = await fetchProfileByHandle(requested);
       setOther(p);
-      if (p) {
-        setDrops(await fetchDrops(p.id));
-        const [a, b] = await Promise.all([
-          VoidAPI._sb('/rest/v1/follows?follower_id=eq.' + p.id + '&select=followee_id&limit=1000', 'GET').catch(() => []),
-          VoidAPI._sb('/rest/v1/follows?followee_id=eq.' + p.id + '&select=follower_id&limit=1000', 'GET').catch(() => []),
-        ]);
-        setCounts({ following: (a || []).length, followers: (b || []).length });
-      } else setDrops([]);
+      if (!p) return setDrops([]);
+      id = p.id;
     } else {
       const [p, local] = await Promise.all([fetchMyProfile(), getLocalAvatar()]);
       setMe(p);
       setAvatar((p && p.avatar_url) || local);
-      setDrops(await fetchDrops(VoidAPI._uid()));
+      id = VoidAPI._uid();
     }
+    if (!id) return setDrops([]);
+    // Counts for BOTH profiles. Your own read the local USER counters, which nothing
+    // ever wrote, so your own profile always said 0 following / 0 followers.
+    const [d, a, b] = await Promise.all([
+      fetchDrops(id),
+      VoidAPI._sb('/rest/v1/follows?follower_id=eq.' + id + '&select=followee_id&limit=1000', 'GET').catch(() => []),
+      VoidAPI._sb('/rest/v1/follows?followee_id=eq.' + id + '&select=follower_id&limit=1000', 'GET').catch(() => []),
+    ]);
+    setDrops(d);
+    setCounts({ following: (a || []).length, followers: (b || []).length });
   }, [isOther, requested]);
 
   useFocusEffect(
@@ -176,10 +181,14 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
   const otherAuthor = other ? voidAuthor({ id: other.id, handle: other.handle, name: other.display_name }) : null;
   const otherBlocked = !!otherAuthor && moderation.isBlocked(otherAuthor);
 
-  const name = isOther ? other?.display_name || other?.handle || requested : user.name;
+  // Your own name is the server's display_name; the local one is set to the bare
+  // handle when an account is adopted on a device.
+  const name = isOther ? other?.display_name || other?.handle || requested : me?.display_name || user.name;
   const handle = isOther ? '@' + (other?.handle || requested) : user.handle;
   const bio = isOther ? '' : user.bio || 'signal in the noise';
-  const stats = isOther ? [shownDrops.length, counts?.following ?? 0, counts?.followers ?? 0] : [user.posts || 0, user.following || 0, user.followers || 0];
+  // Same order as the labels: DROPS, FOLLOWERS, FOLLOWING (followers and following were swapped).
+  // ponytail: DROPS caps at fetchDrops' limit=40; a count=exact HEAD request if that matters.
+  const stats = [shownDrops.length, counts?.followers ?? 0, counts?.following ?? 0];
 
   const share = () => {
     const url = PROFILE_SHARE_BASE + '#' + (handle || '@void');
