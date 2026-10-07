@@ -55,55 +55,63 @@ type ProfTab = 'drops' | 'hearted' | 'replies';
 type ProfLayout = 'scroll' | 'tiles';
 
 /**
- * One square of the tile grid.
+ * One square of the tile grid - the 6p-f tile (handoff/profile-6pf.html:34).
  *
  * Every drop kind has to read at a third of the screen width, where there is no
- * room for a card. Media fills the square; a clip and a gallery say which they
- * are with a corner glyph rather than a label; a voice drop draws its waveform,
- * because a voice post with its media hidden is otherwise indistinguishable from
- * an empty one; and a text drop shows its first lines, which is all it has.
+ * room for a card. Media fills the square; a clip gets a centred gold play disc,
+ * a gallery a corner stack glyph, a live drop a red dot; a voice drop draws its
+ * waveform, because a voice post with its media hidden is otherwise
+ * indistinguishable from an empty one; a text drop shows its first lines, which
+ * is all it has. Every kind carries the place / hearts strip along the bottom.
+ * The colours are the mock's void values, not theme tokens: the tile is a dark
+ * object on every theme, like the media it usually holds.
  */
 const ProfileTile = React.memo(function ProfileTile({ post, size, onPress }: { post: Post; size: number; onPress: () => void }) {
-  const { colors } = useTheme();
   const img = post._img || (post._imgs && post._imgs[0]) || null;
   const isVoice = post.style === 'audio' || !!post._audio;
   const isClip = post.style === 'video' || !!post._video;
   const isGallery = post.style === 'carousel' || (post._imgs ? post._imgs.length > 1 : false);
-  const isLive = post.style === 'link_live';
+  const isLive = post.style === 'link_live' || !!post._live;
+  const place = (post._regionName || post.country || '').toUpperCase();
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={post.body ? post.body.slice(0, 60) : 'Drop'}
-      style={[st.tile, { width: size, height: size, borderColor: colors.hairline }]}
+      style={[st.tile, { width: size, height: size }]}
     >
       {img ? (
-        <Image source={{ uri: img }} style={st.tileImg} resizeMode="cover" />
+        <Image source={{ uri: img }} style={StyleSheet.absoluteFill} resizeMode="cover" />
       ) : isVoice ? (
         <View style={st.tileVoice}>
-          {/* Deterministic per post, so a drop keeps the same waveform between
-              renders and between the two layouts. */}
-          {Array.from({ length: 13 }, (_, i) => {
-            const seed = (post.id.charCodeAt(i % post.id.length) * 31 + i * 17) % 100;
-            return <View key={i} style={[st.tileBar, { height: 6 + (seed / 100) * 26 }]} />;
-          })}
+          {/* 25 bars sharing the width, first 9 lit. Seeded from the id, not the
+              mock's fixed WAVE, so each drop keeps its own shape across renders
+              and layouts. */}
+          <View style={st.tileWave}>
+            {Array.from({ length: 25 }, (_, i) => {
+              const seed = (post.id.charCodeAt(i % post.id.length) * 31 + i * 17) % 100;
+              return <View key={i} style={[st.tileBar, { height: 3 + (seed / 100) * 15, backgroundColor: i < 9 ? '#8d7cc0' : '#3a2f60' }]} />;
+            })}
+          </View>
+          <View style={st.tileVoicePlay}><Icon name="play" size={9} color="#c9a84c" /></View>
         </View>
       ) : (
-        <View style={st.tileText}>
-          <VText numberOfLines={3} style={{ fontFamily: FONTS.sans, fontSize: 11, lineHeight: 15, color: colors.muted }}>
-            {(post.body || '').trim() || '—'}
-          </VText>
-        </View>
+        <VText numberOfLines={5} style={st.tileText}>{(post.body || '').trim() || '—'}</VText>
       )}
-      {isLive ? (
-        <View style={st.tilePill}>
-          <VText style={{ fontFamily: FONTS.mono, fontSize: 7, letterSpacing: em(7, 0.16), color: '#fff' }}>LIVE</VText>
+      {isClip ? (
+        <View style={st.tileClipWrap} pointerEvents="none">
+          <View style={st.tileClip}><Icon name="play" size={11} color="#c9a84c" /></View>
         </View>
-      ) : isClip ? (
-        <View style={st.tileGlyph}><Icon name="play" size={13} color="#fff" /></View>
-      ) : isGallery ? (
-        <View style={st.tileGlyph}><Icon name="stack" size={12} color="#fff" /></View>
       ) : null}
+      {isGallery ? <View style={st.tileGlyph}><Icon name="stack" size={12} color="#f4f0ff" strokeWidth={2} /></View> : null}
+      {/* ponytail: static dot, the mock blinks it (1.2s); add an Animated loop if wanted. */}
+      {isLive ? <View style={st.tileLive}><View style={st.tileLiveDot} /></View> : null}
+      <View style={st.tileFoot} pointerEvents="none">
+        <VText numberOfLines={1} style={[st.tileFootText, { flex: 1 }]}>{place}</VText>
+        {/* A heart, not the mock's bolt: reactions are hearts now. */}
+        <Icon name="heart" size={7} color="#f4f0ff" />
+        <VText style={[st.tileFootText, { marginLeft: 2 }]}>{post.score || 0}</VText>
+      </View>
     </Pressable>
   );
 });
@@ -241,7 +249,7 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
   const current = listFor(tab);
   const tiles = layout === 'tiles';
   // Three across, inside the same 10px gutter the cards sit in.
-  const tileSize = Math.floor((win.width - 20 - 6) / 3);
+  const tileSize = Math.floor((win.width - 48 - 6) / 3);
 
   const header =
     isOther && other === null ? (
@@ -331,21 +339,31 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
             );
           })}
           <View style={{ flex: 1 }} />
-          <Pressable
-            onPress={() => {
-              const next: ProfLayout = layout === 'tiles' ? 'scroll' : 'tiles';
-              setLayout(next);
-              writeJSON(TILE_KEY, next);
-            }}
-            accessibilityRole="button"
-            accessibilityLabel={layout === 'tiles' ? 'Show drops as a list' : 'Show drops as a grid'}
-            hitSlop={10}
-            style={st.layoutBtn}
-          >
-            <Icon name={layout === 'tiles' ? 'rows' : 'grid'} size={14} color={colors.navDim} />
-          </Pressable>
+          {/* Grid / list as a pair, the lit one gold (6p-f). Their own row: st.tabs
+              spaces its children 26 apart, the pair sits 4 apart. */}
+          <View style={st.layoutPair}>
+            {(['tiles', 'scroll'] as const).map((l) => {
+              const on = layout === l;
+              return (
+                <Pressable
+                  key={l}
+                  onPress={() => {
+                    setLayout(l);
+                    writeJSON(TILE_KEY, l);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: on }}
+                  accessibilityLabel={l === 'tiles' ? 'Show drops as a grid' : 'Show drops as a list'}
+                  hitSlop={6}
+                  style={[st.layoutBtn, { backgroundColor: on ? 'rgba(201,168,76,0.16)' : 'transparent' }]}
+                >
+                  <Icon name={l === 'tiles' ? 'grid' : 'rows'} size={13} strokeWidth={2} color={on ? '#c9a84c' : '#5c4d8a'} />
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
-        <View style={{ height: 20 }} />
+        <View style={{ height: tiles ? 12 : 20 }} />
       </View>
     );
 
@@ -382,6 +400,7 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
         // the key: switching rebuilds the list rather than throwing.
         key={tiles ? 'tiles' : 'scroll'}
         numColumns={tiles ? 3 : 1}
+        columnWrapperStyle={tiles ? st.tileRow : undefined}
         data={!(isOther && other === null) && current ? current : []}
         keyExtractor={(p) => p.id}
         // The same window the void feed uses (VoidFeedScreen.tsx). Without it this
@@ -460,14 +479,28 @@ const st = StyleSheet.create({
   avRing: { padding: 2, borderRadius: 60, borderWidth: 2, borderColor: '#c9a84c', backgroundColor: '#04020c' },
   statsRow: { flex: 1, flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' },
   act: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.08)' },
-  tile: { margin: 1, overflow: 'hidden', borderRadius: 3, borderWidth: StyleSheet.hairlineWidth, backgroundColor: 'rgba(255,255,255,0.03)' },
-  tileImg: { width: '100%', height: '100%' },
-  tileText: { flex: 1, padding: 8, justifyContent: 'center' },
-  tileVoice: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3 },
-  tileBar: { width: 3, borderRadius: 2, backgroundColor: '#7a5cc4' },
-  tileGlyph: { position: 'absolute', top: 5, right: 5 },
-  tilePill: { position: 'absolute', top: 5, left: 5, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 3, backgroundColor: 'rgba(210,60,60,0.9)' },
-  layoutBtn: { paddingHorizontal: 8, paddingVertical: 6 },
+  // 6p-f grid: 3 across, 3px gaps, inside the monument's 24px gutter.
+  tileRow: { paddingHorizontal: 24, gap: 3, marginBottom: 3 },
+  tile: { overflow: 'hidden', borderRadius: 5, backgroundColor: '#0d0820' },
+  tileText: { ...StyleSheet.absoluteFill, paddingTop: 10, paddingHorizontal: 9, paddingBottom: 16, fontFamily: FONTS.serifItalic, fontSize: 10.5, lineHeight: 14, color: '#c9bfe8' },
+  tileVoice: { ...StyleSheet.absoluteFill, justifyContent: 'center', gap: 8, paddingTop: 10, paddingHorizontal: 9, paddingBottom: 16 },
+  tileWave: { flexDirection: 'row', alignItems: 'center', gap: 2, height: 28 },
+  tileBar: { flex: 1, borderRadius: 2 },
+  tileVoicePlay: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#1a1030', alignItems: 'center', justifyContent: 'center' },
+  tileClipWrap: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
+  tileClip: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(4,2,12,0.7)', boxShadow: '0px 0px 0px 1px rgba(201,168,76,0.6)', alignItems: 'center', justifyContent: 'center' },
+  // The mock's drop-shadow(0 1px 2px #000) keeps the white glyph legible on a bright
+  // photo. boxShadow (not the iOS-only shadow* props) so Android gets it too; it
+  // shadows the glyph's round box, which at 12px reads the same.
+  tileGlyph: { position: 'absolute', top: 6, right: 6, borderRadius: 6, boxShadow: '0px 1px 4px rgba(0,0,0,0.55)' },
+  // 7px red dot with its 2px dark ring OUTSIDE it (the mock's box-shadow 0 0 0 2px):
+  // an 11px ring with the dot centred, so the ring never eats the red.
+  tileLive: { position: 'absolute', top: 5, left: 5, width: 11, height: 11, borderRadius: 5.5, backgroundColor: 'rgba(4,2,12,0.6)', alignItems: 'center', justifyContent: 'center' },
+  tileLiveDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#ef4444' },
+  tileFoot: { position: 'absolute', left: 6, right: 6, bottom: 5, flexDirection: 'row', alignItems: 'center' },
+  tileFootText: { fontFamily: FONTS.mono, fontSize: 6, letterSpacing: em(6, 0.1), color: '#f4f0ff', textShadowColor: '#000', textShadowRadius: 3, textShadowOffset: { width: 0, height: 1 } },
+  layoutPair: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingLeft: 8 },
+  layoutBtn: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   tabs: { flexDirection: 'row', gap: 26, paddingTop: 26 },
   tab: { paddingBottom: 9, borderBottomWidth: 1 },
   pane: { paddingTop: 0, paddingHorizontal: 24 },
