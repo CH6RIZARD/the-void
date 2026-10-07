@@ -31,7 +31,7 @@ import { runOnJS, runOnUI, type SharedValue } from 'react-native-reanimated';
 import type { Country } from '../live/core';
 import { bundledEarthPixelsAsync } from './textures';
 import { EARTH_W, EARTH_H } from './earthPixels';
-import { earthAstcAsync } from './astcMap';
+import { earthAstcAsync, earthAstcReady } from './astcMap';
 import { ASTC_BLOCK, ASTC_H, ASTC_LEVELS, ASTC_W } from './earthAstc';
 import { unzlibSync } from 'fflate';
 import { THUMB_H, THUMB_W, THUMB_Z } from './earthThumb';
@@ -276,7 +276,10 @@ let mkCache: { markers: Float32Array; sprite: Uint8Array; spriteHot: Uint8Array 
 // Sent to the UI runtime once per app run, like the full map.
 let thumbOnUI = false;
 function earthThumbOnce(): Uint8Array | null {
-  if (thumbOnUI) return null;
+  // The map is read at launch and is usually in memory before the globe opens;
+  // then the real upload lands a frame later and inflating the thumb is a wasted
+  // 315 ms JS block (measured on the S22).
+  if (thumbOnUI || (earthAstcReady() && !astcRefused)) return null;
   const t0 = Date.now();
   try {
     const px = unzlibSync(Uint8Array.from(globalThis.atob(THUMB_Z), (c) => c.charCodeAt(0)));

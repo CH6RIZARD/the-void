@@ -29,6 +29,9 @@ const yieldThread = () => new Promise<void>((r) => setTimeout(r, 0));
 let cache: Uint8Array | null = null;
 let pending: Promise<Uint8Array | null> | null = null;
 
+/** True once the blocks are in memory: the globe can be born on the real map. */
+export const earthAstcReady = () => cache !== null;
+
 /** Every mip level's ASTC blocks, back to back. null if the decode failed. */
 export function earthAstcAsync(): Promise<Uint8Array | null> {
   if (cache) return Promise.resolve(cache);
