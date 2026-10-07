@@ -30,6 +30,14 @@ const EASE = Easing.bezier(0.25, 0.1, 0.25, 1);
 // lit, as a number), the press moves it immediately, and every item derives its own
 // opacity from the distance to it on the UI thread. At rest the position is a whole
 // number, so exactly one tab is lit; in between it is a real cross-fade.
+//
+// AND EVERY ITEM ALSO CARRIES ITS RESTING OPACITY AS A PLAIN STYLE, from `focused`.
+// The animated opacity alone was not enough: on the first globe visit after a cold
+// start the screen's mount commits re-applied each item's FIRST-render opacity over
+// the UI thread's value, so the pill snapped back to VOID while the globe showed
+// (measured 10-07: state index 1, pos 1, home gold 1-4s later, no event between).
+// With the resting value in React's own props, a commit can only ever re-apply the
+// right tab; the animated style still drives the cross-fade on top of it.
 const NavItem = memo(function NavItem({ name, index, pos, focused, onPress, onLongPress, badge }: { name: keyof typeof NAV_ICONS; index: number; pos: SharedValue<number>; focused: boolean; onPress: () => void; onLongPress: () => void; badge: boolean }) {
   const { colors } = useTheme();
   const away = useDerivedValue(() => Math.min(1, Math.abs(pos.value - index)));
@@ -48,15 +56,15 @@ const NavItem = memo(function NavItem({ name, index, pos, focused, onPress, onLo
       hitSlop={{ top: 13, bottom: 10 }}
     >
       <View style={styles.icon}>
-        <Animated.View style={[StyleSheet.absoluteFill, dimStyle]}>
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity: focused ? 0 : 1 }, dimStyle]}>
           <Icon name={icon} size={19} color={colors.navDim} />
         </Animated.View>
-        <Animated.View style={[StyleSheet.absoluteFill, goldStyle]}>
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity: focused ? 1 : 0 }, goldStyle]}>
           <Icon name={icon} size={19} color={colors.gold} />
         </Animated.View>
         {badge ? <View style={[styles.badge, { backgroundColor: colors.gold }]} /> : null}
       </View>
-      <Animated.View style={[styles.bar, { backgroundColor: colors.gold }, barStyle]} />
+      <Animated.View style={[styles.bar, { backgroundColor: colors.gold, opacity: focused ? 0.7 : 0 }, barStyle]} />
     </Pressable>
   );
 });
