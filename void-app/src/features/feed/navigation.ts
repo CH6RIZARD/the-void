@@ -45,10 +45,23 @@ export function openThreadRoute(postId: string, focus?: string): void {
  * on a different Void user who happens to share the name. false = nothing to open.
  */
 export function openUser(handle: string | null | undefined): boolean {
-  const h = String(handle || '').trim().replace(/^@/, '').toLowerCase();
-  if (!h || moderation.GENERIC.has(h)) return false;
+  const h = userKey(handle);
+  if (!h) return false;
   router.push(ROUTES.user(h) as any);
   return true;
+}
+/**
+ * Whether openUser would act. A Pressable's `disabled` keys on this, not on a bare
+ * truthy handle: dmStore falls back to 'void' when the profile embed is missing, and
+ * an enabled press on that swallows the tap and opens nothing. Disabled, the tap
+ * passes through to the row behind it.
+ */
+export function canOpenUser(handle: string | null | undefined): boolean {
+  return !!userKey(handle);
+}
+function userKey(handle: string | null | undefined): string {
+  const h = String(handle || '').trim().replace(/^@/, '').toLowerCase();
+  return h && !moderation.GENERIC.has(h) ? h : '';
 }
 
 export function openLive(): void {

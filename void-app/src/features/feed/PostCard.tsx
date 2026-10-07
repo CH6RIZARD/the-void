@@ -41,6 +41,12 @@ export interface PostCardProps {
   onOpenThread?: (id: string, post: Post) => void;
   /** Which surface renders it: keys play-on-view (see usePostViewability). Default 'feed'. */
   surface?: PostSurface;
+  /**
+   * The uid whose profile this card sits on. Their own face there would open the page
+   * already showing, so it leaves the tap to the card; anyone else's (a HEARTED drop)
+   * still opens their profile.
+   */
+  ownerUid?: string | null;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -60,7 +66,7 @@ function Pa({ icon, label, color, onPress, style, iconColor }: { icon?: IconName
   );
 }
 
-export const PostCard = memo(function PostCard({ post: p, index: i, onOpenThread, surface = 'feed', style }: PostCardProps) {
+export const PostCard = memo(function PostCard({ post: p, index: i, onOpenThread, surface = 'feed', ownerUid, style }: PostCardProps) {
   const theme = useTheme();
   const { colors, isLight } = theme;
   useModerationVersion();
@@ -100,9 +106,9 @@ export const PostCard = memo(function PostCard({ post: p, index: i, onOpenThread
     : { backgroundColor: col, boxShadow: p._user ? '0px 0px 0px 2px rgba(201,168,76,0.35)' : '0px 0px 0px 2px rgba(124,58,237,0.35)' };
 
   // Void accounts only (they have a uid). External/source authors, and drops already
-  // on their author's profile, leave the tap to the card, which opens the thread.
-  const author = surface === 'profile' ? null : moderation.authorOf(p);
-  const toUser = author?.uid ? author.handle : null;
+  // on their author's profile (ownerUid), leave the tap to the card, which opens the thread.
+  const author = moderation.authorOf(p);
+  const toUser = author?.uid && author.uid !== ownerUid ? author.handle : null;
 
   return (
     <FadeIn id={p.id} index={i} viewRef={ref} style={style}>
@@ -148,9 +154,12 @@ export const PostCard = memo(function PostCard({ post: p, index: i, onOpenThread
 
         <View style={styles.bodyWrap}>
           {p._replyTo ? (
-            <VText numberOfLines={2} style={[styles.replyTo, { color: colors.muted }]}>
+            // dim, not muted: muted is a hairline / fill colour in these palettes
+            // (~1.3:1 on the card), dim is the mock's secondary mono text. The handle
+            // takes the mock's gold @handle accent; purple is a structural grey in DARK.
+            <VText numberOfLines={2} style={[styles.replyTo, { color: colors.dim }]}>
               {'Replying to '}
-              <VText style={{ color: colors.purple }}>{p._replyTo.handle}</VText>
+              <VText style={{ color: colors.gold, fontFamily: FONTS.sansSemiBold }}>{p._replyTo.handle}</VText>
               {p._replyTo.body ? ' · ' + p._replyTo.body : ''}
             </VText>
           ) : null}

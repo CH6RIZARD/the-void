@@ -6,7 +6,7 @@ import { useTheme } from '../../theme';
 import { FONTS, em } from '../../theme/palettes';
 import { VText } from '../../ui/Text';
 import { Pfp } from '../../ui/Pfp';
-import { openUser } from '../feed/navigation';
+import { canOpenUser, openUser } from '../feed/navigation';
 import { ago, dmMe, DM_FOOT, type DmConv, type DmPerson } from './dmStore';
 
 /**
@@ -22,10 +22,12 @@ import { ago, dmMe, DM_FOOT, type DmConv, type DmPerson } from './dmStore';
  */
 export function ConvAvatar({ id, name, handle, size = 44, fontSize, ring }: { id: string; name: string; handle?: string; size?: number; fontSize?: number; ring?: boolean }) {
   void fontSize;
-  // With a handle the face opens their profile; without one (the pinned strip) the
-  // tap falls through to the parent, which opens the chat.
+  // With an openable handle the face opens their profile; without one (the pinned
+  // strip, or dmStore's 'void' fallback) the tap falls through to the parent, which
+  // opens the chat.
+  const can = canOpenUser(handle);
   return (
-    <Pressable disabled={!handle} onPress={() => openUser(handle)} accessibilityLabel={handle ? 'Profile of ' + name : undefined} style={{ flexShrink: 0 }}>
+    <Pressable disabled={!can} onPress={() => openUser(handle)} accessibilityLabel={can ? 'Profile of ' + name : undefined} style={{ flexShrink: 0 }}>
       <Pfp seed={id || name} size={size} ring={ring} />
     </Pressable>
   );

@@ -13,7 +13,7 @@ import { Icon } from '../../ui/icons/Icon';
 import { voidToast } from '../../ui/Toast';
 import { ROUTES } from '../../nav/routes';
 import { useTermsGate } from '../auth/TermsSheet';
-import { openUser } from '../feed/navigation';
+import { canOpenUser, openUser } from '../feed/navigation';
 import { ConvAvatar } from './ConvRow';
 import {
   DM_NOTE,
@@ -110,7 +110,7 @@ export default function ChatScreen({ id: idProp }: { id?: string }) {
       out.push(
         <View key={m.id} style={[st.row2, mine ? st.rowMine : st.rowTheirs, m._pending ? { opacity: 0.55 } : null]}>
           {!mine ? (
-            <Pressable style={st.avSlot} disabled={!lastOfRun} onPress={() => openUser(conv?.other.handle)}>{lastOfRun ? <Pfp seed={conv?.other.id || conv?.other.handle || 'void'} size={26} /> : null}</Pressable>
+            <Pressable style={st.avSlot} disabled={!lastOfRun || !canOpenUser(conv?.other.handle)} onPress={() => openUser(conv?.other.handle)}>{lastOfRun ? <Pfp seed={conv?.other.id || conv?.other.handle || 'void'} size={26} /> : null}</Pressable>
           ) : null}
           {mine ? (
             <View style={st.bMine}>
@@ -166,7 +166,7 @@ export default function ChatScreen({ id: idProp }: { id?: string }) {
             {({ pressed }) => <Icon name="back" size={18} color={pressed ? colors.white : colors.dim} />}
           </Pressable>
           {conv ? <ConvAvatar id={conv.other.id} name={conv.other.name} handle={conv.other.handle} size={38} fontSize={14} /> : <View style={{ width: 38, height: 38 }} />}
-          <Pressable style={st.info} disabled={!conv} onPress={() => openUser(conv?.other.handle)}>
+          <Pressable style={st.info} disabled={!canOpenUser(conv?.other.handle)} onPress={() => openUser(conv?.other.handle)}>
             <VText numberOfLines={1} style={{ fontFamily: FONTS.sansBold, fontSize: 13, color: colors.white }}>{name}</VText>
             <VText style={{ fontFamily: FONTS.mono, fontSize: 7, letterSpacing: em(7, 0.12), color: colors.navDim }}>{DM_NOTE}</VText>
           </Pressable>

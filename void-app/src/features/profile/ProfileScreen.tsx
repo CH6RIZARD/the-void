@@ -66,6 +66,21 @@ type ProfLayout = 'scroll' | 'tiles';
  * The colours are the mock's void values, not theme tokens: the tile is a dark
  * object on every theme, like the media it usually holds.
  */
+/**
+ * A light glyph over a photo, with the mock's drop-shadow(0 1px 2px #000): the same
+ * glyph drawn first in translucent black 1px lower, then the light one on top, so the
+ * shadow follows the stroke. A boxShadow on the wrapper shadows its empty round box
+ * instead, a dark halo on a bright photo.
+ */
+function ShadowedIcon({ name, size, strokeWidth }: { name: React.ComponentProps<typeof Icon>['name']; size: number; strokeWidth?: number }) {
+  return (
+    <View style={{ width: size, height: size }}>
+      <View style={st.glyphShadow}><Icon name={name} size={size} color="rgba(0,0,0,0.6)" strokeWidth={strokeWidth} /></View>
+      <Icon name={name} size={size} color="#f4f0ff" strokeWidth={strokeWidth} />
+    </View>
+  );
+}
+
 const ProfileTile = React.memo(function ProfileTile({ post, size, onPress }: { post: Post; size: number; onPress: () => void }) {
   const img = post._img || (post._imgs && post._imgs[0]) || null;
   const isVoice = post.style === 'audio' || !!post._audio;
@@ -103,13 +118,14 @@ const ProfileTile = React.memo(function ProfileTile({ post, size, onPress }: { p
           <View style={st.tileClip}><Icon name="play" size={11} color="#c9a84c" /></View>
         </View>
       ) : null}
-      {isGallery ? <View style={st.tileGlyph}><Icon name="stack" size={12} color="#f4f0ff" strokeWidth={2} /></View> : null}
+      {isGallery ? <View style={st.tileGlyph}><ShadowedIcon name="stack" size={12} strokeWidth={2} /></View> : null}
       {/* ponytail: static dot, the mock blinks it (1.2s); add an Animated loop if wanted. */}
       {isLive ? <View style={st.tileLive}><View style={st.tileLiveDot} /></View> : null}
       <View style={st.tileFoot} pointerEvents="none">
         <VText numberOfLines={1} style={[st.tileFootText, { flex: 1 }]}>{place}</VText>
-        {/* A heart, not the mock's bolt: reactions are hearts now. */}
-        <Icon name="heart" size={7} color="#f4f0ff" />
+        {/* A heart, not the mock's bolt: reactions are hearts now. Shadowed like the
+            text beside it (the mock's bolt is inside the shadowed span). */}
+        <ShadowedIcon name="heart" size={7} />
         <VText style={[st.tileFootText, { marginLeft: 2 }]}>{post.score || 0}</VText>
       </View>
     </Pressable>
@@ -417,7 +433,7 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
           tiles ? (
             <ProfileTile post={item} size={tileSize} onPress={() => (tab === 'replies' ? openProfileReply : openProfilePost)(item.id, item)} />
           ) : (
-            <PostCard post={item} index={index} surface="profile" onOpenThread={tab === 'replies' ? openProfileReply : openProfilePost} />
+            <PostCard post={item} index={index} surface="profile" ownerUid={authorId} onOpenThread={tab === 'replies' ? openProfileReply : openProfilePost} />
           )
         }
         viewabilityConfigCallbackPairs={viewability}
@@ -489,10 +505,9 @@ const st = StyleSheet.create({
   tileVoicePlay: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#1a1030', alignItems: 'center', justifyContent: 'center' },
   tileClipWrap: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
   tileClip: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(4,2,12,0.7)', boxShadow: '0px 0px 0px 1px rgba(201,168,76,0.6)', alignItems: 'center', justifyContent: 'center' },
-  // The mock's drop-shadow(0 1px 2px #000) keeps the white glyph legible on a bright
-  // photo. boxShadow (not the iOS-only shadow* props) so Android gets it too; it
-  // shadows the glyph's round box, which at 12px reads the same.
-  tileGlyph: { position: 'absolute', top: 6, right: 6, borderRadius: 6, boxShadow: '0px 1px 4px rgba(0,0,0,0.55)' },
+  // Its drop-shadow is ShadowedIcon's offset copy, not a boxShadow on this box.
+  tileGlyph: { position: 'absolute', top: 6, right: 6 },
+  glyphShadow: { position: 'absolute', top: 1, left: 0 },
   // 7px red dot with its 2px dark ring OUTSIDE it (the mock's box-shadow 0 0 0 2px):
   // an 11px ring with the dot centred, so the ring never eats the red.
   tileLive: { position: 'absolute', top: 5, left: 5, width: 11, height: 11, borderRadius: 5.5, backgroundColor: 'rgba(4,2,12,0.6)', alignItems: 'center', justifyContent: 'center' },
