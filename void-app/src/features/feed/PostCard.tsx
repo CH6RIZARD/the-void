@@ -56,11 +56,18 @@ onRepliesChanged((postId) => touchPost(postId));
 
 // vfadeIn runs once per post id (a recycled row scrolling back does not re-fade).
 const faded = new Set<string>();
+// THE STAGGER IS PER BATCH, NOT PER LIST INDEX. The web's delay is min(i, 8) * 40ms
+// with i the running index, so every card from the ninth on - every card that
+// mounts while scrolling, and each new page - waited a flat 320ms and then faded:
+// ~0.6s barely visible under the reader's eye. Cards mounting in the same moment (a
+// first page) still stagger 40ms apart; a card that mounts on its own fades at once.
+let batchAt = 0;
+let batchN = 0;
 const EASE = Easing.bezier(0.25, 0.1, 0.25, 1);
 
 function Pa({ icon, label, color, onPress, style, iconColor }: { icon?: IconName; label: string; color: string; iconColor?: string; onPress: () => void; style?: StyleProp<ViewStyle> }) {
   return (
-    <Pressable onPress={onPress} hitSlop={{ top: 11, bottom: 11, left: 4, right: 4 }} style={({ pressed }) => [styles.pa, pressed && { opacity: 0.6, transform: [{ scale: 0.94 }] }, style]}>
+    <Pressable onPress={onPress} hitSlop={{ top: 16, bottom: 16, left: 4, right: 4 }} style={({ pressed }) => [styles.pa, pressed && { opacity: 0.6, transform: [{ scale: 0.94 }] }, style]}>
       {icon ? <Icon name={icon} size={13} color={iconColor || color} /> : null}
       <VText style={[styles.paT, { color }]}>{label}</VText>
     </Pressable>
@@ -111,7 +118,7 @@ export const PostCard = memo(function PostCard({ post: p, index: i, onOpenThread
   const toUser = author?.uid && author.uid !== ownerUid ? author.handle : null;
 
   return (
-    <FadeIn id={p.id} index={i} viewRef={ref} style={style}>
+    <FadeIn id={p.id} viewRef={ref} style={style}>
       <Pressable
         onPress={open}
         style={({ pressed }) => [
@@ -134,7 +141,7 @@ export const PostCard = memo(function PostCard({ post: p, index: i, onOpenThread
         ) : null}
 
         <View style={styles.header}>
-          <Pressable disabled={!toUser} onPress={() => openUser(toUser)} style={[styles.avatar, avatarStyle]}>
+          <Pressable disabled={!toUser} onPress={() => openUser(toUser)} hitSlop={6} style={[styles.avatar, avatarStyle]}>
             <PersonPfp uid={p.author_id || p._authorId} handle={p._handle} label={p._author} size={32} />
           </Pressable>
           <Pressable disabled={!toUser} onPress={() => openUser(toUser)} style={styles.meta}>
@@ -146,7 +153,7 @@ export const PostCard = memo(function PostCard({ post: p, index: i, onOpenThread
           </Pressable>
           <VText style={[styles.typeIco, { color: colors.muted }]}>{typeIco(p)}</VText>
           {!p._user ? (
-            <Pressable onPress={() => openPostMenu(p)} style={styles.more} accessibilityLabel="More" hitSlop={6}>
+            <Pressable onPress={() => openPostMenu(p)} style={styles.more} accessibilityLabel="More" hitSlop={9}>
               <VmodIcon name="more" size={17} color={colors.navDim} />
             </Pressable>
           ) : null}
@@ -208,13 +215,11 @@ export const PostCard = memo(function PostCard({ post: p, index: i, onOpenThread
 // whole card (media, actions, text) in the middle of a nation open.
 const FadeIn = memo(function FadeIn({
   id,
-  index,
   viewRef,
   style,
   children,
 }: {
   id: string;
-  index: number;
   viewRef: React.RefObject<View | null>;
   style?: StyleProp<ViewStyle>;
   children: React.ReactNode;
@@ -229,8 +234,13 @@ const FadeIn = memo(function FadeIn({
       return;
     }
     faded.add(id);
+    const now = Date.now();
+    if (now - batchAt > 120) {
+      batchAt = now;
+      batchN = 0;
+    }
     fade.value = withDelay(
-      Math.min(index, 8) * 40,
+      Math.min(batchN++, 8) * 40,
       withTiming(1, { duration: 280, easing: EASE }, (done) => {
         if (done) runOnJS(setSettled)(true);
       }),

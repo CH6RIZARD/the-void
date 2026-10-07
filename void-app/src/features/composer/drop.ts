@@ -108,7 +108,7 @@ export async function runDrop(): Promise<void> {
     const imgs = uploaded.filter((x) => x.kind === 'image').map((x) => x.url);
     const vids = uploaded.filter((x) => x.kind === 'video').map((x) => x.url);
     const au = uploaded.find((x) => x.kind === 'audio');
-    const patch: Record<string, any> = { _pending: false, _pendingKind: undefined };
+    const patch: Record<string, any> = { _pending: false, _pendingKind: undefined, _landed: true };
     if (imgs.length) {
       patch._img = imgs[0];
       patch._imgs = imgs;

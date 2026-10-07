@@ -29,7 +29,7 @@ import { Animated as RNAnimated, Easing as RNEasing, Pressable, ScrollView, Styl
 import { Image } from 'expo-image';
 import { BlurView } from 'expo-blur';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withSequence, withTiming, ReduceMotion, useReducedMotion } from 'react-native-reanimated';
 import type { Post } from '../../core';
 import { moderation } from '../../core';
 import { Icon, type IconName } from '../../ui/icons';
@@ -187,17 +187,20 @@ export const ReelItem = memo(function ReelItem(props: ReelItemProps) {
   // ── bolt burst
   const burst = useSharedValue(0);
   const burstOn = useSharedValue(0);
+  // Reduced motion: the heart still flashes (opacity), it just does not grow. On
+  // System it jumped to its end frame - opacity 0 - and never showed at all.
+  const still = useReducedMotion();
   const burstStyle = useAnimatedStyle(() => {
     const t = burst.value;
     const opacity = burstOn.value ? (t < 0.25 ? t / 0.25 : 1 - (t - 0.25) / 0.75) : 0;
-    return { opacity, transform: [{ scale: 0.4 + t * 1.0 }] };
+    return { opacity, transform: [{ scale: still ? 1 : 0.4 + t * 1.0 }] };
   });
 
   const fire = useCallback(() => {
     props.onFire(p);
     burstOn.value = 1;
     burst.value = 0;
-    burst.value = withSequence(withTiming(1, { duration: 700, easing: Easing.bezier(0.25, 0.1, 0.25, 1) }), withTiming(1, { duration: 0 }, () => {
+    burst.value = withSequence(withTiming(1, { duration: 700, easing: Easing.bezier(0.25, 0.1, 0.25, 1), reduceMotion: ReduceMotion.Never }), withTiming(1, { duration: 0, reduceMotion: ReduceMotion.Never }, () => {
       burstOn.value = 0;
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -320,7 +323,7 @@ export const ReelItem = memo(function ReelItem(props: ReelItemProps) {
 
       <View style={[styles.info, { paddingBottom: props.bottomClear + 16 }, bg('linear-gradient(transparent, rgba(4,2,12,0.95) 70%)')]} pointerEvents="box-none">
         <View style={styles.idRow}>
-          <Pressable onPress={() => props.onAuthor(p)} style={styles.av}>
+          <Pressable onPress={() => props.onAuthor(p)} hitSlop={8} style={styles.av}>
             <PersonPfp uid={p.author_id || p._authorId} handle={p._handle} label={p._author || p.country} size={28} />
           </Pressable>
           <Pressable onPress={() => props.onAuthor(p)} style={styles.nameWrap}>
@@ -328,13 +331,17 @@ export const ReelItem = memo(function ReelItem(props: ReelItemProps) {
               {who}
             </Text>
           </Pressable>
-          <Pressable onPress={() => props.onFollow(p)} hitSlop={9} style={styles.follow}>
-            <Text allowFontScaling={false} style={styles.followText}>
-              {following ? 'FOLLOWING' : 'FOLLOW'}
-            </Text>
+          {/* FOLLOWING fills, and the pill keeps one width, so the name beside it
+              does not re-truncate when the label changes. */}
+          <Pressable onPress={() => props.onFollow(p)} hitSlop={{ top: 15, bottom: 15, left: 9, right: 9 }}>
+            <Animated.View style={[styles.follow, following && styles.followOn]}>
+              <Text allowFontScaling={false} style={styles.followText}>
+                {following ? 'FOLLOWING' : 'FOLLOW'}
+              </Text>
+            </Animated.View>
           </Pressable>
           {!p._user ? (
-            <Pressable onPress={() => props.onMenu(p)} style={styles.vmore} accessibilityLabel="More" hitSlop={6}>
+            <Pressable onPress={() => props.onMenu(p)} style={styles.vmore} accessibilityLabel="More" hitSlop={10}>
               <ModIcon name="more" size={17} color="rgba(244,240,255,0.8)" />
             </Pressable>
           ) : null}
@@ -351,7 +358,7 @@ export const ReelItem = memo(function ReelItem(props: ReelItemProps) {
           </Text>
         )}
         {body.length > 150 ? (
-          <Pressable onPress={() => setOpen((o) => !o)} hitSlop={9} style={styles.moreBtn}>
+          <Pressable onPress={() => setOpen((o) => !o)} hitSlop={{ top: 14, bottom: 14, left: 9, right: 9 }} style={styles.moreBtn}>
             <Text allowFontScaling={false} style={[styles.moreText, { color: colors.gold }]}>
               {open ? 'LESS' : 'MORE'}
             </Text>
@@ -408,7 +415,20 @@ const styles = StyleSheet.create({
   av: { width: 28, height: 28, borderRadius: 14, overflow: 'hidden', boxShadow: '0px 0px 0px 2px rgba(201,168,76,0.5)' } as any,
   nameWrap: { flexShrink: 1 },
   name: { fontFamily: FONTS.sansBold, fontSize: 12, color: '#f4f0ff' },
-  follow: { paddingVertical: 2, paddingHorizontal: 10, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(201,168,76,0.5)' },
+  follow: {
+    paddingVertical: 2,
+    paddingHorizontal: 10,
+    minWidth: 70,
+    alignItems: 'center',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(201,168,76,0.5)',
+    backgroundColor: 'rgba(201,168,76,0)',
+    transitionProperty: 'backgroundColor',
+    transitionDuration: 150,
+    transitionTimingFunction: 'ease-out',
+  } as any,
+  followOn: { backgroundColor: 'rgba(201,168,76,0.18)' },
   followText: { fontFamily: FONTS.mono, fontSize: 7, letterSpacing: em(7, 0.12), color: '#c9a84c' },
   vmore: { marginLeft: 'auto', width: 28, height: 24, alignItems: 'center', justifyContent: 'center' },
   body: { fontFamily: FONTS.serifItalic, fontSize: 20, lineHeight: 20 * 1.38, color: '#f4f0ff' },

@@ -131,7 +131,7 @@ export const PostMedia = memo(function PostMedia({ post: p, mode = 'feed', surfa
           style={[StyleSheet.absoluteFill, { zIndex: 1 }]}
           contentFit="cover"
           cachePolicy="memory-disk"
-          transition={0}
+          transition={p._landed ? { duration: 260, effect: 'cross-dissolve', timing: 'ease-out' } : 0}
           blurRadius={veiled ? 32 : 0}
           recyclingKey={p.id}
           onDisplay={() => setPosterShown(true)}

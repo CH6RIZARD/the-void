@@ -87,6 +87,8 @@ export interface Post {
   _user?: boolean;
   _sb?: boolean;
   _pending?: boolean;
+  /** This device just posted it: its media dissolves in over the upload loader. */
+  _landed?: boolean;
   _pendingKind?: 'text' | 'image' | 'video' | 'audio';
   _isoColor?: string;
   _filler?: boolean;
