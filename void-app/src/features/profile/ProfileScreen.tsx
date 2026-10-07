@@ -28,7 +28,7 @@ import { MiniIcon } from '../settings/vmod';
 import { AccountSheet, voidAuthor } from './AccountSheet';
 import { EditProfileSheet } from './EditProfileSheet';
 import { ProfileAvatar } from './ProfileAvatar';
-import { fetchDrops, fetchHearted, fetchMyProfile, fetchProfileByHandle, fetchReplies, getLocalAvatar, registerOffFeed, type ProfileRow } from './profileApi';
+import { fetchDrops, fetchHearted, fetchMyProfile, fetchProfileByHandle, fetchReplies, getLocalAvatar, openReplyThread, registerOffFeed, type ProfileRow } from './profileApi';
 
 /** --prof-glow (VOID): radial-gradient(110% 45% at 50% 0%,#120830 0%,#04020c 58%) */
 const PROF_GLOW: RadialSpec = { rx: 110, ry: 45, cx: 50, cy: 0, stops: [{ color: '#120830', offset: 0 }, { color: '#04020c', offset: 0.58 }] };
@@ -44,6 +44,10 @@ function Empty({ text, pad = 30 }: { text: string; pad?: number }) {
 function openProfilePost(id: string, p: Post) {
   registerOffFeed(p);
   openThreadRoute(id);
+}
+// A reply opens its root thread with the reply focused, not a thread of its own.
+function openProfileReply(_id: string, p: Post) {
+  openReplyThread(p);
 }
 
 const TILE_KEY = 'void.profile.layout';
@@ -392,9 +396,9 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
         updateCellsBatchingPeriod={60}
         renderItem={({ item, index }) =>
           tiles ? (
-            <ProfileTile post={item} size={tileSize} onPress={() => openProfilePost(item.id, item)} />
+            <ProfileTile post={item} size={tileSize} onPress={() => (tab === 'replies' ? openProfileReply : openProfilePost)(item.id, item)} />
           ) : (
-            <PostCard post={item} index={index} surface="profile" onOpenThread={openProfilePost} />
+            <PostCard post={item} index={index} surface="profile" onOpenThread={tab === 'replies' ? openProfileReply : openProfilePost} />
           )
         }
         viewabilityConfigCallbackPairs={viewability}

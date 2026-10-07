@@ -142,6 +142,13 @@ export const PostCard = memo(function PostCard({ post: p, index: i, onOpenThread
         </View>
 
         <View style={styles.bodyWrap}>
+          {p._replyTo ? (
+            <VText numberOfLines={2} style={[styles.replyTo, { color: colors.muted }]}>
+              {'Replying to '}
+              <VText style={{ color: colors.purple }}>{p._replyTo.handle}</VText>
+              {p._replyTo.body ? ' · ' + p._replyTo.body : ''}
+            </VText>
+          ) : null}
           {tr.pending ? (
             <VText style={[styles.translating, { color: colors.white }]}>translating…</VText>
           ) : (
@@ -272,6 +279,8 @@ const styles = StyleSheet.create({
   typeIco: { fontSize: 11, marginTop: 2, flexShrink: 0 },
   more: { width: 28, height: 26, marginTop: -4, marginRight: -6, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   bodyWrap: { marginBottom: 12 },
+  // Readable, unlike the 8px mono meta: it is the line that says what this reply means.
+  replyTo: { fontFamily: FONTS.sans, fontSize: 12, lineHeight: 16, marginBottom: 6 },
   body: { fontFamily: FONTS.serifItalic, fontSize: 15.5, lineHeight: 15.5 * 1.45 },
   bodyTake: { fontFamily: FONTS.sansSemiBold, fontSize: 14, lineHeight: 14 * 1.5 },
   translating: { opacity: 0.5, fontSize: 11, fontFamily: FONTS.mono },

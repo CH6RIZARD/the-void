@@ -48,14 +48,14 @@ interface FlipVec {
 }
 
 export default function ThreadScreen() {
-  const params = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id: string; focus?: string }>();
   let postId = String(params.id ?? '');
   try {
     postId = decodeURIComponent(postId);
   } catch {}
   const post = findPost(postId);
   if (!post) return <MissingThread />;
-  return <Thread key={postId} post={post} />;
+  return <Thread key={postId} post={post} focus={params.focus ? String(params.focus) : undefined} />;
 }
 
 function MissingThread() {
@@ -66,7 +66,7 @@ function MissingThread() {
   return null;
 }
 
-function Thread({ post: p }: { post: Post }) {
+function Thread({ post: p, focus }: { post: Post; focus?: string }) {
   const { colors, isLight } = useTheme();
   const tk = useThreadTokens();
   const insets = useSafeAreaInsets();
@@ -206,6 +206,15 @@ function Thread({ post: p }: { post: Post }) {
     setRoStack((s) => (s[s.length - 1] === cid ? s : s.concat(cid)));
     if (focus) setRoFocus((n) => n + 1);
   }, []);
+
+  // Opened from a profile reply (?focus=<replyId>): once that reply has loaded into
+  // this thread, open it in the reply overlay. Once only, so closing it sticks.
+  const focused = useRef(false);
+  useEffect(() => {
+    if (!focus || focused.current || !(_remoteReplies[p.id] || []).some((c) => c.id === focus)) return;
+    focused.current = true;
+    openReplies(focus);
+  }, [focus, version, p.id, openReplies]);
 
   // Android back: pop the reply overlay first, then close the thread.
   useEffect(() => {

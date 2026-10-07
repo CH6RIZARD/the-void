@@ -25,14 +25,17 @@ export function openPhoto(postId: string, index = 0): void {
   openThreadRoute(postId);
 }
 
-/** Navigate to /thread/[id]; the web's hidden() guard on openThread first. */
-export function openThreadRoute(postId: string): void {
+/**
+ * Navigate to /thread/[id]; the web's hidden() guard on openThread first. `focus` is a
+ * reply id inside that thread: once it has loaded, the thread opens it in the overlay.
+ */
+export function openThreadRoute(postId: string, focus?: string): void {
   const p = findPost(postId);
   if (p && isPostHidden(p)) {
     voidToast('HIDDEN · BLOCKED OR REPORTED');
     return;
   }
-  router.push(ROUTES.thread(postId) as any);
+  router.push((ROUTES.thread(postId) + (focus ? '?focus=' + encodeURIComponent(focus) : '')) as any);
 }
 
 export function openLive(): void {

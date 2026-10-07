@@ -2,7 +2,9 @@
 // drops lists, edit-profile save with avatar upload.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { allPosts, env, sbPostToApp, VoidAPI, VoidAuth, voidEnsureSession, type Post } from '../../core';
+import { voidToast } from '../../ui/Toast';
 import { ensureCore, getIdentity, saveIdentity } from '../auth/coreBridge';
+import { openThreadRoute } from '../feed/navigation';
 import { handleError, stripHandle } from '../auth/handles';
 import { compressImage, uploadLocal, type PickedMedia } from '../composer/media';
 
@@ -10,8 +12,17 @@ export const AVATAR_KEY = 'void_avatar_url';
 
 export interface ProfileRow { id: string; handle: string; display_name?: string | null; avatar_url?: string | null }
 
-const POST_SELECT = 'id,author_id,body,rank_score,created_at,profiles:author_id(handle,display_name),post_media(url,ordinal,kind,mime,duration_s)';
-const toPosts = (rows: any[]): Post[] => rows.map((r) => sbPostToApp(r)).filter((p): p is Post => !!p);
+const POST_SELECT = 'id,author_id,reply_to,body,rank_score,created_at,profiles:author_id(handle,display_name),post_media(url,ordinal,kind,mime,duration_s)';
+// sbPostToApp drops reply_to; a row that carries the `parent` embed (fetchReplies) keeps
+// who it answers as _replyTo, for the card's "Replying to" line and the tap's walk up.
+const toPosts = (rows: any[]): Post[] =>
+  rows
+    .map((r) => {
+      const p = sbPostToApp(r);
+      if (p && r.parent) p._replyTo = { id: r.parent.id, handle: '@' + ((r.parent.profiles || {}).handle || 'void'), body: String(r.parent.body || '') };
+      return p;
+    })
+    .filter((p): p is Post => !!p);
 
 /**
  * Profile lists come from their own queries, not the feed pool, and the thread route
@@ -92,11 +103,43 @@ export async function fetchReplies(authorId: string | null): Promise<Post[]> {
   if (!authorId) return [];
   try {
     const rows = await publicGet(
-      '/rest/v1/posts?author_id=eq.' + encodeURIComponent(authorId) + '&reply_to=not.is.null&select=' + POST_SELECT + '&order=created_at.desc&limit=40',
+      '/rest/v1/posts?author_id=eq.' + encodeURIComponent(authorId) + '&reply_to=not.is.null&select=' + POST_SELECT +
+        ',parent:posts!reply_to(id,body,profiles:author_id(handle))&order=created_at.desc&limit=40',
     );
     if (Array.isArray(rows)) return toPosts(rows);
   } catch {}
   return [];
+}
+
+/**
+ * A reply opens the thread it belongs to, not a thread of its own. reply_to can point
+ * at another reply (VoidAPI.reply nests), so walk up to the top-level post, register
+ * it off-feed, and open it with ?focus= so the thread shows the reply once loaded.
+ * A reply deeper than the 3 levels loadRemoteReplies fetches still opens its root,
+ * just without the overlay.
+ */
+export async function openReplyThread(reply: Post): Promise<void> {
+  let id: string | null = reply._replyTo?.id || null;
+  try {
+    for (let hop = 0; id && hop < 6; hop++) {
+      const rows = await publicGet('/rest/v1/posts?id=eq.' + encodeURIComponent(id) + '&select=' + POST_SELECT);
+      const row = Array.isArray(rows) ? rows[0] : null;
+      if (!row) break;
+      if (!row.reply_to) {
+        const root = toPosts([row])[0];
+        if (!root) break;
+        registerOffFeed(root);
+        return openThreadRoute(root.id, reply.id);
+      }
+      id = row.reply_to;
+    }
+  } catch {}
+  // No parent known (the embed failed): the reply on its own beats a dead tap.
+  if (!reply._replyTo) {
+    registerOffFeed(reply);
+    return openThreadRoute(reply.id);
+  }
+  voidToast('ORIGINAL POST UNAVAILABLE');
 }
 
 export async function fetchMyProfile(): Promise<ProfileRow | null> {

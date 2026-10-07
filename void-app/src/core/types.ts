@@ -64,6 +64,8 @@ export interface Post {
   // nation pane
   _nation?: string;
   _offFeed?: boolean;
+  /** Profile REPLIES tab: the post this one answers (handle is '@'-prefixed). */
+  _replyTo?: { id: string; handle: string; body: string };
   _seenBefore?: boolean;
   _nrel?: number;
   _nfsrc?: string;
