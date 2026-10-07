@@ -4,6 +4,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import { useReducedMotion } from 'react-native-reanimated';
 import * as SparkleModule from '../../ui/SparkleLoader';
 import { em, useLiveTheme } from './liveTheme';
 
@@ -14,7 +15,9 @@ const SparkleLoader: React.ComponentType<{ label?: string; style?: ViewStyle; an
 export function LiveDot({ style }: { style?: ViewStyle }) {
   const t = useLiveTheme();
   const o = useRef(new Animated.Value(1)).current;
+  const still = useReducedMotion(); // reduced motion: a steady dot, no blink
   useEffect(() => {
+    if (still) return;
     // @keyframes blink{0%,100%{opacity:1}50%{opacity:.1}} — CSS default timing is `ease`.
     const ease = Easing.bezier(0.25, 0.1, 0.25, 1);
     const loop = Animated.loop(
@@ -25,7 +28,7 @@ export function LiveDot({ style }: { style?: ViewStyle }) {
     );
     loop.start();
     return () => loop.stop();
-  }, [o]);
+  }, [o, still]);
   return <Animated.View style={[{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: t.red, opacity: o }, style]} />;
 }
 
@@ -111,7 +114,10 @@ export function TileLoader({
       o.setValue(1);
       return;
     }
-    Animated.timing(o, { toValue: 0, duration: 450, easing: Easing.bezier(0.25, 0.1, 0.25, 1), useNativeDriver: true }).start(({ finished }) => {
+    // The reveal: 300ms on a strong ease-out (was the web's .45s CSS ease), so a
+    // stream that is playing shows at once instead of easing out from under a
+    // panel for half a second. The particles inside are untouched.
+    Animated.timing(o, { toValue: 0, duration: 300, easing: Easing.bezier(0.23, 1, 0.32, 1), useNativeDriver: true }).start(({ finished }) => {
       if (finished) setMounted(false);
     });
   }, [visible, o]);
