@@ -19,7 +19,7 @@ const toPosts = (rows: any[]): Post[] =>
   rows
     .map((r) => {
       const p = sbPostToApp(r);
-      if (p && r.parent) p._replyTo = { id: r.parent.id, handle: '@' + ((r.parent.profiles || {}).handle || 'void'), body: String(r.parent.body || '') };
+      if (p && r.parent && !Array.isArray(r.parent) && r.parent.id) p._replyTo = { id: r.parent.id, handle: '@' + ((r.parent.profiles || {}).handle || 'void'), body: String(r.parent.body || '') };
       return p;
     })
     .filter((p): p is Post => !!p);
@@ -104,7 +104,11 @@ export async function fetchReplies(authorId: string | null): Promise<Post[]> {
   try {
     const rows = await publicGet(
       '/rest/v1/posts?author_id=eq.' + encodeURIComponent(authorId) + '&reply_to=not.is.null&select=' + POST_SELECT +
-        ',parent:posts!reply_to(id,body,profiles:author_id(handle))&order=created_at.desc&limit=40',
+        // Embedded by the reply_to COLUMN, not `posts!reply_to`: on a self-referencing
+        // table that hint picks the other direction - this post's CHILDREN, an empty
+        // array - which read as a parent with no id (measured 10-07: "Replying to
+        // @void", and a tap with nothing to open).
+        ',parent:reply_to(id,body,profiles:author_id(handle))&order=created_at.desc&limit=40',
     );
     if (Array.isArray(rows)) return toPosts(rows);
   } catch {}
