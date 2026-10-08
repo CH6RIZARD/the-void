@@ -8865,12 +8865,21 @@ function vwScore(p){
 const VW_NO_REPEAT=40;
 const _vwRecent=[],_vwRecentSet=new Set();
 function vwKey(p){return String((p&&(p._video||p.id))||'').split('?')[0].split('#')[0];}
-function vwRecentHas(p){return _vwRecentSet.has(vwKey(p));}
+// The same post can also arrive as two videos (two hosts, two accounts reposting
+// it): its caption is the second identity. Short captions are too generic to key on.
+function vwBodyKey(p){const b=String((p&&p.body)||'').toLowerCase().replace(/https?:\/\/\S+/g,'').replace(/\s+/g,' ').trim();return b.length>=24?'b:'+b.slice(0,100):'';}
+function vwRecentHas(p){const b=vwBodyKey(p);return _vwRecentSet.has(vwKey(p))||(!!b&&_vwRecentSet.has(b));}
 function vwRemember(p){
-  const k=vwKey(p);if(!k||_vwRecentSet.has(k))return;
-  _vwRecent.push(k);_vwRecentSet.add(k);
-  while(_vwRecent.length>VW_NO_REPEAT)_vwRecentSet.delete(_vwRecent.shift());
+  for(const k of [vwKey(p),vwBodyKey(p)]){if(!k||_vwRecentSet.has(k))continue;_vwRecent.push(k);_vwRecentSet.add(k);}
+  while(_vwRecent.length>VW_NO_REPEAT*2)_vwRecentSet.delete(_vwRecent.shift());
 }
+// ONE CREATOR DOES NOT FILL THE RAIL. diversify only keeps one account from appearing
+// twice IN A ROW inside a batch, so consecutive batches could each lead with the same
+// creator (measured on the phone: one account 4 of 6 cards). An account seen in the
+// last VW_AUTHOR_GAP cards, or already picked in this batch, waits; when nothing else
+// is left a recent one may come back, never twice in one batch. Same rule as native.
+const VW_AUTHOR_GAP=8;const _vwAuthors=[];
+function vwWho(p){return String((p&&(p._handle||p._author))||'').replace(/^@/,'').toLowerCase();}
 function vwFill(n=5,any){
   const eligible=p=>(any?true:VW_STYLES.includes(p.style))&&laneFree(p,'reel');
   // Top the dedicated reel pool up in the background whenever it runs thin.
@@ -8885,12 +8894,18 @@ function vwFill(n=5,any){
   // drawn art) is applied here - or the backstop leaks exactly what the ingest holds
   // back, at cold start, when the reel pool is empty and this branch IS the queue.
   if(pool.length<n)pool=pool.concat(allPosts.filter(p=>fresh(p)&&eligible(p)&&pool.indexOf(p)<0&&!REEL_BLOCK_TOPIC.test(p.body||'')));
-  // One card per clip, even when two posts carry the same video.
+  // One card per clip, even when two posts carry the same video or the same caption.
   const byKey=new Set();
-  pool=pool.filter(p=>{const k=vwKey(p);if(byKey.has(k))return false;byKey.add(k);return true;});
+  pool=pool.filter(p=>{const k=vwKey(p),b=vwBodyKey(p);if(byKey.has(k)||(b&&byKey.has(b)))return false;byKey.add(k);if(b)byKey.add(b);return true;});
   const ranked=pool.map(p=>[vwScore(p),p]).sort((a,b)=>b[0]-a[0]).map(x=>x[1]);
   const quick=ranked.filter(p=>!vwHostSlow(p)),slow=ranked.filter(p=>vwHostSlow(p));
-  const picks=diversify(quick.concat(slow)).slice(0,n)
+  const order=diversify(quick.concat(slow));
+  const recentW=new Set(_vwAuthors),usedW=new Set(),chosen=[];
+  for(const p of order){if(chosen.length>=n)break;const w=vwWho(p);if(w&&(recentW.has(w)||usedW.has(w)))continue;chosen.push(p);if(w)usedW.add(w);}
+  for(const p of order){if(chosen.length>=n)break;const w=vwWho(p);if(chosen.indexOf(p)>=0||(w&&usedW.has(w)))continue;chosen.push(p);if(w)usedW.add(w);}
+  for(const p of chosen){const w=vwWho(p);if(w)_vwAuthors.push(w);}
+  while(_vwAuthors.length>VW_AUTHOR_GAP)_vwAuthors.shift();
+  const picks=chosen
     .map(p=>{const c={...p};vwSeen.add(p.id);vwRemember(p);
       laneClaim(p,'reel');c._vid=p.id+'~'+Math.random().toString(36).slice(2,6);return c;});
   vwQueue.push(...picks);return picks;
@@ -9215,7 +9230,13 @@ function vwShare(pid){navigator.clipboard&&navigator.clipboard.writeText(locatio
 // rolled back with the standard toast if the write is rejected.
 // Hoisted accessor rather than a top-level const, so vwItemHtml can never hit the
 // temporal dead zone if a reel renders before this line has executed.
-function vwFollowSet(){return window.__vwFollowing||(window.__vwFollowing=new Set());}
+// FOLLOWS ARE KEPT. The Set was session-only and the server resolves the handle
+// against Void profiles, so following a Bluesky / PeerTube creator - nearly every
+// reel - saved nothing. Kept in localStorage now (same key and shape as the app).
+const VW_FOLLOW_KEY='void.follows.v1';
+function vwFollowMeta(){if(!window.__vwFollowMeta){let rows=[];try{rows=JSON.parse(localStorage.getItem(VW_FOLLOW_KEY)||'[]')||[];}catch(e){}window.__vwFollowMeta=new Map((Array.isArray(rows)?rows:[]).filter(f=>f&&f.h).map(f=>[f.h,f]));}return window.__vwFollowMeta;}
+function vwFollowSave(){try{localStorage.setItem(VW_FOLLOW_KEY,JSON.stringify([...vwFollowMeta().values()]));}catch(e){}}
+function vwFollowSet(){const m=vwFollowMeta();return{has:h=>m.has(h)};}
 function vwHandleOf(p){return String((p&&(p._handle||p._author))||'').replace(/^@/,'').toLowerCase();}
 function vwFollow(el,e){
   if(e)e.stopPropagation();
@@ -9224,10 +9245,11 @@ function vwFollow(el,e){
   const paint=on=>document.querySelectorAll('.vw-item').forEach(it=>{
     const q=findPost(it.dataset.pid);if(vwHandleOf(q)!==h)return;
     const f=it.querySelector('.vw-follow');if(f)f.textContent=on?'FOLLOWING':'FOLLOW';});
-  const fs=vwFollowSet(),on=!fs.has(h);
-  on?fs.add(h):fs.delete(h);paint(on);
+  const m=vwFollowMeta(),prev=m.get(h),on=!prev;
+  if(on)m.set(h,{h,name:p._author||h,source:String(p.source||''),uid:p.author_id||p._authorId||null,at:Date.now()});else m.delete(h);
+  vwFollowSave();paint(on);
   VoidAPI.follow(h,on).catch(()=>{
-    on?fs.delete(h):fs.add(h);paint(!on);
+    if(on)m.delete(h);else if(prev)m.set(h,prev);vwFollowSave();paint(!on);
     voidToast('SIGNAL LOST · RETRY');
   });
 }

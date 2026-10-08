@@ -202,7 +202,7 @@ export function vwKey(p: Post | null | undefined): string {
 }
 // The same post can also arrive as two videos (two hosts, two accounts reposting
 // it): its caption is the second identity. Short captions are too generic to key on.
-function vwBodyKey(p: Post): string {
+export function vwBodyKey(p: Post): string {
   const b = String(p.body || '').toLowerCase().replace(/https?:\/\/\S+/g, '').replace(/\s+/g, ' ').trim();
   return b.length >= 24 ? 'b:' + b.slice(0, 100) : '';
 }
@@ -227,7 +227,7 @@ export function vwRemember(p: Post): void {
 // come back, but never twice in one batch.
 export const VW_AUTHOR_GAP = 8;
 const _vwAuthors: string[] = [];
-const vwWho = (p: Post) => String(p._handle || p._author || '').replace(/^@/, '').toLowerCase();
+export const vwWho = (p: Post) => String(p._handle || p._author || '').replace(/^@/, '').toLowerCase();
 let _vwPullAt = 0;
 export function vwFill(n = 5, any = false): Post[] {
   const eligible = (p: Post) => (any ? true : VW_STYLES.includes(p.style)) && laneFree(p, 'reel');

@@ -214,6 +214,23 @@ test('vwFill: one creator does not fill the rail, and a caption served twice is 
   assert.equal(vixen.length, 1, 'same caption twice: ' + vixen.map(p => p.id).join(','));
 });
 
+test('vwBodyKey / vwWho match the web build (same caption and creator identity)', () => {
+  fresh();
+  const w = webSandbox({ now: NOW });
+  w.load('vwBodyKey', 'vwWho');
+  const ps = [
+    { body: 'The vixen is still around together with one of her cubs https://x.example/a?b=1' },
+    { body: 'short one' },
+    { body: '  The   VIXEN is still around together with one of her cubs  ' },
+    { _handle: '@JunkboxJim', body: '' },
+    { _author: 'Wind.Born.Films', body: '' },
+    {},
+  ];
+  w.run(`var __p=${JSON.stringify(ps)};`);
+  assert.deepEqual(ps.map(p => core.vwBodyKey(p as any)), JSON.parse(w.run('JSON.stringify(__p.map(vwBodyKey))')));
+  assert.deepEqual(ps.map(p => core.vwWho(p as any)), JSON.parse(w.run('JSON.stringify(__p.map(vwWho))')));
+});
+
 test('reels PeerTube lane: gates run before the detail calls; a clip with no HLS gets the 720p file, not the largest', async () => {
   const calls: string[] = [];
   const rows = [
