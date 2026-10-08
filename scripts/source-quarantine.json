@@ -488,5 +488,45 @@
   },
   "since": 1790905643273,
   "why": "error"
+ },
+ "https://video.hostingcaaguazu.com:19360/oasistv/oasistv.m3u8": {
+  "country": "Paraguay",
+  "src": {
+   "type": "hls",
+   "url": "https://video.hostingcaaguazu.com:19360/oasistv/oasistv.m3u8",
+   "label": "Oasis TV (PY)"
+  },
+  "since": 1791475749400,
+  "why": "status 404"
+ },
+ "https://mdc.ott.alticeusa.net/live4.ott.optimum.net/live4-uploads/N12XH_A1/index_new.m3u8?omap=https": {
+  "country": "United States",
+  "src": {
+   "type": "hls",
+   "url": "https://mdc.ott.alticeusa.net/live4.ott.optimum.net/live4-uploads/N12XH_A1/index_new.m3u8?omap=https",
+   "label": "News12 Bronx"
+  },
+  "since": 1791475749401,
+  "why": "error"
+ },
+ "https://mdc.ott.alticeusa.net/live4.ott.optimum.net/live4-uploads/N12KH_A1/index_new.m3u8?omap=https": {
+  "country": "United States",
+  "src": {
+   "type": "hls",
+   "url": "https://mdc.ott.alticeusa.net/live4.ott.optimum.net/live4-uploads/N12KH_A1/index_new.m3u8?omap=https",
+   "label": "News12 Brooklyn"
+  },
+  "since": 1791475749401,
+  "why": "error"
+ },
+ "https://stream2.nmih.hu:4102/live.m3u8": {
+  "country": "Serbia",
+  "src": {
+   "type": "hls",
+   "url": "https://stream2.nmih.hu:4102/live.m3u8",
+   "label": "TV Panon"
+  },
+  "since": 1791475749406,
+  "why": "status 404"
  }
 }
