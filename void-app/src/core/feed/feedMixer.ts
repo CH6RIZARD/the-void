@@ -44,6 +44,14 @@ const textOf = (p: Partial<Post>) =>
   String(p.body || '').replace(/https?:\/\/\S+/g, ' ').replace(/[#@][\p{L}\p{N}_.]+/gu, ' ').replace(/\s+/g, ' ').trim();
 const hasMedia = (p: Partial<Post>) => !!(p as any)._img || !!(p as any)._video || p.style === 'image' || p.style === 'video' || p.style === 'carousel';
 
+/**
+ * Someone telling you what is happening to them: the proxy's X_FIRSTHAND phrases
+ * ("right now", "outside my", "we can hear", "on the ground") plus plain
+ * first-person present tense. Deliberately narrow - "I think" op-eds do not count.
+ */
+export const FIRST_PERSON_RE = /\b(right now|happening now|just now|outside my|we can hear|on the ground|my (street|window|building|block|city|county|town|house|neighbou?rhood)|i(?:'m| am| was| just| can hear| can see| saw| heard)|we(?:'re| are| were| just)|here in)\b/i;
+export const isFirstPerson = (p: Partial<Post>) => FIRST_PERSON_RE.test(String(p.body || ''));
+
 /** The niche quality gate: substance, not a bare link or re-share, not a known spam shape. */
 export function nicheQualifies(p: Partial<Post>, shapes: Set<string>): boolean {
   if (p._repost) return false; // a pure re-surface of someone else's post
@@ -83,10 +91,16 @@ export function mixFeed(list: Post[], share = NICHE_SHARE): Post[] {
   for (const k in bySource) base[k] = median(bySource[k]);
   const eScore = (p: Post) => engagementOf(p) / (base[p.source || ''] || 1) / Math.pow(ageH(p) + 2, 1.2);
   engaged.sort((a, b) => eScore(b) - eScore(a));
-  // Niche: substance first, recency second.
+  // Niche: a person's own account first, then substance, then recency.
+  //
+  // Length used to stand in for substance, so the lane filled with 300-char
+  // op-eds and the 96-char "I'm under a state of emergency right now" lost to
+  // them every time - measured 2026-10-08: 4 of 12 first-deal cards first-person
+  // with 27 eyewitness X posts in the pool. The lived-experience post IS the
+  // substance this app exists for; the bonus outweighs the whole length term.
   const nScore = (p: Post) => {
     const t = textOf(p).length;
-    return Math.min(t, 400) / 400 + (hasMedia(p) ? 0.35 : 0) + ((p.replies || 0) > 0 ? 0.2 : 0) - Math.min(ageH(p), 48) / 96;
+    return (isFirstPerson(p) ? 1.2 : 0) + Math.min(t, 400) / 400 + (hasMedia(p) ? 0.35 : 0) + ((p.replies || 0) > 0 ? 0.2 : 0) - Math.min(ageH(p), 48) / 96;
   };
   niche.sort((a, b) => nScore(b) - nScore(a));
 

@@ -336,6 +336,17 @@ test('reels pull is single-flight: a second caller gets the pull in progress, no
   await c;
 });
 
+test('feedMixer: a first-person account leads the niche lane over a longer op-ed', () => {
+  fresh();
+  const NOWT = Date.UTC(2026, 9, 8, 12, 0, 0);
+  const mk = (id: string, body: string, who: string) => ({ id, style: 'take', body, tags: ['politics'], score: 1, replies: 0, time: NOWT - 600000, source: 'x', country: '', iso: '', _author: who, _handle: '@' + who });
+  const oped = mk('op', 'Yesterday an academic in the humanities responded to my threads saying that the discourse around institutional capture has become a kind of performance for the already converted, and while I find the framing reductive there is something to the critique of how these arguments circulate.', 'prof');
+  const pov = mk('pov', "So I'm kinda under a state of emergency right now thanks to a hurricane", 'neighbor');
+  assert.ok(core.isFirstPerson(pov as any) && !core.isFirstPerson(oped as any));
+  const out = core.mixFeed([oped as any, pov as any]);
+  assert.equal(out[0].id, 'pov', 'dealt ' + out.map(p => p.id).join(','));
+});
+
 test('feedMixer: ~NICHE_SHARE niche per page, <=2 per author per page, gates hold', () => {
   core.configureCore({ storage: core.createMemoryStorage(), session: core.createMemoryStorage(), now: () => NOW, random: mulberry32(9), proxyBase: '', fetch: noNet });
   const W = 'water roads housing schools rivers markets clinics buses parks bridges ferries libraries farms ports tariffs wages'.split(' ');

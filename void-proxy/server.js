@@ -418,6 +418,12 @@ const X_GLOBAL_QUERIES = [
   "(\"state of emergency\" OR evacuation OR earthquake)",
 ];
 const X_FIRSTHAND = "(has:media OR \"right now\" OR \"happening now\" OR \"just now\" OR \"outside my\" OR \"we can hear\" OR \"on the ground\")";
+// The app sinks anything older than a day to the end of its feed (FEED_STALE_H).
+// Without a window, relevancy ranking handed back the WEEK's most-engaged
+// matches - median 59 h old (measured 2026-10-08) - so 17 of 22 eyewitness
+// posts arrived already stale and the op-ed lane, hours old, led every screen.
+// start_time is applied before billing, so the window costs nothing.
+const FEED_MAX_AGE_MS = 24 * 3.6e6;
 // Reels want the clip itself: the street-level events that go viral as video
 // (police, bodycam, riots, blasts), not the diplomatic ones. has:videos is added
 // by fetchReels, so every post paid for here carries footage.
@@ -576,14 +582,14 @@ class XProvider extends SocialProvider {
     // families (an airstrike that triggers an evacuation) comes back twice and
     // is kept once. The merged set is the page's X supply - nothing trims it.
     const sets = await Promise.all(X_GLOBAL_QUERIES.map((q) =>
-      this.search(q + ' ' + X_FIRSTHAND + ' lang:en', limit).catch((e) => this._fail(e))));
+      this.search(q + ' ' + X_FIRSTHAND + ' lang:en', limit, FEED_MAX_AGE_MS).catch((e) => this._fail(e))));
     const seen = new Set();
     return sets.flat().filter((it) => !seen.has(it.id) && seen.add(it.id));
   }
 
   async fetchByCountry({ country, limit }) {
     if (!country) return this.fetchGlobal({ limit });
-    return this.search(`"${country}" (airstrike OR ceasefire OR missile OR invasion OR protesters OR killed OR attack) ${X_FIRSTHAND} lang:en`, limit).catch((e) => this._fail(e));
+    return this.search(`"${country}" (airstrike OR ceasefire OR missile OR invasion OR protesters OR killed OR attack) ${X_FIRSTHAND} lang:en`, limit, FEED_MAX_AGE_MS).catch((e) => this._fail(e));
   }
 
   // Relevancy within the reels window is X's own "most engaged lately" order.
