@@ -163,5 +163,7 @@ export function vwScore(p: Partial<Post>): number {
   // score is VIEWS, far cheaper than a like: 1/100 (a tuning knob), or an old archive
   // clip with a big view count outranks a fresh viral one.
   const vol = (p.source === 'peertube' ? (p.score || 0) / 100 : (p.score || 0)) + 2 * (p._reposts || 0) + 3 * (p._quotes || 0) + 2 * (p.replies || 0);
-  return rec * 2 + aff * 1.5 + ctr + Math.log10(1 + vol) * .5 + env.random() * .6;   // + exploration noise
+  // Curated fit (0-1, the curator's own judgement) lifts up to 1.5: a little under
+  // the whole recency term, so a judged clip leads but a stale one cannot pin the rail.
+  return rec * 2 + aff * 1.5 + ctr + Math.log10(1 + vol) * .5 + (p._fit || 0) * 1.5 + env.random() * .6;   // + exploration noise
 }

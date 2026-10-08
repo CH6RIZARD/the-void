@@ -276,7 +276,7 @@ export const ReelItem = memo(function ReelItem(props: ReelItemProps) {
   }
 
   const who = p._author || p.country || 'void';
-  const body = String(p.body || '');
+  const body = String(p._caption || p.body || '');   // the curator's caption beats the raw post text
   const following = isFollowing(p);
 
   return (

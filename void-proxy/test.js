@@ -5,10 +5,12 @@
 // shaped like a real v2 recent-search answer.
 process.env.X_BEARER = '';
 process.env.X_MAX_SHARE = '0.15';
+process.env.CURATOR_KEY = 'test-curator-key';
 globalThis.fetch = () => { throw new Error('test.js must stay offline'); };
 
 const assert = require('assert');
-const { XProvider, bestVariant, aggregateReels } = require('./server');
+const http = require('http');
+const { XProvider, bestVariant, aggregateReels, server } = require('./server');
 
 const H = 3.6e6, now = Date.now();
 const iso = (agoH) => new Date(now - agoH * H).toISOString();
@@ -94,6 +96,39 @@ assert.match(byId.x_106.media[0].url, /gif/);
   assert.strictEqual(reels.find((p) => p.id === 'x_102').graphic, true, 'graphic clip is flagged for the veil');
   assert.strictEqual(reels[0].media[0].url, HLS);
   assert.ok(reels.every((p) => p.provenance && p.provenance.sourceHost && p.provenance.responseHash), 'client refuses items without provenance');
+
+  // /curated: the curator's push lands in memory and comes back in the /reels
+  // item shape plus its labels; a wrong (or missing) key is 401. Over a real
+  // socket on a free port - the handler is the thing under test, not a stub.
+  await new Promise((ok) => server.listen(0, '127.0.0.1', ok));
+  const port = server.address().port;
+  const call = (method, path, body, headers) => new Promise((resolve, reject) => {
+    // agent:false - a kept-alive socket held the server (and the process) open for minutes after close().
+    const rq = http.request({ host: '127.0.0.1', port, method, path, agent: false, headers: Object.assign({ 'Content-Type': 'application/json' }, headers || {}) }, (rs) => {
+      let d = ''; rs.on('data', (c) => { d += c; }); rs.on('end', () => resolve({ status: rs.statusCode, body: JSON.parse(d) }));
+    });
+    rq.on('error', reject); rq.end(body ? JSON.stringify(body) : undefined);
+  });
+  const push = { generated: '2026-10-07T12:00:00.000Z', items: [
+    { key: 'bsky_c1', platform: 'bluesky', text: 'Riot police push the crowd back at the bridge', caption: 'Police line breaks at the bridge', video: 'https://video.bsky.app/watch/did/cid1/playlist.m3u8',
+      thumb: 'https://video.bsky.app/t1.jpg', url: 'https://bsky.app/profile/a/post/1', createdAt: iso(2), likes: 1200, reposts: 300, graphic: false, genre: 'footage', topic: 'protest', fit: 0.9, labeledAt: iso(0) },
+    { key: 'bad', platform: 'x', text: 'no playable video', video: '', fit: 1 },
+  ] };
+  assert.strictEqual((await call('GET', '/curated?limit=30')).body.items.length, 0, 'nothing before the first push');
+  assert.strictEqual((await call('POST', '/curated/ingest', push, { 'x-curator-key': 'wrong' })).status, 401);
+  assert.strictEqual((await call('POST', '/curated/ingest', push)).status, 401, 'no key is no key');
+  assert.deepStrictEqual((await call('POST', '/curated/ingest', push, { 'x-curator-key': 'test-curator-key' })).body, { ok: true, count: 1 }, 'the clip without a video is dropped');
+  const got = (await call('GET', '/curated?limit=30')).body;
+  assert.strictEqual(got.generated, push.generated);
+  const c = got.items[0];
+  assert.strictEqual(c.id, 'cur_bsky_c1');
+  assert.strictEqual(c.createdAt, Date.parse(push.items[0].createdAt), 'createdAt is ms like every other lane');
+  assert.deepStrictEqual(c.media, [{ type: 'video', url: push.items[0].video, thumb: push.items[0].thumb }]);
+  assert.deepStrictEqual(c.metrics, { score: 1200, reposts: 300, replies: 0, views: 0 });
+  assert.deepStrictEqual([c.caption, c.genre, c.topic, c.fit, c.graphic], ['Police line breaks at the bridge', 'footage', 'protest', 0.9, false]);
+  assert.ok(c.provenance && c.provenance.sourceHost === 'bsky.app' && c.provenance.responseHash, 'curated items carry provenance or the client refuses them');
+  assert.ok((await call('GET', '/health')).body.endpoints.includes('/curated?limit=30'));
+  server.close();
 
   console.log('void-proxy test.js: ok');
 })().catch((e) => { console.error(e); process.exit(1); });

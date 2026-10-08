@@ -421,6 +421,46 @@ test('vwScore: engagement lifts a viral clip on a log scale, PeerTube views are 
     assert.equal(core.vwScore(p as any), w.run(`vwScore(${JSON.stringify(p)})`));
 });
 
+test('vwScore: curated fit lifts a clip over the same clip unjudged, same as the web', () => {
+  core.configureCore({ storage: core.createMemoryStorage(), session: core.createMemoryStorage(), now: () => NOW, random: () => 0, proxyBase: '', fetch: noNet });
+  const w = webSandbox({ now: NOW });
+  w.setRandom(() => 0); w.stmt('let vwQueue='); w.load('vwScore');
+  const base = { time: NOW - 6 * 36e5, tags: [], score: 500, replies: 20, _reposts: 30, source: 'bluesky' };
+  const judged = { ...base, _fit: 0.8 }, raw = { ...base };
+  assert.ok(core.vwScore(judged as any) > core.vwScore(raw as any), 'fit lifts');
+  assert.ok(Math.abs(core.vwScore(judged as any) - core.vwScore(raw as any) - 1.2) < 1e-9, 'by fit * 1.5, every other term kept');
+  for (const p of [judged, raw, { ...base, _fit: 1 }]) assert.equal(core.vwScore(p as any), w.run(`vwScore(${JSON.stringify(p)})`));
+});
+
+test('reels: the curated lane leads every pull and lands with the curator\'s caption and fit', async () => {
+  await core.pullReelPage(); // settle any pull an earlier test left in flight
+  const cur = (key: string, fit: number, extra: Record<string, unknown> = {}) => ({
+    id: 'cur_' + key, platform: 'bluesky', text: 'Riot police push the crowd back at the bridge ' + key, createdAt: NOW - 2 * 36e5,
+    metrics: { score: 1200, reposts: 300, replies: 0, views: 0 }, graphic: false, url: 'https://bsky.app/profile/a/post/' + key,
+    media: [{ type: 'video', url: 'https://video.bsky.app/watch/did/' + key + '/playlist.m3u8', thumb: 'https://video.bsky.app/' + key + '.jpg' }],
+    provenance: { sourceHost: 'bsky.app', responseHash: 'h' + key }, caption: 'Police line breaks at the bridge ' + key, genre: 'footage', topic: 'protest', fit, ...extra,
+  });
+  const items = [cur('c1', 0.9), cur('c2', 0.4, { graphic: true }), { ...cur('nop', 1), provenance: undefined }];
+  const urls: string[] = [];
+  core.configureCore({
+    storage: core.createMemoryStorage(), session: core.createMemoryStorage(), now: () => NOW, random: () => 0.3, proxyBase: 'https://proxy.test',
+    fetch: (async (u: string) => { urls.push(u); return { ok: true, json: async () => (u.includes('/curated') ? { items, generated: 'g' } : { posts: [], feed: [], data: [] }) }; }) as any,
+  });
+  core._badStreams.clear(); core.resetStore(); core._vwForgetAll();
+  assert.equal(await core.pullReelPage(), true);
+  assert.deepEqual(urls, ['https://proxy.test/curated?limit=30'], 'curated is asked first and, having answered, alone');
+  assert.deepEqual(core.reelPosts.map(p => p.id), ['px_cur_c1', 'px_cur_c2'], 'an item without provenance is refused like any proxy item');
+  const [c1, c2] = core.reelPosts;
+  assert.deepEqual([c1._caption, c1._fit, c1._genre, c1._video], ['Police line breaks at the bridge c1', 0.9, 'footage', 'https://video.bsky.app/watch/did/c1/playlist.m3u8']);
+  assert.ok(c2._graphic && core.moderation.isGraphic(c2), 'a graphic curated clip is veiled, not dropped');
+  assert.ok(core.vwScore(c1) > core.vwScore(c2), 'the better fit ranks first');
+  // Already admitted: the next pull gets nothing new from the lane and moves on.
+  urls.length = 0;
+  assert.equal(await core.pullReelPage(), false);
+  assert.equal(urls[0], 'https://proxy.test/curated?limit=30');
+  assert.ok(urls.length > 1, 'other lanes are asked once curated has nothing new');
+});
+
 test('reels: fresh top video leads, graphic is veiled not dropped, sexual is dropped, old clips and the archive wait', async () => {
   await core.pullReelPage(); // settle any pull an earlier test left in flight
   const vid = (id: string, text: string, ageH: number, labels: string[] = []) => ({

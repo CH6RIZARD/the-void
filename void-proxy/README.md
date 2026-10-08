@@ -55,6 +55,24 @@ hour of age (most engaged and newest first). Same shape, paging and caching as
 more query against the X budget, see "X spend caps"); Reddit contributes the
 clips in its global pool. Reddit graphic items are included with `graphic: true`.
 
+### `GET /curated?limit=30`
+The curator's LLM-labelled clips, best first, in the `/reels` item shape plus
+`caption`, `genre`, `topic` and `fit` (0-1). `{ items, generated }`; empty until
+the first push. Same caching as `/feed`.
+
+### `POST /curated/ingest`
+Body = `scripts/curated.public.json` (`{ generated, items: [{ key, platform,
+text, caption, video, thumb, url, createdAt, likes, reposts, graphic, genre,
+topic, fit, labeledAt }] }`, 2MB max). Header `x-curator-key` must equal
+`CURATOR_KEY`; 401 otherwise, and always 401 when the env is unset. Replaces the
+whole list in memory (a redeploy empties it until the next push). Returns
+`{ ok: true, count }`; items without an `http(s)` `video` are dropped.
+
+```
+curl -X POST "$PROXY/curated/ingest" -H "x-curator-key: $CURATOR_KEY" \
+  -H "Content-Type: application/json" --data-binary @scripts/curated.public.json
+```
+
 ### POST shape
 
 ```jsonc
@@ -116,6 +134,8 @@ Copy `.env.example` to `.env` (gitignored):
   <https://www.reddit.com/prefs/apps>. See below.
 - `REDDIT_USERNAME` — your Reddit handle, used only to build a compliant
   User-Agent. `REDDIT_USER_AGENT` overrides the whole string.
+- `CURATOR_KEY` — shared secret the curator sends as `x-curator-key` on
+  `POST /curated/ingest`. Unset = pushes refused.
 
 ### Reddit auth
 

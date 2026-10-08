@@ -13,6 +13,7 @@ import { postAgeH } from '../rank/story.ts';
 import { inferTags } from '../rank/tags.ts';
 import { bskyFeedUrl, bskyToPost } from './bluesky.ts';
 import { peertubeSrc } from './fedi.ts';
+import { proxyPostToApp } from './proxy.ts';
 import { laneClaim, laneFree } from './search.ts';
 import { allPosts, emitPostsChanged, reelPosts } from './store.ts';
 import { nfFetchJson } from '../util.ts';
@@ -180,6 +181,23 @@ export async function pullBskyTopVideo(): Promise<number> {
   return admitReelItems((d.posts || []).map((post: any) => ({ post })), new RegExp('\\b' + q + '\\b', 'gi'));   // search returns bare PostViews
 }
 
+// CURATED: the LLM-labelled clips the curator pushed to the proxy (/curated). Same
+// mapper as every proxy item (provenance, the graphic veil), plus the curator's
+// caption and fit; vwScore lifts on the fit. The curator already judged them, so
+// only the cross-surface dedupe stands between them and the pool.
+export async function pullCurated(): Promise<number> {
+  if (!env.proxyBase) return 0;
+  const d = await nfFetchJson(`${env.proxyBase}/curated?limit=30`, 8000);
+  let added = 0;
+  for (const it of (d && d.items) || []) {
+    const p = proxyPostToApp(it); if (!p || !p._video) continue;
+    p._caption = it.caption || ''; p._fit = +it.fit || 0; p._genre = it.genre || '';
+    if (!admitPost(p)) continue;
+    reelPosts.push(p); added++;
+  }
+  return added;
+}
+
 // Callers get the IN-FLIGHT pull instead of an instant false (web pullReelPage). The
 // false made fillOpenReel 'await' nothing and a NO SIGNAL retry tap do nothing while a
 // pull was running. Each request is bounded too (5s detail, 6s list, 8s feed page): a
@@ -197,6 +215,8 @@ async function pullReelPageOnce(): Promise<boolean> {
     // fresh lanes rarely ran: 0 of 114 of its results were newer than 7 days. The top
     // search almost always admits something too, so it leads only half the pulls;
     // otherwise spook.tube and the feeds go first and it waits behind them.
+    // CURATED FIRST: already judged for fit, so nothing fresher is worth asking before it.
+    try { const n = await pullCurated(); if (n) { emitPostsChanged('reels'); return true; } } catch { /* */ }
     const searchLeads = env.random() < 0.5;
     if (searchLeads) { try { const n = await pullBskyTopVideo(); if (n) { emitPostsChanged('reels'); return true; } } catch { /* */ } }
     if (env.random() < 0.25) {

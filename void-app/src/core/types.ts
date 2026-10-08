@@ -43,6 +43,10 @@ export interface Post {
   _uri?: string;
   _social?: boolean;
   _graphic?: boolean;
+  /** Curated lane (proxy /curated): the curator's caption, 0-1 fit and genre. */
+  _caption?: string;
+  _fit?: number;
+  _genre?: string;
   _wire?: boolean;
   _repost?: boolean;
   _reposts?: number;

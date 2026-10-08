@@ -928,6 +928,28 @@ function sendJson(res, code, obj, headers) {
 // instead of O(users), and everyone's latency becomes an edge hit.
 const FEED_CACHE_HEADERS = { 'Cache-Control': 'public, max-age=30, stale-while-revalidate=120' };
 
+// Curated clips (POST /curated/ingest). No CURATOR_KEY set means no curator:
+// refuse every push rather than accept anyone's. Constant-time compare so the
+// key cannot be guessed byte by byte off response timing.
+const CURATOR_KEY = process.env.CURATOR_KEY || '';
+function curatorKeyOk(k) {
+  k = String(k || '');
+  return !!CURATOR_KEY && k.length === CURATOR_KEY.length && require('crypto').timingSafeEqual(Buffer.from(k), Buffer.from(CURATOR_KEY));
+}
+let curated = { generated: '', items: [] };
+// The /reels item shape (the client maps it with proxyPostToApp) plus the
+// curator's labels. createdAt is ms like every other lane: an ISO string would
+// make the client's `time` a string and every age maths NaN.
+function curatedToPost(it) {
+  return withProvenance({
+    id: 'cur_' + it.key, platform: it.platform || 'curated', text: it.text || '',
+    createdAt: Date.parse(it.createdAt) || (+it.createdAt) || Date.now(),
+    metrics: { score: it.likes | 0, reposts: it.reposts | 0, replies: 0, views: 0 }, graphic: !!it.graphic,
+    media: [{ type: 'video', url: it.video, thumb: it.thumb || '' }], url: it.url || '',
+    caption: it.caption || '', genre: it.genre || '', topic: it.topic || '', fit: Math.max(0, Math.min(1, +it.fit || 0)),
+  });
+}
+
 const server = http.createServer(async (req, res) => {
   try {
     if (req.method === 'OPTIONS') { cors(res); res.writeHead(204); res.end(); return; }
@@ -988,6 +1010,25 @@ const server = http.createServer(async (req, res) => {
       // One pool, one ranking: mode is ignored so it cannot mint extra pools.
       const all = await cached('reels', () => aggregateReels({ limit: FEED_POOL }));
       return sendJson(res, 200, page(all, offset, limit), FEED_CACHE_HEADERS);
+    }
+
+    // ─── CURATED: LLM-labelled clips, PUSHED by the curator on the user's PC ──
+    // Railway cannot read scripts/curated.public.json, so the curator POSTs it and
+    // it lives in memory, replaced wholesale per push. A redeploy loses it until
+    // the next push: ~60 fresh clips the curator regenerates anyway.
+    if (path === '/curated/ingest') {
+      if (req.method !== 'POST') return sendJson(res, 405, { error: 'POST only' });
+      if (!curatorKeyOk(req.headers['x-curator-key'])) return sendJson(res, 401, { error: 'bad key' });
+      let body;
+      try { body = JSON.parse(await readBody(req, 2 * 1024 * 1024)); } catch (_) { return sendJson(res, 400, { error: 'bad body' }); }
+      if (!Array.isArray(body && body.items)) return sendJson(res, 400, { error: 'items: array' });
+      const items = body.items.filter((it) => it && it.key && /^https?:\/\//.test(String(it.video || ''))).slice(0, 200).map(curatedToPost);
+      curated = { generated: String(body.generated || new Date().toISOString()), items };
+      return sendJson(res, 200, { ok: true, count: items.length });
+    }
+
+    if (path === '/curated') {
+      return sendJson(res, 200, { items: curated.items.slice(0, limit), generated: curated.generated }, FEED_CACHE_HEADERS);
     }
 
     // ─── STREAM HEALTH: the pool's vital signs, aggregated from every client ──
@@ -1132,7 +1173,7 @@ const server = http.createServer(async (req, res) => {
     if (path === '/' || path === '/health') {
       return sendJson(res, 200, {
         ok: true,
-        endpoints: ['/feed?mode=tension&limit=40', '/social?country=<name>&mode=tension&limit=30', '/reels?limit=30', '/hls?u=<m3u8 url>', '/streams/health', 'POST /streams/report {reports:[{u,ok,v,ms}]}', 'POST /translate {texts:[...], target:"en"}'],
+        endpoints: ['/feed?mode=tension&limit=40', '/social?country=<name>&mode=tension&limit=30', '/reels?limit=30', '/curated?limit=30', 'POST /curated/ingest {generated, items:[...]} (x-curator-key)', '/hls?u=<m3u8 url>', '/streams/health', 'POST /streams/report {reports:[{u,ok,v,ms}]}', 'POST /translate {texts:[...], target:"en"}'],
         providers: PROVIDERS.map((p) => ({ platform: p.platform, enabled: p.enabled !== false })),
         reddit: { auth: redditAuthed() ? 'oauth' : 'keyless', userAgent: REDDIT_UA },
         translate: { provider: DEEPL_KEY ? 'deepl' : 'off', cached: trCache.size },
@@ -1255,4 +1296,4 @@ function loadDotEnv() {
   } catch (_) { /* ignore */ }
 }
 
-module.exports = { tensionScore, capXShare, xBudgetLeft, redditToken, redditAuthed, deeplTarget, translateTexts, rankItems, subsForCountry, withProvenance, interleaveRegional, page, bestVariant, aggregateReels, RedditProvider, XProvider, ThreadsProvider };
+module.exports = { server, tensionScore, capXShare, xBudgetLeft, redditToken, redditAuthed, deeplTarget, translateTexts, rankItems, subsForCountry, withProvenance, interleaveRegional, page, bestVariant, aggregateReels, RedditProvider, XProvider, ThreadsProvider };
