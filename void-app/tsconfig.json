@@ -23,6 +23,7 @@
     "modules/expo-void-sensing/android",
     "modules/expo-void-sensing/ios",
     "src/core/__tests__",
-    "src/features/live/__tests__"
+    "src/features/live/__tests__",
+    "src/features/calls/__tests__"
   ]
 }

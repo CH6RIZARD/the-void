@@ -65,6 +65,16 @@ export const ICONS = {
   pin: { shapes: [p('M12 21s-7-5.5-7-11a7 7 0 0 1 14 0c0 5.5-7 11-7 11z'), { t: 'circle', cx: 12, cy: 10, r: 2.5 }] },
   lock: { shapes: [{ t: 'rect', x: 5, y: 11, width: 14, height: 9, rx: 2 }, p('M8 11V7a4 4 0 0 1 8 0v4')] },
   unlock: { shapes: [{ t: 'rect', x: 5, y: 11, width: 14, height: 9, rx: 2 }, p('M8 11V7a4 4 0 0 1 7.5-1.3')] },
+  // Calls (src/features/calls). The web build has no call glyphs; these follow the
+  // same hairline grammar so the chat header reads as one set.
+  phone: { shapes: [p('M5 4h3.5l1.5 4-2 1.5a11 11 0 0 0 6.5 6.5l1.5-2 4 1.5V19a2 2 0 0 1-2 2A15 15 0 0 1 3 6a2 2 0 0 1 2-2z')] },
+  phoneEnd: { filled: true, shapes: [p('M12 9c-3.6 0-7 1.2-9.6 3.4a1.6 1.6 0 0 0-.2 2.2l1.8 2.1a1.5 1.5 0 0 0 2 .3l2.6-1.9a1.5 1.5 0 0 0 .6-1.4l-.2-1.6a9.8 9.8 0 0 1 6 0l-.2 1.6a1.5 1.5 0 0 0 .6 1.4l2.6 1.9a1.5 1.5 0 0 0 2-.3l1.8-2.1a1.6 1.6 0 0 0-.2-2.2A14.5 14.5 0 0 0 12 9z')] },
+  camera: { shapes: [{ t: 'rect', x: 3, y: 7, width: 13, height: 10, rx: 2 }, p('M16 11l5-3v8l-5-3')] },
+  cameraOff: { shapes: [p('M3 7h10a2 2 0 0 1 2 2v2l6-3v8'), p('M16 17H5a2 2 0 0 1-2-2V9'), p('M3 3l18 18')] },
+  mic: { shapes: [{ t: 'rect', x: 9, y: 3, width: 6, height: 11, rx: 3 }, p('M5 11a7 7 0 0 0 14 0M12 18v3')] },
+  micOff: { shapes: [p('M9 9V6a3 3 0 0 1 6 0v4a3 3 0 0 1-1 2.2'), p('M5 11a7 7 0 0 0 10.5 6M19 11a7 7 0 0 1-.6 2.8M12 18v3'), p('M3 3l18 18')] },
+  flip: { shapes: [p('M4.5 12a7.5 7.5 0 0 1 13-5.1M19.5 12a7.5 7.5 0 0 1-13 5.1'), p('M17.5 3v4h-4M6.5 21v-4h4')] },
+  speaker: { shapes: [p('M4 9h4l5-4v14l-5-4H4z'), p('M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12')] },
 } satisfies Record<string, IconDef>;
 
 export type IconName = keyof typeof ICONS;

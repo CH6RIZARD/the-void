@@ -15,3 +15,9 @@ export const SUPABASE_URL = str(extra.supabaseUrl) || SUPABASE_URL_DEFAULT;
 export const SUPABASE_ANON_KEY = str(extra.supabaseAnonKey) || SUPABASE_ANON_KEY_DEFAULT;
 /** Feed/social proxy base (web VOID_PROXY_BASE); '' when not configured. */
 export const VOID_PROXY_BASE = str(extra.voidProxyBase).replace(/\/$/, '');
+/**
+ * LiveKit server for 1:1 calls (wss://...). Build-time fallback only: the
+ * livekit-token Edge Function returns the url with every token, so this stays
+ * '' unless the function is deployed without LIVEKIT_URL set.
+ */
+export const LIVEKIT_URL = str(extra.livekitUrl).replace(/\/$/, '');

@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme';
@@ -15,6 +16,9 @@ import { ROUTES } from '../../nav/routes';
 import { useTermsGate } from '../auth/TermsSheet';
 import { canOpenUser, openUser } from '../feed/navigation';
 import { ConvAvatar } from './ConvRow';
+import { loadConvCalls, startCall } from '../calls/callsApi';
+import { useCallStore } from '../calls/callStore';
+import { callRowLabel, mergeThread, sameCalls, type CallKind, type CallRow } from '../calls/callText';
 import {
   DM_NOTE,
   dmIsBlocked,
@@ -36,6 +40,25 @@ function timeLabel(d: Date) {
   return d.toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
+/**
+ * Phone / camera in the header. 44pt target around an 18px glyph; press feedback is
+ * the same colour lift as Back plus a 120ms scale on the UI thread (a Reanimated
+ * CSS transition - no shared value for a two-state press). Reduced motion keeps
+ * the colour change and drops the scale.
+ */
+function HeadBtn({ icon, label, onPress, disabled }: { icon: 'phone' | 'camera'; label: string; onPress: () => void; disabled?: boolean }) {
+  const { colors } = useTheme();
+  const [pressed, setPressed] = useState(false);
+  const still = useReducedMotion();
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled} onPress={onPress} onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)} hitSlop={4} pressRetentionOffset={16} style={[st.headBtn, disabled ? { opacity: 0.35 } : null]}>
+      <Animated.View style={[st.headBtnInner, pressed && !still ? st.headBtnPressed : null]}>
+        <Icon name={icon} size={18} color={pressed ? colors.white : colors.dim} />
+      </Animated.View>
+    </Pressable>
+  );
+}
+
 export default function ChatScreen({ id: idProp }: { id?: string }) {
   const params = useLocalSearchParams<{ id?: string }>();
   const convId = String(idProp || params.id || '');
@@ -46,8 +69,23 @@ export default function ChatScreen({ id: idProp }: { id?: string }) {
   const [text, setText] = useState('');
   const [offline, setOffline] = useState(false);
   const [blocked, setBlocked] = useState(false);
+  const [calls, setCalls] = useState<CallRow[]>([]);
   const scroll = useRef<ScrollView>(null);
   const { gate, termsSheet } = useTermsGate();
+  const callPhase = useCallStore().phase;
+
+  // Call rows live in their own table (callText.ts explains why) and are re-read
+  // on the same 5s cadence as messages. Only a change reaches React: the poll
+  // used to be the reason every bubble re-rendered for nothing.
+  const refreshCalls = React.useCallback(() => {
+    if (!convId) return;
+    loadConvCalls(convId).then((rows) => setCalls((prev) => (sameCalls(prev, rows) ? prev : rows)));
+  }, [convId]);
+  // A call just ended (or was declined/missed) while this thread is open: its
+  // row changes now, not at the next poll.
+  useEffect(() => {
+    if (callPhase === 'ended' || callPhase === 'idle') refreshCalls();
+  }, [callPhase, refreshCalls]);
 
   const close = () => (router.canGoBack() ? router.back() : router.replace(ROUTES.messages as any));
 
@@ -73,9 +111,13 @@ export default function ChatScreen({ id: idProp }: { id?: string }) {
       serverDmBlocked(convId).then((b) => alive && setBlocked(b));
       const ok = await pollChat(convId, true);
       if (alive) setOffline(!ok);
+      refreshCalls();
     })();
     const t = setInterval(() => {
-      if (AppState.currentState === 'active') pollChat(convId, false);
+      if (AppState.currentState === 'active') {
+        pollChat(convId, false);
+        refreshCalls();
+      }
     }, 5000);
     return () => {
       alive = false;
@@ -90,22 +132,37 @@ export default function ChatScreen({ id: idProp }: { id?: string }) {
   const rows = useMemo(() => {
     const out: React.ReactNode[] = [];
     let lastDay = '';
-    list.forEach((m, i) => {
-      const d = new Date(m.created_at);
+    const items = mergeThread(list, calls);
+    items.forEach((it, i) => {
+      const d = new Date(it.t === 'msg' ? it.m.created_at : it.c.created_at);
       const day = dayLabel(d);
       if (day !== lastDay) {
         out.push(
-          <VText key={'d' + m.id} align="center" style={{ fontFamily: FONTS.mono, fontSize: 7, letterSpacing: em(7, 0.25), color: '#231d42', marginVertical: 6 }}>
+          <VText key={'d' + (it.t === 'msg' ? it.m.id : it.c.id)} align="center" style={{ fontFamily: FONTS.mono, fontSize: 7, letterSpacing: em(7, 0.25), color: '#231d42', marginVertical: 6 }}>
             {day}
           </VText>,
         );
         lastDay = day;
       }
+      if (it.t === 'call') {
+        // A system row, not a bubble: "Voice call · 4:12", "Missed video call".
+        out.push(
+          <View key={'c' + it.c.id} style={st.callRow}>
+            <Icon name={it.c.kind === 'video' ? 'camera' : 'phone'} size={11} color={colors.dim} />
+            <VText style={st.callText}>{callRowLabel(it.c, me)}</VText>
+            <VText style={st.callTime}>{timeLabel(d)}</VText>
+          </View>,
+        );
+        return;
+      }
+      const m = it.m;
       const mine = m.sender_id === me;
       // The avatar marks the END of a run, not the start: it sits beside the last
       // thing someone said, where the eye is when the turn passes back. Every other
-      // bubble in the run keeps the space so the column never shifts.
-      const next = list[i + 1];
+      // bubble in the run keeps the space so the column never shifts. A call row
+      // between two messages ends the run too.
+      const nextIt = items[i + 1];
+      const next = nextIt && nextIt.t === 'msg' ? nextIt.m : undefined;
       const lastOfRun = !next || next.sender_id !== m.sender_id;
       out.push(
         <View key={m.id} style={[st.row2, mine ? st.rowMine : st.rowTheirs, m._pending ? { opacity: 0.55 } : null]}>
@@ -126,7 +183,7 @@ export default function ChatScreen({ id: idProp }: { id?: string }) {
       );
       // One time under the stack, on the last message - not a stamp on every
       // bubble, which turned a conversation into a log.
-      if (!next) {
+      if (!nextIt) {
         out.push(
           <VText key={'t' + m.id} align="center" style={st.stackTime}>
             {m._pending ? 'SENDING' : timeLabel(d)}
@@ -135,7 +192,25 @@ export default function ChatScreen({ id: idProp }: { id?: string }) {
       }
     });
     return out;
-  }, [list, me, colors, conv]);
+  }, [list, calls, me, colors, conv]);
+
+  // Phone / camera in the header. Same terms gate as send: a call is a write.
+  const call = (kind: CallKind) => {
+    if (!conv || !convId) return;
+    if (dmIsBlocked(conv.other.id, conv.other.handle)) {
+      voidToast('YOU BLOCKED THIS ACCOUNT');
+      return;
+    }
+    gate(async () => {
+      const err = await startCall(convId, kind);
+      if (err) {
+        voidToast(err);
+        if (/CAN'T CALL/.test(err)) setBlocked(true);
+        return;
+      }
+      router.push({ pathname: ROUTES.call, params: { id: convId, kind } } as any);
+    });
+  };
 
   const send = async () => {
     const body = text.trim();
@@ -170,6 +245,8 @@ export default function ChatScreen({ id: idProp }: { id?: string }) {
             <VText numberOfLines={1} style={{ fontFamily: FONTS.sansBold, fontSize: 13, color: colors.white }}>{name}</VText>
             <VText style={{ fontFamily: FONTS.mono, fontSize: 7, letterSpacing: em(7, 0.12), color: colors.navDim }}>{DM_NOTE}</VText>
           </Pressable>
+          <HeadBtn icon="phone" label="Voice call" disabled={!conv || blocked} onPress={() => call('audio')} />
+          <HeadBtn icon="camera" label="Video call" disabled={!conv || blocked} onPress={() => call('video')} />
           <View style={{ opacity: 0.7 }} accessibilityLabel="Not end-to-end encrypted">
             <Icon name="unlock" size={13} color={colors.dim} />
           </View>
@@ -234,9 +311,21 @@ const st = StyleSheet.create({
   bMine: { maxWidth: '74%', paddingVertical: 10, paddingHorizontal: 14, overflow: 'hidden', borderTopLeftRadius: 18, borderTopRightRadius: 18, borderBottomRightRadius: 6, borderBottomLeftRadius: 18 },
   bText: { fontFamily: FONTS.sans, fontSize: 14, lineHeight: 14 * 1.45, color: '#f4f0ff' },
   stackTime: { fontFamily: FONTS.mono, fontSize: 7, letterSpacing: em(7, 0.14), color: '#5c4d8a', marginTop: 6 },
+  callRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 8, paddingVertical: 4 },
+  callText: { fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.12), color: '#8a7bb8' },
+  callTime: { fontFamily: FONTS.mono, fontSize: 7, letterSpacing: em(7, 0.14), color: '#5c4d8a', marginLeft: 4 },
   fill: { flex: 1 },
   head: { paddingHorizontal: 16, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 10 },
   back: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  // 44pt target; the header's 10px gap keeps the two apart without widening the row.
+  headBtn: { width: 44, height: 44, marginHorizontal: -6, alignItems: 'center', justifyContent: 'center' },
+  headBtnInner: {
+    transform: [{ scale: 1 }],
+    transitionProperty: 'transform',
+    transitionDuration: '120ms',
+    transitionTimingFunction: 'cubic-bezier(0.23, 1, 0.32, 1)',
+  } as any, // Reanimated CSS transition keys (same cast as ReelItem.follow)
+  headBtnPressed: { transform: [{ scale: 0.92 }] },
   info: { flex: 1, minWidth: 0 },
   body: { paddingTop: 14, paddingHorizontal: 16, paddingBottom: 10, gap: 10 },
   wrap: { maxWidth: '82%' },

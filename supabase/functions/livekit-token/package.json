@@ -1,0 +1,12 @@
+{
+  "name": "livekit-token-test",
+  "private": true,
+  "description": "Offline test harness for the livekit-token Edge Function. Not used by `supabase functions deploy` (index.ts imports the sdk via npm: directly).",
+  "type": "module",
+  "scripts": {
+    "test": "node --test mint.test.mjs"
+  },
+  "devDependencies": {
+    "livekit-server-sdk": "2.19.1"
+  }
+}

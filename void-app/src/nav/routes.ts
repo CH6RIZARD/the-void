@@ -21,6 +21,8 @@ export const ROUTES = {
   reelsFor: (nation?: string, post?: string) => `/reels?${[nation ? `nation=${encodeURIComponent(nation)}` : '', post ? `post=${encodeURIComponent(post)}` : ''].filter(Boolean).join('&')}`,
   /** DM conversation */
   chat: (convId: string) => `/messages/${encodeURIComponent(convId)}`,
+  /** 1:1 voice / video call over a DM conversation (src/features/calls). */
+  call: '/call',
   /** Someone else's profile (handle without @) */
   user: (handle: string) => `/u/${encodeURIComponent(handle.replace(/^@/, ''))}`,
   blocked: '/blocked',
