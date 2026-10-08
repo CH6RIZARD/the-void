@@ -369,6 +369,10 @@ async function cycle(n) {
   if (changed) {
     try {
       execFileSync(process.execPath, ['src/core/__tests__/tools/generate-data.ts'], { cwd: path.join(REPO, 'void-app'), stdio: 'ignore', timeout: 5 * 60000 });
+      // The web carries its own copy of the pool; left behind, the parity tests
+      // fail on streams the app no longer has (seen 2026-10-08 after the first prune).
+      execFileSync(process.execPath, ['scripts/inject-iptv.js'], { cwd: REPO, stdio: 'ignore', timeout: 60000 });
+      execFileSync(process.execPath, ['build.js'], { cwd: REPO, stdio: 'ignore', timeout: 60000 });
     } catch (e) {
       log('could not regenerate app data: ' + String(e.message || e).slice(0, 120));
     }
