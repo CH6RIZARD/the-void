@@ -34,7 +34,7 @@
  * Env: OLLAMA_URL, CURATOR_MODEL, PROXY_BASE, CURATOR_EVERY_MS.
  * Ollama down -> logged once, scouting still runs, labeling waits.
  */
-import { readFileSync, writeFileSync, renameSync } from 'node:fs';
+import { readFileSync, writeFileSync, renameSync, statSync, unlinkSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -48,7 +48,7 @@ const EVERY = parseInt(process.env.CURATOR_EVERY_MS, 10) || 5 * 60 * 1000;
 const UA = 'void-curator/1';
 const FEEDS = [
   'at://did:plc:muhesxre7yfcuqi5ss2fskjc/app.bsky.feed.generator/aaaouj7mhcsuq',
-  'at://did:plc:rtdiwzwxxyph5dyvkerpbzrp/app.bsky.feed.generator/og-videos-kps',
+  'at://did:plc:6i6n57nrkq6xavqbdo6bvkqr/app.bsky.feed.generator/og-videos-kps',
 ];
 const TERMS = ['footage', 'police', 'protest', 'breaking'];
 const BATCH = 5, MAX_BATCHES = 6, KEEP_MS = 72 * 3600e3, PUBLIC_N = 60;
@@ -146,7 +146,7 @@ function rank(c, now) {
 const KEY_FILE = process.env.CURATOR_KEY_FILE || 'E:/tmp/curator.key';
 function curatorKey() {
   if (process.env.CURATOR_KEY) return process.env.CURATOR_KEY;
-  try { return fs.readFileSync(KEY_FILE, 'utf8').trim(); } catch { return ''; }
+  try { return readFileSync(KEY_FILE, 'utf8').trim(); } catch { return ''; }
 }
 async function pushCurated(items) {
   const key = curatorKey();
@@ -157,6 +157,17 @@ async function pushCurated(items) {
     log('push ' + r.status + ' ' + t.slice(0, 80));
   } catch (e) { log('push failed: ' + (e && e.message)); }
 }
+
+const LOCK = path.join(ROOT, 'scripts', '.curator.lock');
+function takeLock() {
+  try {
+    const st = statSync(LOCK);
+    if (Date.now() - st.mtimeMs < 2 * 60 * 60 * 1000) return false; // a live pass; a 2h-old lock is a crash
+  } catch { /* no lock */ }
+  writeFileSync(LOCK, String(process.pid));
+  return true;
+}
+function dropLock() { try { unlinkSync(LOCK); } catch { /* */ } }
 
 async function pass() {
   const t0 = Date.now();
@@ -208,7 +219,8 @@ async function pass() {
 (async () => {
   log(`curator start (once=${ONCE} dry=${DRY} model=${MODEL})`);
   for (;;) {
-    await pass().catch(e => log('pass failed: ' + (e && e.message)));
+    if (!takeLock()) { log('another pass is running - skipped'); if (ONCE) break; await new Promise(r => setTimeout(r, EVERY)); continue; }
+    try { await pass(); } catch (e) { log('pass failed: ' + (e && e.message)); } finally { dropLock(); }
     if (ONCE) break;
     await new Promise(r => setTimeout(r, EVERY));
   }

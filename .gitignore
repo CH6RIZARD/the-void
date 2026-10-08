@@ -54,3 +54,4 @@ void-app/android/app/build/
 # Curator output (labels regenerate every pass; the proxy is pushed, not the repo)
 scripts/curated.json
 scripts/curated.public.json
+scripts/.curator.lock
