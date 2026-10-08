@@ -35,7 +35,7 @@
  * Ollama down -> logged once, scouting still runs, labeling waits.
  */
 import { readFileSync, writeFileSync, renameSync, statSync, unlinkSync } from 'node:fs';
-import { spawn } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -45,19 +45,19 @@ const PUBLIC = path.join(ROOT, 'scripts', 'curated.public.json');
 const OLLAMA = process.env.OLLAMA_URL || 'http://127.0.0.1:11434';
 // Nothing else keeps the server up: the tray app was stopped because it re-warms
 // the model into RAM during builds, and the install on D: sat on a drive that
-// went write-protected. So the pass starts the server itself when it is down.
-const OLLAMA_EXE = process.env.OLLAMA_EXE || 'E:\\Ollama\\ollama.exe';
-const OLLAMA_MODELS = process.env.OLLAMA_MODELS || 'E:\\ollama-models';
+// went write-protected. The server runs in its own scheduled task (VoidOllama ->
+// E:\Ollama\serve.cmd, at logon); a pass that finds it down fires that task. It
+// is not spawned from here: a child of this process died with the pass.
+const OLLAMA_TASK = process.env.OLLAMA_TASK || 'VoidOllama';
 
 const ollamaUp = () => fetch(OLLAMA + '/api/tags').then(r => r.ok).catch(() => false);
 async function ensureOllama() {
   if (await ollamaUp()) return true;
-  try {
-    spawn(OLLAMA_EXE, ['serve'], { detached: true, stdio: 'ignore', env: { ...process.env, OLLAMA_MODELS } }).unref();
-  } catch (e) { log('  could not start ' + OLLAMA_EXE + ': ' + e.message); return false; }
+  try { execFileSync('schtasks', ['/run', '/tn', OLLAMA_TASK], { stdio: 'ignore', timeout: 20000 }); }
+  catch (e) { log('  could not run task ' + OLLAMA_TASK + ': ' + e.message); return false; }
   for (let i = 0; i < 30; i++) { // the server answers within a few seconds; the model loads on first use
     await new Promise(r => setTimeout(r, 1000));
-    if (await ollamaUp()) { log('  started ollama serve (' + OLLAMA_EXE + ')'); return true; }
+    if (await ollamaUp()) { log('  started ollama via task ' + OLLAMA_TASK); return true; }
   }
   return false;
 }
@@ -138,10 +138,15 @@ async function labelBatch(batch) {
   // keep_alive 2m: the model leaves RAM between passes. On this 16 GB laptop a
   // resident 2 GB model made release builds take 35 min; the reload is ~10 s a pass.
   const body = { model: MODEL, stream: false, format: 'json', keep_alive: '2m', options: { temperature: 0, num_ctx: 2048 }, messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: lines }] };
-  // Strict parse: every index must be present or the batch is retried once.
+  // A complete answer returns at once; an incomplete one is retried once and
+  // the fuller of the two is kept. The old all-or-nothing rule threw away 3-4
+  // good labels whenever the 3B model dropped one index, which on this CPU it
+  // did in 4 of 6 batches (20 errors, 5 labels a pass, 2026-10-08). What is
+  // missing is simply left for the next pass.
   // A refused connection is Ollama going away mid-pass (it crash-loops when
   // D: drops its blob store), not a bad answer: that returns 'down' so the
   // pass stops labeling instead of burning every remaining clip as an error.
+  let best = null;
   for (let t = 0; t < 2; t++) {
     let r;
     try { r = await fetch(OLLAMA + '/api/chat', { method: 'POST', body: JSON.stringify(body) }); }
@@ -150,10 +155,11 @@ async function labelBatch(batch) {
       const out = JSON.parse((await r.json()).message.content);
       const by = new Map((out.items || []).map(x => [Number(x.i), x]));
       if (batch.every((_, i) => by.has(i))) return by;
-      log(`  label batch incomplete (${t + 1}/2)`);
+      if (!best || by.size > best.size) best = by;
+      log(`  label batch incomplete (${t + 1}/2): ${by.size}/${batch.length}`);
     } catch (e) { log(`  label batch failed (${t + 1}/2): ${e.message}`); }
   }
-  return null;
+  return best && best.size ? best : null;
 }
 
 // ─── 4. store ───────────────────────────────────────────────────────────────
@@ -213,7 +219,10 @@ async function pass() {
     batch.forEach((c, i) => {
       const v = by && by.get(i);
       const now = new Date().toISOString();
-      if (!v) { errors++; items[c.key] = { ...c, error: true, labeledAt: now }; return; } // remembered so it is not retried every pass
+      if (!v) {
+        if (by && by.size) return; // dropped from a partial answer: not stored, so the next pass asks again
+        errors++; items[c.key] = { ...c, error: true, labeledAt: now }; return; // a dead batch is remembered so it is not retried every pass
+      }
       labeled++;
       items[c.key] = { ...c, caption: String(v.caption || c.text).slice(0, 110), genre: String(v.genre || 'other'), topic: String(v.topic || ''), fit: Math.min(1, Math.max(0, Number(v.viral_news_fit) || 0)), graphic: c.graphic || v.graphic === true, labeledAt: now };
     });

@@ -24,11 +24,18 @@ Env: `OLLAMA_URL` (default `http://127.0.0.1:11434`), `CURATOR_MODEL`,
 `PROXY_BASE`, `CURATOR_EVERY_MS`, `OLLAMA_EXE` (default `E:\Ollama\ollama.exe`),
 `OLLAMA_MODELS` (default `E:\ollama-models`).
 
-Nothing else keeps the Ollama server up (the tray app is stopped on purpose: it
-re-warms the model into RAM and starves release builds), so a pass that finds
-it down starts `ollama serve` itself and waits up to 30 s. The copy on E: is
-the one to run; the original install on D: is on a drive that went
-write-protected and was unreachable from 14:01 to 17:00 on 2026-10-08.
+The Ollama server runs in its own scheduled task, `VoidOllama` (at logon, runs
+`E:\Ollama\serve.cmd`, which sets `OLLAMA_MODELS` and starts `ollama serve`).
+Nothing else keeps it up: the tray app is stopped on purpose (it re-warms the
+model into RAM and starves release builds), and a server spawned from the
+curator died with the pass. A pass that finds the server down fires the task
+and waits up to 30 s. The install on E: is the one to run; the original on D:
+is on a drive that went write-protected and was unreachable from 14:01 to
+17:00 on 2026-10-08. `OLLAMA_TASK` overrides the task name.
+
+A batch answer missing some indices keeps the labels it did return; the
+missing clips are not stored and come back as new on the next pass. (The old
+all-or-nothing parse failed 4 of 6 batches on this CPU: 20 errors, 5 labels.)
 
 Ollama down or crashing mid-pass: logged, scouting still runs, unlabeled clips
 wait for the next pass. Measured 2026-10-08 on this CPU: one warm 5-clip batch
