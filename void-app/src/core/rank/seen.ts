@@ -84,7 +84,11 @@ export function admitPost(p: Post | null | undefined): boolean {
 /** READ-ONLY seen check (the nation pane may look, never write). */
 export function wasSeen(p: Post): boolean {
   try {
+    // Same exemption as admitPost: a REPOST is a deliberate re-surface by someone
+    // else, so only its own id counts as seen - not the text it shares with the original.
+    if (_seenIds.has(p.id)) return true;
+    if (p._repost) return false;
     const t = _normText(p.body), l = p._link ? _linkKey(p._link) : '';
-    return _seenIds.has(p.id) || (t.length > 15 && _seenText.has(_h(t))) || (!!l && _seenLink.has(_h(l)));
+    return (t.length > 15 && _seenText.has(_h(t))) || (!!l && _seenLink.has(_h(l)));
   } catch { return false; }
 }

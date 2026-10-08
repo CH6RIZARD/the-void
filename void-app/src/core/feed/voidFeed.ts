@@ -7,7 +7,7 @@ import { VoidAuth } from '../api/auth.ts';
 import { orderFeedBatch } from '../rank/order.ts';
 import { mixFeed } from './feedMixer.ts';
 import { setRefreshBoost } from '../rank/bio.ts';
-import { admitPost } from '../rank/seen.ts';
+import { admitPost, wasSeen } from '../rank/seen.ts';
 import { pullBlueskyPage } from './bluesky.ts';
 import { pullProxyPage, resetProxyOffset } from './proxy.ts';
 import { pullRedditPage } from './reddit.ts';
@@ -95,6 +95,12 @@ export function restoreFeedCache(): number {
     let added = 0;
     for (const p of list) {
       if (!p || !p.id || have.has(p.id)) continue;
+      // NEVER THE SAME POST TWICE. The cache is last session's settled top, and every
+      // card in it was admitted - and so marked SEEN - the session it arrived. Pushing
+      // it straight back into the pool skipped that memory, so the same post led the
+      // feed on launch after launch ("that Trump post, maybe 50 times"). A repost by
+      // someone else is a new id and comes through; the original does not.
+      if (wasSeen(p as Post)) continue;
       allPosts.push(p as Post); added++;
     }
     // console.warn, not log: release builds keep warn. This line is the

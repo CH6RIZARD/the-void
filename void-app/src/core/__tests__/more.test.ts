@@ -214,6 +214,29 @@ test('vwFill: one creator does not fill the rail, and a caption served twice is 
   assert.equal(vixen.length, 1, 'same caption twice: ' + vixen.map(p => p.id).join(','));
 });
 
+test('feed cache restore: a post already shown never leads the next launch; an unshown one and a repost still do', () => {
+  fresh();
+  const mk = (id: string, body: string, extra: Partial<any> = {}) => ({ id, style: 'take', body, tags: ['politics'], score: 5, replies: 0, time: NOW - 3600000, source: 'bluesky', country: '', iso: '', ...extra });
+  // Last session: 'trump' and 'other' were admitted (shown); 'fresh1' was saved to the cache but never admitted.
+  assert.ok(core.admitPost(mk('trump', 'Trump says the quiet part out loud again, long enough to hash') as any));
+  assert.ok(core.admitPost(mk('other', 'A second post the reader scrolled past yesterday evening') as any));
+  core.persistSeen();
+  core.env.storage.setItem(core.FEED_CACHE_KEY, JSON.stringify([
+    mk('trump', 'Trump says the quiet part out loud again, long enough to hash'),
+    mk('other', 'A second post the reader scrolled past yesterday evening'),
+    mk('fresh1', 'Something the reader has not been shown yet at all'),
+    mk('repost1', 'Trump says the quiet part out loud again, long enough to hash', { _repost: true }),
+  ]));
+  // New launch: same storage, empty pool.
+  core.resetStore();
+  const painted = core.restoreFeedCache();
+  const ids = core.allPosts.map(p => p.id);
+  assert.ok(!ids.includes('trump') && !ids.includes('other'), 'seen posts came back: ' + ids.join(','));
+  assert.ok(ids.includes('fresh1'), 'unshown post should warm the launch');
+  assert.ok(ids.includes('repost1'), 'a repost is a new event and may lead');
+  assert.equal(painted, 2);
+});
+
 test('vwKey: one clip reposted by two Bluesky accounts is ONE reel (keyed by video cid, parity with the web)', async () => {
   fresh();
   const w = webSandbox({ now: NOW });
