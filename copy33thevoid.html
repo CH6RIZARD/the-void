@@ -746,7 +746,7 @@ body.tab-void .bio-hud{display:flex}
 .thread-overlay .thread-body{position:relative;flex:1;min-height:0;padding:26px 18px 24px}
 .thread-overlay.flipping .thread-body{overflow:visible}
 .thread-overlay .thread-compose{position:relative;margin:8px 18px 16px;background:var(--tc-card);transition:opacity .24s ease-out}
-.thread-overlay.closing .thread-compose,.thread-overlay.closing .thread-divider{opacity:0;transition:opacity .18s ease-in}
+.thread-overlay.closing .thread-compose,.thread-overlay.closing .thread-divider{opacity:0;transition:opacity .18s cubic-bezier(.23,1,.32,1)}
 .thread-overlay.popin .thread-body,.thread-overlay.popin .thread-compose{animation:tPopIn .24s ease-out both}
 @keyframes tPopIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 .thread-overlay.flipping:not(.closing) .thread-divider,.thread-overlay.flipping:not(.closing) .thread-compose{animation:tFadeIn .24s .12s ease-out both}
@@ -1012,7 +1012,8 @@ body.tab-void .bio-hud{display:flex}
 .vw-av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#f4f0ff;box-shadow:0 0 0 2px rgba(201,168,76,.5)}
 .vw-name{font-size:12px;font-weight:700;color:#f4f0ff}
 .vw-tag{padding:2px 8px;border-radius:16px;background:rgba(239,68,68,.15);font-family:'Syne Mono',monospace;font-size:7px;letter-spacing:.12em;color:#ef4444;text-transform:uppercase}
-.vw-follow{padding:2px 10px;border-radius:16px;border:1px solid rgba(201,168,76,.5);font-family:'Syne Mono',monospace;font-size:7px;letter-spacing:.12em;color:#c9a84c;cursor:pointer}
+.vw-follow{padding:2px 10px;min-width:70px;text-align:center;box-sizing:border-box;border-radius:16px;border:1px solid rgba(201,168,76,.5);font-family:'Syne Mono',monospace;font-size:7px;letter-spacing:.12em;color:#c9a84c;cursor:pointer;background:rgba(201,168,76,0);transition:background-color .15s cubic-bezier(.23,1,.32,1)}
+.vw-follow.on{background:rgba(201,168,76,.18)}
 .vw-body{font-family:'DM Serif Display',serif;font-style:italic;font-size:20px;line-height:1.38;color:#f4f0ff;text-wrap:pretty;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
 .vw-body.open{-webkit-line-clamp:unset;max-height:48vh;overflow-y:auto}
 .vw-more{margin-top:6px;padding:0;background:none;border:none;cursor:pointer;font-family:'Syne Mono',monospace;font-size:8px;letter-spacing:.18em;color:var(--gold)}
@@ -4566,7 +4567,13 @@ function renderPost(p,i){
   // landed: the reader hit the bottom, the sentinel fired, and they got blank
   // space. Eight steps is all the eye reads as a cascade anyway — the same cap
   // renderThreadComments already uses.
-  return `<div class="post${i===0?' highlight':''}" id="post-${p.id}" onclick="${clickAct}" style="animation-delay:${Math.min(i,8)*.04}s">
+  // PER BATCH, NOT PER INDEX (same as the app). Capped at 8 the running index still
+  // gave every card from the ninth on - every page after the first - a flat .32s
+  // hold before its fade. Cards rendered in the same moment stagger .04s apart; a
+  // card rendered on its own fades at once.
+  const _bn=Date.now();if(_bn-(renderPost._at||0)>120){renderPost._at=_bn;renderPost._n=0;}
+  const _delay=Math.min(renderPost._n++,8)*.04;
+  return `<div class="post${i===0?' highlight':''}" id="post-${p.id}" onclick="${clickAct}" style="animation-delay:${_delay}s">
     <div class="post-header">
       <div class="${avClass}">${personPfpHtml(p.author_id||p._authorId,p._handle,p._author||p.iso,32)}</div>
       <div class="post-meta">
@@ -7554,7 +7561,7 @@ function closeThread(){_thTr.on=false;
                  {duration:260,easing:'cubic-bezier(.32,.72,.28,1)',fill:'forwards'});
       dur=Math.max(dur,260);
     }else{
-      op.animate([{opacity:1,transform:'none'},{opacity:0,transform:'translateY(12px)'}],{duration:200,easing:'ease-in',fill:'forwards'});
+      op.animate([{opacity:1,transform:'none'},{opacity:0,transform:'translateY(12px)'}],{duration:200,easing:'cubic-bezier(.23,1,.32,1)',fill:'forwards'});
     }
   }
   _tFlip.timer=setTimeout(()=>{if(tok===_tFlip.token)_threadFinishClose();},dur);
@@ -9161,7 +9168,7 @@ function vwItemHtml(p,i){
     <div class="vw-info">
       <div class="vw-id-row"><div class="vw-av">${personPfpHtml(p.author_id||p._authorId,p._handle,p._author||p.country,28)}</div>
         <span class="vw-name">${esc(p._author||p.country||'void')}</span>
-        <span class="vw-follow" onclick="vwFollow(this,event)">${vwFollowSet().has(vwHandleOf(p))?'FOLLOWING':'FOLLOW'}</span></div>
+        <span class="vw-follow${vwFollowSet().has(vwHandleOf(p))?' on':''}" onclick="vwFollow(this,event)">${vwFollowSet().has(vwHandleOf(p))?'FOLLOWING':'FOLLOW'}</span></div>
       <div class="vw-body">${esc(p.body)}</div>${(p.body||'').length>150?`<button class="vw-more" onclick="event.stopPropagation();const b=this.previousElementSibling;const o=b.classList.toggle('open');this.textContent=o?'LESS':'MORE'">MORE</button>`:''}
       <div class="vw-meta">${VICON.pin} ${(p.country||'WORLD').toUpperCase()} · ${ago(p.time)} · SWIPE ↑</div>
       <div class="vw-spine"><i></i></div></div></div>`;
@@ -9245,7 +9252,7 @@ function vwFollow(el,e){
   const h=vwHandleOf(p);if(!h)return;
   const paint=on=>document.querySelectorAll('.vw-item').forEach(it=>{
     const q=findPost(it.dataset.pid);if(vwHandleOf(q)!==h)return;
-    const f=it.querySelector('.vw-follow');if(f)f.textContent=on?'FOLLOWING':'FOLLOW';});
+    const f=it.querySelector('.vw-follow');if(f){f.textContent=on?'FOLLOWING':'FOLLOW';f.classList.toggle('on',on);}});
   const m=vwFollowMeta(),prev=m.get(h),on=!prev;
   if(on)m.set(h,{h,name:p._author||h,source:String(p.source||''),uid:p.author_id||p._authorId||null,at:Date.now()});else m.delete(h);
   vwFollowSave();paint(on);
