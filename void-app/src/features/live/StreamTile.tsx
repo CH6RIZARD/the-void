@@ -84,14 +84,19 @@ export interface StreamTileProps {
 let fillOk = 0;
 let fillFail = 0;
 const fillMs: number[] = [];
+// The last streams that gave up, so a stalled tile names its source in the
+// log instead of being one of 2,300 (the k62's dead tile took a 296-stream
+// probe to find; this line would have said which in one read).
+const fillDead: string[] = [];
 let fillFirstAt = 0;
 let fillTimer: ReturnType<typeof setTimeout> | null = null;
-function noteSettle(success: boolean, ms: number, kind: string): void {
+function noteSettle(success: boolean, ms: number, kind: string, src?: string): void {
   if (success) {
     fillOk++;
     fillMs.push(ms);
   } else {
     fillFail++;
+    if (src) { fillDead.push(src); while (fillDead.length > 3) fillDead.shift(); }
   }
   if (!fillFirstAt) fillFirstAt = Date.now();
   if (fillTimer) clearTimeout(fillTimer);
@@ -109,7 +114,7 @@ function noteSettle(success: boolean, ms: number, kind: string): void {
     const worst = sorted.length ? sorted[sorted.length - 1] : -1;
     try {
       console.warn(
-        '[fill] ' + fillOk + '/' + n + ' tiles got a picture · median ' + med + 'ms · worst ' + worst + 'ms · ' + fillFail + ' gave up · last ' + kind,
+        '[fill] ' + fillOk + '/' + n + ' tiles got a picture · median ' + med + 'ms · worst ' + worst + 'ms · ' + fillFail + ' gave up · last ' + kind + (fillDead.length ? ' · dead: ' + fillDead.join(' ') : ''),
       );
     } catch {
       /* */
@@ -162,7 +167,7 @@ export const StreamTile = forwardRef<StreamTileHandle, StreamTileProps>(function
     if (success && !mounted.current) success = false;
     ok.current = success;
     if (success) setPlaying(true);
-    noteSettle(success, Date.now() - startedAt.current, source.type);
+    noteSettle(success, Date.now() - startedAt.current, source.type, success ? undefined : (source as any).url || (source as any).id);
     cb.current.onSettled(success);
   }, []);
 
