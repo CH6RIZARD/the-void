@@ -189,7 +189,13 @@ const LOCK = path.join(ROOT, 'scripts', '.curator.lock');
 function takeLock() {
   try {
     const st = statSync(LOCK);
-    if (Date.now() - st.mtimeMs < 2 * 60 * 60 * 1000) return false; // a live pass; a 2h-old lock is a crash
+    // The lock names its pass; a pass that was killed (a manual run ended with
+    // its shell, 2026-10-08) leaves a lock its pid no longer answers for, and
+    // that blocked every scheduled pass for the two hours the age rule allowed.
+    const pid = Number(readFileSync(LOCK, 'utf8')) || 0;
+    let alive = false;
+    try { process.kill(pid, 0); alive = pid > 0; } catch { /* no such process */ }
+    if (alive && Date.now() - st.mtimeMs < 2 * 60 * 60 * 1000) return false; // a live pass; a 2h-old lock is a crash
   } catch { /* no lock */ }
   writeFileSync(LOCK, String(process.pid));
   return true;
