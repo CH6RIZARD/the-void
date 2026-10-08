@@ -17,7 +17,7 @@ const plain = (v: unknown) => JSON.parse(JSON.stringify(v));
 const noNet = (async () => ({ ok: false, status: 0, json: async () => null })) as any;
 function fresh(seed = 7) {
   core.configureCore({ storage: core.createMemoryStorage(), session: core.createMemoryStorage(), now: () => NOW, random: mulberry32(seed), proxyBase: '', fetch: noNet });
-  core._badStreams.clear(); core.resetStories(); core.resetStore();
+  core._badStreams.clear(); core.resetStories(); core.resetStore(); core._vwForgetAll();
 }
 
 test('parseUrl agrees with WHATWG URL on host/hostname/pathname (RN has no URL getters)', () => {
@@ -212,6 +212,31 @@ test('vwFill: one creator does not fill the rail, and a caption served twice is 
   assert.equal(who[0], 'jimdiv', 'the top post still leads');
   const vixen = [...first, ...second].filter(p => /vixen/.test(p.body || ''));
   assert.equal(vixen.length, 1, 'same caption twice: ' + vixen.map(p => p.id).join(','));
+});
+
+test('vwKey: one clip reposted by two Bluesky accounts is ONE reel (keyed by video cid, parity with the web)', async () => {
+  fresh();
+  const w = webSandbox({ now: NOW });
+  w.load('vwKey');
+  const cid = 'bafkreigh2akiscaildcqabsyg3dfr6chu3fgpregiymsck7e7ovqaxz3oa';
+  const a = { id: 'a1', _video: 'https://video.bsky.app/watch/did%3Aplc%3Aposter1/' + cid + '/playlist.m3u8' };
+  const b = { id: 'b1', _video: 'https://video.bsky.app/watch/did%3Aplc%3Aposter2/' + cid + '/playlist.m3u8?x=1' };
+  const c = { id: 'c1', _video: 'https://cdn.example/v/other/playlist.m3u8' };
+  assert.equal(core.vwKey(a as any), core.vwKey(b as any), 'same cid, different poster -> same key');
+  assert.notEqual(core.vwKey(a as any), core.vwKey(c as any));
+  w.run(`var __p=${JSON.stringify([a, b, c])};`);
+  assert.deepEqual([a, b, c].map(p => core.vwKey(p as any)), JSON.parse(w.run('JSON.stringify(__p.map(vwKey))')));
+  // And through the real fill: the repost never becomes a second card.
+  const mk = (id: string, who: string, vid: string) => ({ id, style: 'video', body: 'content_warning', tags: ['conflict'], score: 10, replies: 0, time: NOW - 3600000, source: 'bluesky', country: '', iso: '', _author: who, _handle: '@' + who, _video: vid });
+  core.reelPosts.push(mk('a1', 'anna', a._video) as any, mk('b1', 'ben', b._video) as any, mk('c1', 'cara', c._video) as any);
+  // Deal the whole pool out: the repost must never become a second card. vwFill
+  // tops a thin pool up in the background; that pull must not outlive this test
+  // and land on the next one's fetch mock, so the pull is answered by a fetch
+  // that resolves to nothing and is awaited before the test returns.
+  const ids = [...core.vwFill(8, true), ...core.vwFill(8, true)].map(p => p.id);
+  await core.pullReelPage();
+  assert.ok(ids.includes('c1') && (ids.includes('a1') || ids.includes('b1')), 'picked ' + ids.join(','));
+  assert.ok(!(ids.includes('a1') && ids.includes('b1')), 'repost dealt twice: ' + ids.join(','));
 });
 
 test('vwBodyKey / vwWho match the web build (same caption and creator identity)', () => {

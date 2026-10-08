@@ -242,7 +242,14 @@ export const VW_NO_REPEAT = 40;
 const _vwRecent: string[] = [];
 const _vwRecentSet = new Set<string>();
 export function vwKey(p: Post | null | undefined): string {
-  return String((p && (p._video || p.id)) || '').split('?')[0].split('#')[0];
+  const u = String((p && (p._video || p.id)) || '').split('?')[0].split('#')[0];
+  // THE CLIP, NOT THE POSTER. Bluesky serves a video at
+  // video.bsky.app/watch/<poster did>/<video cid>/playlist.m3u8, so the SAME clip
+  // reposted by a second account got a second key, and the rail showed it twice
+  // three cards apart (k62, 2026-10-07). The cid is content-addressed: one clip,
+  // one key, whoever posted it. Other hosts keep the full url.
+  const m = /\/watch\/[^/]+\/([a-z0-9]{20,})\//i.exec(u);
+  return m ? 'cid:' + m[1] : u;
 }
 // The same post can also arrive as two videos (two hosts, two accounts reposting
 // it): its caption is the second identity. Short captions are too generic to key on.
@@ -316,7 +323,12 @@ export function vwFill(n = 5, any = false): Post[] {
       const c = { ...p }; vwSeen.add(p.id); vwRemember(p);
       laneClaim(p, 'reel'); c._vid = p.id + '~' + env.random().toString(36).slice(2, 6); return c;
     });
+  // One line per fill so a repeat seen on a phone can be read off logcat: which
+  // clips were dealt, from what pool, and how deep the no-repeat window was.
+  try { console.warn('[reel] fill ' + picks.length + '/' + n + ' from pool ' + pool.length + ' · recent ' + _vwRecent.length + ' · ' + picks.map(p => vwWho(p) + ':' + vwKey(p).slice(-8)).join(' ')); } catch { /* */ }
   vwQueue.push(...picks); return picks;
 }
 /** Reset the reel queue (web: opening a nation reel). */
 export function vwReset(): void { vwQueue.length = 0; vwSeen.clear(); }
+/** Tests only: forget the session's no-repeat window and creator spacing too. */
+export function _vwForgetAll(): void { vwReset(); _vwRecent.length = 0; _vwRecentSet.clear(); _vwAuthors.length = 0; }

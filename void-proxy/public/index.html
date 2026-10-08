@@ -8928,7 +8928,10 @@ function vwScore(p){
 // and pulls more (vwTopUp) - a short wait instead of a loop.
 const VW_NO_REPEAT=40;
 const _vwRecent=[],_vwRecentSet=new Set();
-function vwKey(p){return String((p&&(p._video||p.id))||'').split('?')[0].split('#')[0];}
+function vwKey(p){const u=String((p&&(p._video||p.id))||'').split('?')[0].split('#')[0];
+  // The clip, not the poster: video.bsky.app/watch/<did>/<cid>/playlist.m3u8 - a repost by
+  // another account changes the did, never the content-addressed cid. One clip, one key.
+  const m=/\/watch\/[^/]+\/([a-z0-9]{20,})\//i.exec(u);return m?'cid:'+m[1]:u;}
 // The same post can also arrive as two videos (two hosts, two accounts reposting
 // it): its caption is the second identity. Short captions are too generic to key on.
 function vwBodyKey(p){const b=String((p&&p.body)||'').toLowerCase().replace(/https?:\/\/\S+/g,'').replace(/\s+/g,' ').trim();return b.length>=24?'b:'+b.slice(0,100):'';}
