@@ -83,3 +83,15 @@ The branch publishes its own Cloudflare Pages site (project `stream-patches`, vi
 `.github/workflows/deploy-stream-patches.yml`) with the patched build playable, so the
 globe can be checked before any of this reaches `main`. It deploys **only** that
 project — `void-app-d35c`, the live app, is never touched by this branch.
+
+## Fonts and the age gate (2026-10-08, compliance agent)
+
+- Syne / Syne Mono / DM Serif Display are now EMBEDDED in `void2-final.html` as
+  base64 `@font-face` (latin subsets, ~135 KB). The Google Fonts `<link>`s are
+  gone on purpose: a visitor's IP going to fonts.googleapis.com is a GDPR leak
+  (Munich ruling). Do not reintroduce the links. `node build.js` carries the
+  block into both targets. Regenerate the block with the Google CSS2 URL in the
+  comment above it if the font list changes.
+- Sign-in requires YEAR OF BIRTH, 13+ (COPPA). Checked in `ageGateError()` and
+  deliberately NOT stored or sent anywhere; the app holds no personal facts.
+- The proxy's in-memory caches and `.x-budget.json` mean one replica only.
