@@ -1447,8 +1447,8 @@ body.tab-void .bio-hud{display:flex}
     </div>
     <div class="prof-stats">
       <div class="prof-stat"><div class="prof-stat-num" id="p-posts">0</div><div class="prof-stat-lbl">DROPS</div></div>
-      <div class="prof-stat"><div class="prof-stat-num" id="p-following">0</div><div class="prof-stat-lbl">FOLLOWING</div></div>
-      <div class="prof-stat"><div class="prof-stat-num" id="p-followers">0</div><div class="prof-stat-lbl">VOICES</div></div>
+      <div class="prof-stat" style="cursor:pointer" onclick="VMod.follows('following')"><div class="prof-stat-num" id="p-following">–</div><div class="prof-stat-lbl">FOLLOWING</div></div>
+      <div class="prof-stat" style="cursor:pointer" onclick="VMod.follows('followers')"><div class="prof-stat-num" id="p-followers">–</div><div class="prof-stat-lbl">VOICES</div></div>
     </div>
     <div class="prof-actions">
       <button class="prof-edit" onclick="openSettings()">EDIT PROFILE</button>
@@ -8538,8 +8538,7 @@ function renderProfile(){
   const sb=document.querySelector('.prof-share');
   if(sb&&!sb.querySelector('.vi'))sb.innerHTML=VICON.share;
   document.getElementById('p-posts').textContent=USER.posts||0;
-  document.getElementById('p-following').textContent=USER.following||0;
-  document.getElementById('p-followers').textContent=USER.followers||0;
+  loadFollowCounts();
   paintProfLayoutBtn();renderProfPane(_profTab);
   BIO._update();
   applySavedCover();
@@ -10106,6 +10105,19 @@ function myPfpHtml(size){const c=readPfpChoice();return pfpHtml(myPfpSeed(),size
 // the Void id, else the handle, else the name, so one person has one face in the
 // feed, a reel, a thread, a comment and their DM row. Your own posts show your pick.
 // This replaces the letter on an AVC-coloured disc everywhere.
+// Profile counts: the server's follows for this account, plus - on FOLLOWING - the
+// reel creators followed from this device. USER.following/followers were local
+// counters nothing ever wrote, so the profile always said 0.
+async function loadFollowCounts(){
+  let a=[],b=[];
+  try{const me=VoidAPI._uid();if(me)[a,b]=await Promise.all([
+    VoidAPI._sb('/rest/v1/follows?follower_id=eq.'+me+'&select=followee_id&limit=1000','GET').catch(()=>[]),
+    VoidAPI._sb('/rest/v1/follows?followee_id=eq.'+me+'&select=follower_id&limit=1000','GET').catch(()=>[])]);}catch(e){}
+  const ids=new Set((a||[]).map(r=>r.followee_id));
+  const extra=[...vwFollowMeta().values()].filter(f=>!(f.uid&&ids.has(f.uid))).length;
+  const fg=document.getElementById('p-following'),fr=document.getElementById('p-followers');
+  if(fg)fg.textContent=fmt((a||[]).length+extra);if(fr)fr.textContent=fmt((b||[]).length);
+}
 function personSeed(uid,handle,label){const h=String(handle||'').replace(/^@/,'').toLowerCase();return uid||(h&&h!=='void'?h:'')||String(label||'').toLowerCase()||'void';}
 function personPfpHtml(uid,handle,label,size){let mine=false;try{mine=!!uid&&uid===VoidAPI._uid();}catch(e){}return mine?myPfpHtml(size):pfpHtml(personSeed(uid,handle,label),size);}
 // The picker in Settings (native EditProfileSheet: 'OR CHOOSE A FIGURE').
@@ -10763,6 +10775,34 @@ function muteSheet(){
 function doMute(){const i=document.getElementById('vmod-mute');const v=(i&&i.value||'').trim();if(!v)return;voidMute(v);close();sweep();voidToast('MUTED · '+v.toUpperCase());}
 function unmute(m,fromMute){voidUnmute(m);voidToast('UNMUTED · '+String(m).toUpperCase());if(fromMute)muteSheet();else blockedSheet();}
 
+// ─── FOLLOWERS / FOLLOWING (profile stats) ─────────────────────────────
+// Void accounts from the follows table; on FOLLOWING, the creators followed from
+// reels are added from this device (the table cannot hold them). Same as the app.
+async function followsSheet(kind){
+  open(hdr(kind==='followers'?'FOLLOWERS':'FOLLOWING')+'<div class="vmod-list" id="vmod-follows" style="min-height:40vh"><div class="vmod-empty">LOADING…</div></div>');
+  let rows=[];
+  try{
+    const me=VoidAPI._uid();
+    if(me){
+      const [col,oth]=kind==='following'?['follower_id','followee_id']:['followee_id','follower_id'];
+      const links=await VoidAPI._sb('/rest/v1/follows?'+col+'=eq.'+me+'&select='+oth+'&limit=1000','GET').catch(()=>[]);
+      const ids=(links||[]).map(r=>r[oth]).filter(Boolean);
+      if(ids.length){
+        const profs=await VoidAPI._sb('/rest/v1/profiles?id=in.('+ids.join(',')+')&select=id,handle,display_name','GET').catch(()=>[]);
+        rows=(profs||[]).map(p=>({uid:p.id,handle:p.handle||'',name:p.display_name||p.handle||'Void user'}));
+      }
+    }
+  }catch(e){}
+  if(kind==='following'){
+    const have=new Set(rows.map(r=>r.uid));
+    rows=rows.concat([...vwFollowMeta().values()].filter(f=>!(f.uid&&have.has(f.uid))).sort((a,b)=>b.at-a.at)
+      .map(f=>({uid:f.uid,handle:f.h,name:f.name,source:f.uid?'':f.source})));
+  }
+  const el=document.getElementById('vmod-follows');if(!el)return;
+  el.innerHTML=rows.length?rows.map(r=>`<div class="vmod-item"><div class="vmod-av">${personPfpHtml(r.uid,r.handle,r.name,32)}</div><span class="vmod-row-t"><span class="vmod-row-l">${att(r.name)}</span><span class="vmod-row-s">@${att(r.handle)}${r.source?' · '+att(srcName(r.source).toUpperCase()):''}</span></span></div>`).join('')
+    :`<div class="vmod-empty">${kind==='followers'?'NO FOLLOWERS YET':'NOT FOLLOWING ANYONE YET'}</div>`;
+}
+
 // ─── settings pages ──────────────────────────────────────────────────────
 function blockedSheet(){
   const v=blocks.filter(b=>!b.external),x=blocks.filter(b=>b.external);
@@ -10918,7 +10958,7 @@ W('sendChatMessage',o=>function(){const a=arguments,t=this;
 W('openSettings',o=>function(){const r=o.apply(this,arguments);const g=document.getElementById('s-gfx');if(g)g.className='toggle'+(hideGraphic?' on':'');const bc=document.getElementById('s-blocked-n');if(bc)bc.textContent=blocks.length?blocks.length+' HIDDEN OR BLOCKED':'Accounts and sources you hid';
   document.querySelectorAll('.settings-row.vmod-nav [data-vmod-chev]').forEach(s=>{if(!s.innerHTML)s.innerHTML=IC.chev;});return r;});
 
-window.VMod={SUPPORT_EMAIL,TERMS_URL,PRIVACY_URL,menu,cmenu,author,reportSheet,pick,submitReport,toggleBlock,unblock:k=>unblock(k),
+window.VMod={SUPPORT_EMAIL,TERMS_URL,PRIVACY_URL,menu,cmenu,author,reportSheet,pick,submitReport,toggleBlock,unblock:k=>unblock(k),follows:k=>followsSheet(k),
   muteSheet,doMute,unmute,blockedSheet,contactSheet,restoreHidden,termsSheet,acceptTerms,gate,termsOk,toggleGraphic,close,sweep,sync,
   hidden,isBlocked,isBlockedUser,authorOf,get blocks(){return blocks.slice();}};
 })();
