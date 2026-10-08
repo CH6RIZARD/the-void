@@ -154,7 +154,7 @@ async function pushCurated(items) {
   const key = curatorKey();
   if (!key) { log('push skipped: no CURATOR_KEY (env or ' + KEY_FILE + ')'); return; }
   try {
-    const r = await fetch(PROXY + '/curated/ingest', { method: 'POST', headers: { 'content-type': 'application/json', 'x-curator-key': key, 'user-agent': 'void-curator/1' }, body: JSON.stringify({ generated: new Date().toISOString(), items }), signal: AbortSignal.timeout(15000) });
+    const r = await fetch(PROXY + '/curated/ingest', { method: 'POST', headers: { 'content-type': 'application/json', 'x-curator-key': key, 'user-agent': 'void-curator/1' }, body: JSON.stringify({ generated: new Date().toISOString(), items }), signal: AbortSignal.timeout(45000) }); // 60 clips over a slow uplink timed out at 15 s
     const t = await r.text();
     log('push ' + r.status + ' ' + t.slice(0, 80));
   } catch (e) { log('push failed: ' + (e && e.message)); }
