@@ -3136,6 +3136,7 @@ function proxyPostToApp(p){
     body:p.text||'', score:(p.metrics&&p.metrics.score)||0, replies:(p.metrics&&p.metrics.replies)||0,
     time:p.createdAt||Date.now(), source:p.platform, _author:p.author||p.platform, _handle:p.handle||('@'+p.platform),
     _img:(img&&img.url)||(vid&&vid.thumb)||'', _video:(vid&&vid.url)||'', _url:p.url||'', _social:true,
+    _graphic:!!p.graphic, // proxy's graphic flag -> the veil, never bare and never dropped
     // Same-article dedupe + wire detection apply to proxy items too: the proxy
     // aggregates several platforms, so one story arrives from several of them.
     _link:p.link||p.url||'', _reposts:(p.metrics&&p.metrics.reposts)||0,   // p.link = the external article (proxy sends it separately from the Reddit permalink) _quotes:(p.metrics&&p.metrics.quotes)||0,

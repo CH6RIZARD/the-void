@@ -514,8 +514,8 @@ class XProvider extends SocialProvider {
     for (const m of inc.media || []) mediaByKey[m.media_key] = m;
 
     // X's possibly_sensitive flag is where war and street footage lands, so it is
-    // kept and marked graphic: the app veils it, never drops it and never shows
-    // it bare. (Every lane still holds it back for now - see unveiledOnly.)
+    // kept and marked graphic: the app maps it to _graphic and veils it (blurred,
+    // TAP TO VIEW) - never drops it, never shows it bare.
     return data.data.filter((t) => !(t.possibly_sensitive && X_SEXUAL.test(t.text || ''))).map((t) => {
       const u = users[t.author_id] || {};
       const pm = t.public_metrics || {};
@@ -559,26 +559,20 @@ class XProvider extends SocialProvider {
   async fetchGlobal({ limit }) {
     // Every term here must be unambiguous, because X bills per post read: the
     // old 'strike'/'protest' query paid for NFL touchdowns and rap beef.
-    return this.search(X_EVENTS + ' ' + X_FIRSTHAND + ' lang:en', limit).then(unveiledOnly).catch((e) => this._fail(e));
+    return this.search(X_EVENTS + ' ' + X_FIRSTHAND + ' lang:en', limit).catch((e) => this._fail(e));
   }
 
   async fetchByCountry({ country, limit }) {
     if (!country) return this.fetchGlobal({ limit });
-    return this.search(`"${country}" (airstrike OR ceasefire OR missile OR invasion OR protesters OR killed OR attack) ${X_FIRSTHAND} lang:en`, limit).then(unveiledOnly).catch((e) => this._fail(e));
+    return this.search(`"${country}" (airstrike OR ceasefire OR missile OR invasion OR protesters OR killed OR attack) ${X_FIRSTHAND} lang:en`, limit).catch((e) => this._fail(e));
   }
 
   // Relevancy within the reels window is X's own "most engaged lately" order.
   async fetchReels({ limit }) {
-    return this.search(X_CLIPS + ' has:videos lang:en', limit, REELS_MAX_AGE_MS, true).then(unveiledOnly).catch((e) => this._fail(e));
+    return this.search(X_CLIPS + ' has:videos lang:en', limit, REELS_MAX_AGE_MS, true).catch((e) => this._fail(e));
   }
 }
 
-// No client maps `graphic` yet (proxyPostToApp reads it nowhere), so a
-// sensitive X post would play unveiled on any of them - and before this change
-// no endpoint carried one. /reels included: no client reads it today, but the
-// first one wired to it must not get footage bare.
-// ponytail: drop this once proxyPostToApp maps graphic -> _graphic everywhere.
-function unveiledOnly(items) { return items.filter((it) => !it.graphic); }
 
 // --- ThreadsProvider (stub) ------------------------------------------------
 // Meta's Threads has no public read/search API for arbitrary content (the

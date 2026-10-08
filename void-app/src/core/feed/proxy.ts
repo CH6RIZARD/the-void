@@ -14,6 +14,9 @@ export function proxyPostToApp(p: any): Post | null {
     body: p.text || '', score: (p.metrics && p.metrics.score) || 0, replies: (p.metrics && p.metrics.replies) || 0,
     time: p.createdAt || env.now(), source: p.platform, _author: p.author || p.platform, _handle: p.handle || ('@' + p.platform),
     _img: (img && img.url) || (vid && vid.thumb) || '', _video: (vid && vid.url) || '', _url: p.url || '', _social: true,
+    // The proxy's graphic flag (X possibly_sensitive, Reddit over_18) lands on the
+    // existing veil - the clip shows blurred with TAP TO VIEW, never bare and never dropped.
+    _graphic: !!p.graphic,
     // Same-article dedupe + wire detection apply to proxy items too (p.link = the
     // external article, sent separately from the Reddit permalink).
     // WEB PARITY: in void2-final.html `_quotes:` sits inside the trailing comment on

@@ -72,10 +72,11 @@ assert.deepStrictEqual(byId.x_104.media, [{ type: 'image', url: 'https://pbs.twi
 assert.match(byId.x_106.media[0].url, /gif/);
 
 (async () => {
-  // /feed and /social still hold sensitive X back from clients that cannot veil.
+  // Sensitive X rides every lane flagged graphic: the client veils it, never bare.
   x.search = async (q, l, since, hls) => x.mapResponse(FIXTURE, hls);
-  const feedIds = (await x.fetchGlobal({ limit: 10 })).map((p) => p.id);
-  assert.ok(feedIds.includes('x_101') && !feedIds.includes('x_102'), 'feed lane must not carry graphic X');
+  const feed = await x.fetchGlobal({ limit: 10 });
+  const g = feed.find((p) => p.id === 'x_102');
+  assert.ok(feed.some((p) => p.id === 'x_101') && g && g.graphic === true, 'feed lane carries graphic X, flagged');
 
   // /reels pipeline: a mostly-text Reddit pool plus one Reddit clip, beside X.
   const text = Array.from({ length: 60 }, (_, i) => ({ id: 'reddit_t' + i, platform: 'reddit', text: 'plain text post number ' + i + ' with no clip',
@@ -87,9 +88,10 @@ assert.match(byId.x_106.media[0].url, /gif/);
     { fetchReels: (o) => x.fetchReels(o) },
   ]);
   // Only fresh playable clips, most engaged per hour first: the old clip (105),
-  // the photo (103) and the variant-less clip (104) are out, and so is graphic
-  // 102 until a client maps graphic -> _graphic (see unveiledOnly).
-  assert.deepStrictEqual(reels.map((p) => p.id), ['x_101', 'reddit_v1', 'x_106']);
+  // the photo (103) and the variant-less clip (104) are out. Graphic 102 is IN,
+  // flagged, for the client's veil.
+  assert.deepStrictEqual(reels.map((p) => p.id), ['x_101', 'reddit_v1', 'x_102', 'x_106']);
+  assert.strictEqual(reels.find((p) => p.id === 'x_102').graphic, true, 'graphic clip is flagged for the veil');
   assert.strictEqual(reels[0].media[0].url, HLS);
   assert.ok(reels.every((p) => p.provenance && p.provenance.sourceHost && p.provenance.responseHash), 'client refuses items without provenance');
 
