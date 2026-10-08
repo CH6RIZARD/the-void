@@ -178,8 +178,17 @@ provider that costs money. Four limits keep that bounded:
 |---|---|---|
 | `X_DAILY_POSTS` | `1000` | Posts read per UTC day — a $5/day ceiling. `0` turns X off. |
 | `X_MAX_RESULTS` | `10` | Posts per API call (10 is the API minimum). |
-| `X_CACHE_MS` | `900000` | How long one query is reused before paying again (15 min). |
-| `X_MAX_SHARE` | `0.15` | Share of a returned page that may be X items. |
+| `X_CACHE_MS` | `3600000` | How long one query is reused before paying again (60 min). |
+| `X_MAX_SHARE` | `0.15` | Share of a returned page that may be X items — only while Reddit is authed. |
+
+The global feed runs three X queries per refresh (conflict, unrest, disaster —
+each paired with the first-hand filter) and merges them, so one page draws from
+several events instead of whichever term relevancy favoured. Cost per day is
+`3 queries x 10 posts x 24 windows = 720` reads for the feed, plus 240 for `/reels`,
+under the 1000 ceiling; `test.js` asserts this arithmetic against the constants.
+
+Without `REDDIT_CLIENT_ID`/`REDDIT_SECRET`, Reddit is 403 and there is nothing
+to ration X against, so `X_MAX_SHARE` is ignored and the whole page may be X.
 
 The cap is **global, not per user** — and that is the cheaper direction. The proxy
 serves every user from one shared 60s cache, so a per-user budget would mean

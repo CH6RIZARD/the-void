@@ -371,7 +371,11 @@ class RedditProvider extends SocialProvider {
 // the cap then protects a running day, not a redeploy day.
 const X_DAILY_POSTS = intEnv('X_DAILY_POSTS', 1000);   // 1000 x $0.005 = $5/day ceiling
 const X_MAX_RESULTS = intEnv('X_MAX_RESULTS', 10);
-const X_CACHE_MS = intEnv('X_CACHE_MS', 15 * 60 * 1000);
+// 60 min: the global feed runs X_GLOBAL_QUERIES.length (3) queries per refresh,
+// so at the old 15 min it would read 3 x 10 x 96 = 2880 posts/day, past the
+// budget by noon. 60 min is 3 x 10 x 24 = 720 for the feed, leaving room for
+// /reels (240) under the 1000 ceiling. Eyewitness posts age fine over an hour.
+const X_CACHE_MS = intEnv('X_CACHE_MS', 60 * 60 * 1000);
 const X_MAX_SHARE = Number(process.env.X_MAX_SHARE || 0.15);
 const X_BUDGET_FILE = require('path').join(__dirname, '.x-budget.json');
 
@@ -403,7 +407,16 @@ function xBudgetSpend(n) {
 // scene, or present-tense witness language. An event term alone matched jokes
 // ("a real ceasefire 👀 #BB28") and memes; the app filters news orgs out on its
 // own, so asking for "news accounts" would be the opposite of the point.
-const X_EVENTS = "(airstrike OR ceasefire OR missile OR invasion OR coup OR protesters OR \"state of emergency\" OR evacuation OR earthquake)";
+//
+// Three queries, not one: relevancy ranking on one combined query returned a
+// page where every post matched the same term (measured 2026-10-08: ten posts,
+// all "state of emergency"). One query per topic family makes a page draw from
+// conflict, unrest AND disaster at once, at 3x the reads - X_CACHE_MS pays for it.
+const X_GLOBAL_QUERIES = [
+  "(airstrike OR ceasefire OR missile OR invasion)",
+  "(coup OR protesters OR curfew)",
+  "(\"state of emergency\" OR evacuation OR earthquake)",
+];
 const X_FIRSTHAND = "(has:media OR \"right now\" OR \"happening now\" OR \"just now\" OR \"outside my\" OR \"we can hear\" OR \"on the ground\")";
 // Reels want the clip itself: the street-level events that go viral as video
 // (police, bodycam, riots, blasts), not the diplomatic ones. has:videos is added
@@ -559,7 +572,13 @@ class XProvider extends SocialProvider {
   async fetchGlobal({ limit }) {
     // Every term here must be unambiguous, because X bills per post read: the
     // old 'strike'/'protest' query paid for NFL touchdowns and rap beef.
-    return this.search(X_EVENTS + ' ' + X_FIRSTHAND + ' lang:en', limit).catch((e) => this._fail(e));
+    // Each query has its own cache entry in search(); a post matching two
+    // families (an airstrike that triggers an evacuation) comes back twice and
+    // is kept once. The merged set is the page's X supply - nothing trims it.
+    const sets = await Promise.all(X_GLOBAL_QUERIES.map((q) =>
+      this.search(q + ' ' + X_FIRSTHAND + ' lang:en', limit).catch((e) => this._fail(e))));
+    const seen = new Set();
+    return sets.flat().filter((it) => !seen.has(it.id) && seen.add(it.id));
   }
 
   async fetchByCountry({ country, limit }) {
@@ -669,8 +688,15 @@ function collect(results, mode, limit, arrange) {
 // worth rationing on display: keep the top X_MAX_SHARE of them in rank order
 // and drop the tail. Nothing else is touched, and the cap is on the pool, so
 // every page inherits roughly the same ratio.
-function capXShare(ranked) {
-  if (!(X_MAX_SHARE >= 0) || X_MAX_SHARE >= 1) return ranked;
+//
+// The ration assumes Reddit fills the other 85%. Keyless Reddit is 403 (API
+// access denied), so without credentials the "free" items are only the regional
+// alert subs that happen to answer - and rationing against those cut a page's X
+// to ~4 posts that were already paid for, while the page filled with op-ed
+// paragraphs instead of the first-person posts the X query selects for. No
+// Reddit auth: X is the feed, un-rationed. With auth, the ration stands.
+function capXShare(ranked, authed = redditAuthed()) {
+  if (!authed || !(X_MAX_SHARE >= 0) || X_MAX_SHARE >= 1) return ranked;
   // Measured against the FREE items, not the whole pool: capping a pool that
   // still contains the X items would leave them over-represented once trimmed.
   const free = ranked.reduce((n, it) => n + (it.platform === 'x' ? 0 : 1), 0);
@@ -1296,4 +1322,4 @@ function loadDotEnv() {
   } catch (_) { /* ignore */ }
 }
 
-module.exports = { server, tensionScore, capXShare, xBudgetLeft, redditToken, redditAuthed, deeplTarget, translateTexts, rankItems, subsForCountry, withProvenance, interleaveRegional, page, bestVariant, aggregateReels, RedditProvider, XProvider, ThreadsProvider };
+module.exports = { server, tensionScore, capXShare, xBudgetLeft, X_GLOBAL_QUERIES, X_MAX_RESULTS, X_CACHE_MS, X_DAILY_POSTS, redditToken, redditAuthed, deeplTarget, translateTexts, rankItems, subsForCountry, withProvenance, interleaveRegional, page, bestVariant, aggregateReels, RedditProvider, XProvider, ThreadsProvider };

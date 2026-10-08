@@ -5,12 +5,31 @@
 // shaped like a real v2 recent-search answer.
 process.env.X_BEARER = '';
 process.env.X_MAX_SHARE = '0.15';
+// The spend arithmetic below checks the shipped defaults, not a local .env.
+process.env.X_DAILY_POSTS = process.env.X_MAX_RESULTS = process.env.X_CACHE_MS = '';
+process.env.REDDIT_CLIENT_ID = process.env.REDDIT_SECRET = '';
 process.env.CURATOR_KEY = 'test-curator-key';
 globalThis.fetch = () => { throw new Error('test.js must stay offline'); };
 
 const assert = require('assert');
 const http = require('http');
-const { XProvider, bestVariant, aggregateReels, server } = require('./server');
+const { XProvider, bestVariant, aggregateReels, capXShare, redditAuthed, server,
+  X_GLOBAL_QUERIES, X_MAX_RESULTS, X_CACHE_MS, X_DAILY_POSTS } = require('./server');
+
+// Spend ceiling, from the constants alone: every global-feed query is paid once
+// per cache window, so a day costs queries x posts x windows. 1000 is the hard
+// cap; the feed must leave room under it for /reels and /social.
+const feedReadsPerDay = X_GLOBAL_QUERIES.length * X_MAX_RESULTS * Math.ceil(864e5 / X_CACHE_MS);
+assert.ok(feedReadsPerDay <= 900, `global feed would read ${feedReadsPerDay} posts/day, over the 900 line`);
+assert.ok(feedReadsPerDay + X_MAX_RESULTS * Math.ceil(864e5 / X_CACHE_MS) <= X_DAILY_POSTS, 'feed + reels must fit the daily budget');
+
+// No Reddit credentials: X is the whole page, nothing rationed. With them, the
+// 15% ration against the free items stands.
+const xs = Array.from({ length: 20 }, (_, i) => ({ id: 'x_' + i, platform: 'x' }));
+const rs = Array.from({ length: 20 }, (_, i) => ({ id: 'reddit_' + i, platform: 'reddit' }));
+assert.strictEqual(redditAuthed(), false);
+assert.strictEqual(capXShare([...xs, ...rs]).length, 40, 'unauthed reddit: X passes un-rationed');
+assert.strictEqual(capXShare([...xs, ...rs], true).filter((p) => p.platform === 'x').length, 3, 'authed reddit: 15% of the page');
 
 const H = 3.6e6, now = Date.now();
 const iso = (agoH) => new Date(now - agoH * H).toISOString();
@@ -74,11 +93,25 @@ assert.deepStrictEqual(byId.x_104.media, [{ type: 'image', url: 'https://pbs.twi
 assert.match(byId.x_106.media[0].url, /gif/);
 
 (async () => {
-  // Sensitive X rides every lane flagged graphic: the client veils it, never bare.
-  x.search = async (q, l, since, hls) => x.mapResponse(FIXTURE, hls);
+  // The global feed runs one query per topic family and merges them: the
+  // disaster query answers with the back half of the fixture, the others with
+  // the front, overlapping on 103/104 - which must come back once.
+  const queries = [];
+  x.search = async (q, l, since, hls) => {
+    queries.push(q);
+    const all = x.mapResponse(FIXTURE, hls);
+    return /state of emergency/.test(q) ? all.slice(2) : all.slice(0, 4);
+  };
   const feed = await x.fetchGlobal({ limit: 10 });
+  assert.strictEqual(new Set(queries).size, X_GLOBAL_QUERIES.length, 'one distinct query per family');
+  assert.ok(queries.every((q) => /right now/.test(q) && /lang:en/.test(q)), 'every family keeps the first-hand filter');
+  const ids = feed.map((p) => p.id);
+  assert.strictEqual(new Set(ids).size, ids.length, 'merged feed has no duplicate ids');
+  assert.deepStrictEqual(ids, ['x_101', 'x_102', 'x_103', 'x_104', 'x_105', 'x_106'], 'merge keeps every family, dedupes the overlap');
+  // Sensitive X rides every lane flagged graphic: the client veils it, never bare.
   const g = feed.find((p) => p.id === 'x_102');
-  assert.ok(feed.some((p) => p.id === 'x_101') && g && g.graphic === true, 'feed lane carries graphic X, flagged');
+  assert.ok(g && g.graphic === true, 'feed lane carries graphic X, flagged');
+  x.search = async (q, l, since, hls) => x.mapResponse(FIXTURE, hls);
 
   // /reels pipeline: a mostly-text Reddit pool plus one Reddit clip, beside X.
   const text = Array.from({ length: 60 }, (_, i) => ({ id: 'reddit_t' + i, platform: 'reddit', text: 'plain text post number ' + i + ' with no clip',
