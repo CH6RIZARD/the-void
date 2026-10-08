@@ -2,8 +2,18 @@
 // and the modal stack.
 import '../src/lib/polyfills';
 import 'react-native-reanimated';
+// LiveKit's WebRTC globals (RTCPeerConnection, MediaStream, ...) must exist before
+// any Room is built, and the earliest moment is here, before React renders. A
+// require inside try/catch rather than an import: a dev client built before the
+// native module was added would otherwise throw at boot instead of just losing
+// calls (CallScreen reports "calls need a rebuilt app" in that case).
+try {
+  (require('@livekit/react-native') as typeof import('@livekit/react-native')).registerGlobals();
+} catch {
+  /* no native LiveKit module in this binary: rebuild the dev client */
+}
 import React, { useEffect, useState } from 'react';
-import { AppState, StyleSheet, View } from 'react-native';
+import { AppState, InteractionManager, StyleSheet, View } from 'react-native';
 import { mark, startHeartbeat } from '../src/core/slow';
 import { earthAstcAsync } from '../src/features/globe/astcMap';
 // Module evaluation time: the earliest moment JS can see. [boot] lines count from here.
@@ -68,6 +78,7 @@ import { AuthProvider } from '../src/lib/auth';
 import { SensingProvider } from '../src/lib/sensing';
 import { AudioOwnerProvider } from '../src/features/live';
 import { registerPhotoViewer } from '../src/features/photo';
+import { IncomingCallHost } from '../src/features/calls/IncomingCallSheet';
 import { Image as ExpoImage } from 'expo-image';
 import { Observe, ObserveRoot } from 'expo-observe';
 
@@ -126,22 +137,29 @@ function Shell() {
   // seconds after first paint instead, while the feed is being read: by the time
   // the tab is pressed the module is already in the registry and the press does
   // nothing but build the scene.
+  //
+  // Confirmed (cold_launch, 2026-10-08): the require is the ~420ms 'idle' stall
+  // at the four-second mark. A timer alone fires it mid-scroll if the reader is
+  // already in the feed, and a 400ms JS block under a fling is a run of dropped
+  // frames. runAfterInteractions holds it until no touch or animation is in
+  // flight, so the block lands between gestures, where nothing is drawing.
   useEffect(() => {
+    let task: { cancel(): void } | undefined;
     const t = setTimeout(() => {
-      try {
-        // Named, because a synchronous require of three.js and the scene builder
-        // is one of the largest single blocks the app can run, and it runs on a
-        // timer with nothing else to blame it on. The stall detector was
-        // reporting 300-450ms blocks around the four-second mark attributed to
-        // 'idle' - this is the first candidate to confirm or clear.
-        mark('boot:globeScene');
-        require('../src/features/globe/globeScene');
-        mark('idle');
-      } catch {
-        /* the tab still works, it just pays for itself again */
-      }
+      task = InteractionManager.runAfterInteractions(() => {
+        try {
+          mark('boot:globeScene');
+          require('../src/features/globe/globeScene');
+          mark('idle');
+        } catch {
+          /* the tab still works, it just pays for itself again */
+        }
+      });
     }, 4000);
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(t);
+      task?.cancel();
+    };
   }, []);
 
   // The search discovery pool is session-global, and the first SEARCH open used
@@ -195,11 +213,15 @@ function Shell() {
               <Stack.Screen name="composer" options={{ presentation: 'transparentModal', animation: 'none', contentStyle: { backgroundColor: 'transparent' } }} />
               <Stack.Screen name="settings" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
               <Stack.Screen name="sign-in" options={{ presentation: 'fullScreenModal', animation: 'fade', gestureEnabled: false }} />
+              {/* A call: no swipe-away, the end button is the only way out. */}
+              <Stack.Screen name="call" options={{ presentation: 'fullScreenModal', animation: 'fade', gestureEnabled: false, contentStyle: { backgroundColor: '#05020e' } }} />
               {/* Jump In: first launch (index.tsx) and every way back out of an account. */}
               <Stack.Screen name="onboarding" options={{ animation: 'fade', gestureEnabled: false, contentStyle: { backgroundColor: '#04020c' } }} />
               <Stack.Screen name="auth-callback" options={{ animation: 'none' }} />
             </Stack>
             <ToastHost />
+            {/* Rings over any screen; inside AuthProvider so it knows whose calls to watch. */}
+            <IncomingCallHost />
           </View>
         </AudioOwnerProvider>
       </SensingProvider>

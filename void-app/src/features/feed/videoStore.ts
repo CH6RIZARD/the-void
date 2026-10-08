@@ -10,13 +10,18 @@
 // card -> thread hand-off (unmount + mount in the same frame) never recreates one.
 import { useEffect, useState } from 'react';
 import { createVideoPlayer, type VideoPlayer } from 'expo-video';
-import { releasePaced } from '../live/pacedPlayer';
+import { mark } from '../../core/slow';
+import { enqueueCreate, releasePaced } from '../live/pacedPlayer';
 
 interface Entry {
-  player: VideoPlayer;
+  /** null until the paced builder has run its job. */
+  player: VideoPlayer | null;
   uri: string;
   refs: number;
   releaseT: ReturnType<typeof setTimeout> | null;
+  job: ReturnType<typeof enqueueCreate> | null;
+  /** Hooks waiting for the player to exist. */
+  waiters: Set<(p: VideoPlayer) => void>;
 }
 const entries = new Map<string, Entry>();
 
@@ -27,10 +32,24 @@ function acquire(postId: string, uri: string): Entry {
     e = undefined;
   }
   if (!e) {
-    const player = createVideoPlayer({ uri });
-    player.muted = true; // muted + loop, like the feed <video muted loop playsinline>
-    player.loop = true;
-    const entry: Entry = { player, uri, refs: 0, releaseT: null };
+    // Built on the paced queue, never here. This used to call createVideoPlayer
+    // synchronously from the card's effect the first time it was >=60% in view -
+    // an ExoPlayer.Builder().build() of 0.3-1.7s (see pacedPlayer.ts) landing on a
+    // fling frame, and on tab focus one per visible clip in the same frame.
+    // Measured 10-08 feed_scroll: stalls 606/697/1222ms with no mark of their own.
+    // The queue holds during gestures and spaces builds out; the card shows its
+    // loader until its turn, as it already did while the first frame decoded.
+    const entry: Entry = { player: null, uri, refs: 0, releaseT: null, job: null, waiters: new Set() };
+    entry.job = enqueueCreate(() => {
+      mark('feed:player');
+      const player = createVideoPlayer({ uri });
+      player.muted = true; // muted + loop, like the feed <video muted loop playsinline>
+      player.loop = true;
+      entry.player = player;
+      entry.job = null;
+      entry.waiters.forEach((w) => w(player));
+      entry.waiters.clear();
+    });
     entries.set(postId, entry);
     e = entry;
   }
@@ -55,7 +74,10 @@ function release(postId: string, now = false): void {
     if (entries.get(postId) === e) entries.delete(postId);
     // Stopped now, released on the paced queue: the feed trims cards in batches, and a
     // burst of synchronous ExoPlayer releases blocks the main thread (ANR 2026-09-21).
-    releasePaced(e.player);
+    // A player still waiting to be built is simply never built.
+    if (e.job) e.job.cancelled = true;
+    e.waiters.clear();
+    if (e.player) releasePaced(e.player);
   };
   if (now) {
     // The immediate path skipped this, leaving the timer armed on an entry that is
@@ -84,7 +106,11 @@ export function useSharedPlayer(postId: string, uri: string | undefined, enabled
     }
     const e = acquire(postId, uri);
     setPlayer(e.player);
-    return () => release(postId);
+    if (!e.player) e.waiters.add(setPlayer);
+    return () => {
+      e.waiters.delete(setPlayer);
+      release(postId);
+    };
   }, [postId, uri, enabled]);
   return player;
 }
@@ -98,7 +124,7 @@ function peek(postId: string, uri: string): VideoPlayer | null {
 export function isSharedPlaying(postId: string): boolean {
   const e = entries.get(postId);
   try {
-    return !!e && e.player.playing;
+    return !!e?.player && e.player.playing;
   } catch {
     return false;
   }

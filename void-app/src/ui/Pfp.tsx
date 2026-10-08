@@ -4,8 +4,9 @@
 //
 // The figure is chosen by number, and the SAME number always gives the SAME figure,
 // so a person keeps one face everywhere they appear.
-import React from 'react';
+import React, { useState } from 'react';
 import { Pressable, View } from 'react-native';
+import { Image } from 'expo-image';
 import { readJSON, VoidAPI, writeJSON } from '../core';
 import Svg, { Defs, Path, RadialGradient, Stop, Circle } from 'react-native-svg';
 
@@ -77,6 +78,51 @@ export function PfpFigureSvg({ fig, size, strokeWidth = 2.2 }: { fig: PfpFigure;
  */
 export function Pfp({ seed, figure, size = 44, ring = false }: { seed?: string | null; figure?: number; size?: number; ring?: boolean }) {
   const fig = (figure != null && BY_N.get(figure)) || pfpFor(seed);
+  const strokeWidth = size >= 90 ? 1.8 : 2.2;
+  const [failed, setFailed] = useState(false);
+  if (failed) return <PfpSvg fig={fig} size={size} ring={ring} strokeWidth={strokeWidth} />;
+  // ONE native view, not six. Disc + ring + figure used to be two react-native-svg
+  // trees per avatar (Svg/Defs/RadialGradient/Circle, then Svg/Path/Path), which is
+  // the pattern Glyph.tsx removed from icons after the 2026-09-21 ANR: every card
+  // in a fling batch mounted them all in one commit. Same markup, one expo-image,
+  // decoded off the main thread and cached; the Svg tree is the fallback.
+  return (
+    <Image
+      source={{ uri: pfpUri(fig, ring, strokeWidth) }}
+      style={{ width: size, height: size, borderRadius: size / 2 }}
+      contentFit="contain"
+      cachePolicy="memory"
+      transition={0}
+      accessible={false}
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
+const uriCache = new Map<string, string>();
+// Figures are 100x100 and sit on the disc at 72% (PfpSvg's `inner`), so the group is
+// scaled .72 and offset 14 - stroke width scales with it, as it did at `inner` px.
+function pfpUri(fig: PfpFigure, ring: boolean, strokeWidth: number): string {
+  const key = fig.n + (ring ? 'r' : '') + strokeWidth;
+  let uri = uriCache.get(key);
+  if (!uri) {
+    const svg =
+      `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">` +
+      `<defs><radialGradient id="d" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#2a1060"/><stop offset="0.7" stop-color="#0d0520"/></radialGradient></defs>` +
+      `<circle cx="50" cy="50" r="50" fill="url(#d)"/>` +
+      (ring ? `<circle cx="50" cy="50" r="48.5" fill="none" stroke="${GOLD}" stroke-width="3"/>` : '') +
+      `<g transform="translate(14 14) scale(0.72)">` +
+      `<path d="${fig.d}" fill="none" stroke="${GOLD}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"/>` +
+      (fig.fill ? `<path d="${fig.fill}" fill="${GOLD}"/>` : '') +
+      `</g></svg>`;
+    uri = `data:image/svg+xml;base64,${btoa(svg)}`;
+    uriCache.set(key, uri);
+  }
+  return uri;
+}
+
+/** The react-native-svg drawing of the same avatar: the fallback if the image fails to decode. */
+function PfpSvg({ fig, size, ring, strokeWidth }: { fig: PfpFigure; size: number; ring: boolean; strokeWidth: number }) {
   // The mock's figures sit in a 100x100 box that is mostly figure; on the disc they
   // read better at about 70% of it.
   const inner = Math.round(size * 0.72);
@@ -92,7 +138,7 @@ export function Pfp({ seed, figure, size = 44, ring = false }: { seed?: string |
         <Circle cx={50} cy={50} r={50} fill="url(#pfpDisc)" />
         {ring ? <Circle cx={50} cy={50} r={48.5} fill="none" stroke={GOLD} strokeWidth={3} /> : null}
       </Svg>
-      <PfpFigureSvg fig={fig} size={inner} strokeWidth={size >= 90 ? 1.8 : 2.2} />
+      <PfpFigureSvg fig={fig} size={inner} strokeWidth={strokeWidth} />
     </View>
   );
 }

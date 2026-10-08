@@ -174,6 +174,22 @@ let createHoldUntil = 0;
 export function holdCreates(ms: number) {
   createHoldUntil = Date.now() + ms;
 }
+// ─── THE FIRST SCREEN AFTER A HOLD SPREADS ITS BUILDS ───────────────────
+//
+// A tab switch (BottomNav -> noteTabPress -> holdCreates) parks a whole screen
+// of tiles behind one hold. When it lifts they would all go 40ms apart - a
+// build every other frame while the new tab is still drawing its first ones.
+// Measured 10-08, void->globe: `stalled 637ms · last: player:create`, 32 frames
+// in 2.5s. So for a short window after a hold lifts the gap is wider (~8 builds
+// a second, every seventh frame instead of every other); the steady-state 40ms
+// returns by itself. Placement/ordering are untouched: the
+// same jobs run in the same order, only later.
+const POST_HOLD_GAP_MS = 120;
+const POST_HOLD_WINDOW_MS = 1500;
+function createGap(now: number): number {
+  // createHoldUntil is the last hold's end; only reached once it has passed.
+  return now - createHoldUntil < POST_HOLD_WINDOW_MS ? POST_HOLD_GAP_MS : CREATE_GAP_MS;
+}
 function stepCreate() {
   createTimer = null;
   if (!createQueue.length) return;
@@ -201,9 +217,9 @@ function stepCreate() {
   } catch {
     /* a failed build must not stop the queue */
   }
-  if (createQueue.length) createTimer = setTimeout(stepCreate, CREATE_GAP_MS);
+  if (createQueue.length) createTimer = setTimeout(stepCreate, createGap(Date.now()));
 }
-function enqueueCreate(run: () => void): CreateJob {
+export function enqueueCreate(run: () => void): CreateJob {
   const job: CreateJob = { run, cancelled: false };
   createQueue.push(job);
   // 0, not CREATE_GAP_MS: the first build goes on the next tick, not this one.

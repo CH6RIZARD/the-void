@@ -95,7 +95,13 @@ export function usePostViewability(surface: string, getPost: (item: any) => Post
     const offFocus = nav.addListener('focus', () => {
       focusedRef.current = true;
       setSurfaceFocused(surface, true);
-      setInView(surface, lastIds.current);
+      // One frame later, not on the switch frame: re-latching every visible clip
+      // at once lands their player work on the frame the globe is already
+      // spending on its blur pass (nav_globe_void p99 750ms, 10-08). The guard
+      // covers a blur that beat the frame.
+      requestAnimationFrame(() => {
+        if (focusedRef.current) setInView(surface, lastIds.current);
+      });
     });
     return () => {
       offBlur();

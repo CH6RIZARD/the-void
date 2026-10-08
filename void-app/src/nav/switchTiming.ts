@@ -6,12 +6,19 @@
 // before it had focus. console.warn, not log: release builds strip console.log.
 import { useCallback } from 'react';
 import { useFocusEffect } from 'expo-router';
+import { holdCreates } from '../features/live/pacedPlayer';
 
 const SLOW_MS = 250;
+// How long the switch owns the JS thread before ExoPlayer builds may land on it.
+// Measured 10-08 (void->globe, S22): the globe's tiles enqueue builds on the next
+// tick after focus and a synchronous createVideoPlayer stalled the thread 637ms
+// mid-switch. Self-expiring, nothing dropped: the wall fills the same, 700ms later.
+const HOLD_BUILDS_MS = 700;
 
 /** Called by the nav pill the moment a tab is pressed. */
 export function noteTabPress(): void {
   (globalThis as any).__voidTabPressAt = Date.now();
+  holdCreates(HOLD_BUILDS_MS);
 }
 
 /** In a tab screen: report how long after the press this screen got focus. */

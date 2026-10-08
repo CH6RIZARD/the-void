@@ -213,23 +213,36 @@ export const PostCard = memo(function PostCard({ post: p, index: i, onOpenThread
 // drops the animated style: no opacity 0 is left in React's props to fall back
 // to. Here rather than in PostCard so that commit re-renders one View, not the
 // whole card (media, actions, text) in the middle of a nation open.
-const FadeIn = memo(function FadeIn({
-  id,
-  viewRef,
-  style,
-  children,
-}: {
+interface FadeInProps {
   id: string;
   viewRef: React.RefObject<View | null>;
   style?: StyleProp<ViewStyle>;
   children: React.ReactNode;
-}) {
+}
+const FadeIn = memo(function FadeIn(props: FadeInProps) {
+  // Decided once, at mount: a card scrolling back into the window (FlatList does
+  // not recycle, it re-mounts) has already faded and gets a plain View - no shared
+  // value, no worklet, no Animated.View, for every card in a fling's batch that
+  // the reader has seen before. A card that must still fade keeps the Animated
+  // variant for its whole life, so the instance never changes component type.
+  const [animate] = useState(() => !faded.has(props.id));
+  if (!animate) {
+    return (
+      <View ref={props.viewRef} collapsable={false} style={[styles.outer, props.style]}>
+        {props.children}
+      </View>
+    );
+  }
+  return <FadeInAnimated {...props} />;
+});
+
+function FadeInAnimated({ id, viewRef, style, children }: FadeInProps) {
   const fade = useSharedValue(faded.has(id) ? 1 : 0);
   const [settled, setSettled] = useState(() => faded.has(id));
   useEffect(() => {
     if (faded.has(id)) {
-      // Already faded (a re-mount, or a second card for the same post in the same
-      // commit): show it settled rather than leave this instance at fade 0.
+      // Already faded (a second card for the same post in the same commit): show
+      // it settled rather than leave this instance at fade 0.
       setSettled(true);
       return;
     }
@@ -253,7 +266,7 @@ const FadeIn = memo(function FadeIn({
       {children}
     </Animated.View>
   );
-});
+}
 
 function renderMedia(p: Post, i: number, surface: string): React.ReactNode {
   if (p._pending && p._pendingKind && p._pendingKind !== 'text') return <PendingMedia kind={p._pendingKind} />;
