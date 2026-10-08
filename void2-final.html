@@ -1187,6 +1187,9 @@ body.tab-void .bio-hud{display:flex}
 .pin.unread .pin-name{color:var(--white)}
 /* THE PFP SET: figure on disc (native ui/Pfp.tsx) */
 .pfp{position:relative;border-radius:50%;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;vertical-align:middle}
+.post-avatar,.post-av,.thread-comment-av,.vw-av,.vmod-av{overflow:hidden;padding:0}
+.post-avatar>.pfp,.post-av>.pfp,.thread-comment-av>.pfp,.vw-av>.pfp,.vmod-av>.pfp,
+.post-avatar>.pfp>svg,.post-av>.pfp>svg,.thread-comment-av>.pfp>svg,.vw-av>.pfp>svg,.vmod-av>.pfp>svg{width:100%!important;height:100%!important}
 .pfp>svg{display:block}.pfp .pfp-fig{position:absolute}
 .conv-av,.chat-av{background:none!important;padding:0}
 .pfp-toggle{font-family:'Syne Mono',monospace;font-size:8px;letter-spacing:.2em;color:var(--gold);background:none;border:none;padding:12px 0;cursor:pointer;display:block}
@@ -4112,7 +4115,6 @@ function toggleSetting(el){el.classList.toggle('on');}
 function saveSettings(){USER.name=document.getElementById('s-name').value.trim()||USER.name;USER.handle=document.getElementById('s-handle').value.trim()||USER.handle;USER.bio=document.getElementById('s-bio').value.trim();SETTINGS.lang=document.getElementById('s-lang').value;SETTINGS.autoplay=document.getElementById('s-autoplay').classList.contains('on');SETTINGS.notify=document.getElementById('s-notify').classList.contains('on');saveUser();writePfpChoice(_pfpPending);localStorage.setItem('v_lang',SETTINGS.lang);localStorage.setItem('v_autoplay',SETTINGS.autoplay);localStorage.setItem('v_notify',SETTINGS.notify);applyGrid3();renderProfile();closeSettings();}
 function clearData(){if(confirm('Clear all void data?')){localStorage.clear();location.reload();}}
 
-const AVC=['#3b1f8a','#1f3a8a','#8a1f3a','#1f8a3a','#5b1f8a','#8a5b1f','#6b1f5a'];
 const SEED_POSTS=[
   {id:'s1',style:'take',country:'United States',iso:'US',tags:['surveillance','power','AI'],body:'The infrastructure to track every human on earth at the biological level exists today. The patent was filed in 2020. Nobody read it.',score:2847,replies:312,time:Date.now()-1800000,source:'reddit',sourceUrl:'https://reddit.com/r/conspiracy'},
   {id:'s2',style:'image',country:'Ukraine',iso:'UA',tags:['warfare','geopolitics','resistance'],body:'Third night of strikes on eastern infrastructure. Satellite thermal imagery confirms coordinated targeting pattern.',imgHue:210,score:5621,replies:891,time:Date.now()-3600000,source:'telegram',sourceUrl:'https://t.me'},
@@ -4509,8 +4511,6 @@ function ensureFeedSentinel(){
 function renderPost(p,i){
   const r=postReactions[p.id]||{};
   const typeIco={drop:'◈',take:'✦',image:'▣',video:'▷',audio:'◉',carousel:'⊞',link_live:'⊕',link_thread:'⊡'}[p.style]||'◈';
-  const av=(p._author||p.iso||'?')[0].toUpperCase();
-  const col=p._isoColor||AVC[i%AVC.length]||'#2a1060';
   let mediaHtml='';
   if(p._pending&&p._pendingKind&&p._pendingKind!=='text'){
     // A drop whose media is still uploading: loader only, never the local blob.
@@ -4566,7 +4566,7 @@ function renderPost(p,i){
   // renderThreadComments already uses.
   return `<div class="post${i===0?' highlight':''}" id="post-${p.id}" onclick="${clickAct}" style="animation-delay:${Math.min(i,8)*.04}s">
     <div class="post-header">
-      <div class="${avClass}" style="background:${col}">${av}</div>
+      <div class="${avClass}">${personPfpHtml(p.author_id||p._authorId,p._handle,p._author||p.iso,32)}</div>
       <div class="post-meta">
         <div class="post-name">${esc(p._author||p.iso||'void')} <span class="post-handle">${esc(p._handle||'@void')}</span>${p._filler?'<span class="post-filler-badge">DEV·FILLER</span>':''}</div>
         <div class="post-time">${ago(p.time)}</div>
@@ -6771,8 +6771,8 @@ async function pullCountryBsky(c){
   }catch(e){return [];}
 }
 // Country feed: seed posts → Reddit → Wikipedia fallback (always shows something)
-function feedPostHtml(p,i,iso){const src=p.source||'void';const srcHandle={'reddit':'r/worldnews','telegram':'telegram','twitter':'x.com','void':'void.signal','forum':'forum','bluesky':'void.signal'}[src]||src;return `<div class="post" style="animation-delay:${i*.04}s"><div class="post-header"><div class="post-avatar" style="background:${AVC[i%AVC.length]}">${iso}</div><div class="post-meta"><div class="post-name">${esc(p.country||'world')} <span class="post-handle">@${srcHandle}</span></div><div class="post-time">${ago(p.time)}</div></div></div><div class="post-body${p.style==='take'?' take':''}" onclick="openThread('${p.id}')">${esc(p.body)}</div><div class="post-acts"><button class="pa fire">${VICON.heart}<span>${fmt(p.score)}</span></button><button class="pa rank">${VICON.reply}<span>${fmt(p.replies||0)}</span></button></div></div>`;}
-function redditPostHtml(p,i,iso,url){const sub=url.match(/\/r\/([^/]+)/)?.[1]||'worldnews';return `<div class="post" style="animation-delay:${i*.04}s"><div class="post-header"><div class="post-avatar" style="background:${AVC[i%AVC.length]}">${iso}</div><div class="post-meta"><div class="post-name">reddit <span class="post-handle">r/${sub}</span></div><div class="post-time">${ago(p.time)} &middot; ${fmt(p.nc||0)} voices</div></div></div><div class="post-body take" onclick="openThreadFromUrl('${encodeURIComponent(url)}',this)">${esc(p.title)}</div><div class="post-acts"><button class="pa fire">${VICON.heart}<span>${fmt(p.score||0)}</span></button><button class="pa rank">${VICON.reply}<span>${fmt(p.nc||0)}</span></button><a href="${url}" target="_blank" class="pa" style="text-decoration:none">&#x2197; VIEW</a></div></div>`;}
+function feedPostHtml(p,i,iso){const src=p.source||'void';const srcHandle={'reddit':'r/worldnews','telegram':'telegram','twitter':'x.com','void':'void.signal','forum':'forum','bluesky':'void.signal'}[src]||src;return `<div class="post" style="animation-delay:${i*.04}s"><div class="post-header"><div class="post-avatar">${personPfpHtml(p.author_id||p._authorId,p._handle,p._author||srcHandle,32)}</div><div class="post-meta"><div class="post-name">${esc(p.country||'world')} <span class="post-handle">@${srcHandle}</span></div><div class="post-time">${ago(p.time)}</div></div></div><div class="post-body${p.style==='take'?' take':''}" onclick="openThread('${p.id}')">${esc(p.body)}</div><div class="post-acts"><button class="pa fire">${VICON.heart}<span>${fmt(p.score)}</span></button><button class="pa rank">${VICON.reply}<span>${fmt(p.replies||0)}</span></button></div></div>`;}
+function redditPostHtml(p,i,iso,url){const sub=url.match(/\/r\/([^/]+)/)?.[1]||'worldnews';return `<div class="post" style="animation-delay:${i*.04}s"><div class="post-header"><div class="post-avatar">${pfpHtml(personSeed(null,'r/'+sub,null),32)}</div><div class="post-meta"><div class="post-name">reddit <span class="post-handle">r/${sub}</span></div><div class="post-time">${ago(p.time)} &middot; ${fmt(p.nc||0)} voices</div></div></div><div class="post-body take" onclick="openThreadFromUrl('${encodeURIComponent(url)}',this)">${esc(p.title)}</div><div class="post-acts"><button class="pa fire">${VICON.heart}<span>${fmt(p.score||0)}</span></button><button class="pa rank">${VICON.reply}<span>${fmt(p.nc||0)}</span></button><a href="${url}" target="_blank" class="pa" style="text-decoration:none">&#x2197; VIEW</a></div></div>`;}
 // ─── NATION FEED ────────────────────────────────────────────────────────
 // Why it showed "NO VERIFIED SIGNAL": Bluesky's public searchPosts now answers 403
 // without a session, GDELT allows one call per 5s, and admitPost() — the feed's
@@ -7477,7 +7477,7 @@ function openThread(postId){const p=allPosts.find(x=>x.id===postId);if(!p)return
   // A thread still open or mid-close settles instantly, so its borrowed media is home first.
   if(_ov.classList.contains('open')||_tFlip.media||_tFlip.src)_threadFinishClose();
   closeReplies(true,true);
-  currentThreadPost=postId;const srcIcons={reddit:'REDDIT',twitter:'X',instagram:'INSTAGRAM',telegram:'TELEGRAM',youtube:'YOUTUBE',void:'VOID',forum:'FORUM',mastodon:'MASTODON',lemmy:'LEMMY',bluesky:'VOID',peertube:'PEERTUBE',radio:'RADIO',commons:'WIKIMEDIA COMMONS'};const srcLabel=p.source==='news'?String((p.provenance&&p.provenance.sourceHost)||p._author||'NEWS').toUpperCase():(srcIcons[p.source]||'SOURCE');const srcHref=p.sourceUrl||'#';const _av=(p._author||p.iso||'?')[0].toUpperCase();const _col=p._isoColor||AVC[0];
+  currentThreadPost=postId;const srcIcons={reddit:'REDDIT',twitter:'X',instagram:'INSTAGRAM',telegram:'TELEGRAM',youtube:'YOUTUBE',void:'VOID',forum:'FORUM',mastodon:'MASTODON',lemmy:'LEMMY',bluesky:'VOID',peertube:'PEERTUBE',radio:'RADIO',commons:'WIKIMEDIA COMMONS'};const srcLabel=p.source==='news'?String((p.provenance&&p.provenance.sourceHost)||p._author||'NEWS').toUpperCase():(srcIcons[p.source]||'SOURCE');const srcHref=p.sourceUrl||'#';
   // The thread used to render TEXT ONLY. Opening a video post from the feed gave you
   // its caption and nothing else — posts literally reading "Video: ..." with no video
   // anywhere on screen. Media now renders here too: video with real controls (in a
@@ -7501,7 +7501,7 @@ function openThread(postId){const p=allPosts.find(x=>x.id===postId);if(!p)return
   // shows the story's own text (Lemmy self-text) and a card out to the article.
   const _tLink=p.source==='news'?(p._url||p.sourceUrl||''):(p.source==='lemmy'&&p._link&&p._link!==p._url&&!/\.(jpe?g|png|webp|gif)(\?|$)/i.test(p._link)?p._link:'');
   const _tArt=(p._desc?`<div class="t-desc">${esc(p._desc)}</div>`:'')+(/^https?:\/\//i.test(_tLink)?`<a class="t-article" href="${_tcAttr(_tLink)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()"><span class="t-art-host">${esc((fediHost(_tLink)||'').replace(/^www\./,'').toUpperCase())}</span><span class="t-art-cta">READ THE FULL STORY</span><span class="t-art-arr">&#x2197;</span></a>`:'');
-  document.getElementById('thread-original').innerHTML=`<div class="post-head"><div class="post-av seeded" style="background:${_col}">${_av}</div><div class="post-meta"><div class="post-name">${esc(p._author||p.country||'void')}</div><div class="post-time">${esc(p._handle||'@void')} · ${ago(p.time)}</div></div><button class="btn-translate" onclick="translateThreadBody()">${VICON.globe} TR</button><button class="top-x" onclick="closeThread()" aria-label="Close">${VICON.x}</button></div><div class="body-${p.style==='drop'?'drop':p.style==='quiet'?'quiet':'take'}" id="thread-body-text">${esc(p.body)}</div><div id="thread-op-media"></div>${_tArt}<div class="thread-acts"><span class="ta-bolt${(postReactions[p.id]||{}).mf?' on':''}" id="tb-${p.id}" onclick="react('${p.id}','fire',event)">${(postReactions[p.id]||{}).mf?VICON.heartFill:VICON.heart}${fmt(p.score)}</span><span id="trc-${p.id}">${VICON.reply}${fmt(p.replies||0)}</span><span class="ta-repost${(postReactions[p.id]||{}).mrp?' on':''}" onclick="repost('${p.id}',event)">${VICON.repost}${fmt(p.reposts||0)}</span><span class="ta-share" onclick="vwShare('${p.id}')">${VICON.share}</span></div><div class="thread-source-bar">${srcHref!=='#'?`<a class="thread-source-link" href="${srcHref}" target="_blank">${srcLabel}</a>`:`<span class="thread-source-link">${srcLabel}</span>`}</div>`;
+  document.getElementById('thread-original').innerHTML=`<div class="post-head"><div class="post-av seeded">${personPfpHtml(p.author_id||p._authorId,p._handle,p._author||p.iso,34)}</div><div class="post-meta"><div class="post-name">${esc(p._author||p.country||'void')}</div><div class="post-time">${esc(p._handle||'@void')} · ${ago(p.time)}</div></div><button class="btn-translate" onclick="translateThreadBody()">${VICON.globe} TR</button><button class="top-x" onclick="closeThread()" aria-label="Close">${VICON.x}</button></div><div class="body-${p.style==='drop'?'drop':p.style==='quiet'?'quiet':'take'}" id="thread-body-text">${esc(p.body)}</div><div id="thread-op-media"></div>${_tArt}<div class="thread-acts"><span class="ta-bolt${(postReactions[p.id]||{}).mf?' on':''}" id="tb-${p.id}" onclick="react('${p.id}','fire',event)">${(postReactions[p.id]||{}).mf?VICON.heartFill:VICON.heart}${fmt(p.score)}</span><span id="trc-${p.id}">${VICON.reply}${fmt(p.replies||0)}</span><span class="ta-repost${(postReactions[p.id]||{}).mrp?' on':''}" onclick="repost('${p.id}',event)">${VICON.repost}${fmt(p.reposts||0)}</span><span class="ta-share" onclick="vwShare('${p.id}')">${VICON.share}</span></div><div class="thread-source-bar">${srcHref!=='#'?`<a class="thread-source-link" href="${srcHref}" target="_blank">${srcLabel}</a>`:`<span class="thread-source-link">${srcLabel}</span>`}</div>`;
   {const _slot=document.getElementById('thread-op-media');if(!_threadBorrowMedia(_card,_slot))_slot.innerHTML=_tm;}
   if(_remoteReplies[postId])syncReplyCount(postId);   // replies warmed before the tap: OP count and divider agree at once
   loadRemoteReplies(postId);_threadDeal=true;renderThreadComments(postId);const _ta=document.querySelector('#thread-overlay .thread-attach-btn');if(_ta&&!_ta.querySelector('.vi'))_ta.insertAdjacentHTML('afterbegin',VICON.attach);const _tp=document.querySelector('#thread-overlay .thread-post-btn');if(_tp&&!_tp.innerHTML)_tp.innerHTML=VICON.send;document.getElementById('compose-av').textContent=(USER.name||'?')[0].toUpperCase();document.getElementById('thread-input').value='';pendingAttach=null;document.getElementById('attach-preview').style.display='none';
@@ -8034,7 +8034,6 @@ function _tcSort(list){
 }
 // Avatar colour keyed to the author, not the row index, so a person keeps one
 // colour across sorts and between the deck and the reply overlay.
-function _tcCol(name){let h=0;for(const ch of String(name||''))h=(h*31+ch.charCodeAt(0))|0;return AVC[Math.abs(h)%AVC.length];}
 // One comment card. `kidsN` = direct replies → 0/1/2 stack edges peeking below.
 // The whole wrapper opens the reply overlay; the parent card in that overlay is
 // not a tap target (its REPLY just focuses the compose pill).
@@ -8046,7 +8045,7 @@ function _tcCard(c,opAuthor,kidsN,o){
   const reply=o.parent?`_roFocus()`:`openReplies(this.closest('.tc-wrap').dataset.cid,true)`;
   return `<div class="tc-wrap${kidsN>=2?' s2':kidsN===1?' s1':''}${o.deal?' deal':''}" data-cid="${_tcAttr(c.id)}"${o.deal?` style="animation-delay:${o.delay||0}ms"`:''}${tap}>${edges}
     <div class="tc-card${o.parent?' parent':''}">
-      <div class="thread-comment-head"><div class="thread-comment-av" style="background:${_tcCol(c.author)}">${esc((c.author||'?')[0].toUpperCase())}</div><div class="thread-comment-name">${esc(c.author||'anon')}${isOp?' <span class="tc-op">OP</span>':''} <span class="thread-comment-time">· ${ago(c.time)}</span></div>${o.parent?'<span class="tc-parent-tag">PARENT</span>':''}</div>
+      <div class="thread-comment-head"><div class="thread-comment-av">${personPfpHtml(c.authorId,c.handle,c.author,26)}</div><div class="thread-comment-name">${esc(c.author||'anon')}${isOp?' <span class="tc-op">OP</span>':''} <span class="thread-comment-time">· ${ago(c.time)}</span></div>${o.parent?'<span class="tc-parent-tag">PARENT</span>':''}</div>
       <div class="thread-comment-text">${esc(c.text||'')}</div>
       ${c.img?`<div class="tc-img">${IMG_LOADER}<img class="thread-comment-img" src="${_tcAttr(c.img)}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onload="imgLoaded(this)" onerror="this.parentNode.remove()"></div>`:''}
       <div class="tc-acts">
@@ -9158,7 +9157,7 @@ function vwItemHtml(p,i){
       <div class="vw-act dim" onclick="vwLess(this,event)">${VICON.less}<span>LESS</span></div>
     </div>
     <div class="vw-info">
-      <div class="vw-id-row"><div class="vw-av" style="background:${col}">${(p._author||p.country||'V')[0]}</div>
+      <div class="vw-id-row"><div class="vw-av">${personPfpHtml(p.author_id||p._authorId,p._handle,p._author||p.country,28)}</div>
         <span class="vw-name">${esc(p._author||p.country||'void')}</span>
         <span class="vw-follow" onclick="vwFollow(this,event)">${vwFollowSet().has(vwHandleOf(p))?'FOLLOWING':'FOLLOW'}</span></div>
       <div class="vw-body">${esc(p.body)}</div>${(p.body||'').length>150?`<button class="vw-more" onclick="event.stopPropagation();const b=this.previousElementSibling;const o=b.classList.toggle('open');this.textContent=o?'LESS':'MORE'">MORE</button>`:''}
@@ -10042,7 +10041,6 @@ const DM_NOTE="Messages are stored on The Void's servers and are not end-to-end 
 function dmMe(){return VoidAPI._uid();}
 // Server-side blocks (006) plus the on-device block list (VMod), either direction.
 function dmIsBlocked(uid,handle){if(_dmBlocked.has(uid))return true;try{return !!(window.VMod&&VMod.isBlockedUser&&VMod.isBlockedUser({id:uid,handle:handle||''}));}catch(e){return false;}}
-function dmColor(id){let h=0;for(const c of String(id||''))h=(h*31+c.charCodeAt(0))>>>0;return AVC[h%AVC.length];}
 // ─── THE PFP SET (native ui/Pfp.tsx, verbatim) ──────────────────────────────
 // A gold line figure on a deep-purple disc, used wherever someone has no photo:
 // the pinned strip, conversation rows, the chat head, the profile. The figure is
@@ -10095,6 +10093,12 @@ function readPfpChoice(){try{const v=JSON.parse(localStorage.getItem(PFP_KEY)||'
 function writePfpChoice(n){try{localStorage.setItem(PFP_KEY,JSON.stringify(n));}catch(e){}}
 function myPfpSeed(){try{const u=VoidAPI._uid();if(u)return u;}catch(e){}return USER.handle||USER.name;}
 function myPfpHtml(size){const c=readPfpChoice();return pfpHtml(myPfpSeed(),size,{figure:c==null?undefined:c});}
+// EVERY NO-PHOTO AVATAR IS A FIGURE (same rule as the app's PersonPfp): the seed is
+// the Void id, else the handle, else the name, so one person has one face in the
+// feed, a reel, a thread, a comment and their DM row. Your own posts show your pick.
+// This replaces the letter on an AVC-coloured disc everywhere.
+function personSeed(uid,handle,label){const h=String(handle||'').replace(/^@/,'').toLowerCase();return uid||(h&&h!=='void'?h:'')||String(label||'').toLowerCase()||'void';}
+function personPfpHtml(uid,handle,label,size){let mine=false;try{mine=!!uid&&uid===VoidAPI._uid();}catch(e){}return mine?myPfpHtml(size):pfpHtml(personSeed(uid,handle,label),size);}
 // The picker in Settings (native EditProfileSheet: 'OR CHOOSE A FIGURE').
 let _pfpPending=null;
 function pfpSettingsOpen(){_pfpPending=readPfpChoice();const g=document.getElementById('pfp-choices');if(g)g.hidden=true;const t=document.getElementById('pfp-toggle');if(t)t.textContent='OR CHOOSE A FIGURE';renderPfpSettings();}
@@ -10689,7 +10693,7 @@ function author(id){
   T={kind:'post',id:baseId(p.id),p,a};
   const b=isBlocked(a),who=a.hostOnly?a.handle:'@'+(a.handle||a.label);
   open(hdr(a.external?srcName(a.source).toUpperCase()+' ACCOUNT':'VOID ACCOUNT')+
-    `<div class="vmod-av big" style="background:${typeof _tcCol==='function'?_tcCol(a.label):'var(--card2)'}">${att(String(a.label||'?')[0].toUpperCase())}</div>
+    `<div class="vmod-av big">${personPfpHtml(a.uid,a.handle,a.label,56)}</div>
      <div class="vmod-title" style="text-align:center">${att(a.label)}</div>
      <div class="vmod-p" style="text-align:center;font-family:'Syne Mono',monospace;font-size:9px;letter-spacing:.1em">${att(who)}${b?' &middot; '+(a.external?'HIDDEN':'BLOCKED'):''}</div>`+
     (b?`<button class="vmod-btn" onclick="VMod.toggleBlock()">${a.external?'SHOW AGAIN':'UNBLOCK'}</button>`
@@ -10753,7 +10757,7 @@ function unmute(m,fromMute){voidUnmute(m);voidToast('UNMUTED · '+String(m).toUp
 // ─── settings pages ──────────────────────────────────────────────────────
 function blockedSheet(){
   const v=blocks.filter(b=>!b.external),x=blocks.filter(b=>b.external);
-  const item=b=>`<div class="vmod-item"><div class="vmod-av" style="background:${typeof _tcCol==='function'?_tcCol(b.label):'var(--card2)'}">${att(String(b.label||b.handle||'?')[0].toUpperCase())}</div><span class="vmod-row-t"><span class="vmod-row-l">${att(b.label||b.handle)}</span><span class="vmod-row-s">${b.hostOnly?'SOURCE':'@'+att(b.handle||'')}${b.external?' · '+att(srcName(b.source).toUpperCase()):''}</span></span><button class="vmod-pill" onclick="VMod.unblock('${att(b.key)}')">${b.external?'SHOW':'UNBLOCK'}</button></div>`;
+  const item=b=>`<div class="vmod-item"><div class="vmod-av">${personPfpHtml(b.uid,b.handle,b.label||b.handle,32)}</div><span class="vmod-row-t"><span class="vmod-row-l">${att(b.label||b.handle)}</span><span class="vmod-row-s">${b.hostOnly?'SOURCE':'@'+att(b.handle||'')}${b.external?' · '+att(srcName(b.source).toUpperCase()):''}</span></span><button class="vmod-pill" onclick="VMod.unblock('${att(b.key)}')">${b.external?'SHOW':'UNBLOCK'}</button></div>`;
   const muted=typeof MUTED!=='undefined'?[...MUTED]:[];
   open(hdr('SAFETY')+`<div id="vmod-blocked"><div class="vmod-title">Blocked accounts</div>
     <div class="vmod-p">Blocked Void accounts cannot message you and their posts and replies are hidden everywhere. ${ready()?'Synced to your account.':'Stored on this device until you sign in.'}</div>
