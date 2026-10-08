@@ -100,7 +100,7 @@ const st = StyleSheet.create({
     opacity: 1,
     transitionProperty: ['transform', 'opacity'],
     transitionDuration: '120ms',
-    transitionTimingFunction: 'cubic-bezier(0.23, 1, 0.32, 1)',
+    transitionTimingFunction: 'ease-out', // Reanimated CSS transitions take named easings only; a cubic-bezier string throws at mount (crashed the chat screen)
   } as any, // Reanimated CSS transition keys (same cast as ReelItem.follow)
   btnPressed: { transform: [{ scale: 0.95 }], opacity: 0.9 },
   btnDim: { opacity: 0.8 },
