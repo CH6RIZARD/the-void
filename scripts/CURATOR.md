@@ -21,7 +21,14 @@ Outputs (atomic tmp+rename, 72h window):
 - `scripts/curated.public.json` — `{generated, items:[...]}`, the top 60 by `fit*0.6 + log10(1+likes)*0.1 + freshness`, for the proxy to serve. `graphic` is source flag OR model flag.
 
 Env: `OLLAMA_URL` (default `http://127.0.0.1:11434`), `CURATOR_MODEL`,
-`PROXY_BASE`, `CURATOR_EVERY_MS`.
+`PROXY_BASE`, `CURATOR_EVERY_MS`, `OLLAMA_EXE` (default `E:\Ollama\ollama.exe`),
+`OLLAMA_MODELS` (default `E:\ollama-models`).
+
+Nothing else keeps the Ollama server up (the tray app is stopped on purpose: it
+re-warms the model into RAM and starves release builds), so a pass that finds
+it down starts `ollama serve` itself and waits up to 30 s. The copy on E: is
+the one to run; the original install on D: is on a drive that went
+write-protected and was unreachable from 14:01 to 17:00 on 2026-10-08.
 
 Ollama down or crashing mid-pass: logged, scouting still runs, unlabeled clips
 wait for the next pass. Measured 2026-10-08 on this CPU: one warm 5-clip batch

@@ -35,6 +35,7 @@
  * Ollama down -> logged once, scouting still runs, labeling waits.
  */
 import { readFileSync, writeFileSync, renameSync, statSync, unlinkSync } from 'node:fs';
+import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -42,6 +43,24 @@ const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const STORE = path.join(ROOT, 'scripts', 'curated.json');
 const PUBLIC = path.join(ROOT, 'scripts', 'curated.public.json');
 const OLLAMA = process.env.OLLAMA_URL || 'http://127.0.0.1:11434';
+// Nothing else keeps the server up: the tray app was stopped because it re-warms
+// the model into RAM during builds, and the install on D: sat on a drive that
+// went write-protected. So the pass starts the server itself when it is down.
+const OLLAMA_EXE = process.env.OLLAMA_EXE || 'E:\\Ollama\\ollama.exe';
+const OLLAMA_MODELS = process.env.OLLAMA_MODELS || 'E:\\ollama-models';
+
+const ollamaUp = () => fetch(OLLAMA + '/api/tags').then(r => r.ok).catch(() => false);
+async function ensureOllama() {
+  if (await ollamaUp()) return true;
+  try {
+    spawn(OLLAMA_EXE, ['serve'], { detached: true, stdio: 'ignore', env: { ...process.env, OLLAMA_MODELS } }).unref();
+  } catch (e) { log('  could not start ' + OLLAMA_EXE + ': ' + e.message); return false; }
+  for (let i = 0; i < 30; i++) { // the server answers within a few seconds; the model loads on first use
+    await new Promise(r => setTimeout(r, 1000));
+    if (await ollamaUp()) { log('  started ollama serve (' + OLLAMA_EXE + ')'); return true; }
+  }
+  return false;
+}
 const MODEL = process.env.CURATOR_MODEL || 'qwen2.5:3b';
 const PROXY = process.env.PROXY_BASE || 'https://void-proxy-production.up.railway.app';
 const EVERY = parseInt(process.env.CURATOR_EVERY_MS, 10) || 5 * 60 * 1000;
@@ -183,7 +202,7 @@ async function pass() {
   const queue = [...fresh.values()];
 
   let labeled = 0, errors = 0;
-  const up = queue.length ? await fetch(OLLAMA + '/api/tags').then(r => r.ok).catch(() => false) : true;
+  const up = queue.length ? await ensureOllama() : true;
   if (!up) log('  ollama unreachable at ' + OLLAMA + ' - labeling skipped this pass');
   for (let b = 0; up && b < MAX_BATCHES && b * BATCH < queue.length; b++) {
     const batch = queue.slice(b * BATCH, (b + 1) * BATCH);
