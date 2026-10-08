@@ -5,7 +5,8 @@
 // The old single source was 'whats-hot', a TRANSPORT choice that silently became an
 // EDITORIAL one (~89% no topical signal). These are topical feed generators rotated
 // per page so no single feed dominates and the feed never runs dry.
-// NOTE: app.bsky.feed.searchPosts answers 403 unauthenticated — no keyword path.
+// NOTE: app.bsky.feed.searchPosts needs no login on api.bsky.app; it is 403 only on
+// the public.api.bsky.app mirror (live 2026-10-07). The reel top-video lane uses it.
 import { env, onConfigure } from '../env.ts';
 import type { Post } from '../types.ts';
 import { stampRegion } from '../data/regions.ts';

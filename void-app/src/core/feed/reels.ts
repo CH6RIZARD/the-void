@@ -1,13 +1,15 @@
 // ─── REELS SOURCE (separate from the VOID feed) ─────────────────────────
 // Reels used to draw from allPosts — the feed's pool, ~5% video — so "reels" was the
-// feed recycled. Its own pipeline: on-topic PeerTube search first, the absurd
-// spook.tube lane sometimes, then video-only Bluesky feeds. Nothing without a
-// playable video is ever admitted, and reels never borrow the feed's sources.
+// feed recycled. Its own pipeline: FRESH lanes first (Bluesky top video of the last
+// 48h, then video-only Bluesky feeds), the absurd spook.tube lane sometimes, and the
+// PeerTube archive search last. Nothing without a playable video is ever admitted,
+// and reels never borrow the feed's sources.
 import { env, onConfigure } from '../env.ts';
 import type { Post } from '../types.ts';
 import { REEL_BLOCK_TOPIC, isArticleDrop, isFeedMeta, isMuted, isNewsAccount, reelBlocked } from '../rank/filters.ts';
 import { diversify, VW_STYLES, vwScore } from '../rank/order.ts';
 import { admitPost } from '../rank/seen.ts';
+import { postAgeH } from '../rank/story.ts';
 import { inferTags } from '../rank/tags.ts';
 import { bskyFeedUrl, bskyToPost } from './bluesky.ts';
 import { peertubeSrc } from './fedi.ts';
@@ -29,6 +31,9 @@ export const REEL_FEEDS_META = [
   { uri: 'at://did:plc:vj6d7kxk27mboj7nncpqfafk/app.bsky.feed.generator/aaapnna4b7zt4', w: 1, lane: 'chaos' },
   // 'animalvids' REMOVED: a calm "timeline cleanse" feed does not belong in reels.
   { uri: 'at://did:plc:mmqeuefr4nhatzqt3yzjoiri/app.bsky.feed.generator/bikesky-video', w: 1, lane: 'sport' },
+  // "Over 2000": posts past 2,000 likes in the last 24h, what is viral right now. Only
+  // 3 of 30 live were video (2026-10-07), so it weighs least; the tag gate keeps the on-topic ones.
+  { uri: 'at://did:plc:muhesxre7yfcuqi5ss2fskjc/app.bsky.feed.generator/aaaouj7mhcsuq', w: 1, lane: 'viral' },
 ];
 export const REEL_FEEDS = REEL_FEEDS_META.flatMap(f => Array(f.w).fill(f.uri) as string[]);
 
@@ -40,7 +45,8 @@ export const REEL_PEERTUBE = [
 ];
 // ON-TOPIC VIDEO. 984 posts across 5 topical Bluesky feeds yielded 11 on-topic
 // videos (1.1%). PeerTube SEARCH queries an archive by subject instead:
-// kolektiva.media 73% on-topic, framatube.org 60%.
+// kolektiva.media 73% on-topic, framatube.org 60%. But it is an ARCHIVE: 0 of 114
+// results were newer than 7 days (2026-10-07), so it is the backstop, never the lead.
 export const REEL_TOPIC_HOSTS = ['kolektiva.media', 'framatube.org'];
 export const REEL_TOPIC_TERMS = ['war', 'surveillance', 'protest', 'resistance', 'police',
   'capitalism', 'propaganda', 'border', 'military', 'occupation', 'uprising', 'censorship'];
@@ -128,6 +134,51 @@ export let _reelCursors: Record<string, string> = {};
 function loadReelCursors() { try { _reelCursors = JSON.parse(env.storage.getItem('void_reel_cursors') || '{}') || {}; } catch { _reelCursors = {}; } }
 loadReelCursors();
 onConfigure(loadReelCursors);
+function saveReelCursor(k: string, cur: string | undefined) {
+  _reelCursors[k] = cur || '';                     // empty => that lane restarts at page one
+  try { env.storage.setItem('void_reel_cursors', JSON.stringify(_reelCursors)); } catch { /* */ }
+}
+
+// The gates every Bluesky reel lane shares. REEL_MAX_AGE_H: a fresh lane whose
+// cursor has walked deep is serving an archive, and reels is what is happening now.
+export const REEL_MAX_AGE_H = 14 * 24;
+// selfTag: a search lane's own query word. A 'police' search tags every result
+// 'incident' on the word it was asked for, so the gate must see a topic beyond it.
+function admitReelItems(items: any[], selfTag?: RegExp): number {
+  let added = 0;
+  for (const it of items) {
+    const p = bskyToPost(it);
+    if (!p || !p._video) continue;                 // pure video only — the whole point
+    if (postAgeH(p) > REEL_MAX_AGE_H) continue;
+    // No topical signal, not this app's content. 'graphic' is a label, not a topic:
+    // a gore-labelled horror SFX clip would otherwise pass on the label alone.
+    const tags = selfTag ? inferTags(p.body.replace(selfTag, ' ')) : p.tags;
+    if (!tags.some(t => t !== 'graphic')) continue;
+    if (isFeedMeta(p.body)) continue;
+    if (reelBlocked(it)) continue;                 // sexual / author labels (graphic stays, veiled)
+    if (isNewsAccount(p) || isArticleDrop(p)) continue;  // reels is not a newsroom
+    if (isMuted(p)) continue;
+    if (REEL_BLOCK_TOPIC.test(p.body || '')) continue;   // pet/wildlife dilutes reels
+    if (!admitPost(p)) continue;                   // same cross-surface dedupe as the feed
+    reelPosts.push(p); added++;
+  }
+  return added;
+}
+
+// FRESH TOP VIDEO: what is being shared in the last 48h. searchPosts answers without
+// login on api.bsky.app (403 only on public.api.bsky.app). Video share of the top 50,
+// live 2026-10-07: footage 21, police 8, breaking 4. Each term keeps its own cursor.
+export const REEL_SEARCH_TERMS = ['footage', 'police', 'protest', 'breaking'];
+export async function pullBskyTopVideo(): Promise<number> {
+  const q = REEL_SEARCH_TERMS[Math.floor(env.random() * REEL_SEARCH_TERMS.length)];
+  const key = 'q:' + q, cur = _reelCursors[key] || '';
+  const since = new Date(env.now() - 48 * 36e5).toISOString();
+  const d = await nfFetchJson('https://api.bsky.app/xrpc/app.bsky.feed.searchPosts?q=' + encodeURIComponent(q) + '&sort=top&since=' + encodeURIComponent(since)
+    + '&limit=50' + (cur ? '&cursor=' + encodeURIComponent(cur) : ''), 8000);
+  if (!d) return 0;
+  saveReelCursor(key, d.cursor);
+  return admitReelItems((d.posts || []).map((post: any) => ({ post })), new RegExp('\\b' + q + '\\b', 'gi'));   // search returns bare PostViews
+}
 
 // Callers get the IN-FLIGHT pull instead of an instant false (web pullReelPage). The
 // false made fillOpenReel 'await' nothing and a NO SIGNAL retry tap do nothing while a
@@ -142,8 +193,12 @@ export function pullReelPage(): Promise<boolean> {
 async function pullReelPageOnce(): Promise<boolean> {
   if (_reelLoading) return false; _reelLoading = true;
   try {
-    // ON-TOPIC FIRST: PeerTube search is the only source yielding subject-matching video at volume.
-    try { const n = await pullPeerTubeSearch(); if (n) { emitPostsChanged('reels'); return true; } } catch { /* */ }
+    // FRESH FIRST. The PeerTube archive used to lead and returned on one clip, so the
+    // fresh lanes rarely ran: 0 of 114 of its results were newer than 7 days. The top
+    // search almost always admits something too, so it leads only half the pulls;
+    // otherwise spook.tube and the feeds go first and it waits behind them.
+    const searchLeads = env.random() < 0.5;
+    if (searchLeads) { try { const n = await pullBskyTopVideo(); if (n) { emitPostsChanged('reels'); return true; } } catch { /* */ } }
     if (env.random() < 0.25) {
       try { const n = await pullPeerTubeReels(); if (n) { emitPostsChanged('reels'); return true; } } catch { /* */ }
     }
@@ -154,24 +209,13 @@ async function pullReelPageOnce(): Promise<boolean> {
       const cur = _reelCursors[feed] || '';
       try {
         const d = await nfFetchJson(bskyFeedUrl(feed, cur), 8000); if (!d) continue;
-        _reelCursors[feed] = d.cursor || '';
-        try { env.storage.setItem('void_reel_cursors', JSON.stringify(_reelCursors)); } catch { /* */ }
-        let added = 0;
-        for (const it of (d.feed || [])) {
-          const p = bskyToPost(it);
-          if (!p || !p._video) continue;                 // pure video only — the whole point
-          if (!p.tags.length) continue;                  // no topical signal, not this app's content
-          if (isFeedMeta(p.body)) continue;
-          if (reelBlocked(it)) continue;                 // moderation / author labels
-          if (isNewsAccount(p) || isArticleDrop(p)) continue;  // reels is not a newsroom
-          if (isMuted(p)) continue;
-          if (REEL_BLOCK_TOPIC.test(p.body || '')) continue;   // pet/wildlife dilutes reels
-          if (!admitPost(p)) continue;                   // same cross-surface dedupe as the feed
-          reelPosts.push(p); added++;
-        }
-        if (added) { emitPostsChanged('reels'); return true; }
+        saveReelCursor(feed, d.cursor);
+        if (admitReelItems(d.feed || [])) { emitPostsChanged('reels'); return true; }
       } catch { /* */ }
     }
+    if (!searchLeads) { try { const n = await pullBskyTopVideo(); if (n) { emitPostsChanged('reels'); return true; } } catch { /* */ } }
+    // ARCHIVE LAST: on-topic, but old. Only a dry fresh pool reaches it.
+    try { const n = await pullPeerTubeSearch(); if (n) { emitPostsChanged('reels'); return true; } } catch { /* */ }
     return false;
   } finally { _reelLoading = false; }
 }

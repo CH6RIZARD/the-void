@@ -48,6 +48,13 @@ Both return:
 `mode` may be `tension` (controversy ranking, default) or anything else
 (newest-first). `limit` is clamped to 1..100.
 
+### `GET /reels?limit=30&offset=0`
+Posts from the last 48h that carry a playable clip, ranked by engagement per
+hour of age (most engaged and newest first). Same shape, paging and caching as
+`/feed`; `mode` is ignored. X contributes a dedicated `has:videos` query (one
+more query against the X budget, see "X spend caps"); Reddit contributes the
+clips in its global pool. Reddit graphic items are included with `graphic: true`.
+
 ### POST shape
 
 ```jsonc
@@ -60,10 +67,17 @@ Both return:
   "text": "post title / body",
   "url": "https://…",
   "createdAt": 1722200000000,    // epoch MS
-  "metrics": { "score": 1234, "replies": 567 },
+  "metrics": { "score": 1234, "replies": 567, "views": 0 }, // views: X video plays
+  "graphic": false,              // NSFW / possibly_sensitive: veil it, never drop it
   "media": [ { "type": "image", "url": "https://…", "thumb": "https://…" } ]
 }
 ```
+
+X videos carry the best playable variant as `url` and the poster as `thumb`:
+on `/reels` HLS when offered, everywhere else the richest mp4 under 2.5Mbps
+(the web feed card and thread view play a bare `<video src>`, which cannot
+play HLS). Every endpoint still omits graphic X posts, because no client reads
+`graphic` yet; sensitive X posts whose text reads as sexual are always dropped.
 
 CORS: every response sends `Access-Control-Allow-Origin: *`, so the client can
 fetch from a `file://` page or any other origin.

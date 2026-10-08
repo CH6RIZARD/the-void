@@ -1044,7 +1044,10 @@ const WallTile = memo(function WallTile({ rec, left, top, width, height, borderC
   // NO WORD HERE WHILE IT WORKS. It was never asked for and says nothing a moving loader
   // does not already say. Only the exhausted case speaks, because NO SIGNAL is
   // information - it means stop waiting.
-  const loaderLabel = phase === 'offline' ? '● NO SIGNAL' : '';
+  // The country stays on a dead tile. Dropping it left "which one is this?"
+  // unanswerable from the wall (the Sweden tile that walked to a dead Komala TV
+  // sat as an anonymous NO SIGNAL box next to Yemen) - the box is still Sweden's.
+  const loaderLabel = phase === 'offline' ? rec.name.toUpperCase() + ' · NO SIGNAL' : '';
   // POSTER FIRST: a YouTube tile shows the stream's thumbnail at once, under the loader,
   // while its player connects - and again whenever it sleeps or is evicted - instead of
   // a black box. The live picture replaces it the moment it plays.

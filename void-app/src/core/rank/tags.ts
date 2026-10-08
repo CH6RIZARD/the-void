@@ -29,6 +29,18 @@ export const TAG_KEYWORDS: Record<string, string[]> = {
   deception: ['propaganda', 'disinformation', 'misinformation', 'psyop*', 'bot network', 'cover-up', 'cover up', 'covered up', 'falsified', 'forged', 'conspirac*', 'false flag', 'whistleblower*', 'leaked', 'they knew', 'was warned', 'were warned', 'ignored warnings', 'nobody is answering', 'no one is answering'],
   identity: ['diaspora', 'refugee*', 'migrant*', 'ethnic', 'ethnicity', 'minority', 'citizenship', 'statelessness'],
   philosophy: ['philosoph*', 'morality', 'existential', 'nihilis*', 'ideolog*'],
+  // Street-level incidents: how a viral current-events clip is captioned ("Tempe Police
+  // push, tackle and punch...", "Footage shows..."). None of it matched, so the reel
+  // lanes dropped exactly those clips as untagged. Bare shot / shooting / fight / crash
+  // are phrases only: "great shot", "shooting on 35mm", "fight for", "crash course".
+  // TAG_KEYWORDS gates the main feed too, so no bare footage / officer / cop / viral
+  // ("gameplay footage", "chief executive officer", "cop these sneakers", "song went viral").
+  incident: ['police', 'policeman', 'policemen', 'police officer*', 'officer-involved', 'cops', 'cop car*', 'bodycam*', 'body cam*', 'dashcam*', 'dash cam*', 'cctv', 'caught on camera', 'caught on video',
+    'arrest', 'arrests', 'arrested', 'handcuff*', 'detain*', 'taser*', 'tased', 'tear gas', 'teargas', 'pepper spray*', 'rubber bullet*',
+    'shootings', 'school shooting', 'fatal shooting', 'shooting suspect', 'shooting victim*', 'shot dead', 'shot and killed', 'was shot', 'were shot', 'got shot', 'gunfire', 'gunshot*', 'opened fire', 'stabbing', 'stabbed',
+    'brawl*', 'fistfight*', 'fist fight', 'fight breaks out', 'fight broke out', 'street fight', 'punched', 'assault*',
+    'car crash', 'crashed into', 'crashes into', 'pileup', 'pile-up', 'hit-and-run', 'hit and run', 'rammed into', 'ramming', 'kidnap*', 'carjack*', 'robbery', 'looting', 'manhunt',
+    'ice agents', 'federal agents', 'border patrol'],
   // ---- Everything below exists so the feed has RANGE. The vocabulary above is all
   // conflict and politics, and the tag gate discards anything matching none of it.
   science: ['science', 'scientist*', 'research', 'researcher*', 'study finds', 'physics', 'biolog*', 'chemistr*', 'neuroscience', 'genome', 'quantum', 'experiment*'],

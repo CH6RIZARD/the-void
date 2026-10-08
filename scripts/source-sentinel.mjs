@@ -119,14 +119,48 @@ async function probe(url) {
       const v = await get(vu);
       if (!v.ok) return 'variant ' + v.status;
       if (!corsOk(v)) return 'variant-no-cors';
-      if (!/#EXTINF/i.test((await v.text()).slice(0, 65536))) return 'variant-empty';
+      const vt = (await v.text()).slice(0, 65536);
+      if (!/#EXTINF/i.test(vt)) return 'variant-empty';
+      const seg = await segmentOk(vt, v.url || vu);
+      if (seg) return seg;
       // The app sorts the wall cheap-first by this (wall.ts wBucket).
       for (const m of text.matchAll(/RESOLUTION=(\d+)x/gi)) if (!w || +m[1] < w) w = +m[1];
-    } else if (!/#EXTINF/i.test(text)) return 'empty';
+    } else {
+      if (!/#EXTINF/i.test(text)) return 'empty';
+      const seg = await segmentOk(text, r.url || url);
+      if (seg) return seg;
+    }
     return w ? { ms: Date.now() - t0, w } : { ms: Date.now() - t0 };
   } catch {
     return 'error';
   }
+}
+
+// A PLAYLIST IS NOT A PICTURE. Komala TV (Sweden) served a fresh-looking media
+// playlist whose every segment answered 404 as an HTML page, so this probe said
+// "playable" for days while every tile that walked to it sat on NO SIGNAL. One
+// byte of the newest segment is the proof a player actually needs: a 404, an
+// HTML body or an empty response fails the stream here, where it is cheap.
+async function segmentOk(playlist, base) {
+  const seg = playlist.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith('#')).pop();
+  if (!seg) return 'no-segment';
+  let su;
+  try { su = new URL(seg, base).href; } catch { return 'bad-segment-url'; }
+  if (!/^https:/i.test(su)) return 'http-segment';
+  try {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), PROBE_MS);
+    try {
+      const r = await fetch(su, { signal: ctl.signal, redirect: 'follow', headers: { 'user-agent': UA, range: 'bytes=0-511', origin: 'https://thevoid.app', referer: 'https://thevoid.app/' } });
+      if (!r.ok) return 'segment ' + r.status;
+      const buf = new Uint8Array(await r.arrayBuffer());
+      if (!buf.length) return 'segment-empty';
+      // MPEG-TS starts with a sync byte (0x47); fMP4 with an atom size + 'ftyp'/'styp'/'moof'.
+      const head = String.fromCharCode(...buf.slice(0, 16));
+      if (/^\s*</.test(head)) return 'segment-html';
+      return '';
+    } finally { clearTimeout(t); }
+  } catch { return 'segment-error'; }
 }
 
 async function pooled(items, worker, n) {

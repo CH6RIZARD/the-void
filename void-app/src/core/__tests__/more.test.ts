@@ -340,3 +340,81 @@ test('pullVoidFeed: a proxy page no longer starves Bluesky - both land in one pu
   assert.ok(sources.has('x'), 'the proxy post is in the pool');
   assert.ok(sources.has('bluesky'), 'Bluesky posts are in the pool: ' + [...sources]);
 });
+
+test('incident vocabulary: viral current-events captions get a tag, look-alikes do not, same as the web', () => {
+  const w = webSandbox({ now: NOW });
+  w.load('TAG_KEYWORDS', 'TAG_RE', 'CRISIS_WEAK', 'CRISIS_INTL', 'inferTags');
+  const hit = ['ARIZONA STATE: Tempe Police brutally push, tackle, and punch a cheerleader', 'Bodycam shows the officer firing first', 'Dashcam caught the pileup on I-95',
+    'Fight breaks out on the subway platform', 'Man shot dead outside a nightclub', "Movers blocked a kidnapper's car at a gas station", 'ICE agents detain a man at a bus stop',
+    'CCTV caught the hit-and-run on Main St', 'Police footage of the raid on Kyiv Street', 'Cops arrested three students'];
+  const miss = ['screenshot of my desktop setup', 'great shot of the sunset', 'a crash course in Python', 'we fight for what we love', 'shooting on 35mm film today',
+    'photoshoot with the band', 'the new policy on remote work', 'COP29 opens in Baku', 'a viral infection going around the office',
+    // TAG_KEYWORDS gates the main feed too: everyday text that once read as an incident.
+    'what an arresting portrait', 'gonna cop these sneakers', 'gameplay footage of the new build', 'speedrun footage',
+    'behind the scenes footage from the concert', 'our chief executive officer joined', 'this song went viral on tiktok'];
+  for (const t of hit) assert.ok(core.inferTags(t).includes('incident'), 'hit: ' + t);
+  for (const t of miss) assert.ok(!core.inferTags(t).includes('incident'), 'miss: ' + t);
+  for (const t of [...hit, ...miss]) assert.deepEqual(core.inferTags(t), JSON.parse(w.run(`JSON.stringify(inferTags(${JSON.stringify(t)}))`)), t);
+});
+
+test('vwScore: engagement lifts a viral clip on a log scale, PeerTube views are discounted, same as the web', () => {
+  core.configureCore({ storage: core.createMemoryStorage(), session: core.createMemoryStorage(), now: () => NOW, random: () => 0, proxyBase: '', fetch: noNet });
+  const w = webSandbox({ now: NOW });
+  w.setRandom(() => 0); w.stmt('let vwQueue='); w.load('vwScore');
+  const mk = (score: number, o: Record<string, unknown> = {}) => ({ time: NOW - 6 * 36e5, tags: [], score, replies: 0, _reposts: 0, source: 'bluesky', ...o });
+  const [s0, s50, s5k, s500k] = [0, 50, 5000, 500000].map(n => core.vwScore(mk(n) as any));
+  assert.ok(s0 < s50 && s50 < s5k && s5k < s500k, 'more engagement ranks higher');
+  assert.ok(Math.abs((s5k - s50) - (s500k - s5k)) < 0.01, 'each 100x is the same lift, so one mega-post cannot own the rail');
+  const viral = mk(5000, { _reposts: 1200 }), untouched = mk(0, { time: NOW - 10 * 6e4 });
+  const archive = mk(50000, { source: 'peertube', time: NOW - 30 * 864e5 });
+  assert.ok(core.vwScore(viral as any) > core.vwScore(untouched as any), 'a 6h-old viral clip beats a 10-minute-old one nobody touched');
+  assert.ok(core.vwScore(viral as any) > core.vwScore(archive as any), 'a month-old PeerTube view count does not outrank it');
+  for (const p of [mk(0), mk(50), mk(5000, { replies: 300, _quotes: 40 }), viral, untouched, archive])
+    assert.equal(core.vwScore(p as any), w.run(`vwScore(${JSON.stringify(p)})`));
+});
+
+test('reels: fresh top video leads, graphic is veiled not dropped, sexual is dropped, old clips and the archive wait', async () => {
+  await core.pullReelPage(); // settle any pull an earlier test left in flight
+  const vid = (id: string, text: string, ageH: number, labels: string[] = []) => ({
+    uri: 'at://did:plc:t/app.bsky.feed.post/' + id, cid: id, author: { handle: id + '.bsky.social', displayName: id },
+    likeCount: 900, repostCount: 300, replyCount: 40, labels: labels.map(val => ({ val })),
+    embed: { $type: 'app.bsky.embed.video#view', playlist: `https://video.bsky.app/${id}/playlist.m3u8`, thumbnail: `https://video.bsky.app/${id}/t.jpg` },
+    record: { text, createdAt: new Date(NOW - ageH * 36e5).toISOString() },
+  });
+  // Gated on topics beyond the search word and beyond the 'graphic' label.
+  const top = [vid('gfx', 'Tempe Police pepper spray and tackle a student outside the stadium', 5, ['graphic-media']),
+    vid('tv', 'Police procedural, season two out tonight', 5), vid('sfx', 'my halloween makeup look', 5, ['gore']),
+    vid('sex', 'Officers arrest a man outside the club tonight', 5, ['porn']),
+    { ...vid('img', 'Officers arrest a man on 5th street', 5), embed: { $type: 'app.bsky.embed.images#view', images: [{ fullsize: 'https://x.example/i.jpg' }] } }];
+  const feed = [{ post: vid('old', 'Bodycam from the arrest was released', 20 * 24) }, { post: vid('fresh', 'Fight breaks out on the subway platform', 3) }];
+  // r < 0.5: the search leads; 0.3 picks the 'police' term.
+  let kinds: string[] = [], firstUrl = '', r = 0.3;
+  core.configureCore({
+    storage: core.createMemoryStorage(), session: core.createMemoryStorage(), now: () => NOW, random: () => r, proxyBase: '',
+    fetch: (async (u: string) => {
+      if (!firstUrl) firstUrl = u;
+      kinds.push(u.includes('searchPosts') ? 'top' : u.includes('getFeed') ? 'feed' : u.includes('/search/videos') ? 'archive' : 'other');
+      const body = u.includes('searchPosts') ? { posts: top, cursor: '50' } : u.includes('getFeed') ? { feed } : { data: [] };
+      return { ok: true, json: async () => body };
+    }) as any,
+  });
+  core.resetStore();
+  assert.equal(await core.pullReelPage(), true);
+  assert.ok(firstUrl.startsWith('https://api.bsky.app/xrpc/app.bsky.feed.searchPosts?') && firstUrl.includes('&sort=top&since=' + encodeURIComponent(new Date(NOW - 48 * 36e5).toISOString())), firstUrl);
+  assert.deepEqual(kinds, ['top'], 'the fresh lane answered, nothing else was asked');
+  assert.ok(firstUrl.includes('q=police'), firstUrl);
+  assert.deepEqual(core.reelPosts.map(p => p.id), ['bsky_gfx'], 'the porn-labelled, the image, the search-word-only and the label-only posts never land');
+  assert.ok(core.reelPosts[0]._graphic && core.moderation.isGraphic(core.reelPosts[0]), 'graphic footage is kept and veiled');
+  kinds = [];
+  assert.equal(await core.pullReelPage(), true);
+  assert.deepEqual(core.reelPosts.map(p => p.id), ['bsky_gfx', 'bsky_fresh'], 'a 20-day-old feed clip is past REEL_MAX_AGE_H');
+  assert.ok(!kinds.includes('archive'), 'the archive is not asked while a fresh lane yields');
+  kinds = [];
+  assert.equal(await core.pullReelPage(), false);
+  assert.equal(kinds[0], 'top');
+  assert.equal(kinds[kinds.length - 1], 'archive', 'PeerTube search runs last, once every fresh lane came back empty: ' + kinds.join(','));
+  kinds = []; r = 0.9; top.length = 0;   // empty search: under 'breaking', 'police' is a real topic and the tv post would land
+  assert.equal(await core.pullReelPage(), false);
+  assert.equal(kinds[0], 'feed', 'the other half of pulls the feeds lead, so the search cannot starve them');
+  assert.deepEqual(kinds.slice(-2), ['top', 'archive'], 'and the search still runs before the archive: ' + kinds.join(','));
+});

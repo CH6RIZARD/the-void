@@ -158,5 +158,10 @@ export function vwScore(p: Partial<Post>): number {
   const rec = 1 / (1 + (env.now() - (p.time as number)) / 36e5);                 // recency
   const aff = (p.tags || []).reduce((s, t) => s + (vwAff[t] || 0), 0) / 3;       // learned taste
   const ctr = Math.min(1, (p.replies || 0) / Math.max(1, (p.score || 1) / 10));  // controversy
-  return rec * 2 + aff * 1.5 + ctr + env.random() * .6;                          // exploration noise
+  // Volume, log-scaled, velocity()'s weights: 50 -> 5,000 likes lifts as much as 5,000
+  // -> 500,000, so a viral clip rises without one mega-post owning the rail. PeerTube's
+  // score is VIEWS, far cheaper than a like: 1/100 (a tuning knob), or an old archive
+  // clip with a big view count outranks a fresh viral one.
+  const vol = (p.source === 'peertube' ? (p.score || 0) / 100 : (p.score || 0)) + 2 * (p._reposts || 0) + 3 * (p._quotes || 0) + 2 * (p.replies || 0);
+  return rec * 2 + aff * 1.5 + ctr + Math.log10(1 + vol) * .5 + env.random() * .6;   // + exploration noise
 }

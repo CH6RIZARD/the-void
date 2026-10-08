@@ -6,6 +6,7 @@
  * Feeds the client in ../void2-final.html via two endpoints:
  *   GET /feed?mode=tension&limit=40&offset=0             -> { items, nextOffset, total }
  *   GET /social?country=<name>&mode=tension&limit=30&offset=0 -> { items, nextOffset, total }
+ *   GET /reels?limit=30&offset=0                         -> { items, nextOffset, total }
  *   Every POST carries provenance: { sourceHost, responseHash } (client requires it).
  *
  * POST shape (see README):
@@ -293,6 +294,9 @@ class RedditProvider extends SocialProvider {
         score: typeof d.score === 'number' ? d.score : (d.ups || 0),
         replies: d.num_comments || 0,
       },
+      // Same rule the app applies to Reddit it reads directly: NSFW/spoiler goes
+      // behind the veil. The client maps this to _graphic; it never drops it.
+      graphic: !!(d.over_18 || d.spoiler),
       media,
     };
   }
@@ -401,6 +405,32 @@ function xBudgetSpend(n) {
 // own, so asking for "news accounts" would be the opposite of the point.
 const X_EVENTS = "(airstrike OR ceasefire OR missile OR invasion OR coup OR protesters OR \"state of emergency\" OR evacuation OR earthquake)";
 const X_FIRSTHAND = "(has:media OR \"right now\" OR \"happening now\" OR \"just now\" OR \"outside my\" OR \"we can hear\" OR \"on the ground\")";
+// Reels want the clip itself: the street-level events that go viral as video
+// (police, bodycam, riots, blasts), not the diplomatic ones. has:videos is added
+// by fetchReels, so every post paid for here carries footage.
+const X_CLIPS = "(protesters OR police OR bodycam OR riot OR airstrike OR missile OR explosion OR earthquake OR wildfire OR \"caught on camera\")";
+
+// hls: HLS first - one playlist adapts to the phone's bandwidth. Only the reels
+// players (expo-video, and hls.js on the web) can play it: the web feed card and
+// thread view use a bare <video src>, which shows "VIDEO UNAVAILABLE" for an
+// .m3u8 in Chrome/Firefox, so /feed and /social ask for mp4. Otherwise the
+// richest mp4 under the cap - X's top rung is a ~10Mbps 1080p file a phone on
+// cellular stalls on. Nothing under the cap: the smallest one, because a heavy
+// clip still beats no clip.
+const X_MP4_MAX_BPS = 2500000;
+function bestVariant(variants, hls) {
+  const vs = Array.isArray(variants) ? variants.filter((v) => v && v.url) : [];
+  const pl = hls && vs.find((v) => v.content_type === 'application/x-mpegURL');
+  const mp4 = vs.filter((v) => v.content_type === 'video/mp4').sort((a, b) => (b.bit_rate || 0) - (a.bit_rate || 0));
+  return (pl || mp4.find((v) => (v.bit_rate || 0) <= X_MP4_MAX_BPS) || mp4[mp4.length - 1] || {}).url || '';
+}
+
+// possibly_sensitive does not tell porn from gore, and a has:videos search on
+// police/riot/explosion draws porn spam bots. Gore stays (veiled); a sensitive
+// post that reads as sexual is dropped, as the client drops porn labels.
+// ponytail: text-only heuristic, bots with innocuous captions still pass; an
+// author-level signal (account age, follower ratio) is the upgrade.
+const X_SEXUAL = /\b(porn\w*|nsfw|onlyfans|fansly|xxx|nudes?|nudity|naked|horny|milf|camgirls?|sexy|sextape|link in (my )?bio)\b|18\+/i;
 
 // --- XProvider (keyed, optional) -------------------------------------------
 // Uses Twitter/X API v2 recent search only when X_BEARER is set. Never hardcode
@@ -434,11 +464,15 @@ class XProvider extends SocialProvider {
     return [];
   }
 
-  async search(query, limit) {
+  // sinceMs: only posts newer than this. start_time is a filter X applies before
+  // billing, so a stale archive hit is never paid for and then thrown away.
+  // hls: the caller's players can all play HLS (see bestVariant).
+  async search(query, limit, sinceMs, hls) {
     if (!this.enabled) return [];
     // Reuse a recent identical query before paying for it again. /social is
     // per-country, so without this every country on the globe is its own bill.
-    const hit = this._qcache.get(query);
+    const key = query + (hls ? ' #hls' : '');
+    const hit = this._qcache.get(key);
     if (hit && Date.now() - hit.t < X_CACHE_MS) return hit.v;
     // Ask for the API minimum by default, and never more than the budget left.
     const want = Math.min(limit || X_MAX_RESULTS, X_MAX_RESULTS, xBudgetLeft());
@@ -455,19 +489,23 @@ class XProvider extends SocialProvider {
       'tweet.fields': 'created_at,public_metrics,author_id,lang,possibly_sensitive',
       expansions: 'author_id,attachments.media_keys',
       'user.fields': 'username,name',
-      'media.fields': 'type,url,preview_image_url',
+      // Without variants X sends a video's poster but never its file, so every X
+      // clip reached the client with an empty url and was dropped as unplayable.
+      'media.fields': 'type,url,preview_image_url,variants,public_metrics',
     });
+    // X wants RFC 3339 to the second; toISOString's milliseconds are dropped.
+    if (sinceMs) params.set('start_time', new Date(Date.now() - sinceMs).toISOString().replace(/\.\d+Z$/, 'Z'));
     const url = 'https://api.twitter.com/2/tweets/search/recent?' + params.toString();
     const data = await getJson(url, { 'Authorization': 'Bearer ' + this.bearer });
     // X bills every post it returned, including ones dropped below — so count
     // the raw response, not what survives.
     xBudgetSpend((data && Array.isArray(data.data)) ? data.data.length : 0);
-    const items = this.mapResponse(data);
-    this._qcache.set(query, { t: Date.now(), v: items });
+    const items = this.mapResponse(data, hls);
+    this._qcache.set(key, { t: Date.now(), v: items });
     return items;
   }
 
-  mapResponse(data) {
+  mapResponse(data, hls) {
     if (!data || !Array.isArray(data.data)) return [];
     const users = {};
     const mediaByKey = {};
@@ -475,18 +513,25 @@ class XProvider extends SocialProvider {
     for (const u of inc.users || []) users[u.id] = u;
     for (const m of inc.media || []) mediaByKey[m.media_key] = m;
 
-    // X's own possibly_sensitive flag: gore, porn, crude spam. Paid for already,
-    // but never worth a place on the wall.
-    return data.data.filter((t) => !t.possibly_sensitive).map((t) => {
+    // X's possibly_sensitive flag is where war and street footage lands, so it is
+    // kept and marked graphic: the app veils it, never drops it and never shows
+    // it bare. (Every lane still holds it back for now - see unveiledOnly.)
+    return data.data.filter((t) => !(t.possibly_sensitive && X_SEXUAL.test(t.text || ''))).map((t) => {
       const u = users[t.author_id] || {};
       const pm = t.public_metrics || {};
       const media = [];
+      let views = 0;
       const keys = (t.attachments && t.attachments.media_keys) || [];
       for (const k of keys) {
         const m = mediaByKey[k];
         if (!m) continue;
         if (m.type === 'video' || m.type === 'animated_gif') {
-          media.push({ type: 'video', url: m.url || '', thumb: m.preview_image_url });
+          const src = bestVariant(m.variants, hls);
+          // No playable rung (X withholds variants on some clips): keep the
+          // poster as a picture - a video item with no url reads as broken.
+          if (src) media.push({ type: 'video', url: src, thumb: m.preview_image_url });
+          else if (m.preview_image_url) media.push({ type: 'image', url: m.preview_image_url });
+          views = Math.max(views, (m.public_metrics && m.public_metrics.view_count) || 0);
         } else if (m.url) {
           media.push({ type: 'image', url: m.url });
         }
@@ -503,7 +548,9 @@ class XProvider extends SocialProvider {
         metrics: {
           score: (pm.like_count || 0) + (pm.retweet_count || 0),
           replies: pm.reply_count || 0,
+          views,
         },
+        graphic: !!t.possibly_sensitive,
         media,
       };
     });
@@ -512,14 +559,26 @@ class XProvider extends SocialProvider {
   async fetchGlobal({ limit }) {
     // Every term here must be unambiguous, because X bills per post read: the
     // old 'strike'/'protest' query paid for NFL touchdowns and rap beef.
-    return this.search(X_EVENTS + ' ' + X_FIRSTHAND + ' lang:en', limit).catch((e) => this._fail(e));
+    return this.search(X_EVENTS + ' ' + X_FIRSTHAND + ' lang:en', limit).then(unveiledOnly).catch((e) => this._fail(e));
   }
 
   async fetchByCountry({ country, limit }) {
     if (!country) return this.fetchGlobal({ limit });
-    return this.search(`"${country}" (airstrike OR ceasefire OR missile OR invasion OR protesters OR killed OR attack) ${X_FIRSTHAND} lang:en`, limit).catch((e) => this._fail(e));
+    return this.search(`"${country}" (airstrike OR ceasefire OR missile OR invasion OR protesters OR killed OR attack) ${X_FIRSTHAND} lang:en`, limit).then(unveiledOnly).catch((e) => this._fail(e));
+  }
+
+  // Relevancy within the reels window is X's own "most engaged lately" order.
+  async fetchReels({ limit }) {
+    return this.search(X_CLIPS + ' has:videos lang:en', limit, REELS_MAX_AGE_MS, true).then(unveiledOnly).catch((e) => this._fail(e));
   }
 }
+
+// No client maps `graphic` yet (proxyPostToApp reads it nowhere), so a
+// sensitive X post would play unveiled on any of them - and before this change
+// no endpoint carried one. /reels included: no client reads it today, but the
+// first one wired to it must not get footage bare.
+// ponytail: drop this once proxyPostToApp maps graphic -> _graphic everywhere.
+function unveiledOnly(items) { return items.filter((it) => !it.graphic); }
 
 // --- ThreadsProvider (stub) ------------------------------------------------
 // Meta's Threads has no public read/search API for arbitrary content (the
@@ -569,6 +628,23 @@ async function aggregateByCountry({ country, mode, limit }) {
     PROVIDERS.map((p) => p.fetchByCountry({ country, mode, limit }))
   );
   return collect(results, mode, limit).map((it) => ({ ...it, country: it.country || country || '' }));
+}
+
+// /reels: recent posts carrying a clip that actually plays. 'hot' ranks by
+// engagement per hour of age, which is "most engaged AND newest" in one number.
+// A provider with a video-specific query (X) uses it; the rest hand over their
+// global pool and the filter keeps what plays. The filter runs as collect's
+// arrange step - after capXShare has counted the whole free pool, so a feed of
+// mostly-text Reddit cannot ration the paid X clips down to nothing.
+const REELS_MAX_AGE_MS = 48 * 3.6e6;
+function isReel(it) {
+  return Date.now() - (it.createdAt || 0) <= REELS_MAX_AGE_MS &&
+    (it.media || []).some((m) => m.type === 'video' && m.url);
+}
+async function aggregateReels({ limit }, providers = PROVIDERS) {
+  const results = await Promise.allSettled(providers.map((p) =>
+    p.fetchReels ? p.fetchReels({ limit }) : p.fetchGlobal({ mode: 'hot', limit })));
+  return collect(results, 'hot', limit, (ranked) => ranked.filter(isReel));
 }
 
 function collect(results, mode, limit, arrange) {
@@ -914,6 +990,12 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, page(all, offset, limit), FEED_CACHE_HEADERS);
     }
 
+    if (path === '/reels') {
+      // One pool, one ranking: mode is ignored so it cannot mint extra pools.
+      const all = await cached('reels', () => aggregateReels({ limit: FEED_POOL }));
+      return sendJson(res, 200, page(all, offset, limit), FEED_CACHE_HEADERS);
+    }
+
     // ─── STREAM HEALTH: the pool's vital signs, aggregated from every client ──
     // Clients POST what actually happened when they tried a stream (ok, needed
     // the proxy, connect ms); everyone then GETs the aggregate. This is what
@@ -1056,7 +1138,7 @@ const server = http.createServer(async (req, res) => {
     if (path === '/' || path === '/health') {
       return sendJson(res, 200, {
         ok: true,
-        endpoints: ['/feed?mode=tension&limit=40', '/social?country=<name>&mode=tension&limit=30', '/hls?u=<m3u8 url>', '/streams/health', 'POST /streams/report {reports:[{u,ok,v,ms}]}', 'POST /translate {texts:[...], target:"en"}'],
+        endpoints: ['/feed?mode=tension&limit=40', '/social?country=<name>&mode=tension&limit=30', '/reels?limit=30', '/hls?u=<m3u8 url>', '/streams/health', 'POST /streams/report {reports:[{u,ok,v,ms}]}', 'POST /translate {texts:[...], target:"en"}'],
         providers: PROVIDERS.map((p) => ({ platform: p.platform, enabled: p.enabled !== false })),
         reddit: { auth: redditAuthed() ? 'oauth' : 'keyless', userAgent: REDDIT_UA },
         translate: { provider: DEEPL_KEY ? 'deepl' : 'off', cached: trCache.size },
@@ -1072,7 +1154,8 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => {
+// Listen only when run (npm start), so test.js can require the module offline.
+if (require.main === module) server.listen(PORT, () => {
   console.log(`[void-proxy] listening on http://localhost:${PORT}`);
   console.log(`[void-proxy] providers: reddit(${redditAuthed() ? 'oauth' : 'keyless — 403 likely, set REDDIT_CLIENT_ID/REDDIT_SECRET'})` +
     `, x(${process.env.X_BEARER ? `on, ${xBudgetLeft()}/${X_DAILY_POSTS} posts left today` : 'off — set X_BEARER'})` +
@@ -1178,4 +1261,4 @@ function loadDotEnv() {
   } catch (_) { /* ignore */ }
 }
 
-module.exports = { tensionScore, capXShare, xBudgetLeft, redditToken, redditAuthed, deeplTarget, translateTexts, rankItems, subsForCountry, withProvenance, interleaveRegional, page, RedditProvider, XProvider, ThreadsProvider };
+module.exports = { tensionScore, capXShare, xBudgetLeft, redditToken, redditAuthed, deeplTarget, translateTexts, rankItems, subsForCountry, withProvenance, interleaveRegional, page, bestVariant, aggregateReels, RedditProvider, XProvider, ThreadsProvider };

@@ -107,8 +107,10 @@ export function feedGate(p: Post): '' | 'empty' | 'meta' | 'no-tags' | 'news-acc
 
 // ─── REELS GATES ────────────────────────────────────────────────────────
 // Moderation labels that must never reach a reel (~2% of the wrestling feeds carry
-// porn/sexual labels; the Twitch feed is an open submission hashtag).
-export const REEL_BLOCK_LABELS = /porn|sexual|nudity|nsfw|gore|graphic-media|self-harm/i;
+// porn/sexual labels; the Twitch feed is an open submission hashtag). gore and
+// graphic-media are NOT here: that is the news footage reels exist for, and
+// bskyToPost marks it _graphic so the veil covers it instead of it vanishing.
+export const REEL_BLOCK_LABELS = /porn|sexual|nudity|nsfw|self-harm/i;
 // Accounts that asked not to be shown logged-out. 38% of one feed carried this.
 export const REEL_BLOCK_AUTHOR_LABELS = /!no-unauthenticated/i;
 // Pet/wildlife is the biggest diluter of the high-energy reels surface. Reels rule
