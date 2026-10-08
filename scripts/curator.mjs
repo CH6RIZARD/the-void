@@ -116,7 +116,9 @@ const SYSTEM = `You label short video clips for a news-and-current-events feed. 
 
 async function labelBatch(batch) {
   const lines = batch.map((c, i) => `${i}. ${c.platform} | ${c.text.replace(/\s+/g, ' ').slice(0, 240)} | likes ${c.likes} | age ${Math.max(0, Math.round((Date.now() - Date.parse(c.createdAt)) / 3600e3))}h`).join('\n');
-  const body = { model: MODEL, stream: false, format: 'json', keep_alive: '30m', options: { temperature: 0, num_ctx: 2048 }, messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: lines }] };
+  // keep_alive 2m: the model leaves RAM between passes. On this 16 GB laptop a
+  // resident 2 GB model made release builds take 35 min; the reload is ~10 s a pass.
+  const body = { model: MODEL, stream: false, format: 'json', keep_alive: '2m', options: { temperature: 0, num_ctx: 2048 }, messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: lines }] };
   // Strict parse: every index must be present or the batch is retried once.
   // A refused connection is Ollama going away mid-pass (it crash-loops when
   // D: drops its blob store), not a bad answer: that returns 'down' so the
