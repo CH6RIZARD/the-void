@@ -1169,7 +1169,9 @@ body.tab-void .bio-hud{display:flex}
 /* Plain text row, not a segmented pill: the filled gold chip read as a button
    rather than a tab. Active = white text on a 1px gold rule. */
 /* Profile tabs + the layout toggle; the 3-across tile grid (native ProfileScreen st.tile*) */
-.me-tabs .prof-layout-btn{margin-left:auto;background:none;border:none;padding:6px 8px;margin-bottom:3px;color:var(--nav-dim);cursor:pointer;display:flex;align-items:center;align-self:flex-start}
+.me-tabs .prof-layout{margin-left:auto;display:flex;gap:2px;align-self:flex-start}
+.me-tabs .prof-layout-btn{background:none;border:none;padding:6px 6px;margin-bottom:3px;color:var(--nav-dim);cursor:pointer;display:flex;align-items:center;transition:color .2s}
+.me-tabs .prof-layout-btn.on{color:var(--gold)}
 .prof-layout-btn .vi{width:14px;height:14px}
 .prof-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:2px}
 .ptile{position:relative;aspect-ratio:1;overflow:hidden;border-radius:3px;border:1px solid var(--hairline);background:rgba(255,255,255,.03);cursor:pointer}
@@ -1458,8 +1460,8 @@ body.tab-void .bio-hud{display:flex}
     </div>
     <div class="prof-stats">
       <div class="prof-stat"><div class="prof-stat-num" id="p-posts">0</div><div class="prof-stat-lbl">DROPS</div></div>
+      <div class="prof-stat" style="cursor:pointer" onclick="VMod.follows('followers')"><div class="prof-stat-num" id="p-followers">–</div><div class="prof-stat-lbl">FOLLOWERS</div></div>
       <div class="prof-stat" style="cursor:pointer" onclick="VMod.follows('following')"><div class="prof-stat-num" id="p-following">–</div><div class="prof-stat-lbl">FOLLOWING</div></div>
-      <div class="prof-stat" style="cursor:pointer" onclick="VMod.follows('followers')"><div class="prof-stat-num" id="p-followers">–</div><div class="prof-stat-lbl">VOICES</div></div>
     </div>
     <div class="prof-actions">
       <button class="prof-edit" onclick="openSettings()">EDIT PROFILE</button>
@@ -1472,7 +1474,7 @@ body.tab-void .bio-hud{display:flex}
       <div class="me-tab on" data-pane="drops" onclick="switchMeTab(this)">DROPS</div>
       <div class="me-tab" data-pane="hearted" onclick="switchMeTab(this)">HEARTED</div>
       <div class="me-tab" data-pane="replies" onclick="switchMeTab(this)">REPLIES</div>
-      <button class="prof-layout-btn" id="prof-layout-btn" onclick="toggleProfLayout()" aria-label="Show drops as a grid"></button>
+      <span class="prof-layout" id="prof-layout-btn"><button class="prof-layout-btn" data-layout="tiles" onclick="setProfLayout('tiles')" aria-label="Show drops as a grid"></button><button class="prof-layout-btn" data-layout="scroll" onclick="setProfLayout('scroll')" aria-label="Show drops as a list"></button></span>
     </div>
     <div class="prof-content">
       <div class="me-pane on" id="me-pane-drops"><div id="user-posts-feed"><div class="user-posts-empty">NO DROPS YET &middot; JOIN THE THREAD</div></div></div>
@@ -5920,7 +5922,7 @@ function connectTile(cell,sources,onConnected){
     if(cancelled)return;
     // csg-offline matches the country-grid path below, and is what lets the CSS stop
     // this tile's 14 particle animations now that it has nothing left to load.
-    if(i>=sources.length){cell.classList.add('csg-offline');sparkleTile(cell,'● NO SIGNAL');return;}
+    if(i>=sources.length){cell.classList.add('csg-offline');sparkleTile(cell,_nsLbl(cell));return;}
     const src=sources[i++];
     sparkleTile(cell,'● CONNECTING');
     const ok=await attemptSource(cell,src);
@@ -5979,7 +5981,7 @@ function renderLiveGrid(mount,sources,N,opts={}){
       // not sit there as a NO SIGNAL box. The world wall keeps its fixed layout.
       if(opts.collapse){cell.remove();settle();return;}
       cell.classList.add('csg-offline');
-      sparkleTile(cell,'● NO SIGNAL');
+      sparkleTile(cell,_nsLbl(cell));
       settle();
     })(cells[k],laneSources);
   }
@@ -6150,6 +6152,7 @@ function wallCascadeFor(name,first){
   for(const s of iptv){ const before=seen.size; push(s); if(seen.size>before){lastResort=s;break;} }
   return lastResort?lifeChain.slice(0,2).concat(lastResort):lifeChain.slice(0,3);
 }
+function _nsLbl(cell){const n=cell&&(cell.__wallName||cell.dataset&&cell.dataset.country);return n?String(n).toUpperCase()+' · NO SIGNAL':'● NO SIGNAL';}
 function tagWallCell(cell,name,src){
   if(!cell)return;
   cell.__wallName=name||cell.__wallName||'';
@@ -6212,7 +6215,7 @@ async function healWallCell(cell){
       return true;
     }
     cell.classList.add('csg-offline');
-    sparkleTile(cell,'● NO SIGNAL');
+    sparkleTile(cell,_nsLbl(cell));
     return false;
   }finally{
     cell.__healing=false;_wallHealBusy=Math.max(0,_wallHealBusy-1);
@@ -6263,7 +6266,7 @@ function spawnWallTile(){
     // so the wall is always full top to bottom while candidates keep loading.
     clearStreamStatus&&clearStreamStatus(cell);
     cell.classList.add('csg-offline');
-    sparkleTile(cell,'● NO SIGNAL');
+    sparkleTile(cell,_nsLbl(cell));
     return false;
   });
 }
@@ -6355,7 +6358,7 @@ async function loadWallBatch(want){
         clearStreamStatus&&clearStreamStatus(cell);
         cell.classList.add('csg-offline');
         tagWallCell(cell,name,src);
-        sparkleTile(cell,'● NO SIGNAL');
+        sparkleTile(cell,_nsLbl(cell));
       }
     }
   }));
@@ -6415,7 +6418,16 @@ function refreshGlobeWall(){
   // The app's refreshAll: the whole tab, whichever half is up. On REELS that is a
   // forced reel refill under the wash; on GLOBE the wall is rebuilt.
   if(typeof globeMode!=='undefined'&&globeMode==='reels'){try{showPtrFlash(700);fillGlobeReels(true);}catch(e){console.error("[globe] reels refresh failed",e);}return;}
-  try{ buildGlobeGrid(); }catch(e){ console.error("[globe] refresh failed",e); }
+  // REFRESH SWAPS CONTENT IN PLACE. IT DOES NOT BLANK THE WALL (app LiveWall.onRefresh):
+  // every tile re-walks its own chain and swaps when it finds a source; the heal cap
+  // paces them so they do not all reconnect at once. Only a wall that was never
+  // built is built from nothing.
+  const grid=document.getElementById('gl-grid');
+  const cells=grid?[...grid.querySelectorAll('.gl-tile')]:[];
+  if(!cells.length||!buildGlobeGrid._built){try{ buildGlobeGrid(); }catch(e){ console.error("[globe] refresh failed",e); }return;}
+  _wallHealBusy=0;
+  cells.forEach(c=>{c.__healAt=0;c.__needsHeal=true;c.__nativeTried=true;});
+  (async()=>{for(const c of cells){let w=0;while(_wallHealBusy>=WALL_HEAL_MAX&&w++<200)await new Promise(r=>setTimeout(r,150));try{healWallCell(c);}catch(e){}}})();
 }
 function buildGlobeGrid(){
   const grid=document.getElementById('gl-grid');
@@ -8722,15 +8734,15 @@ async function renderProfPane(pane){
 }
 // Persisted, as native: whichever way you last chose to look at a profile is
 // how it opens next time.
-function toggleProfLayout(){
-  _profLayout=_profLayout==='tiles'?'scroll':'tiles';
+function toggleProfLayout(){setProfLayout(_profLayout==='tiles'?'scroll':'tiles');}
+function setProfLayout(l){
+  _profLayout=l==='tiles'?'tiles':'scroll';
   localStorage.setItem(PROF_LAYOUT_KEY,_profLayout);
   paintProfLayoutBtn();renderProfPane(_profTab);
 }
 function paintProfLayoutBtn(){
-  const b=document.getElementById('prof-layout-btn');if(!b)return;
-  b.innerHTML=_profLayout==='tiles'?VICON.rows:VICON.grid;
-  b.setAttribute('aria-label',_profLayout==='tiles'?'Show drops as a list':'Show drops as a grid');
+  const w=document.getElementById('prof-layout-btn');if(!w)return;
+  w.querySelectorAll('.prof-layout-btn').forEach(b=>{if(!b.innerHTML)b.innerHTML=b.dataset.layout==='tiles'?VICON.grid:VICON.rows;b.classList.toggle('on',b.dataset.layout===_profLayout);});
 }// Profile share — same clipboard mechanism as vwShare, pointed at the handle.
 function shareProfile(){
   const url=location.href.split('#')[0]+'#'+(USER.handle||'@void');
@@ -8774,6 +8786,7 @@ function switchTab(tab){
   // Re-tapping the tab you are on refreshes it (app: onTabReselect): VOID refreshes
   // the feed below, GLOBE refreshes the globe and the wall.
   if(tab===_was&&tab==='globe'){refreshGlobeWall();return;}
+  if(tab===_was&&tab==='search'){const si=document.getElementById('si');if(si){try{si.focus();}catch(e){}}return;}
   if(tab===_was&&tab!=='void')return;    // VOID keeps its tap-to-refresh gesture
   document.body.classList.toggle('tab-void',tab==='void');
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
@@ -9058,7 +9071,7 @@ function setGlobeMode(mode,announce){
   document.querySelectorAll('.gmode').forEach(b=>b.classList.toggle('on',b.dataset.mode===globeMode));
   // Say where you just landed. Silent on the initial tab entry - an announcement
   // is only meaningful when it marks a change the user just made.
-  if(announce)voidToast(globeMode==='reels'?'REELS \u00b7 FOR YOU':'GLOBE \u00b7 TAP A NATION');
+  // No announcement: the app's GlobeScreen says nothing on a mode change either.
   if(globeMode==='reels'){
     liveParkAll();                       // the wall is hidden — stop its players
     fillGlobeReels();
@@ -9134,7 +9147,9 @@ function fillGlobeReels(force){
     ct.innerHTML='<div class="greel-empty">PULLING SIGNAL&#x2026;</div>';
     if((fillGlobeReels._tries=(fillGlobeReels._tries||0)+1)>3){
       fillGlobeReels._tries=0;
-      ct.innerHTML='<div class="greel-empty">NO SIGNAL &#x00b7; PULL TO REFRESH</div>';
+      ct.innerHTML='<div class="greel-empty" onclick="fillGlobeReels(true)" style="cursor:pointer">NO SIGNAL &#x00b7; TAP TO RETRY</div>';
+      clearTimeout(fillGlobeReels._auto);
+      fillGlobeReels._auto=setTimeout(()=>{if(activeTab==='globe'&&globeMode==='reels'&&ct.querySelector('.greel-empty'))fillGlobeReels(true);},15000);
       return;
     }
     Promise.allSettled([
@@ -9259,7 +9274,7 @@ function vwItemHtml(p,i){
   else if(p._video)media=cover+sparkleMarkup('')+`<video class="vw-vid" data-src="${p._video}"${p._img?` poster="${p._img}"`:''} muted loop playsinline preload="none"></video>`;
   else if(p._img)media=cover+IMG_LOADER+`<img class="vw-img" src="${safeMediaUrl(p._img)}" referrerpolicy="no-referrer" onload="imgLoaded(this)" onerror="imgLoaded(this);this.remove()">`;
   else media=cover;
-  return `<div class="vw-item" id="vw-${p._vid}" data-pid="${p.id.split('~')[0]}" ondblclick="vwFire(this)">
+  return `<div class="vw-item" id="vw-${p._vid}" data-pid="${p.id.split('~')[0]}" onclick="vwSound(this,event)" ondblclick="vwFire(this)">
     ${media}<div class="vw-scan"></div>
     <div class="vw-rail">
       <!-- The count needs the id react() writes to (#fc-<id>), or bolting a reel
@@ -11980,6 +11995,73 @@ function mount(){
   document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;if(S.sheet)return closeSheet();if(S.topicOpen)return V22.closeTopic();if(S.mail)return V22.mailTap();if(S.peek)return fold();if(S.section==='polls')setSection('feed');});
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount);else mount();
+})();
+</script>
+
+
+<!-- ═══ parity: back button, thread swipe, reel sound, profile pull-to-refresh (app behaviours) ═══ -->
+<script>
+(function(){
+'use strict';
+// ─── BACK CLOSES THE TOPMOST OVERLAY (app: Android back) ──────────────────────
+// Every overlay pushes one history entry when it opens and pops it when it closes,
+// so the phone's back gesture / browser back closes the top one instead of leaving
+// the page. A close that came FROM popstate must not pop again.
+const stack=[];let popping=false;
+function vbPush(close){try{history.pushState({vb:stack.length+1},'');}catch(e){}stack.push(close);}
+function vbDrop(close){const i=stack.lastIndexOf(close);if(i<0)return;stack.splice(i,1);if(!popping&&i===stack.length){popping=true;try{history.back();}catch(e){popping=false;}}}
+window.addEventListener('popstate',()=>{if(popping){popping=false;return;}const close=stack.pop();if(close){popping=true;try{close();}finally{popping=false;}}});
+function pair(openName,closeName,isOpen){
+  const o=window[openName],c=window[closeName];if(typeof o!=='function'||typeof c!=='function')return;
+  const closer=function(){try{return c.apply(window,arguments);}finally{}};
+  window[openName]=function(){const r=o.apply(this,arguments);try{if(!isOpen||isOpen())vbPush(closer);}catch(e){}return r;};
+  window[closeName]=function(){const r=c.apply(this,arguments);vbDrop(closer);return r;};
+}
+const on=(id,cls)=>()=>{const el=document.getElementById(id);return !!el&&(cls?el.classList.contains(cls):true);};
+pair('openThread','closeThread',on('thread-overlay','open'));
+pair('openPhoto','closePhoto');
+pair('openSettings','closeSettings',on('settings-modal','open'));
+pair('openComposer','closeComposer',on('composer-overlay','open'));
+pair('openCountry','closeOverlay');
+pair('openChat','closeChat');
+pair('openGlobeSearch','closeGlobeSearch',on('globe-search-modal','open'));
+// the 22b layers
+if(window.V22){
+  const V=window.V22;
+  const wrap=(name,isOpenAfter,closeFn)=>{const f=V[name];if(typeof f!=='function')return;V[name]=function(){const r=f.apply(this,arguments);try{if(isOpenAfter())vbPush(closeFn);else vbDrop(closeFn);}catch(e){}return r;};};
+  const bodyHas=c=>()=>document.body.classList.contains(c);
+  const closeMail=()=>{if(document.body.classList.contains('v22-mail'))V.mailTap();};
+  wrap('mailTap',bodyHas('v22-mail'),closeMail);
+  const closeTopic=()=>V.closeTopic();wrap('openTopic',bodyHas('v22-topic'),closeTopic);wrap('closeTopic',()=>false,closeTopic);
+  const closeSheet=()=>V.closeSheet();wrap('openSheet',bodyHas('v22-sheet'),closeSheet);wrap('closeSheet',()=>false,closeSheet);
+  const toFeed=()=>V.goFeed();wrap('goOther',bodyHas('v22-polls'),toFeed);wrap('goFeed',()=>false,toFeed);
+}
+
+// ─── SWIPE RIGHT TO LEAVE THE THREAD (app ThreadScreen: >80px with a push, or a flick) ──
+const tb=document.getElementById('thread-body');
+if(tb){let sx=0,sy=0,st=0,live=false;
+  tb.addEventListener('touchstart',e=>{const t=e.touches[0];sx=t.clientX;sy=t.clientY;st=Date.now();live=true;},{passive:true});
+  tb.addEventListener('touchmove',e=>{if(!live)return;const t=e.touches[0];if(Math.abs(t.clientY-sy)>14&&Math.abs(t.clientY-sy)>Math.abs(t.clientX-sx))live=false;},{passive:true});
+  tb.addEventListener('touchend',e=>{if(!live)return;live=false;const t=e.changedTouches[0];const dx=t.clientX-sx,dt=Math.max(1,Date.now()-st);const v=dx/dt*1000;if((dx>80&&v>0)||v>900)closeThread();},{passive:true});}
+
+// ─── TAP A REEL: SOUND ON / OFF, ONE SOUND SOURCE AT A TIME (app ReelItem) ──────
+window.vwSound=function(item,e){
+  if(e&&e.target&&e.target.closest&&e.target.closest('.vw-rail,.au-pill,a,button,.vw-info'))return;
+  const v=item.querySelector('video.vw-vid');if(!v)return;
+  const on=v.muted;
+  document.querySelectorAll('video.vw-vid').forEach(x=>{if(x!==v)x.muted=true;});
+  if(on){try{if(typeof liveParkAll==='function'&&typeof _audioCell!=='undefined'&&_audioCell&&typeof streamSetAudio==='function')streamSetAudio(_audioCell,false);}catch(x){}}
+  v.muted=!on;
+  if(!on===false&&v.paused){try{v.play().catch(()=>{});}catch(x){}}
+  try{navigator.vibrate&&navigator.vibrate(10);}catch(x){}
+};
+
+// ─── PROFILE: PULL TO REFRESH (app ProfileScreen) ──────────────────────────────
+const sp=document.getElementById('screen-profile');
+if(sp){let y0=0,pull=false;
+  sp.addEventListener('touchstart',e=>{if(sp.scrollTop===0)y0=e.touches[0].clientY;},{passive:true});
+  sp.addEventListener('touchmove',e=>{if(!y0)return;if(e.touches[0].clientY-y0>65&&sp.scrollTop===0)pull=true;},{passive:true});
+  sp.addEventListener('touchend',()=>{if(y0&&pull){try{showPtrFlash(600);}catch(e){}try{renderProfile();}catch(e){}}y0=0;pull=false;},{passive:true});}
 })();
 </script>
 
