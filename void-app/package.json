@@ -84,5 +84,8 @@
     "babel-preset-expo": "57.0.12",
     "patch-package": "^8.0.1",
     "typescript": "~6.0.3"
+  },
+  "overrides": {
+    "react-dom": "19.2.3"
   }
 }
