@@ -113,3 +113,13 @@ Multi-device ring; CallKit/PushKit wakeup (`voip` background mode); Android
 foreground service for background continuation; a pg_cron sweep that marks
 `ringing` rows older than 45 s as `missed` when the caller's app died mid-ring
 (today the caller's client does it).
+
+## Polls (migration 010)
+
+```bash
+supabase db push        # applies migrations/010_polls.sql (questions, votes, replies, likes, poll_board view)
+```
+
+or paste `migrations/010_polls.sql` into the SQL Editor. It is idempotent and
+seeds The Void's three questions. Applied to the live project on 2026-10-09.
+

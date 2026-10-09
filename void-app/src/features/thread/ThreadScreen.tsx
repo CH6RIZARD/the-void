@@ -3,7 +3,14 @@
 //
 // Presented OVER the launching screen (route must be a transparent modal): a
 // rgba(2,1,8,.7) + blur(3px) scrim, the OP CTA card, the replies divider with TOP/NEW,
-// the comment deck and the compose pill. Opening from a PostCard FLIP-lifts the card
+// the comment deck and the compose pill.
+//
+// The deck is PEEK-FAN (handoff THE-VOID-22b §5): a reply with children shows a peek
+// of its first child and `+N MORE`; tap it and it becomes the parent row with its
+// children fanned out beneath (`N REPLIES`); tap a child with children to go a level
+// deeper (`UNDER AUTHOR · N REPLIES`, with back); tap the parent again to fold (200ms).
+// Reply on any card pins it (`REPLYING TO AUTHOR`, clearable); sending posts under it
+// and unfolds it. No reply sheet any more. Opening from a PostCard FLIP-lifts the card
 // into the OP slot (measured rects, Reanimated), gold ring fading in; the deck deals up
 // with a 60ms stagger from T+120. Closing reverses it and hands the card back.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -34,7 +41,6 @@ import { toggleTranslate, useTranslation } from '../feed/translate';
 import { VmodIcon } from '../feed/vmodIcons';
 import { CommentCard } from './CommentCard';
 import { ComposePill } from './ComposePill';
-import { ReplyOverlay } from './ReplyOverlay';
 import { getThreadComments, postReply, setThreadSort, tcSort, tcTree, toggleCommentBolt, useThreadSort, useThreadVersion, viewerName } from './threadModel';
 import { useThreadTokens } from './threadTheme';
 
@@ -158,15 +164,77 @@ function Thread({ post: p, focus }: { post: Post; focus?: string }) {
     setTimeout(endFlip, 0);
   }, []);
 
-  const [roStack, setRoStack] = useState<string[]>([]);
-  const [roInstant, setRoInstant] = useState(false);
+  // ─── peek-fan state ──────────────────────────────────────────────────────
+  const [unfolded, setUnfolded] = useState<Record<string, true>>({});
+  const [folding, setFolding] = useState<Record<string, true>>({});
+  const [fanPath, setFanPath] = useState<Record<string, string[]>>({});
+  const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null);
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  useEffect(() => () => timers.current.forEach(clearTimeout), []);
+  const input = useRef<TextInput>(null);
+  const openFold = useCallback((id: string) => {
+    setUnfolded((u) => (u[id] ? u : { ...u, [id]: true }));
+    setFolding((f) => {
+      if (!f[id]) return f;
+      const n = { ...f };
+      delete n[id];
+      return n;
+    });
+  }, []);
+  const toggleFold = useCallback(
+    (id: string) => {
+      if (unfolded[id] && !folding[id]) {
+        setFolding((f) => ({ ...f, [id]: true }));
+        timers.current.push(
+          setTimeout(() => {
+            setUnfolded((u) => {
+              const n = { ...u };
+              delete n[id];
+              return n;
+            });
+            setFolding((f) => {
+              const n = { ...f };
+              delete n[id];
+              return n;
+            });
+          }, 200),
+        );
+        return;
+      }
+      openFold(id);
+      setFanPath((fp) => ({ ...fp, [id]: [] }));
+    },
+    [unfolded, folding, openFold],
+  );
+  const pin = useCallback((c: Comment) => {
+    setReplyTo({ id: c.id, name: c.author || 'anon' });
+    setTimeout(() => input.current?.focus(), 0);
+  }, []);
+  /** unfold the chain from a top-level card down to `id` */
+  const revealChain = useCallback(
+    (id: string, list: Comment[]) => {
+      const byId = new Map(list.map((c) => [c.id, c]));
+      if (!byId.has(id)) return;
+      const chain: string[] = [id];
+      let cur = byId.get(id);
+      while (cur && cur.parentId && cur.parentId !== cur.id && byId.has(cur.parentId)) {
+        chain.unshift(cur.parentId);
+        cur = byId.get(cur.parentId);
+      }
+      // chain[0] is top-level; the fan path is the ids between it and the target's parent
+      const top = chain[0];
+      const path = chain.slice(1, -1);
+      if (chain.length === 1) return; // a top-level reply itself: nothing to unfold
+      openFold(top);
+      setFanPath((f) => ({ ...f, [top]: path }));
+    },
+    [openFold],
+  );
 
   const close = useCallback(
     (instant?: boolean) => {
       if (closingRef.current) return;
       closingRef.current = true;
-      setRoInstant(true);
-      setRoStack([]);
       if (instant) return finish();
       setClosing(true);
       const tops = topCount.current;
@@ -203,38 +271,31 @@ function Thread({ post: p, focus }: { post: Post; focus?: string }) {
     [p.id, finish],
   );
 
-  const closeReplies = useCallback(() => setRoStack((s) => s.slice(0, -1)), []);
-  const closeAllReplies = useCallback(() => setRoStack([]), []);
-  const [roFocus, setRoFocus] = useState(0);
-  const openReplies = useCallback((cid: string, focus?: boolean) => {
-    setRoInstant(false);
-    setRoStack((s) => (s[s.length - 1] === cid ? s : s.concat(cid)));
-    if (focus) setRoFocus((n) => n + 1);
-  }, []);
-
-  // Opened from a profile reply (?focus=<replyId>): once that reply has loaded into
-  // this thread, open it in the reply overlay. Once only, so closing it sticks.
+  // Opened from a profile reply (?focus=<replyId>): once it has loaded, unfold the
+  // chain down to it. Once only, so folding it sticks.
   const focused = useRef(false);
   useEffect(() => {
-    if (!focus || focused.current || !(_remoteReplies[p.id] || []).some((c) => c.id === focus)) return;
+    if (!focus || focused.current) return;
+    const list = getThreadComments(p.id);
+    if (!list.some((c) => c.id === focus)) return;
     focused.current = true;
-    openReplies(focus);
-  }, [focus, version, p.id, openReplies]);
+    revealChain(focus, list);
+  }, [focus, version, p.id, revealChain]);
 
-  // Android back: pop the reply overlay first, then close the thread.
+  // Android back: clear a pinned reply first, then close the thread.
+  const replyToRef = useRef(replyTo);
+  replyToRef.current = replyTo;
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (roStackRef.current.length) {
-        closeReplies();
+      if (replyToRef.current) {
+        setReplyTo(null);
         return true;
       }
       close();
       return true;
     });
     return () => sub.remove();
-  }, [close, closeReplies]);
-  const roStackRef = useRef(roStack);
-  roStackRef.current = roStack;
+  }, [close]);
 
   // ─── animated styles ─────────────────────────────────────────────────────
   const rise = useReducedMotion() ? 0 : 12; // the pop / fallback's 12px rise
@@ -313,15 +374,17 @@ function Thread({ post: p, focus }: { post: Post; focus?: string }) {
 
   const [newId, setNewId] = useState<string | null>(null);
   const scroll = useRef<ScrollView>(null);
-  const input = useRef<TextInput>(null);
   const [text, setText] = useState('');
 
   const submit = () => {
-    postReply(p.id, viewerName(auth.user?.name), text, null, (id) => {
+    const target = replyTo?.id || null;
+    postReply(p.id, viewerName(auth.user?.name), text, target, (id) => {
       setText('');
       setNewId(id);
+      setReplyTo(null);
+      if (target) revealChain(id, getThreadComments(p.id));
       // Under TOP it lands last (bolts 0): bring it into view.
-      setTimeout(() => scroll.current?.scrollToEnd({ animated: true }), 60);
+      else setTimeout(() => scroll.current?.scrollToEnd({ animated: true }), 60);
     });
   };
 
@@ -483,7 +546,7 @@ function Thread({ post: p, focus }: { post: Post; focus?: string }) {
               </View>
             </Animated.View>
 
-            {/* #thread-comments */}
+            {/* #thread-comments — peek-fan */}
             <View>
               {tops.length ? (
                 tops.map((c, i) => {
@@ -493,21 +556,77 @@ function Thread({ post: p, focus }: { post: Post; focus?: string }) {
                   const deal = first && (inWindow || lateDeal || c.id === newId);
                   const delay = c.id === newId ? 0 : lateDeal ? Math.min(i, 8) * 60 : Math.round(120 + Math.min(i, 8) * 60 - since);
                   const k = Math.min(tops.length, 6);
+                  const kidsList = tcSort((kids[c.id] || []).slice(), sort);
+                  const kn = kidsList.length;
+                  const open = !!unfolded[c.id];
+                  const isOpen = open && !folding[c.id];
+                  // the fan: walk fanPath down from c
+                  let cur: Comment = c;
+                  let fan = kidsList;
+                  const path = fanPath[c.id] || [];
+                  for (const id of path) {
+                    const n = all.find((x) => x.id === id);
+                    if (!n) break;
+                    cur = n;
+                    fan = tcSort((kids[n.id] || []).slice(), sort);
+                  }
+                  const lbl = (n: number) => n + (n === 1 ? ' REPLY' : ' REPLIES');
                   return (
-                    <CommentCard
-                      key={c.id}
-                      c={c}
-                      opAuthor={author}
-                      kidsN={(kids[c.id] || []).length}
-                      deal={deal}
-                      delay={delay}
-                      closing={closing}
-                      closeDelay={i < k ? (k - 1 - i) * 30 : 0}
-                      onOpen={(x) => openReplies(x.id)}
-                      onReply={(x) => openReplies(x.id, true)}
-                      onBolt={(x) => toggleCommentBolt(p.id, x.id)}
-                      onMore={(x: Comment) => openCommentMenu(x, p)}
-                    />
+                    <View key={c.id}>
+                      <CommentCard
+                        c={c}
+                        opAuthor={author}
+                        kidsN={kn}
+                        noEdges
+                        parent={isOpen}
+                        deal={deal}
+                        delay={delay}
+                        closing={closing}
+                        closeDelay={i < k ? (k - 1 - i) * 30 : 0}
+                        peekOf={kn && !open ? kidsList[0] : null}
+                        peekMore={kn - 1}
+                        kidsLabel={kn ? (isOpen ? '▴ ' : '▾ ') + lbl(kn) : undefined}
+                        kidsOn={isOpen}
+                        onOpen={kn ? (x) => toggleFold(x.id) : undefined}
+                        onReply={pin}
+                        onBolt={(x) => toggleCommentBolt(p.id, x.id)}
+                        onMore={(x: Comment) => openCommentMenu(x, p)}
+                      />
+                      {open ? (
+                        <View style={styles.fan}>
+                          <View style={styles.fanHead}>
+                            {path.length ? (
+                              <Pressable onPress={() => setFanPath((f) => ({ ...f, [c.id]: (f[c.id] || []).slice(0, -1) }))} hitSlop={8} style={styles.fanBack} accessibilityLabel="Back">
+                                <Icon name="back" size={12} color={colors.navDim} />
+                              </Pressable>
+                            ) : null}
+                            <VText style={[styles.fanLbl, { color: colors.gold }]}>{(path.length ? 'UNDER ' + (cur.author || 'anon').toUpperCase() + ' · ' : '') + lbl(fan.length)}</VText>
+                          </View>
+                          {fan.map((kid, j) => {
+                            const kk = (kids[kid.id] || []).length;
+                            return (
+                              <CommentCard
+                                key={kid.id}
+                                c={kid}
+                                nested
+                                noEdges
+                                opAuthor={author}
+                                kidsN={kk}
+                                deal
+                                delay={kid.id === newId ? 0 : j * 60}
+                                closing={closing || !!folding[c.id]}
+                                kidsLabel={kk ? '▾ ' + lbl(kk) : undefined}
+                                onOpen={kk ? (x) => setFanPath((f) => ({ ...f, [c.id]: (f[c.id] || []).concat(x.id) })) : undefined}
+                                onReply={pin}
+                                onBolt={(x) => toggleCommentBolt(p.id, x.id)}
+                                onMore={(x: Comment) => openCommentMenu(x, p)}
+                              />
+                            );
+                          })}
+                          {!fan.length ? <VText style={[styles.empty, { color: colors.navDim }]}>NO REPLIES YET</VText> : null}
+                        </View>
+                      ) : null}
+                    </View>
                   );
                 })
               ) : (
@@ -522,12 +641,20 @@ function Thread({ post: p, focus }: { post: Post; focus?: string }) {
         {/* .thread-compose */}
         <Animated.View style={[chromeStyle]}>
           <Animated.View style={popStyle}>
+            {replyTo ? (
+              <View style={styles.pin}>
+                <VText style={[styles.pinT, { color: colors.gold }]}>{'REPLYING TO ' + replyTo.name.toUpperCase()}</VText>
+                <Pressable onPress={() => setReplyTo(null)} hitSlop={8} accessibilityLabel="Clear">
+                  <Icon name="x" size={11} color={colors.navDim} />
+                </Pressable>
+              </View>
+            ) : null}
             <ComposePill
               ref={input}
               value={text}
               onChangeText={setText}
               onSubmit={submit}
-              placeholder="add to the thread…"
+              placeholder={replyTo ? 'reply to ' + replyTo.name + '…' : 'add to the thread…'}
               avatar={viewerName(auth.user?.name)[0]?.toUpperCase() || '◎'}
               style={{ marginTop: 8, marginHorizontal: 18, marginBottom: 16 + insets.bottom }}
             />
@@ -536,7 +663,6 @@ function Thread({ post: p, focus }: { post: Post; focus?: string }) {
       </KeyboardAvoidingView>
       </GestureDetector>
 
-      <ReplyOverlay postId={p.id} stack={roStack} onOpen={openReplies} onBack={closeReplies} onCloseAll={closeAllReplies} focusKey={roFocus} instant={roInstant} />
       <ModerationHost />
     </View>
   );
@@ -577,4 +703,10 @@ const styles = StyleSheet.create({
   sorts: { flexDirection: 'row', gap: 12, flexShrink: 0 },
   sortT: { fontFamily: FONTS.mono, fontSize: 7, letterSpacing: em(7, 0.2) },
   empty: { textAlign: 'center', padding: 30, fontFamily: FONTS.mono, fontSize: 9, letterSpacing: em(9, 0.12) },
+  fan: { marginLeft: 22, marginBottom: 10 },
+  fanHead: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingBottom: 10 },
+  fanBack: { width: 20, height: 20, alignItems: 'center', justifyContent: 'center', marginLeft: -4 },
+  fanLbl: { fontFamily: FONTS.mono, fontSize: 7, letterSpacing: em(7, 0.25) },
+  pin: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 30, marginTop: 8 },
+  pinT: { fontFamily: FONTS.mono, fontSize: 7, letterSpacing: em(7, 0.2) },
 });

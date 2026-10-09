@@ -50,9 +50,16 @@ export interface CommentCardProps extends DealProps {
   onReply?: (c: Comment) => void;
   onBolt: (c: Comment) => void;
   onMore?: (c: Comment) => void;
+  /** peek-fan (handoff 22b §5): first child previewed under the card, `+N MORE`; no stack edges */
+  peekOf?: Comment | null;
+  peekMore?: number;
+  /** `▾ 3 REPLIES` / `▴ 3 REPLIES` at the head's right; gold while open */
+  kidsLabel?: string;
+  kidsOn?: boolean;
+  noEdges?: boolean;
 }
 
-export const CommentCard = memo(function CommentCard({ c, opAuthor, kidsN, parent, nested, onOpen, onReply, onBolt, onMore, deal, delay = 0, closing, closeDelay = 0 }: CommentCardProps) {
+export const CommentCard = memo(function CommentCard({ c, opAuthor, kidsN, parent, nested, onOpen, onReply, onBolt, onMore, deal, delay = 0, closing, closeDelay = 0, peekOf, peekMore = 0, kidsLabel, kidsOn, noEdges }: CommentCardProps) {
   const { colors, isLight } = useTheme();
   const tk = useThreadTokens();
   const v = useSharedValue(deal ? 0 : 1);
@@ -74,7 +81,7 @@ export const CommentCard = memo(function CommentCard({ c, opAuthor, kidsN, paren
   const style = useAnimatedStyle(() => ({ opacity: Math.min(1, Math.max(0, v.value)), transform: [{ translateY: (1 - v.value) * 24 }] }));
 
   const isOp = (c.author || '') === opAuthor;
-  const edges = kidsN >= 2 ? 2 : kidsN === 1 ? 1 : 0;
+  const edges = noEdges ? 0 : kidsN >= 2 ? 2 : kidsN === 1 ? 1 : 0;
   const mb = nested ? (edges ? 18 : 8) : edges ? 26 : 16;
   const canMore = !!onMore && (c.remote || !!c.authorId);
   const toUser = c.authorId ? c.handle : null; // Void accounts only; remote handles have no /u page
@@ -104,7 +111,7 @@ export const CommentCard = memo(function CommentCard({ c, opAuthor, kidsN, paren
           {isOp ? <VText style={styles.op}>{' OP '}</VText> : null}
           <VText style={[styles.time, { color: colors.navDim }]}>{' · ' + ago(c.time)}</VText>
         </VText>
-        {parent ? <VText style={[styles.parentTag, { color: colors.gold }]}>PARENT</VText> : null}
+        {kidsLabel ? <VText style={[styles.parentTag, { color: kidsOn ? colors.gold : colors.navDim }]}>{kidsLabel}</VText> : parent ? <VText style={[styles.parentTag, { color: colors.gold }]}>PARENT</VText> : null}
       </View>
       <VText style={[styles.text, { fontSize: nested ? 11.5 : 12.5, lineHeight: (nested ? 11.5 : 12.5) * 1.5, color: tk.text }]}>{c.text || ''}</VText>
       {c.img && !imgDead ? (
@@ -133,6 +140,18 @@ export const CommentCard = memo(function CommentCard({ c, opAuthor, kidsN, paren
           </Pressable>
         ) : null}
       </View>
+      {peekOf ? (
+        <View style={[styles.peek, { borderTopColor: colors.hairline }]}>
+          <View style={styles.peekAv}>
+            <PersonPfp uid={peekOf.authorId} handle={peekOf.handle} label={peekOf.author} size={18} />
+          </View>
+          <VText numberOfLines={1} style={[styles.peekT, { color: colors.navDim }]}>
+            <VText style={[styles.peekName, { color: tk.text }]}>{(peekOf.author || 'anon') + '  '}</VText>
+            {peekOf.text || ''}
+          </VText>
+          {peekMore > 0 ? <VText style={[styles.peekMore, { color: colors.gold }]}>{'+' + peekMore + ' MORE'}</VText> : null}
+        </View>
+      ) : null}
     </View>
   );
 
@@ -160,4 +179,9 @@ const styles = StyleSheet.create({
   acts: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   act: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   actT: { fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.08) },
+  peek: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 10, paddingTop: 9, borderTopWidth: 1 },
+  peekAv: { width: 18, height: 18, borderRadius: 9, overflow: 'hidden', flexShrink: 0 },
+  peekT: { flex: 1, minWidth: 0, fontFamily: FONTS.sans, fontSize: 11 },
+  peekName: { fontFamily: FONTS.sansBold, fontSize: 10 },
+  peekMore: { fontFamily: FONTS.mono, fontSize: 7, letterSpacing: em(7, 0.14), flexShrink: 0 },
 });

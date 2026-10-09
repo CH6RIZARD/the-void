@@ -145,4 +145,57 @@ export const VoidAPI = {
     const feed = await this.nationFeed(iso);
     return { ok: true, items: (feed.items || []).slice(0, 3) };
   },
+  // ─── polls (migration 010) ───────────────────────────────────────────────
+  /** Every question with handle, up / down, replies (poll_board). Public read. */
+  async pollBoard(): Promise<any[]> {
+    if (!env.supabaseUrl) return [];
+    const r = await env.fetch(env.supabaseUrl + '/rest/v1/poll_board?select=*&order=created_at.desc&limit=200', { headers: { 'apikey': env.supabaseAnonKey, 'Authorization': 'Bearer ' + (this.token || env.supabaseAnonKey) } });
+    if (!r.ok) throw new Error('poll_board ' + r.status);
+    const rows = await r.json();
+    return Array.isArray(rows) ? rows : [];
+  },
+  /** The signed-in user's own votes and likes, to light the buttons. */
+  async pollMine(): Promise<{ votes: Record<string, 1 | -1>; likes: string[] }> {
+    const out = { votes: {} as Record<string, 1 | -1>, likes: [] as string[] };
+    if (!this._sbReady()) return out;
+    const me = encodeURIComponent(this._uid()!);
+    const [v, l] = await Promise.all([this._sb('/rest/v1/poll_votes?user_id=eq.' + me + '&select=question_id,dir'), this._sb('/rest/v1/poll_reply_likes?user_id=eq.' + me + '&select=reply_id')]);
+    for (const row of v || []) out.votes[row.question_id] = row.dir;
+    out.likes = (l || []).map((row: any) => row.reply_id);
+    return out;
+  },
+  /** dir 0 clears the vote. */
+  async pollVote(id: string, dir: 1 | 0 | -1): Promise<ApiResult> {
+    if (!this._uuid(id) || !this._sbReady()) return { ok: true, local: true };
+    const me = this._uid()!;
+    if (dir === 0) await this._sb('/rest/v1/poll_votes?question_id=eq.' + encodeURIComponent(id) + '&user_id=eq.' + encodeURIComponent(me), 'DELETE');
+    else await this._sb('/rest/v1/poll_votes', 'POST', [{ question_id: id, user_id: me, dir }], { 'Prefer': 'resolution=merge-duplicates,return=minimal' });
+    return { ok: true };
+  },
+  async pollSuggest(body: string): Promise<ApiResult> {
+    if (!this._sbReady()) return { ok: true, local: true };
+    const rows = await this._sb('/rest/v1/poll_questions', 'POST', [{ author_id: this._uid(), body: String(body || '').slice(0, 140), kind: 'floor' }], { 'Prefer': 'return=representation' });
+    return { ok: true, id: rows && rows[0] && rows[0].id };
+  },
+  async pollReplies(qid: string): Promise<any[]> {
+    if (!this._uuid(qid) || !env.supabaseUrl) return [];
+    const q = '/rest/v1/poll_replies?question_id=eq.' + encodeURIComponent(qid) + '&select=id,body,created_at,author_id,profiles:author_id(handle,display_name),poll_reply_likes(count)&order=created_at.asc&limit=200';
+    const r = await env.fetch(env.supabaseUrl + q, { headers: { 'apikey': env.supabaseAnonKey, 'Authorization': 'Bearer ' + (this.token || env.supabaseAnonKey) } });
+    if (!r.ok) throw new Error('poll_replies ' + r.status);
+    const rows = await r.json();
+    return Array.isArray(rows) ? rows : [];
+  },
+  async pollReply(qid: string, body: string): Promise<ApiResult> {
+    if (!this._uuid(qid) || !this._sbReady()) return { ok: true, local: true };
+    const rows = await this._sb('/rest/v1/poll_replies', 'POST', [{ question_id: qid, author_id: this._uid(), body: String(body || '').slice(0, 1000) }], { 'Prefer': 'return=representation' });
+    return { ok: true, id: rows && rows[0] && rows[0].id };
+  },
+  async pollLike(rid: string, on: boolean): Promise<ApiResult> {
+    if (!this._uuid(rid) || !this._sbReady()) return { ok: true, local: true };
+    const me = this._uid()!;
+    if (on) await this._sb('/rest/v1/poll_reply_likes', 'POST', [{ reply_id: rid, user_id: me }], { 'Prefer': 'resolution=merge-duplicates,return=minimal' });
+    else await this._sb('/rest/v1/poll_reply_likes?reply_id=eq.' + encodeURIComponent(rid) + '&user_id=eq.' + encodeURIComponent(me), 'DELETE');
+    return { ok: true };
+  },
 };
+

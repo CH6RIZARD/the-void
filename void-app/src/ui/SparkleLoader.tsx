@@ -90,7 +90,7 @@ const TEX = 12;   // px the sprite is DRAWN at - a 2x2 texture is a square blob
 // when a clock turns on. Each tick guards per entry: an unmount racing a tick
 // must drop one dt, never throw on the UI thread.
 type SparkleClock = { t: SharedValue<number>; on: SharedValue<number> };
-function ensureSparkleLoop() {
+export function ensureSparkleLoop() {
   'worklet';
   const g = globalThis as any;
   if (g.__sparkleLoop) return;
@@ -151,7 +151,7 @@ function ensureSparkleLoop() {
   };
   g.requestAnimationFrame(tick);
 }
-function registerSparkleClock(t: SharedValue<number>, on: SharedValue<number>) {
+export function registerSparkleClock(t: SharedValue<number>, on: SharedValue<number>) {
   runOnUI((tSV: SharedValue<number>, onSV: SharedValue<number>) => {
     'worklet';
     const g = globalThis as any;
@@ -160,7 +160,7 @@ function registerSparkleClock(t: SharedValue<number>, on: SharedValue<number>) {
     ensureSparkleLoop();
   })(t, on);
 }
-function unregisterSparkleClock(t: SharedValue<number>) {
+export function unregisterSparkleClock(t: SharedValue<number>) {
   runOnUI((tSV: SharedValue<number>) => {
     'worklet';
     const g = globalThis as any;
@@ -169,7 +169,7 @@ function unregisterSparkleClock(t: SharedValue<number>) {
     for (let i = reg.length - 1; i >= 0; i--) if (reg[i].t === tSV) reg.splice(i, 1);
   })(t);
 }
-function kickSparkleLoop() {
+export function kickSparkleLoop() {
   runOnUI(ensureSparkleLoop)();
 }
 

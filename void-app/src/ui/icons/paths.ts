@@ -49,6 +49,10 @@ export const ICONS = {
   },
   home: { shapes: [p('M12 2.5l8.2 4.75v9.5L12 21.5l-8.2-4.75v-9.5L12 2.5z')] },
   user: { shapes: [{ t: 'circle', cx: 12, cy: 7.5, r: 3.5 }, p('M5 20c1.3-3.6 4-5.5 7-5.5s5.7 1.9 7 5.5')] },
+  arrowUp: { shapes: [p('M9 18v-6H5l7-7 7 7h-4v6H9z')] },
+  arrowDown: { shapes: [p('M15 6v6h4l-7 7-7-7h4V6h6z')] },
+  at: { shapes: [p('M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z'), p('M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.9 7.9')] },
+  userPlus: { shapes: [p('M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2'), { t: 'circle', cx: 9, cy: 7, r: 4 }, p('M19 8v6M22 11h-6')] },
   repost: { shapes: [p('M17 2l4 4-4 4'), p('M3 11V9a4 4 0 0 1 4-4h14'), p('M7 22l-4-4 4-4'), p('M21 13v2a4 4 0 0 1-4 4H3')] },
   dms: { shapes: [p('M21 11.5a8.5 8.5 0 0 1-12.3 7.6L3 21l1.9-5.7A8.5 8.5 0 1 1 21 11.5z')] },
   gear: {

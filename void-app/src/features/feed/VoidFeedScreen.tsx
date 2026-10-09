@@ -10,11 +10,11 @@
 // only new arrivals are ranked (nextFeedBatch) and appended; refresh rebuilds with the
 // new pull leading; the list windows old rows away past FEED_WINDOW (90 + 30 slack).
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { BackHandler, FlatList, Pressable, RefreshControl, StyleSheet, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import {
   FEED_MAX_AGE_H,
   FEED_SETTLE_MS,
@@ -34,17 +34,22 @@ import {
 import { timed } from '../../core/slow';
 import { useTheme } from '../../theme/ThemeProvider';
 import { FONTS, em } from '../../theme/palettes';
-import { SparkleLoader } from '../../ui/SparkleLoader';
 import { VText } from '../../ui/Text';
 import { voidToast } from '../../ui/Toast';
 import { ROUTES } from '../../nav/routes';
 import { onTabReselect } from '../../nav/reselect';
 import { ModerationHost } from './ModerationSheet';
 import { PostCard } from './PostCard';
+import { PtrFlash } from './PtrFlash';
 import { isPostHidden, useModerationVersion, useTick } from './stores';
 import { usePostViewability } from './viewability';
+import { Masthead } from '../home/Masthead';
+import { Mailbox } from '../home/Mailbox';
+import { MailLayer } from '../home/MailLayer';
+import { markAllSeen, pullNotifs, useNotifs } from '../home/notifs';
+import { PollsLayer } from '../polls/PollsLayer';
+import { WEB } from '../../theme/motion';
 
-const EASE = Easing.bezier(0.25, 0.1, 0.25, 1);
 const hiddenFn = (p: Post) => isPostHidden(p);
 type Status = 'idle' | 'scanning' | 'error' | 'stale';
 // The list outlives a remount of the tab (the web's #void-feed DOM did): nextFeedBatch
@@ -151,34 +156,84 @@ export default function VoidFeedScreen() {
   const visible = useMemo(() => items.filter((p) => !isPostHidden(p)), [items, modVersion]);
 
   // ─── header auto-hide ────────────────────────────────────────────────────
-  const hdr = useSharedValue(1);
+  // The masthead (THE⬡ + sections + mailbox) hides on scroll-down like the old
+  // .bio-hud did, and while anything covers the feed: Polls' topic page or Suggest
+  // sheet, Mail, or a route pushed over this tab (the thread overlay).
   const lastY = useRef(0);
-  const hdrShown = useRef(true);
-  const setHdr = (on: boolean) => {
-    if (hdrShown.current === on) return;
-    hdrShown.current = on;
-    hdr.value = withTiming(on ? 1 : 0, { duration: 220, easing: EASE });
-  };
+  const [hdrOn, setHdrOn] = useState(true);
   const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const y = e.nativeEvent.contentOffset.y;
     atTop.current = y < 120;
     if (y < 24) {
-      setHdr(true);
+      setHdrOn(true);
       lastY.current = y;
       return;
     }
     const d = y - lastY.current;
     if (Math.abs(d) < 6) return;
-    setHdr(d <= 0);
+    setHdrOn(d <= 0);
     lastY.current = y;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const [hdrH, setHdrH] = useState(44 + insets.top);
-  const hdrStyle = useAnimatedStyle(() => ({ opacity: hdr.value, transform: [{ translateY: -(1 - hdr.value) * hdrH }] }));
+
+  // ─── sections: Feed | Polls, and Mail ────────────────────────────────────
+  const { width } = useWindowDimensions();
+  // false while a route sits over this tab (the thread overlay, settings, a profile)
+  const [focused, setFocused] = useState(true);
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, []),
+  );
+  const [section, setSection] = useState<'feed' | 'polls'>('feed');
+  const [mailOpen, setMailOpen] = useState(false);
+  const [pollsCovered, setPollsCovered] = useState(false);
+  const pollsBack = useRef<() => boolean>(() => false);
+  const { unread } = useNotifs();
+  useEffect(() => {
+    pullNotifs();
+    const t = setInterval(pullNotifs, 90000);
+    return () => clearInterval(t);
+  }, []);
+  const toggleMail = useCallback(() => {
+    setMailOpen((o) => {
+      if (!o) markAllSeen();
+      return !o;
+    });
+  }, []);
+  const behind = section === 'polls' || mailOpen;
+  const recede = useSharedValue(0);
+  useEffect(() => {
+    recede.value = withTiming(behind ? 1 : 0, { duration: 320, easing: WEB.SHEET, reduceMotion: ReduceMotion.System });
+  }, [behind, recede]);
+  // feed layer behind Polls / Mail: translateX(-28%) + brightness(.45)
+  const feedStyle = useAnimatedStyle(() => ({ transform: [{ translateX: -0.28 * width * recede.value }] }));
+  const dimStyle = useAnimatedStyle(() => ({ opacity: 0.55 * recede.value }));
+  const mastHidden = !focused || mailOpen || pollsCovered || (section === 'feed' && !hdrOn);
+  useEffect(() => {
+    if (!focused) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (mailOpen) {
+        setMailOpen(false);
+        return true;
+      }
+      if (section === 'polls') {
+        if (!pollsBack.current()) setSection('feed');
+        return true;
+      }
+      return false;
+    });
+    return () => sub.remove();
+  }, [focused, mailOpen, section]);
 
   // ─── pull-to-refresh ─────────────────────────────────────────────────────
+  // The wash is shown by ONE shared-value write before any work starts, and hidden
+  // by another when the work is done (web showPtrFlash(0) / hidePtrFlash): the
+  // picture never waits on a React render while the feed rebuilds.
+  const flash = useSharedValue(0);
   const onRefresh = useCallback(async () => {
     if (refreshing) return;
+    flash.value = 1;
     setRefreshing(true);
     listRef.current?.scrollToOffset({ offset: 0, animated: false });
     try {
@@ -190,8 +245,10 @@ export default function VoidFeedScreen() {
     } catch {
       voidToast('SIGNAL LOST · RETRY');
     } finally {
+      flash.value = 0;
       if (alive.current) setRefreshing(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshing]);
 
   // Tapping THE VOID while already on it refreshes the feed, the same as a pull.
@@ -235,6 +292,7 @@ export default function VoidFeedScreen() {
           than hoped for: the app now measures 74 MB native and 36 MB of GL on this
           phone, against the 933 MB that was getting it killed, because the decoder
           caps and the image work landed in between. */}
+      <Animated.View style={[styles.fill, feedStyle]}>
       <FlatList
         ref={listRef}
         data={visible}
@@ -265,21 +323,22 @@ export default function VoidFeedScreen() {
           />
         }
       />
-
-      {/* .bio-hud — the mark, not a header bar */}
-      <Animated.View
-        pointerEvents="none"
-        onLayout={(e) => setHdrH(e.nativeEvent.layout.height)}
-        style={[styles.hud, { paddingTop: 14 + insets.top }, hdrStyle]}
-      >
-        <VText style={[styles.logo, { color: colors.white }]}>
-          THE<VText style={[styles.logo, { color: colors.gold }]}>⬡</VText>
-        </VText>
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#000' }, dimStyle]} />
       </Animated.View>
 
+      <PollsLayer open={section === 'polls'} width={width} onCover={setPollsCovered} backRef={pollsBack} />
+      <MailLayer open={mailOpen} width={width} />
+
+      {/* the masthead: THE⬡ + the stagger icon that unfolds into Polls / Feed, and the mailbox */}
+      <Masthead
+        section={section}
+        onSwitch={setSection}
+        hidden={mastHidden}
+        right={<Mailbox unread={unread > 0} open={mailOpen} onPress={toggleMail} hidden={!focused || pollsCovered} />}
+      />
 
       {/* #compose-fab */}
-      <Pressable
+      {!behind ? <Pressable
         onPress={() => router.push(ROUTES.composer as any)}
         accessibilityLabel="Compose"
         style={({ pressed }) => [styles.fab, { bottom: 88 + insets.bottom }, pressed && { opacity: 0.85 }]}
@@ -287,14 +346,10 @@ export default function VoidFeedScreen() {
         <LinearGradient colors={['#7c3aed', '#5b21d4']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.fabFill}>
           <VText style={styles.fabT}>+</VText>
         </LinearGradient>
-      </Pressable>
+      </Pressable> : null}
 
-      {/* #ptr-flash: sparkle wash while a refresh is running */}
-      {refreshing ? (
-        <View pointerEvents="none" style={[StyleSheet.absoluteFill, { zIndex: 90 }]}>
-          <SparkleLoader label="REFRESHING" style={{ backgroundColor: 'rgba(3,1,10,0.85)' }} />
-        </View>
-      ) : null}
+      {/* #ptr-flash: the sparkle wash, mounted for good, shown by a shared-value write */}
+      <PtrFlash flash={flash} />
 
       <ModerationHost />
     </View>
@@ -303,8 +358,6 @@ export default function VoidFeedScreen() {
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  hud: { position: 'absolute', top: 0, left: 0, zIndex: 60, paddingHorizontal: 18, paddingBottom: 10, flexDirection: 'row', alignItems: 'center' },
-  logo: { fontFamily: FONTS.sansExtraBold, fontSize: 15, letterSpacing: em(15, 0.14) },
   lblBox: { paddingVertical: 48, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center' },
   lbl: { fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.15), textAlign: 'center' },
   fab: { position: 'absolute', right: 18, zIndex: 60, width: 52, height: 52, borderRadius: 26, boxShadow: '0px 8px 24px rgba(124,58,237,0.45)' },
