@@ -522,20 +522,25 @@ body.tab-void .bio-hud{display:flex}
 .prof-me-lbl{font-family:'Syne Mono',monospace;font-size:8px;letter-spacing:.3em;color:var(--nav-dim)}
 .profile-settings-btn{background:none;border:none;padding:0;cursor:pointer;color:#8d7cc0;display:flex;align-items:center}
 /* Identity ROW (5b): 72px avatar left, name / handle / bio stacked right. */
-.prof-id{display:flex;align-items:center;gap:18px;padding-top:22px;text-align:left}
+.prof-id{display:flex;align-items:center;gap:18px;padding-top:14px;text-align:left}
 .prof-id-txt{min-width:0}
-.prof-avatar{width:72px;height:72px;border-radius:50%;margin:0;flex-shrink:0;background:linear-gradient(140deg,#1d0d45,#0a0522);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;color:var(--white);box-shadow:0 0 0 1px rgba(201,168,76,.45)}
+.prof-avatar{width:108px;height:108px;border-radius:50%;margin:0;flex-shrink:0;background:linear-gradient(140deg,#1d0d45,#0a0522);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;color:var(--white);box-shadow:0 0 0 2px rgba(201,168,76,.55);overflow:hidden}
+.prof-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.prof-joined{font-family:'Syne Mono',monospace;font-size:8px;letter-spacing:.16em;color:#6a58a0;margin-top:8px;min-height:10px}
+.prof-act{flex:1;padding:11px;border:none;border-radius:22px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);color:var(--white);font-family:'Syne',sans-serif;font-weight:700;font-size:12.5px;cursor:pointer}
+.prof-banner{position:absolute;left:0;right:0;top:0;height:200px;background-size:cover;background-position:center;z-index:0;pointer-events:none}
+.prof-banner::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(4,2,12,.78),rgba(4,2,12,.68) 50%,rgba(4,2,12,.85))}
 :root[data-theme="dark"] .prof-avatar{background:linear-gradient(140deg,var(--card2),var(--bg2))}
-.prof-name{font-family:'DM Serif Display',serif;font-size:25px;line-height:1.1;color:var(--white);overflow-wrap:anywhere}
-.prof-handle{font-family:'Syne Mono',monospace;font-size:9.5px;color:var(--gold);letter-spacing:.14em;margin-top:4px}
-.prof-bio{font-family:'DM Serif Display',serif;font-style:italic;font-size:13.5px;color:#8d7cc0;margin-top:7px;text-wrap:pretty}
+.prof-name{font-family:'Syne',sans-serif;font-weight:700;font-size:19px;line-height:1.2;color:var(--white);overflow-wrap:anywhere;margin-top:14px;position:relative}
+.prof-handle{flex:1;font-family:'Syne Mono',monospace;font-size:10px;color:var(--gold);letter-spacing:.14em}
+.prof-bio{font-family:'Syne',sans-serif;font-size:13.5px;color:#c9bfe8;margin-top:5px;text-wrap:pretty;position:relative}
 /* Three columns split by hairline verticals — no cards, no gold number. */
-.prof-stats{display:flex;align-items:center;margin-top:22px}
+.prof-stats{flex:1;min-width:0;display:flex;align-items:center}
 .prof-stat{flex:1;text-align:center;position:relative}
 .prof-stat+.prof-stat::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:1px;height:20px;background:rgba(255,255,255,.08)}
-.prof-stat-num{font-family:'Syne',sans-serif;font-weight:700;font-size:15px;color:var(--white)}
-.prof-stat-lbl{font-family:'Syne Mono',monospace;font-size:7px;color:var(--nav-dim);letter-spacing:.18em;margin-top:3px}
-.prof-actions{display:flex;align-items:stretch;gap:10px;margin-top:20px}
+.prof-stat-num{font-family:'Syne',sans-serif;font-weight:800;font-size:22px;color:var(--white)}
+.prof-stat-lbl{font-family:'Syne Mono',monospace;font-size:8px;color:#8d7cc0;letter-spacing:.14em;margin-top:3px}
+.prof-actions{display:flex;align-items:stretch;gap:10px;margin-top:16px;position:relative}
 .prof-edit{flex:1;padding:11px;border:none;border-radius:22px;background:rgba(244,240,255,.94);color:#04020c;font-family:'Syne',sans-serif;font-weight:700;font-size:11px;letter-spacing:.08em;cursor:pointer}
 .prof-share{width:46px;min-height:36px;flex-shrink:0;border:none;border-radius:22px;background:transparent;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);color:#8d7cc0;display:flex;align-items:center;justify-content:center;cursor:pointer}
 .prof-share .vi{width:14px;height:14px}
@@ -1002,6 +1007,11 @@ body.tab-void .bio-hud{display:flex}
 .photo-thread{display:inline-flex;align-items:center;gap:7px;margin-top:16px;padding:9px 18px;border-radius:22px;border:none;cursor:pointer;font-family:'Syne Mono',monospace;font-size:8px;letter-spacing:.18em;font-style:normal;color:#f4f0ff;background:linear-gradient(135deg,#7c3aed,#5b21d4);box-shadow:0 4px 14px rgba(124,58,237,.4)}
 .photo-thread .vi{width:13px;height:13px}
 .photo-close{position:absolute;top:16px;left:16px;background:none;border:none;color:#6a58a0;cursor:pointer;width:34px;height:34px;display:flex;align-items:center;justify-content:center}
+.photo-actions{position:absolute;top:16px;right:12px;display:flex;gap:4px;z-index:2}
+.photo-action{background:none;border:none;color:#cfc3ee;cursor:pointer;width:34px;height:34px;display:flex;align-items:center;justify-content:center}
+.photo-action .vi{width:17px;height:17px}
+.photo-cell img{touch-action:none;transition:transform .18s ease;transform-origin:center center;will-change:transform}
+.photo-cell img.zoomed{transition:none}
 .photo-close .vi{width:18px;height:18px}
 .vw-scan{position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(255,255,255,.012) 3px,rgba(255,255,255,.012) 4px)}
 .vw-audio-wrap{position:absolute;left:18px;right:18px;top:50%;transform:translateY(-50%);z-index:2}
@@ -1448,26 +1458,28 @@ body.tab-void .bio-hud{display:flex}
 <div class="screen" id="screen-profile">
   <div class="profile-cover" id="profile-cover" style="display:none"></div>
   <div class="prof-monument">
+    <!-- As the app's ProfileScreen: the handle in gold up top (one gear, in the bar),
+         a 108px avatar with a gold ring and the stats beside it, then name, bio and
+         the JOINED · NATIONS line, then two equal text buttons. A banner sits behind
+         it only when the account has one. -->
     <div class="prof-top">
-      <span class="prof-me-lbl">PROFILE</span>
+      <span class="prof-handle" id="p-handle">@void</span>
       <button class="profile-settings-btn" id="prof-gear" onclick="openSettings()" aria-label="Settings"></button>
     </div>
     <div class="prof-id">
       <div class="prof-avatar" id="p-avatar"></div>
-      <div class="prof-id-txt">
-        <div class="prof-name" id="p-name">Anonymous</div>
-        <div class="prof-handle" id="p-handle">@void</div>
-        <div class="prof-bio" id="p-bio">signal in the noise</div>
+      <div class="prof-stats">
+        <div class="prof-stat"><div class="prof-stat-num" id="p-posts">0</div><div class="prof-stat-lbl">DROPS</div></div>
+        <div class="prof-stat" style="cursor:pointer" onclick="VMod.follows('followers')"><div class="prof-stat-num" id="p-followers">–</div><div class="prof-stat-lbl">FOLLOWERS</div></div>
+        <div class="prof-stat" style="cursor:pointer" onclick="VMod.follows('following')"><div class="prof-stat-num" id="p-following">–</div><div class="prof-stat-lbl">FOLLOWING</div></div>
       </div>
     </div>
-    <div class="prof-stats">
-      <div class="prof-stat"><div class="prof-stat-num" id="p-posts">0</div><div class="prof-stat-lbl">DROPS</div></div>
-      <div class="prof-stat" style="cursor:pointer" onclick="VMod.follows('followers')"><div class="prof-stat-num" id="p-followers">–</div><div class="prof-stat-lbl">FOLLOWERS</div></div>
-      <div class="prof-stat" style="cursor:pointer" onclick="VMod.follows('following')"><div class="prof-stat-num" id="p-following">–</div><div class="prof-stat-lbl">FOLLOWING</div></div>
-    </div>
+    <div class="prof-name" id="p-name">Anonymous</div>
+    <div class="prof-bio" id="p-bio">signal in the noise</div>
+    <div class="prof-joined" id="p-joined"></div>
     <div class="prof-actions">
-      <button class="prof-edit" onclick="openSettings()">EDIT PROFILE</button>
-      <button class="prof-share" onclick="shareProfile()" aria-label="Share profile"></button>
+      <button class="prof-act" onclick="openSettings()">Edit profile</button>
+      <button class="prof-act" onclick="shareProfile()" aria-label="Share profile">Share profile</button>
     </div>
     <!-- DROPS / HEARTED / REPLIES, as native ProfileScreen: Messages is a tab of
          its own in the nav, so it is not here. The button at the end flips the
@@ -1585,6 +1597,7 @@ body.tab-void .bio-hud{display:flex}
         <div class="settings-row-info"><div class="settings-row-label">Avatar</div><div class="settings-row-sub">The figure you wear when you have no photo</div></div>
         <span id="s-pfp-preview"></span>
       </div>
+      <label class="pfp-toggle" style="display:block;cursor:pointer">CHANGE AVATAR<input type="file" id="s-avatar-file" accept="image/*" style="display:none" onchange="changeAvatar(this)"></label>
       <button class="pfp-toggle" id="pfp-toggle" onclick="togglePfpChoices(this)">OR CHOOSE A FIGURE</button>
       <div class="pfp-choices" id="pfp-choices" hidden></div>
       <div class="settings-row">
@@ -1725,6 +1738,10 @@ body.tab-void .bio-hud{display:flex}
 <!-- Still photo viewer (images never enter the recycling reel) -->
 <div id="photo-overlay" onclick="closePhoto()">
   <button class="photo-close" onclick="closePhoto();event.stopPropagation()"></button>
+  <div class="photo-actions" onclick="event.stopPropagation()">
+    <button class="photo-action" id="photo-share" aria-label="Share"></button>
+    <button class="photo-action" id="photo-more" aria-label="More"></button>
+  </div>
   <div class="photo-wrap" id="photo-wrap"></div>
   <div class="photo-dots" id="photo-dots"></div>
   <div class="photo-cap" id="photo-cap"></div>
@@ -8640,8 +8657,10 @@ function renderProfile(){
   document.getElementById('p-handle').textContent=USER.handle;
   document.getElementById('p-bio').textContent=USER.bio||'signal in the noise';
   const av=document.getElementById('p-avatar');
-  av.innerHTML=myPfpHtml(72);
+  av.innerHTML=USER.avatar_url?`<img src="${_tcAttr(USER.avatar_url)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">`:myPfpHtml(108);
   av.style.background='';   // 5b avatar ground comes from .prof-avatar (theme-aware), not an inline purple
+  paintProfJoined();
+  loadOwnProfileRow();
   const gb=document.querySelector('.profile-settings-btn');
   if(gb&&!gb.querySelector('.vi'))gb.innerHTML=VICON.gear;
   const sb=document.querySelector('.prof-share');
@@ -8650,8 +8669,52 @@ function renderProfile(){
   loadFollowCounts();
   paintProfLayoutBtn();renderProfPane(_profTab);
   BIO._update();
-  applySavedCover();
-  buildCoverPalette();
+}
+// JOINED MON YYYY · N NATIONS, from what we know (app ProfileScreen): the row only
+// exists when there is something true to put in it.
+// CHANGE AVATAR (app EditProfileSheet): the photo is squared and compressed like any
+// post image, uploaded to post-media under the user's prefix, and written to
+// profiles.avatar_url. PersonPfp everywhere else keeps showing the figure for
+// accounts without one.
+async function changeAvatar(input){
+  const file=input&&input.files&&input.files[0];if(!file)return;input.value='';
+  try{
+    if(!VoidAPI._sbReady())throw new Error('SIGN IN TO CHANGE YOUR AVATAR');
+    const {blob,mime}=await voidCompressImage(file);
+    const up=await voidUploadMedia(blob,mime,'image');
+    await VoidAuth.upsertProfile({avatar_url:up.url});
+    USER.avatar_url=up.url;saveUser();
+    const pv=document.getElementById('s-pfp-preview');if(pv)pv.innerHTML=`<img src="${_tcAttr(up.url)}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover">`;
+    renderProfile();voidToast('PROFILE SAVED');
+  }catch(e){voidToast(String((e&&e.message)||'UPLOAD FAILED').toUpperCase());}
+}
+function paintProfJoined(){
+  const el=document.getElementById('p-joined');if(!el)return;
+  let joined='';const raw=USER.created_at||(VoidAuth&&VoidAuth.session&&VoidAuth.session.user&&VoidAuth.session.user.created_at);
+  if(raw){const d=new Date(raw);if(!isNaN(d.getTime()))joined='JOINED '+d.toLocaleString('en',{month:'short'}).toUpperCase()+' '+d.getFullYear();}
+  const nations=new Set(allPosts.filter(p=>p._user).map(p=>p.iso||p.country).filter(Boolean)).size;
+  el.textContent=(joined||nations)?joined+(joined&&nations?'  ·  ':'')+(nations?nations+' NATIONS':''):'';
+}
+// The profile row carries the photo avatar, the banner and the join date; the
+// local USER mirrors them so the header paints at once next time.
+let _ownRowAt=0;
+async function loadOwnProfileRow(){
+  const uid=VoidAPI._uid();if(!uid||Date.now()-_ownRowAt<30000)return;_ownRowAt=Date.now();
+  try{
+    const rows=await sbGet('/rest/v1/profiles?id=eq.'+encodeURIComponent(uid)+'&select=avatar_url,banner_url,created_at');
+    const r=Array.isArray(rows)&&rows[0];if(!r)return;
+    let changed=false;
+    for(const k of ['avatar_url','banner_url','created_at']){if((r[k]||null)!==(USER[k]||null)){USER[k]=r[k]||null;changed=true;}}
+    if(changed){saveUser();renderProfile();}
+    paintProfBanner();
+  }catch(e){}
+}
+function paintProfBanner(){
+  const m=document.querySelector('.prof-monument');if(!m)return;
+  let b=m.querySelector('.prof-banner');
+  if(!USER.banner_url){if(b)b.remove();return;}
+  if(!b){b=document.createElement('div');b.className='prof-banner';m.style.position='relative';m.prepend(b);}
+  b.style.backgroundImage=`url(${JSON.stringify(USER.banner_url)})`;
 }
 // ─── PROFILE PANES: DROPS / HEARTED / REPLIES, as a list or a 3-wide tile grid ───
 // Ported from native ProfileScreen + profileApi. HEARTED reads the `reactions`
@@ -9660,8 +9723,29 @@ function openPhoto(postId,idx){
     `<button class="photo-thread" onclick="event.stopPropagation();closePhoto();openThread('${p.id}')">${VICON.reply} OPEN THREAD</button>`+
     `<div class="photo-src">${esc(srcName((p.provenance&&p.provenance.sourceHost)||p.source))}${slides.length>1?` \xb7 ${slides.length} SLIDES`:''} \xb7 SWIPE DOWN TO CLOSE</div>`;
   ov.style.transform='';ov.style.opacity='';
+  // Share and ⋯ (report / block), as the app's PhotoViewer.
+  const sh=document.getElementById('photo-share');if(sh){if(!sh.innerHTML)sh.innerHTML=VICON.share;sh.onclick=e=>{e.stopPropagation();vwShare(p.id);};}
+  const mo=document.getElementById('photo-more');if(mo){if(!mo.innerHTML)mo.innerHTML='<svg class="vi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>';mo.onclick=e=>{e.stopPropagation();VMod.menu(p.id);};}
   ov.classList.add('open');
+  initPhotoZoom();
   if(p.tags)vwBump(p.tags,.3);
+}
+// Pinch to zoom, drag to pan while zoomed, double-tap to zoom in / out (app PhotoViewer).
+function initPhotoZoom(){
+  const strip=document.getElementById('photo-strip');if(!strip||strip.__zoom)return;strip.__zoom=true;
+  let img=null,scale=1,tx=0,ty=0,d0=0,s0=1,px=0,py=0,lastTap=0,pinch=false;
+  const apply=()=>{if(!img)return;img.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`;img.classList.toggle('zoomed',scale>1.01);};
+  const reset=()=>{scale=1;tx=0;ty=0;if(img){img.classList.remove('zoomed');img.style.transform='';}};
+  const dist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
+  strip.addEventListener('touchstart',e=>{const t=e.target.closest&&e.target.closest('.photo-cell img');if(!t)return;if(img!==t){reset();img=t;}
+    if(e.touches.length===2){pinch=true;d0=dist(e.touches);s0=scale;}
+    else if(e.touches.length===1){px=e.touches[0].clientX-tx;py=e.touches[0].clientY-ty;const now=Date.now();if(now-lastTap<280){scale=scale>1.01?1:2.2;tx=0;ty=0;apply();lastTap=0;}else lastTap=now;}
+  },{passive:true});
+  strip.addEventListener('touchmove',e=>{if(!img)return;
+    if(e.touches.length===2&&pinch){scale=Math.min(4,Math.max(1,s0*dist(e.touches)/Math.max(1,d0)));apply();e.preventDefault();}
+    else if(e.touches.length===1&&scale>1.01){tx=e.touches[0].clientX-px;ty=e.touches[0].clientY-py;apply();e.preventDefault();}
+  },{passive:false});
+  strip.addEventListener('touchend',e=>{if(e.touches.length<2)pinch=false;if(scale<1.05){scale=1;tx=0;ty=0;apply();}},{passive:true});
 }
 function closePhoto(){
   const ov=document.getElementById('photo-overlay');
@@ -9683,6 +9767,7 @@ function closePhoto(){
   },{passive:true});
   ov.addEventListener('touchmove',e=>{
     if(!active||e.touches.length!==1)return;
+    if(ov.querySelector('.photo-cell img.zoomed')){active=false;ov.classList.remove('dragging');return;}
     const ddy=e.touches[0].clientY-sy, ddx=e.touches[0].clientX-sx;
     if(!axis){
       if(Math.abs(ddx)<8&&Math.abs(ddy)<8)return;
