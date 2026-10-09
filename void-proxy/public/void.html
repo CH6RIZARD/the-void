@@ -4624,6 +4624,9 @@ function ensureFeedSentinel(){
   else ensureFeedSentinel._obs.disconnect();
   ensureFeedSentinel._obs.observe(s);
 }
+// A Void account's face or name opens their profile (app PostCard / CommentCard);
+// the viewer's own, and remote sources, do nothing here.
+function _userTap(p){const uid=p&&(p.author_id||p._authorId);if(!uid||p._user)return '';let mine=false;try{mine=uid===VoidAPI._uid();}catch(e){}if(mine)return '';return ` onclick="event.stopPropagation();openUser('${_tcAttr(uid)}','${_tcAttr(p._handle||'')}')" style="cursor:pointer"`;}
 function renderPost(p,i){
   const r=postReactions[p.id]||{};
   const typeIco={drop:'◈',take:'✦',image:'▣',video:'▷',audio:'◉',carousel:'⊞',link_live:'⊕',link_thread:'⊡'}[p.style]||'◈';
@@ -4688,9 +4691,9 @@ function renderPost(p,i){
   const _delay=Math.min(renderPost._n++,8)*.04;
   return `<div class="post${i===0?' highlight':''}" id="post-${p.id}" onclick="${clickAct}" style="animation-delay:${_delay}s">
     <div class="post-header">
-      <div class="${avClass}">${personPfpHtml(p.author_id||p._authorId,p._handle,p._author||p.iso,32)}</div>
+      <div class="${avClass}"${_userTap(p)}>${personPfpHtml(p.author_id||p._authorId,p._handle,p._author||p.iso,32)}</div>
       <div class="post-meta">
-        <div class="post-name">${esc(p._author||p.iso||'void')} <span class="post-handle">${esc(p._handle||'@void')}</span>${p._filler?'<span class="post-filler-badge">DEV·FILLER</span>':''}</div>
+        <div class="post-name"${_userTap(p)}>${esc(p._author||p.iso||'void')} <span class="post-handle">${esc(p._handle||'@void')}</span>${p._filler?'<span class="post-filler-badge">DEV·FILLER</span>':''}</div>
         <div class="post-time">${ago(p.time)}</div>
       </div>
       <div class="post-type-ico">${typeIco}</div>
@@ -8695,13 +8698,16 @@ function paintProfJoined(){
   const nations=new Set(allPosts.filter(p=>p._user).map(p=>p.iso||p.country).filter(Boolean)).size;
   el.textContent=(joined||nations)?joined+(joined&&nations?'  ·  ':'')+(nations?nations+' NATIONS':''):'';
 }
+// Public PostgREST read with the session bearer when there is one (sbGet is scoped to the onboarding closure).
+async function voidGetProfile(q,cols){let rows=await voidGet('/rest/v1/profiles?'+q+'&select='+cols+',banner_url');if(rows==null)rows=await voidGet('/rest/v1/profiles?'+q+'&select='+cols);return rows;}
+async function voidGet(path){const tok=(typeof VoidAuth!=='undefined'&&VoidAuth.session&&VoidAuth.session.access_token)||SUPABASE_ANON_KEY;const r=await fetch(SUPABASE_URL+path,{headers:{apikey:SUPABASE_ANON_KEY,Authorization:'Bearer '+tok}});return r.ok?r.json():null;}
 // The profile row carries the photo avatar, the banner and the join date; the
 // local USER mirrors them so the header paints at once next time.
 let _ownRowAt=0;
 async function loadOwnProfileRow(){
   const uid=VoidAPI._uid();if(!uid||Date.now()-_ownRowAt<30000)return;_ownRowAt=Date.now();
   try{
-    const rows=await sbGet('/rest/v1/profiles?id=eq.'+encodeURIComponent(uid)+'&select=avatar_url,banner_url,created_at');
+    const rows=await voidGetProfile('id=eq.'+encodeURIComponent(uid),'avatar_url,created_at');
     const r=Array.isArray(rows)&&rows[0];if(!r)return;
     let changed=false;
     for(const k of ['avatar_url','banner_url','created_at']){if((r[k]||null)!==(USER[k]||null)){USER[k]=r[k]||null;changed=true;}}
@@ -8734,10 +8740,10 @@ function _profMerge(rows){
 async function fetchHeartedPosts(){
   const uid=VoidAPI._uid();if(!uid)return [];
   try{
-    const refs=await sbGet('/rest/v1/reactions?user_id=eq.'+encodeURIComponent(uid)+'&select=post_id,created_at&order=created_at.desc&limit=60');
+    const refs=await voidGet('/rest/v1/reactions?user_id=eq.'+encodeURIComponent(uid)+'&select=post_id,created_at&order=created_at.desc&limit=60');
     const ids=(Array.isArray(refs)?refs:[]).map(r=>r&&r.post_id).filter(Boolean);
     if(!ids.length)return [];
-    const rows=await sbGet('/rest/v1/posts?id=in.('+ids.join(',')+')&select='+PROF_POST_SELECT+'&limit=60');
+    const rows=await voidGet('/rest/v1/posts?id=in.('+ids.join(',')+')&select='+PROF_POST_SELECT+'&limit=60');
     if(!Array.isArray(rows))return [];
     const order=new Map(ids.map((id,i)=>[id,i]));
     return _profMerge(rows).sort((a,b)=>(order.get(a.id)??1e9)-(order.get(b.id)??1e9));
@@ -8746,7 +8752,7 @@ async function fetchHeartedPosts(){
 async function fetchReplyPosts(){
   const uid=VoidAPI._uid();if(!uid)return [];
   try{
-    const rows=await sbGet('/rest/v1/posts?author_id=eq.'+encodeURIComponent(uid)+'&reply_to=not.is.null&select='+PROF_POST_SELECT+'&order=created_at.desc&limit=40');
+    const rows=await voidGet('/rest/v1/posts?author_id=eq.'+encodeURIComponent(uid)+'&reply_to=not.is.null&select='+PROF_POST_SELECT+'&order=created_at.desc&limit=40');
     return Array.isArray(rows)?_profMerge(rows):[];
   }catch(e){return [];}
 }
@@ -10413,7 +10419,7 @@ function convRow(c,extra,act){
   const last=c.last,me=dmMe();
   const preview=last?(last.sender_id===me?'You: ':'')+last.body.slice(0,38)+(last.body.length>38?'…':''):'no messages yet';
   return `<div class="conv-item${c.unread?' unread':''}" onclick="${act||`openChat('${c.id}')`}">
-    <div class="conv-av">${pfpHtml(c.other.id||c.other.name,44,{ring:c.unread>0})}</div>
+    <div class="conv-av" onclick="event.stopPropagation();openUser('${_tcAttr(c.other.id||'')}','${_tcAttr(c.other.handle||'')}')">${pfpHtml(c.other.id||c.other.name,44,{ring:c.unread>0})}</div>
     <div class="conv-info">
       <div class="conv-name">${esc(c.other.name)} <span class="post-handle">@${esc(c.other.handle)}</span></div>
       ${extra||`<div class="conv-preview">${esc(preview)}</div>`}
@@ -10514,6 +10520,7 @@ function openChat(convId){
   if(dmIsBlocked(c.other.id,c.other.handle)){voidToast('YOU BLOCKED THIS ACCOUNT');return;}
   activeChatConv=convId;activeChatUser=c.other.id;
   document.getElementById('chat-av').innerHTML=pfpHtml(c.other.id||c.other.name,36);
+  document.getElementById('chat-av').onclick=()=>openUser(c.other.id||'',c.other.handle||'');
   document.getElementById('chat-av').style.background='';
   document.getElementById('chat-user-name').textContent=c.other.name+' @'+c.other.handle;
   const st=document.querySelector('#chat-window .chat-user-status');if(st)st.textContent=DM_NOTE;
@@ -12010,7 +12017,7 @@ function card(c,opAuthor,kidsN,o){
   const tap=o.tap?` onclick="${o.tap}"`:'';
   return `<div class="tc-wrap${o.deal?' deal':''}" data-cid="${_tcAttr(c.id)}"${o.deal?` style="animation-delay:${o.delay||0}ms"`:''}${tap}>
     <div class="tc-card${o.open?' parent':''}">
-      <div class="thread-comment-head"><div class="thread-comment-av">${personPfpHtml(c.authorId,c.handle,c.author,o.nested?20:26)}</div><div class="thread-comment-name">${esc(c.author||'anon')}${isOp?' <span class="tc-op">OP</span>':''} <span class="thread-comment-time">· ${ago(c.time)}</span></div>${kids}</div>
+      <div class="thread-comment-head"><div class="thread-comment-av"${c.authorId?` onclick="event.stopPropagation();openUser('${_tcAttr(c.authorId)}','${_tcAttr(c.handle||'')}')"`:''}>${personPfpHtml(c.authorId,c.handle,c.author,o.nested?20:26)}</div><div class="thread-comment-name">${esc(c.author||'anon')}${isOp?' <span class="tc-op">OP</span>':''} <span class="thread-comment-time">· ${ago(c.time)}</span></div>${kids}</div>
       <div class="thread-comment-text">${esc(c.text||'')}</div>
       ${c.img?`<div class="tc-img">${IMG_LOADER}<img class="thread-comment-img" src="${_tcAttr(c.img)}" loading="lazy" decoding="async" referrerpolicy="no-referrer" onload="imgLoaded(this)" onerror="this.parentNode.remove()"></div>`:''}
       <div class="tc-acts"><button class="${c.mine?'on':''}" onclick="event.stopPropagation();boltComment(currentThreadPost,'${_tcAttr(c.id)}')">${c.mine?VICON.heartFill:VICON.heart}${fmt(c.bolts||0)}</button><button onclick="event.stopPropagation();V22.pin('${_tcAttr(c.id)}')">REPLY</button></div>
@@ -12112,6 +12119,7 @@ pair('openComposer','closeComposer',on('composer-overlay','open'));
 pair('openCountry','closeOverlay');
 pair('openChat','closeChat');
 pair('openGlobeSearch','closeGlobeSearch',on('globe-search-modal','open'));
+setTimeout(()=>pair('openUser','closeUser',on('screen-user','open')),0);
 // the 22b layers
 if(window.V22){
   const V=window.V22;
@@ -12149,6 +12157,91 @@ if(sp){let y0=0,pull=false;
   sp.addEventListener('touchstart',e=>{if(sp.scrollTop===0)y0=e.touches[0].clientY;},{passive:true});
   sp.addEventListener('touchmove',e=>{if(!y0)return;if(e.touches[0].clientY-y0>65&&sp.scrollTop===0)pull=true;},{passive:true});
   sp.addEventListener('touchend',()=>{if(y0&&pull){try{showPtrFlash(600);}catch(e){}try{renderProfile();}catch(e){}}y0=0;pull=false;},{passive:true});}
+})();
+</script>
+
+
+<!-- ═══ parity: other people's profiles (app /u/[handle] → ProfileScreen isOther) ═══ -->
+<style>
+#screen-user{position:fixed;left:0;right:0;top:0;bottom:58px;z-index:115;background:var(--bg);overflow-y:auto;overscroll-behavior:contain;display:none;transform:translateX(100%);transition:transform .28s cubic-bezier(.32,.72,.28,1)}
+#screen-user.open{display:block}
+#screen-user.shown{transform:none}
+#screen-user .prof-top{display:flex;align-items:center;gap:10px}
+#screen-user .su-back{width:30px;height:30px;margin-left:-6px;background:none;border:none;color:#8d7cc0;display:flex;align-items:center;justify-content:center;cursor:pointer}
+#screen-user .su-back .vi{width:16px;height:16px}
+#screen-user .su-more{width:30px;height:30px;background:none;border:none;color:#8d7cc0;display:flex;align-items:center;justify-content:center;cursor:pointer}
+#screen-user .me-tab{cursor:pointer}
+</style>
+<script>
+(function(){
+'use strict';
+const esc_=s=>esc(s);
+let cur=null,tab='drops',lists={},token=0;
+function el(){let e=document.getElementById('screen-user');if(e)return e;e=document.createElement('div');e.id='screen-user';document.body.appendChild(e);return e;}
+const lbl=n=>n+(n===1?' REPLY':' REPLIES');
+window.openUser=async function(uid,handle){
+  handle=String(handle||'').replace(/^@/,'');
+  let mine=false;try{mine=!!uid&&uid===VoidAPI._uid();}catch(e){}
+  if(mine){switchTab('profile');return;}
+  if(!uid&&!handle)return;
+  const e=el();const t=++token;tab='drops';lists={};
+  cur={id:uid||'',handle,name:handle||'…',avatar_url:null,banner_url:null,created_at:null,drops:null,followers:null,following:null};
+  paint();e.classList.add('open');void e.offsetWidth;requestAnimationFrame(()=>e.classList.add('shown'));e.scrollTop=0;
+  try{
+    const q=uid?'id=eq.'+encodeURIComponent(uid):'handle=eq.'+encodeURIComponent(handle);
+    const rows=await voidGetProfile(q,'id,handle,display_name,avatar_url,created_at');
+    if(t!==token)return;
+    const r=Array.isArray(rows)&&rows[0];
+    if(!r){cur.missing=true;paint();return;}
+    cur.id=r.id;cur.handle=r.handle||handle;cur.name=r.display_name||r.handle||'anon';cur.avatar_url=r.avatar_url||null;cur.banner_url=r.banner_url||null;cur.created_at=r.created_at||null;
+    paint();
+    const id=encodeURIComponent(cur.id);
+    const [fa,fb,drops]=await Promise.all([
+      voidGet('/rest/v1/follows?followee_id=eq.'+id+'&select=follower_id&limit=1000').catch(()=>[]),
+      voidGet('/rest/v1/follows?follower_id=eq.'+id+'&select=followee_id&limit=1000').catch(()=>[]),
+      voidGet('/rest/v1/posts?author_id=eq.'+id+'&reply_to=is.null&select='+PROF_POST_SELECT+'&order=created_at.desc&limit=60').catch(()=>[])]);
+    if(t!==token)return;
+    cur.followers=(fa||[]).length;cur.following=(fb||[]).length;
+    lists.drops=Array.isArray(drops)?_profMerge(drops):[];cur.drops=lists.drops.length;
+    paint();
+  }catch(err){if(t===token){cur.missing=true;paint();}}
+};
+window.closeUser=function(){const e=document.getElementById('screen-user');if(!e)return;token++;e.classList.remove('shown');setTimeout(()=>{if(!e.classList.contains('shown'))e.classList.remove('open');},300);};
+async function loadTab(k){
+  if(lists[k]||!cur||!cur.id)return;const t=token;const id=encodeURIComponent(cur.id);
+  try{
+    if(k==='replies'){const rows=await voidGet('/rest/v1/posts?author_id=eq.'+id+'&reply_to=not.is.null&select='+PROF_POST_SELECT+'&order=created_at.desc&limit=40');if(t!==token)return;lists.replies=Array.isArray(rows)?_profMerge(rows):[];}
+    else if(k==='hearted'){const refs=await voidGet('/rest/v1/reactions?user_id=eq.'+id+'&select=post_id,created_at&order=created_at.desc&limit=60');const ids=(Array.isArray(refs)?refs:[]).map(r=>r&&r.post_id).filter(Boolean);
+      let out=[];if(ids.length){const rows=await voidGet('/rest/v1/posts?id=in.('+ids.join(',')+')&select='+PROF_POST_SELECT+'&limit=60');const order=new Map(ids.map((x,i)=>[x,i]));out=(Array.isArray(rows)?_profMerge(rows):[]).sort((a,b)=>(order.get(a.id)??1e9)-(order.get(b.id)??1e9));}
+      if(t!==token)return;lists.hearted=out;}
+  }catch(e){if(t===token)lists[k]=[];}
+  paint();
+}
+window.userTab=function(k){tab=k;paint();loadTab(k);};
+window.userMore=function(){const d=lists.drops&&lists.drops[0];if(d&&window.VMod&&VMod.author)VMod.author(d.id);else voidToast('NO DROPS TO REPORT YET');};
+window.userMessage=async function(){if(!cur||!cur.id)return;try{await startDm(cur.id);closeUser();switchTab('messages');}catch(e){voidToast('SIGN IN TO MESSAGE');}};
+window.userShare=function(){if(!cur)return;const url=location.href.split('#')[0]+'#@'+cur.handle;if(navigator.share){navigator.share({title:cur.name,url}).catch(()=>{});return;}navigator.clipboard&&navigator.clipboard.writeText(url);try{showPtrFlash(300);}catch(e){}};
+function paint(){
+  const e=el();if(!cur)return;
+  if(cur.missing){e.innerHTML=`<div class="prof-monument"><div class="prof-top"><button class="su-back" onclick="closeUser()">${VICON.back}</button><span class="prof-handle">@${esc_(cur.handle||'')}</span></div><div class="tc-empty" style="padding:60px 20px">NO SUCH ACCOUNT</div></div>`;return;}
+  let joined='';if(cur.created_at){const d=new Date(cur.created_at);if(!isNaN(d.getTime()))joined='JOINED '+d.toLocaleString('en',{month:'short'}).toUpperCase()+' '+d.getFullYear();}
+  const nations=new Set((lists.drops||[]).map(p=>p.iso||p.country).filter(Boolean)).size;
+  const stat=(v)=>v==null?'–':fmt(v);
+  const list=lists[tab];
+  const body=list==null?`<div class="tc-empty">LOADING…</div>`:!list.length?`<div class="tc-empty">${tab==='drops'?'NO DROPS YET':tab==='hearted'?'NOTHING HEARTED YET':'NO REPLIES YET'}</div>`:
+    (_profLayout==='tiles'&&tab==='drops')?`<div class="prof-tiles">${list.map(profTileHtml).join('')}</div>`:list.map(profRowHtml).join('');
+  const blocked=(()=>{try{return window.VMod&&typeof isBlocked==='function'&&isBlocked({uid:cur.id,handle:cur.handle});}catch(e){return false;}})();
+  e.innerHTML=`<div class="prof-monument" style="position:relative">
+    ${cur.banner_url?`<div class="prof-banner" style="background-image:url(${JSON.stringify(cur.banner_url)})"></div>`:''}
+    <div class="prof-top"><button class="su-back" onclick="closeUser()" aria-label="Back">${VICON.back}</button><span class="prof-handle">@${esc_(cur.handle||'')}${blocked?' · BLOCKED':''}</span><button class="su-more" onclick="userMore()" aria-label="More"><svg class="vi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="width:18px;height:18px"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button></div>
+    <div class="prof-id"><div class="prof-avatar">${cur.avatar_url?`<img src="${_tcAttr(cur.avatar_url)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">`:pfpHtml(personSeed(cur.id,cur.handle,cur.name),108)}</div>
+      <div class="prof-stats"><div class="prof-stat"><div class="prof-stat-num">${stat(cur.drops)}</div><div class="prof-stat-lbl">DROPS</div></div><div class="prof-stat"><div class="prof-stat-num">${stat(cur.followers)}</div><div class="prof-stat-lbl">FOLLOWERS</div></div><div class="prof-stat"><div class="prof-stat-num">${stat(cur.following)}</div><div class="prof-stat-lbl">FOLLOWING</div></div></div></div>
+    <div class="prof-name">${esc_(cur.name||'')}</div>
+    <div class="prof-joined">${joined}${joined&&nations?'  ·  ':''}${nations?nations+' NATIONS':''}</div>
+    <div class="prof-actions"><button class="prof-act" onclick="userMessage()">Message</button><button class="prof-act" onclick="userShare()">Share profile</button></div>
+    <div class="me-tabs">${['drops','hearted','replies'].map(k=>`<div class="me-tab${tab===k?' on':''}" onclick="userTab('${k}')">${k.toUpperCase()}</div>`).join('')}</div>
+    <div class="prof-pane">${body}</div></div>`;
+}
 })();
 </script>
 
