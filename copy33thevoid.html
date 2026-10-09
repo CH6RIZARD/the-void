@@ -1614,7 +1614,8 @@ body.tab-void .bio-hud{display:flex}
       <div class="settings-section-label">Language</div>
       <div class="settings-row">
         <div class="settings-row-info"><div class="settings-row-label">Translate posts to</div><div class="settings-row-sub">Tap TR on any post in feed to translate</div></div>
-        <select class="settings-select" id="s-lang">
+        <button class="si-ghost" id="s-lang-btn" style="width:auto;margin:0;padding:8px 14px" onclick="openLangSheet()">English</button>
+        <select class="settings-select" id="s-lang" style="display:none" onchange="paintLangBtn()">
           <option value="en">English</option>
           <option value="es">Spanish</option>
           <option value="fr">French</option>
@@ -4225,7 +4226,7 @@ let SETTINGS={lang:localStorage.getItem('v_lang')||'en',autoplay:localStorage.ge
 // existing call sites keep working, and it RE-ASSERTS the build value rather
 // than honouring its argument — a caller must not be able to desync the layout.
 function applyGrid3(){document.documentElement.classList.toggle('g3',window.VOID_GRID===3);}
-function openSettings(){try{pfpSettingsOpen();}catch(e){}const _sb=document.querySelector('.settings-back');if(_sb&&!_sb.innerHTML)_sb.innerHTML=VICON.back;const _sc=document.querySelector('.settings-close');if(_sc&&!_sc.innerHTML)_sc.innerHTML=VICON.x;document.getElementById('s-name').value=USER.name;document.getElementById('s-handle').value=USER.handle;document.getElementById('s-bio').value=USER.bio||'';document.getElementById('s-lang').value=SETTINGS.lang;document.getElementById('s-autoplay').className='toggle'+(SETTINGS.autoplay?' on':'');document.getElementById('s-notify').className='toggle'+(SETTINGS.notify?' on':'');syncThemeUI();document.getElementById('settings-modal').classList.add('open');}
+function openSettings(){try{pfpSettingsOpen();}catch(e){}try{setTimeout(paintLangBtn,0);}catch(e){}const _sb=document.querySelector('.settings-back');if(_sb&&!_sb.innerHTML)_sb.innerHTML=VICON.back;const _sc=document.querySelector('.settings-close');if(_sc&&!_sc.innerHTML)_sc.innerHTML=VICON.x;document.getElementById('s-name').value=USER.name;document.getElementById('s-handle').value=USER.handle;document.getElementById('s-bio').value=USER.bio||'';document.getElementById('s-lang').value=SETTINGS.lang;document.getElementById('s-autoplay').className='toggle'+(SETTINGS.autoplay?' on':'');document.getElementById('s-notify').className='toggle'+(SETTINGS.notify?' on':'');syncThemeUI();document.getElementById('settings-modal').classList.add('open');}
 function closeSettings(){document.getElementById('settings-modal').classList.remove('open');}
 function toggleSetting(el){el.classList.toggle('on');}
 function saveSettings(){USER.name=document.getElementById('s-name').value.trim()||USER.name;USER.handle=document.getElementById('s-handle').value.trim()||USER.handle;USER.bio=document.getElementById('s-bio').value.trim();SETTINGS.lang=document.getElementById('s-lang').value;SETTINGS.autoplay=document.getElementById('s-autoplay').classList.contains('on');SETTINGS.notify=document.getElementById('s-notify').classList.contains('on');saveUser();writePfpChoice(_pfpPending);localStorage.setItem('v_lang',SETTINGS.lang);localStorage.setItem('v_autoplay',SETTINGS.autoplay);localStorage.setItem('v_notify',SETTINGS.notify);applyGrid3();renderProfile();closeSettings();}
@@ -8690,6 +8691,16 @@ async function changeAvatar(input){
     const pv=document.getElementById('s-pfp-preview');if(pv)pv.innerHTML=`<img src="${_tcAttr(up.url)}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover">`;
     renderProfile();voidToast('PROFILE SAVED');
   }catch(e){voidToast(String((e&&e.message)||'UPLOAD FAILED').toUpperCase());}
+}
+// TRANSLATE POSTS TO: the app's LanguageSheet. The hidden <select> stays the value
+// store so saveSettings keeps reading it.
+function paintLangBtn(){const sel=document.getElementById('s-lang'),b=document.getElementById('s-lang-btn');if(sel&&b)b.textContent=(sel.options[sel.selectedIndex]||{}).text||'English';}
+function openLangSheet(){
+  const sel=document.getElementById('s-lang');if(!sel)return;
+  let ov=document.getElementById('lang-sheet');
+  if(!ov){ov=document.createElement('div');ov.id='lang-sheet';ov.style.cssText='position:fixed;inset:0;z-index:130;background:rgba(0,0,0,.55);display:flex;align-items:flex-end';ov.onclick=e=>{if(e.target===ov)ov.remove();};document.body.appendChild(ov);}
+  const rows=[...sel.options].map(o=>`<div class="settings-row" style="cursor:pointer" onclick="document.getElementById('s-lang').value='${o.value}';paintLangBtn();document.getElementById('lang-sheet').remove()"><div class="settings-row-info"><div class="settings-row-label">${esc(o.text)}</div></div>${o.value===sel.value?'<span class="prof-handle" style="flex:0">✓</span>':''}</div>`).join('');
+  ov.innerHTML=`<div style="width:100%;max-height:88vh;overflow-y:auto;border-radius:24px 24px 0 0;background:var(--sheet,#07041a);box-shadow:0 -12px 48px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.06);padding:0 22px 24px"><div style="width:32px;height:3px;background:rgba(255,255,255,.15);border-radius:2px;margin:12px auto 0"></div><div class="settings-section-label" style="display:flex;align-items:center;padding:16px 0 6px">TRANSLATE POSTS TO<button onclick="document.getElementById('lang-sheet').remove()" style="margin-left:auto;background:none;border:none;color:var(--dim);cursor:pointer;width:26px;height:26px;display:flex;align-items:center;justify-content:center">${VICON.x}</button></div>${rows}</div>`;
 }
 function paintProfJoined(){
   const el=document.getElementById('p-joined');if(!el)return;
