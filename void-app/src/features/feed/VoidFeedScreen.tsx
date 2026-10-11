@@ -339,7 +339,7 @@ export default function VoidFeedScreen() {
         section={section}
         onSwitch={setSection}
         hidden={mastHidden}
-        right={<Mailbox unread={unread > 0} open={mailOpen} onPress={toggleMail} hidden={!focused || pollsCovered || section === 'polls'} />}
+        right={<Mailbox unread={unread} open={mailOpen} onPress={toggleMail} hidden={!focused || pollsCovered || section === 'polls'} />}
       />
 
       {/* #compose-fab */}
