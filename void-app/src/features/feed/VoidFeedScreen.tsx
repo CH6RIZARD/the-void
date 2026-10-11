@@ -14,7 +14,7 @@ import { BackHandler, FlatList, Pressable, RefreshControl, StyleSheet, useWindow
 import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useNavigation } from 'expo-router';
 import {
   FEED_MAX_AGE_H,
   FEED_SETTLE_MS,
@@ -188,6 +188,11 @@ export default function VoidFeedScreen() {
   const [section, setSection] = useState<'feed' | 'polls'>('feed');
   const [mailOpen, setMailOpen] = useState(false);
   const [pollsCovered, setPollsCovered] = useState(false);
+  // the topic page and Suggest sheet own the bottom edge (composer / sheet), as the mock: no nav under them
+  const nav = useNavigation();
+  useEffect(() => {
+    nav.setOptions({ tabBarStyle: pollsCovered ? { display: 'none' } : undefined });
+  }, [nav, pollsCovered]);
   const pollsBack = useRef<() => boolean>(() => false);
   const { unread } = useNotifs();
   useEffect(() => {
@@ -334,7 +339,7 @@ export default function VoidFeedScreen() {
         section={section}
         onSwitch={setSection}
         hidden={mastHidden}
-        right={<Mailbox unread={unread > 0} open={mailOpen} onPress={toggleMail} hidden={!focused || pollsCovered} />}
+        right={<Mailbox unread={unread > 0} open={mailOpen} onPress={toggleMail} hidden={!focused || pollsCovered || section === 'polls'} />}
       />
 
       {/* #compose-fab */}
