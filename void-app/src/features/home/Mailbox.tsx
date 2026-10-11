@@ -31,6 +31,9 @@ const BAND = 'M13.5 19V12A5.5 5.5 0 0 0 8 6.5H16A5 5 0 0 1 21 11.5V18.6Z';
 const DOOR = 'M3.5 18V12A4.5 4.5 0 0 1 12.5 12V18Z';
 const FLAG = 'M18.5 9.5V3.6A.6.6 0 0 1 19.1 3H22A.6.6 0 0 1 22.6 3.6V4.7A.6.6 0 0 1 22 5.3H19.8V9.5Z';
 const HEAD = 'M10 7L5 12L10 17';
+// the empty flag: FLAG mirrored about the pivot line y = 9 (the source's scale(1,-1)), drawn as
+// its own path because a negative scale does not render on Android
+const FLAG_DOWN = 'M18.5 8.5V14.4A.6.6 0 0 0 19.1 15H22A.6.6 0 0 0 22.6 14.4V13.3A.6.6 0 0 0 22 12.7H19.8V8.5Z';
 
 const SIZE = 26;
 const K = SIZE / 24; // 24-grid unit -> px
@@ -87,8 +90,9 @@ export function Mailbox({ unread, open, onPress, hidden }: { unread: number; ope
   const door = useAnimatedStyle(() => ({ transform: [{ scaleY: 1 - 0.12 * f.value }] }));
   const pull = useAnimatedStyle(() => ({ opacity: 1 - b.value }));
   // flag: scale(1,-1) when empty, none when full; gone on back
-  const flag = useAnimatedStyle(() => ({ opacity: 1 - b.value, transform: [{ scaleY: -1 + 2 * f.value }] }));
-  const flagGold = useAnimatedStyle(() => ({ opacity: f.value }));
+  // the fold through the pivot: up shrinks to the hinge as down grows from it (scale(1,-1) as two halves)
+  const flagUp = useAnimatedStyle(() => ({ opacity: (1 - b.value) * Math.min(1, f.value * 2), transform: [{ scaleY: Math.max(0.01, f.value) }] }));
+  const flagDown = useAnimatedStyle(() => ({ opacity: (1 - b.value) * Math.min(1, (1 - f.value) * 2), transform: [{ scaleY: Math.max(0.01, 1 - f.value) }] }));
   // chevron: scale(.25,0) -> none about (5, 12)
   const head = useAnimatedStyle(() => ({ opacity: b.value, transform: [{ scaleX: 0.25 + 0.75 * b.value }, { scaleY: b.value }] }));
   // the disc behind: scale(.7) -> none
@@ -139,15 +143,15 @@ export function Mailbox({ unread, open, onPress, hidden }: { unread: number; ope
                   </L>
                 </Animated.View>
               </Animated.View>
-              <Animated.View style={[styles.layer, { transformOrigin: o(19.15, 9) }, flag]}>
+              <Animated.View style={[styles.layer, { transformOrigin: o(19.15, 9) }, flagDown]}>
                 <L>
-                  <Path d={FLAG} fill={INK} />
+                  <Path d={FLAG_DOWN} fill={INK} />
                 </L>
-                <Animated.View style={[styles.layer, flagGold]}>
-                  <L>
-                    <Path d={FLAG} fill={GOLD} />
-                  </L>
-                </Animated.View>
+              </Animated.View>
+              <Animated.View style={[styles.layer, { transformOrigin: o(19.15, 9) }, flagUp]}>
+                <L>
+                  <Path d={FLAG} fill={GOLD} />
+                </L>
               </Animated.View>
             </Animated.View>
             <Animated.View style={[styles.layer, { transformOrigin: o(5, 12) }, head]}>

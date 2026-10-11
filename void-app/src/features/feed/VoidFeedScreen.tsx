@@ -339,8 +339,12 @@ export default function VoidFeedScreen() {
         section={section}
         onSwitch={setSection}
         hidden={mastHidden}
-        right={<Mailbox unread={unread} open={mailOpen} onPress={toggleMail} hidden={!focused || pollsCovered || section === 'polls'} />}
       />
+      {/* the mailbox, mounted beside the masthead row rather than inside it: the mock keeps it
+          (as the back arrow) while Mail is open, when the masthead itself has gone. Feed only. */}
+      <View pointerEvents="box-none" style={[styles.mailSlot, { top: insets.top }]}>
+        <Mailbox unread={unread} open={mailOpen} onPress={toggleMail} hidden={!focused || (!mailOpen && (mastHidden || section === 'polls'))} />
+      </View>
 
       {/* #compose-fab */}
       {!behind ? <Pressable
@@ -362,6 +366,7 @@ export default function VoidFeedScreen() {
 }
 
 const styles = StyleSheet.create({
+  mailSlot: { position: 'absolute', right: 10, height: 44, justifyContent: 'center', zIndex: 63 },
   fill: { flex: 1 },
   lblBox: { paddingVertical: 48, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center' },
   lbl: { fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.15), textAlign: 'center' },
