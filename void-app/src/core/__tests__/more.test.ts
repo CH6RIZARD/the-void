@@ -57,7 +57,7 @@ test('feedGate returns the same verdicts as the web (seeded animal trickle)', ()
   for (const n of ['C', 'REGION_ALIASES', '_regionNorm', '_REGION_ALIAS_N', '_regionByName', '_regionByCode', 'resolveRegion', 'stampRegion', 'TAG_KEYWORDS', 'TAG_RE', 'CRISIS_WEAK', 'CRISIS_INTL', 'inferTags',
     'TENSION_TAGS', 'SPIKE_HALF_LIFE_H', 'hasTension', 'postAgeH', 'velocity', 'isBreaking', 'STORY_KIND', 'STORY_PLACE_HINTS', '_placeRe', 'regionInText', 'STORY_STOP', 'storyTokens', 'storyInfo', '_stories', '_storyTokIdx', 'storyOf', 'noteStory',
     '_SEEN_CAP', '_h', '_loadSeen', '_seenIds', '_seenDirty', '_normText', '_linkKey', 'admitPost', 'BIO', 'ANIMAL_WORDS', 'ANIMAL_CJK', 'ANIMAL_EMOJI', 'isAnimalPost', 'ANIMAL_UNLOCK', 'animalSuppressed',
-    'VOID_NATIVE', 'isNewsAccount', 'isArticleDrop', 'MUTED', 'MUTE_RE', '_muteRe', 'isMuted', 'isFeedMeta', 'feedGate', 'dispHandle', 'bskyToPost']) w.load(n);
+    'VOID_NATIVE', 'isNewsAccount', 'isArticleDrop', 'MUTED', 'MUTE_RE', '_muteRe', 'isMuted', 'isFeedMeta', 'NV_CREDIT', 'NV_BINOMIAL', 'NV_FIELD_GUIDE', 'NV_GAME', 'NV_BOT', 'isNoVoice', 'feedGate', 'dispHandle', 'bskyToPost']) w.load(n);
   const H = 3600000;
   const items = fx('bsky-feed.json').feed;
   const synth = [
@@ -70,6 +70,13 @@ test('feedGate returns the same verdicts as the web (seeded animal trickle)', ()
     { id: 'g7', body: 'PINNED POST: welcome to the feed', tags: [], _handle: '@feed.bsky.social' },
     { id: 'g8', body: 'just vibes', tags: [], _handle: '@q.bsky.social' },
     { id: 'g9', body: 'Death toll in Nepal flood rises to 1,300', tags: [], _handle: '@other.bsky.social' },
+    // no voice: content farms and bots in on one range word (live 2026-10-11)
+    { id: 'n1', body: '#Poetry #Painting #Autumn\n\nThe Beautiful Changes\n\n- Richard Wilbur\n\n 🎨 Paul Evans', tags: [], _handle: '@capecodfairytales.bsky.social' },
+    { id: 'n2', body: 'The White-crested Turaco (Tauraco leucolophus) is native to riverine forest. Photo by Brian on Wikimedia Commons', tags: [], _handle: '@elnopower.bsky.social' },
+    { id: 'n3', body: 'The View from Mont Tremblant, Quebec. #fall #nature #trees #travel #hiking #quebec #photography', tags: [], _handle: '@dmac.bsky.social' },
+    { id: 'n4', body: 'Now Playing on The Source:Smooth Jazz Radio: Jack Prybylski - Ice Cream', tags: [], _handle: '@jazz.bsky.social' },
+    { id: 'n5', body: 'Zionism (Jewish nationalism) is based. So is Palestinian nationalism. You can support both.', tags: [], _handle: '@fj.bsky.social' },
+    { id: 'n6', body: 'Putin and Russia are laying out domestic cover propaganda for using chemical weapons - again - in Ukraine. It has been part of their playbook since at least Syria. #democracy #usa #gop #fascists #fascism', tags: [], _handle: '@cx.bsky.social' },
   ].map(p => ({ score: 0, replies: 0, time: NOW - 2 * H, source: 'bluesky', country: '', iso: '', style: 'take', ...p, tags: core.inferTags(p.body) }));
   w.run(`var __items=${JSON.stringify(items)};var __synth=${JSON.stringify(synth)};`);
   const mine = [...items.map((it: any) => core.feedGate(core.bskyToPost(it))), ...synth.map(p => core.feedGate(JSON.parse(JSON.stringify(p))))];
@@ -78,6 +85,8 @@ test('feedGate returns the same verdicts as the web (seeded animal trickle)', ()
   const byId = Object.fromEntries(synth.map((p, i) => [p.id, mine[items.length + i]]));
   assert.equal(byId.g1, 'muted'); assert.equal(byId.g4, 'news-account'); assert.equal(byId.g5, '');
   assert.equal(byId.g6, 'article-drop'); assert.equal(byId.g7, 'meta'); assert.equal(byId.g8, 'no-tags'); assert.equal(byId.g9, 'dedupe');
+  assert.equal(byId.n1, 'no-voice'); assert.equal(byId.n2, 'no-voice'); assert.equal(byId.n3, 'no-voice'); assert.equal(byId.n4, 'no-voice');
+  assert.equal(byId.n5, ''); assert.equal(byId.n6, ''); // a person talking, tags or not
 });
 
 test('nation feed pool deals a format mix: <=3 in a row while others wait, audio spaced', () => {
@@ -419,7 +428,7 @@ test('incident vocabulary: viral current-events captions get a tag, look-alikes 
 test('vwScore: engagement lifts a viral clip on a log scale, PeerTube views are discounted, same as the web', () => {
   core.configureCore({ storage: core.createMemoryStorage(), session: core.createMemoryStorage(), now: () => NOW, random: () => 0, proxyBase: '', fetch: noNet });
   const w = webSandbox({ now: NOW });
-  w.setRandom(() => 0); w.stmt('let vwQueue='); w.load('vwScore');
+  w.setRandom(() => 0); w.stmt('let vwQueue='); w.load('BIO', 'VW_FOLLOW_KEY', 'vwFollowMeta', 'vwFollowSet', 'vwHandleOf', 'vwScore');
   const mk = (score: number, o: Record<string, unknown> = {}) => ({ time: NOW - 6 * 36e5, tags: [], score, replies: 0, _reposts: 0, source: 'bluesky', ...o });
   const [s0, s50, s5k, s500k] = [0, 50, 5000, 500000].map(n => core.vwScore(mk(n) as any));
   assert.ok(s0 < s50 && s50 < s5k && s5k < s500k, 'more engagement ranks higher');
@@ -430,12 +439,22 @@ test('vwScore: engagement lifts a viral clip on a log scale, PeerTube views are 
   assert.ok(core.vwScore(viral as any) > core.vwScore(archive as any), 'a month-old PeerTube view count does not outrank it');
   for (const p of [mk(0), mk(50), mk(5000, { replies: 300, _quotes: 40 }), viral, untouched, archive])
     assert.equal(core.vwScore(p as any), w.run(`vwScore(${JSON.stringify(p)})`));
+  // The reader's profile and follows cater reels from day one, app and web alike.
+  const plain = mk(0, { tags: ['warfare'] }), base = core.vwScore(plain as any);
+  core.BIO.tags.warfare = 100; w.run('BIO.tags.warfare=100');
+  assert.ok(Math.abs(core.vwScore(plain as any) - base - 1.5) < 1e-9, 'a hot profile tag lifts a reel 1.5');
+  core.vwHooks.following = (p) => p._handle === '@sam';
+  w.run(`localStorage.setItem(VW_FOLLOW_KEY, JSON.stringify([{ h: 'sam' }])); window.__vwFollowMeta = null`);
+  const sam = mk(0, { tags: ['warfare'], _handle: '@sam' });
+  assert.ok(Math.abs(core.vwScore(sam as any) - core.vwScore(plain as any) - 1.5) < 1e-9, 'a followed creator lifts 1.5');
+  assert.equal(core.vwScore(sam as any), w.run(`vwScore(${JSON.stringify(sam)})`));
+  core.BIO.tags.warfare = 0; core.vwHooks.following = () => false;
 });
 
 test('vwScore: curated fit lifts a clip over the same clip unjudged, same as the web', () => {
   core.configureCore({ storage: core.createMemoryStorage(), session: core.createMemoryStorage(), now: () => NOW, random: () => 0, proxyBase: '', fetch: noNet });
   const w = webSandbox({ now: NOW });
-  w.setRandom(() => 0); w.stmt('let vwQueue='); w.load('vwScore');
+  w.setRandom(() => 0); w.stmt('let vwQueue='); w.load('BIO', 'VW_FOLLOW_KEY', 'vwFollowMeta', 'vwFollowSet', 'vwHandleOf', 'vwScore');
   const base = { time: NOW - 6 * 36e5, tags: [], score: 500, replies: 20, _reposts: 30, source: 'bluesky' };
   const judged = { ...base, _fit: 0.8 }, raw = { ...base };
   assert.ok(core.vwScore(judged as any) > core.vwScore(raw as any), 'fit lifts');

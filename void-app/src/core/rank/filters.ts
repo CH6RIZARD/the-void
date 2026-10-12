@@ -82,6 +82,33 @@ export function voidUnmute(term: string): void {
 // Feed-generator operators pin housekeeping posts to their own feed. Not content.
 export function isFeedMeta(t: unknown): boolean { return /PINNED POST|graze\.social|remixing the .{0,20}feed|feed info/i.test(String(t || '')); }
 
+// ─── NO VOICE ───────────────────────────────────────────────────────────
+// Posts that carry a topic word but nobody saying anything: whats-hot's content farms
+// and the bots in the topical feeds. Live 2026-10-11, ~15 of the 21 whats-hot posts the
+// gate admitted were these, in on one incidental range word ("#photography" -> art,
+// "Church" -> theology, "Museum" -> culture):
+//  - credit lines: a famous poem over someone else's painting signed "🎨 <painter>",
+//    Wikipedia bird facts with "📸: @someone" / "Photo by X on Wikimedia Commons";
+//  - encyclopedia copy: a species' binomial in brackets, "(Netta rufina)";
+//  - scheduled hashtag games: #WildflowerHour, #Haiku, #Poetry, #OnThisDay, #photomo25;
+//  - hashtag stuffing: a caption buried under tags ("#fall #nature #trees #travel ...");
+//  - bot templates: "Now Playing", "Read More", "Source: @Reuters on X", scanner logs.
+export const NV_CREDIT = /(?:^|[\s(])(?:📸|📷|🎨)\s*(?:[:：]\s*)?(?:@\w|\p{Lu})|\b(?:photo|image|picture|painting|artwork)s?\s+(?:by|courtesy of)\s+\p{Lu}|\bphoto\s*:\s*(?:@\w|\p{Lu})|\b(?:photo|image)\s*credit\b|\bwikimedia\b/mu;
+// "(Netta rufina)" alone is not enough - "(Jewish nationalism)" has the same shape - so
+// the binomial counts only beside field-guide words.
+export const NV_BINOMIAL = /\(\p{Lu}[a-z]+ [a-z]{4,}(?:\)| ')/u;
+export const NV_FIELD_GUIDE = /\b(?:species|subspecies|genus|native to|endemic|habitat|scientific name|shrub|perennial|bird|duck|fish|plant|flower|moth|butterfly|beetle|spider|squid|octopus|whale|frog|snake|lizard|mammal)s?\b/i;
+export const NV_GAME = /#(?:\w*hour|poetry|haiku|poem\w*|photomo\d*|dailyphoto\w*|photooftheday|\w*challenge|onthisday|thisdayinhistory|bloomscrolling|womensart|fridayflowers|caturday)\b/i;
+export const NV_BOT = /\bnow playing\b|\btune in at\b|\bread (?:more|full)\b|\|\s*units:|⟶|^📰|\bsource:\s*@\S+ on x\b/im;
+export function isNoVoice(p: Partial<Post>): boolean {
+  const t = String(p.body || '');
+  if (NV_CREDIT.test(t) || (NV_BINOMIAL.test(t) && NV_FIELD_GUIDE.test(t)) || NV_GAME.test(t) || NV_BOT.test(t)) return true;
+  // Tags under a real paragraph are a person filing their post; tags over a caption are not.
+  const tags = t.match(/#[\p{L}\p{N}_]+/gu) || [];
+  if (tags.length >= 8) return true;
+  return tags.length >= 3 && t.replace(/#[\p{L}\p{N}_]+/gu, '').replace(/https?:\/\/\S+/g, '').replace(/\s+/g, ' ').trim().length < 140;
+}
+
 /**
  * The feed's intent gate. Returns '' to admit, otherwise the refusal reason.
  * BREAKING EXEMPTION: the first, most-shared reports of a tragedy ARE outlet posts
@@ -89,13 +116,14 @@ export function isFeedMeta(t: unknown): boolean { return /PINNED POST|graze\.soc
  * crisis/graphic post at >= BREAKING_MIN_V passes — at most STORY_EXEMPT_CAP per
  * story — and is still demoted as wire by textFit/earned once admitted.
  */
-export function feedGate(p: Post): '' | 'empty' | 'meta' | 'no-tags' | 'news-account' | 'article-drop' | 'muted' | 'animal' | 'dedupe' {
+export function feedGate(p: Post): '' | 'empty' | 'meta' | 'no-tags' | 'no-voice' | 'news-account' | 'article-drop' | 'muted' | 'animal' | 'dedupe' {
   if (!(p.body || p._img || p._video)) return 'empty';
   if (isFeedMeta(p.body)) return 'meta';             // feed-operator housekeeping
   if (!p.tags.length) return 'no-tags';              // no topical signal => not this app's content
   noteStory(p);                                      // corroboration counts even if refused below
   const st = storyOf(p);
   const exempt = isBreaking(p) && (!st || st.exempt < STORY_EXEMPT_CAP);
+  if (isNoVoice(p)) return 'no-voice';               // content farm / bot, not a person talking
   if (isNewsAccount(p) && !exempt) return 'news-account';
   if (isArticleDrop(p) && !exempt) return 'article-drop';
   if (isMuted(p)) return 'muted';
