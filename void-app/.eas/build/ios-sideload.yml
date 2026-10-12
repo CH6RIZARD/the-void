@@ -1,0 +1,30 @@
+# Unsigned iPhone build of the native app, for sideloading with a free Apple ID.
+# EAS can't sign without a paid developer account, so this builds the same React
+# Native code as the APK with signing off, and xtool (WSL) signs it on install:
+#   xtool install TheVoid-unsigned.ipa
+build:
+  name: iOS unsigned device build
+  steps:
+    - eas/checkout
+    - eas/install_node_modules
+    - eas/prebuild
+    - eas/install_pods:
+        working_directory: ./ios
+    - run:
+        name: Build unsigned .app
+        working_directory: ./ios
+        command: |
+          set -eo pipefail
+          WS=$(ls -d *.xcworkspace | head -1)
+          SCHEME="${WS%.xcworkspace}"
+          xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" | tail -200
+          rm -rf Payload && mkdir Payload
+          cp -R "build/Build/Products/Release-iphoneos/$SCHEME.app" Payload/
+          zip -qry /tmp/TheVoid-unsigned.ipa Payload && ls -la /tmp/TheVoid-unsigned.ipa
+    - eas/upload_artifact:
+        name: Upload .ipa
+        inputs:
+          type: application-archive
+          path: /tmp/TheVoid-unsigned.ipa
