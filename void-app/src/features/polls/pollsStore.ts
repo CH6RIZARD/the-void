@@ -136,7 +136,10 @@ export function tally(f: FloorQ): { up: number; down: number; pct: number } {
 }
 export function rankFloor(sort: 'top' | 'new'): FloorQ[] {
   const list = st.floor.slice();
-  return sort === 'new' ? list.sort((a, b) => b.t - a.t) : list.sort((a, b) => b.up - b.down - (a.up - a.down) || a.t - b.t);
+  if (sort === 'new') return list.sort((a, b) => b.t - a.t);
+  // Score with my vote folded in (st.floor counts exclude it), so voting moves the card.
+  const score = (f: FloorQ) => { const c = tally(f); return c.up - c.down; };
+  return list.sort((a, b) => score(b) - score(a) || a.t - b.t);
 }
 /** The gate: the N least-voted floor questions the viewer has not voted on (and did not write), oldest first on ties. */
 export function gateFor(n = GATE_SIZE): FloorQ[] {
