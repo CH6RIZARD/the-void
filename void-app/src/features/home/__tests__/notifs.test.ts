@@ -39,3 +39,33 @@ test('follows collapse per section; a reply carries its text and parent; newest 
   assert.equal(sectionOf(out[1], NOW), 'today');
   assert.equal(sectionOf(out[2], NOW), 'week');
 });
+
+test('every kind lands in Mail with a destination: thread, person or topic, never nothing', () => {
+  const q = { id: 'q1', body: 'Which live cam do you keep going back to?' };
+  const chimeR = { id: 'c1', body: 'Shibuya at 3am, waiting for the crossing to empty.' };
+  const rows: Row[] = [
+    { id: 'b1', type: 'rank', read_at: null, created_at: at(1), actor: who(1), post: drop },
+    { id: 'r1', type: 'reply', read_at: null, created_at: at(2), actor: who(2), post: { id: 'p2', body: 'Eleven minutes.', reply_to: 'p1', parent: drop } },
+    { id: 'r2', type: 'reply', read_at: null, created_at: at(3), actor: who(3), post: { id: 'p3', body: 'orphan', reply_to: 'gone' } },
+    { id: 'f1', type: 'follow', read_at: null, created_at: at(4), actor: who(4) },
+    { id: 'm1', type: 'mention', read_at: null, created_at: at(5), actor: who(5), post: { id: 'p5', body: '@v0 look at this', reply_to: null } },
+    { id: 'm2', type: 'mention', read_at: null, created_at: at(6), actor: who(6), question: q, poll_reply: chimeR },
+    { id: 'c1', type: 'chime', read_at: null, created_at: at(7), actor: who(7), question: q, poll_reply: chimeR },
+    { id: 'cb1', type: 'chime_bolt', read_at: null, created_at: at(8), actor: who(8), question: q, poll_reply: chimeR },
+    { id: 'cb2', type: 'chime_bolt', read_at: null, created_at: at(9), actor: who(9), question: q, poll_reply: chimeR },
+    { id: 'v1', type: 'void', read_at: null, created_at: at(10), actor: null, question: q },
+  ];
+  const out = groupRows(rows, NOW);
+  const by = (k: string) => out.filter((n) => n.kind === k);
+  assert.deepEqual(by('bolt')[0].go, { thread: 'p1' });
+  assert.deepEqual(by('reply')[0].go, { thread: 'p1', focus: 'p2' });
+  assert.deepEqual(by('reply')[1].go, { thread: 'gone', focus: 'p3' });
+  assert.deepEqual(by('follow')[0].go, { user: 'v4' });
+  assert.deepEqual(by('mention').map((n) => n.go), [{ thread: 'p5' }, { topic: 'q1' }]);
+  assert.equal(by('chime')[0].text, chimeR.body);
+  assert.deepEqual(by('chime')[0].go, { topic: 'q1' });
+  assert.equal(by('chimeBolt').length, 1, 'bolts on one chime collapse');
+  assert.equal(by('chimeBolt')[0].by.length, 2);
+  assert.deepEqual(by('void')[0].go, { topic: 'q1' });
+  assert.ok(out.every((n) => n.go), 'no row without a destination');
+});

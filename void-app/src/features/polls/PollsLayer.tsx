@@ -27,6 +27,7 @@ import { ComposePill } from '../thread/ComposePill';
 import { viewerName } from '../thread/threadModel';
 import { ago, fmt } from '../feed/format';
 import { voidToast } from '../../ui/Toast';
+import { clearTopicRequest, useTopicRequest } from './pollsStore';
 import { chime, chimesOf, liked, likesOf, liveTopic, loadChimes, pullPolls, setPollsFailHandler, rankFloor, replyCount, tally, toggleLike, topics, usePolls, vote, voteOf, type FloorQ, type Topic } from './pollsStore';
 import { SuggestSheet } from './SuggestSheet';
 
@@ -88,6 +89,17 @@ export function PollsLayer({ open, width, onCover, backRef }: PollsLayerProps) {
     setTopic(t);
     setTopicOpen(true);
   };
+  // Mail asked for a topic: open it once the board has it (a pull may still be landing)
+  const req = useTopicRequest();
+  useEffect(() => {
+    if (!req || !open) return;
+    const t = st.topics.find((x) => x.id === req);
+    if (t) {
+      setSheet(false);
+      openTopic(t);
+      clearTopicRequest();
+    }
+  }, [req, open, st.topics]);
   const LIVE = liveTopic();
   const floor = rankFloor(sort);
   const mine = st.floor.filter((f) => f.mine);

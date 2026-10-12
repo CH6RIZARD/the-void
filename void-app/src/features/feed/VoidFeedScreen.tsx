@@ -10,7 +10,7 @@
 // only new arrivals are ranked (nextFeedBatch) and appended; refresh rebuilds with the
 // new pull leading; the list windows old rows away past FEED_WINDOW (90 + 30 slack).
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BackHandler, FlatList, Pressable, RefreshControl, StyleSheet, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import { AppState, BackHandler, FlatList, Pressable, RefreshControl, StyleSheet, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -45,6 +45,7 @@ import { isPostHidden, useModerationVersion, useTick } from './stores';
 import { usePostViewability } from './viewability';
 import { Masthead } from '../home/Masthead';
 import { Mailbox } from '../home/Mailbox';
+import { requestTopic } from '../polls/pollsStore';
 import { MailLayer } from '../home/MailLayer';
 import { markAllSeen, pullNotifs, useNotifs } from '../home/notifs';
 import { PollsLayer } from '../polls/PollsLayer';
@@ -198,13 +199,24 @@ export default function VoidFeedScreen() {
   useEffect(() => {
     pullNotifs();
     const t = setInterval(pullNotifs, 90000);
-    return () => clearInterval(t);
+    // back from the background: new mail shows now, not at the next tick
+    const sub = AppState.addEventListener('change', (s) => s === 'active' && pullNotifs());
+    return () => {
+      clearInterval(t);
+      sub.remove();
+    };
   }, []);
   const toggleMail = useCallback(() => {
     setMailOpen((o) => {
       if (!o) markAllSeen();
       return !o;
     });
+  }, []);
+  // a Mail row about a poll: close Mail, slide to Polls, open that topic
+  const openTopicFromMail = useCallback((questionId: string) => {
+    requestTopic(questionId);
+    setMailOpen(false);
+    setSection('polls');
   }, []);
   const behind = section === 'polls' || mailOpen;
   const recede = useSharedValue(0);
@@ -332,7 +344,7 @@ export default function VoidFeedScreen() {
       </Animated.View>
 
       <PollsLayer open={section === 'polls'} width={width} onCover={setPollsCovered} backRef={pollsBack} />
-      <MailLayer open={mailOpen} width={width} />
+      <MailLayer open={mailOpen} width={width} onTopic={openTopicFromMail} />
 
       {/* the masthead: THE⬡ + the stagger icon that unfolds into Polls / Feed, and the mailbox */}
       <Masthead

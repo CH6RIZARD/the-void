@@ -6,6 +6,8 @@
 // the quoted drop in muted under it, a 46px thumbnail of the drop at right.
 // Post rows (reply / mention): 38px PersonPfp, Name @handle · time, context line,
 // the full text, thumbnail of the parent drop. Follow rows carry Follow back.
+// A tap follows the row's `go`: the thread (opened on the reply), the person, or the
+// Polls topic page (through onTopic, which the feed screen owns).
 import React, { memo, useEffect } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -20,7 +22,7 @@ import { PersonPfp } from '../../ui/Pfp';
 import { VText } from '../../ui/Text';
 import { ago } from '../feed/format';
 import { openThreadRoute, openUser } from '../feed/navigation';
-import { pullNotifs, sectionOf, toggleFollow, useFollowing, useNotifs, type Notif } from './notifs';
+import { pullNotifs, sectionOf, toggleFollow, useFollowing, useNotifs, type Go, type Notif } from './notifs';
 
 const MUTED = '#8d7cc0';
 const HAIR = 'rgba(201,168,76,0.10)';
@@ -29,11 +31,11 @@ const SECTIONS: Array<['new' | 'today' | 'week', string]> = [
   ['today', 'Today'],
   ['week', 'This week'],
 ];
-const ACT: Record<Notif['kind'], string> = { bolt: 'bolted your drop', reply: 'replied to your drop', follow: 'started following you', void: 'put your question on the floor', repost: 'reposted your drop', mention: 'mentioned you' };
-const CTX: Record<Notif['kind'], string> = { bolt: 'Bolted your drop', reply: 'Replying to you', follow: 'Started following you', void: 'The Void · on the floor', repost: 'Reposted your drop', mention: 'Mentioned you' };
-const KICON: Record<Notif['kind'], IconName> = { bolt: 'boltFill', reply: 'reply', repost: 'repost', follow: 'userPlus', mention: 'at', void: 'home' };
+const ACT: Record<Notif['kind'], string> = { bolt: 'bolted your drop', reply: 'replied to your drop', follow: 'started following you', void: 'took your question up · it is live', repost: 'reposted your drop', mention: 'mentioned you', chime: 'chimed in on your question', chimeBolt: 'bolted your chime' };
+const CTX: Record<Notif['kind'], string> = { bolt: 'Bolted your drop', reply: 'Replying to you', follow: 'Started following you', void: 'The Void · on the floor', repost: 'Reposted your drop', mention: 'Mentioned you', chime: 'Chimed in on your question', chimeBolt: 'Bolted your chime' };
+const KICON: Record<Notif['kind'], IconName> = { bolt: 'boltFill', reply: 'reply', repost: 'repost', follow: 'userPlus', mention: 'at', void: 'home', chime: 'reply', chimeBolt: 'boltFill' };
 
-export function MailLayer({ open, width }: { open: boolean; width: number }) {
+export function MailLayer({ open, width, onTopic }: { open: boolean; width: number; onTopic: (questionId: string) => void }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { items, unread } = useNotifs();
@@ -55,14 +57,14 @@ export function MailLayer({ open, width }: { open: boolean; width: number }) {
           <VText style={[styles.kicker, { color: colors.gold }]}>{'MAIL · ' + unread + ' NEW'}</VText>
           <VText style={[styles.title, { color: colors.white }]}>Notifications</VText>
         </View>
-        {open && !groups.length ? <VText style={[styles.empty, { color: colors.navDim }]}>NOTHING YET · BOLTS, REPLIES AND FOLLOWS LAND HERE</VText> : null}
+        {open && !groups.length ? <VText style={[styles.empty, { color: colors.navDim }]}>NOTHING YET · BOLTS, REPLIES, MENTIONS, FOLLOWS AND CHIMES LAND HERE</VText> : null}
         {open
           ? groups.map((g) => (
               <View key={g.k}>
                 <VText style={[styles.section, { color: MUTED }]}>{g.label.toUpperCase()}</VText>
                 {g.rows.map((n) => (
                   <DealIn key={n.id} delay={60 + i++ * 45}>
-                    <Row n={n} />
+                    <Row n={n} onTopic={onTopic} />
                   </DealIn>
                 ))}
               </View>
@@ -73,13 +75,21 @@ export function MailLayer({ open, width }: { open: boolean; width: number }) {
   );
 }
 
-const Row = memo(function Row({ n }: { n: Notif }) {
+function follow(go: Go | undefined, onTopic: (id: string) => void): (() => void) | undefined {
+  if (!go) return undefined;
+  if ('thread' in go) return () => openThreadRoute(go.thread, go.focus);
+  if ('user' in go) return () => void openUser(go.user);
+  return () => onTopic(go.topic);
+}
+
+const Row = memo(function Row({ n, onTopic }: { n: Notif; onTopic: (id: string) => void }) {
   const { colors } = useTheme();
   const isVoid = n.kind === 'void';
+  const isGold = n.kind === 'bolt' || n.kind === 'chimeBolt' || isVoid;
   const hs = n.by.map((a) => '@' + a.handle);
   const who = isVoid ? 'The Void' : n.others ? hs.slice(0, 2).join(', ') + ' and ' + n.others + ' others' : hs.length > 1 ? hs.slice(0, -1).join(', ') + ' and ' + hs[hs.length - 1] : hs[0] || 'someone';
-  const isPost = n.kind === 'reply' || n.kind === 'mention';
-  const toThread = n.post ? () => openThreadRoute(n.post!.id) : undefined;
+  const isPost = n.kind === 'reply' || n.kind === 'mention' || n.kind === 'chime';
+  const toThread = follow(n.go, onTopic);
   const bg = n.unread ? 'rgba(201,168,76,0.045)' : 'transparent';
 
   if (isPost) {
@@ -104,7 +114,7 @@ const Row = memo(function Row({ n }: { n: Notif }) {
   return (
     <Pressable onPress={toThread} disabled={!toThread} style={[styles.row, { backgroundColor: bg }]}>
       <View style={styles.kind}>
-        <Icon name={KICON[n.kind]} size={24} color={n.kind === 'bolt' || isVoid ? colors.gold : '#c9bfe8'} />
+        <Icon name={KICON[n.kind]} size={24} color={isGold ? colors.gold : '#c9bfe8'} />
       </View>
       <View style={styles.body}>
         {!isVoid && n.by.length ? (
@@ -121,7 +131,11 @@ const Row = memo(function Row({ n }: { n: Notif }) {
           {' ' + ACT[n.kind] + ' '}
           <VText style={{ color: MUTED }}>{ago(n.time)}</VText>
         </VText>
-        {n.post && (n.kind === 'bolt' || n.kind === 'repost' || isVoid) ? (
+        {n.kind === 'chimeBolt' && n.text ? (
+          <VText numberOfLines={2} style={[styles.quote, { color: MUTED }]}>
+            {n.text}
+          </VText>
+        ) : n.post && (n.kind === 'bolt' || n.kind === 'repost' || isVoid) ? (
           <VText numberOfLines={2} style={[styles.quote, { color: MUTED }]}>
             {n.post.body}
           </VText>

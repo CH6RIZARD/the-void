@@ -225,3 +225,31 @@ export function replyCount(topicId: string): number {
   const loaded = st.chimes[topicId];
   return loaded ? loaded.length : st.replyN[topicId] || 0;
 }
+
+// ─── open a topic from elsewhere (Mail) ─────────────────────────────────────
+// Mail asks for a question by id; the Polls layer opens its topic page once the
+// board has it (it may need the pull that opening Polls starts).
+let topicReq: string | null = null;
+const reqSubs = new Set<() => void>();
+export function requestTopic(id: string): void {
+  topicReq = id;
+  reqSubs.forEach((f) => f());
+}
+export function takeTopicRequest(): string | null {
+  return topicReq;
+}
+export function clearTopicRequest(): void {
+  topicReq = null;
+}
+export function useTopicRequest(): string | null {
+  return useSyncExternalStore(
+    (cb) => {
+      reqSubs.add(cb);
+      return () => {
+        reqSubs.delete(cb);
+      };
+    },
+    () => topicReq,
+    () => topicReq,
+  );
+}
