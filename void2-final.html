@@ -3556,20 +3556,7 @@ const REEL_BLOCK_TOPIC_EMOJI=/[\u{1F400}-\u{1F43F}\u{1F980}-\u{1F9AE}]|\u{1F408}
 // The Grift", "Occupation & Artwork", "Réanimation" and a comedy sketch are real footage.
 const REEL_BLOCK_ART=/\b(?:furr(?:y\w*|ies)|fursuit\w*|fursona\w*|anthro|kemono|protogen|hand[- ]?drawn|fan ?arts?|pixel ?art|digital ?art(?:ists?|works?)?|watercolou?rs?|speedpaint\w*|animatics?|anime|cartoons?)\b|#(?:\w*animation\w*|art|artsky|myart|ocart|artwork\w*|illustration\w*|drawing\w*|painting\w*)\b/i;
 const REEL_BLOCK_TOPIC={test:(t)=>REEL_BLOCK_TOPIC_WORDS.test(t)||REEL_BLOCK_TOPIC_EMOJI.test(t)||REEL_BLOCK_ART.test(t)};
-// PeerTube lane — the genuinely UNHINGED end. The Bluesky feeds above top out at
-// "hobbyist high-variance" (cats, animation, K-pop); this is the absurd/eerie
-// register they cannot reach. Keyless, CORS '*', verified end-to-end: list -> video
-// detail -> HLS master playlist returns application/vnd.apple.mpegurl.
-//
-// Two traps, both measured:
-//  - sort=-views is DETERMINISTIC over a 2,742-item archive, so a fixed query
-//    serves every user the same 30 clips forever. `start` is randomised per pull.
-//  - the list endpoint carries NO stream URL. Each item needs a second request
-//    (/api/v1/videos/{uuid}) to get the playlist — an N+1, so it is capped per
-//    pull and the results are cached; PeerTube stream URLs are static.
-const REEL_PEERTUBE=[
-  {host:'spook.tube',path:'/api/v1/videos?count=20&sort=-views&isLocal=true&nsfw=false&isLive=false',depth:2700,lane:'absurd'},
-];
+
 // ── ON-TOPIC VIDEO ──────────────────────────────────────────
 // Measured 2026-08-03. The reel used to be sourced from wrestling feeds
 // (wrestletok + aewtok were half the rotation weight), which is why it never
@@ -3660,34 +3647,6 @@ async function ptDetail(host,uuid){
     _ptCache[uuid]=out; return out;
   }catch(e){return null;}
 }
-async function pullPeerTubeReels(){
-  const src=REEL_PEERTUBE[Math.floor(Math.random()*REEL_PEERTUBE.length)];
-  // Randomised window into the archive — without this the same clips repeat forever.
-  const start=Math.floor(Math.random()*Math.max(1,src.depth));
-  try{
-    const j=await nfFetchJson(`https://${src.host}${src.path}&start=${start}`,6000);
-    if(!j)return 0;
-    const rows=(j.data||[]).filter(v=>v&&v.uuid&&!v.isLive&&!v.nsfw&&(v.duration||0)>2&&(v.duration||0)<600);
-    let added=0;
-    for(const v of rows.slice(0,8)){                 // cap the N+1
-      const det=await ptDetail(src.host,v.uuid);
-      if(!det)continue;
-      const p={id:'pt_'+src.host+':'+v.uuid, style:'video', country:'', iso:'',
-        tags:inferTags(v.name,[src.lane]), _graphic:false,
-        body:v.name||'', score:v.views||0, replies:0, _reposts:0, _quotes:0,
-        time:Date.parse(v.publishedAt||v.createdAt||'')||Date.now(), source:'peertube',
-        _author:(v.account&&(v.account.displayName||v.account.name))||src.host,
-        _handle:'@'+((v.account&&v.account.name)||src.host),
-        _img:det.thumb, _video:det.url, _url:`https://${src.host}/w/${v.uuid}`,
-        _social:true, _wire:false, _link:'', provenance:{sourceHost:src.host}, imgHue:270};
-      if(isMuted(p))continue;
-      if(REEL_BLOCK_TOPIC.test(p.body||''))continue;
-      if(!admitPost(p))continue;
-      reelPosts.push(p);added++;
-    }
-    return added;
-  }catch(e){return 0;}
-}
 let reelPosts=[], _reelIdx=0, _reelLoading=false, _reelPromise=null;
 // Reel cards live in reelPosts, feed cards in allPosts. Any lookup by post id has
 // to check BOTH or every reel interaction resolves to undefined.
@@ -3770,6 +3729,25 @@ async function pullCurated(){
 // Callers get the IN-FLIGHT pull instead of an instant false. Returning false
 // while a pull was already running is what let fillGlobeReels believe the work was
 // finished and retry immediately, forever.
+// FIREHOSE: every Bluesky video post of the last 24h, held by the proxy off Jetstream
+// (~58k/day, measured 2026-10-11). Links and captions only: the captions are tagged
+// here and only The Void's own subjects are hydrated (getPosts, 25 a call), which also
+// drops anything deleted since. `before` walks older; a short page restarts at the newest.
+let _jsBefore=0;const _jsTried=new Set();
+const JS_TAGS=new Set([...Object.keys(BIO.tags).filter(t=>t!=='animals'&&t!=='nature'&&t!=='graphic'),'incident']);
+async function pullJetstream(){
+  if(!VOID_PROXY_BASE)return 0;
+  const d=await nfFetchJson(`${VOID_PROXY_BASE}/bsky/videos?limit=300${_jsBefore?'&before='+_jsBefore:''}`,8000);
+  if(!d)return 0;
+  _jsBefore=+d.next||0;
+  if(_jsTried.size>20000)_jsTried.clear();
+  const uris=(d.items||[]).filter(it=>it&&it.u&&!_jsTried.has(it.u)&&inferTags(it.x||'').some(t=>JS_TAGS.has(t))&&!REEL_BLOCK_TOPIC.test(it.x||'')).map(it=>it.u).slice(0,75);
+  uris.forEach(u=>_jsTried.add(u));
+  const calls=[];
+  for(let i=0;i<uris.length;i+=25)calls.push(nfFetchJson('https://public.api.bsky.app/xrpc/app.bsky.feed.getPosts?'+uris.slice(i,i+25).map(u=>'uris='+encodeURIComponent(u)).join('&'),8000));
+  const posts=(await Promise.all(calls)).flatMap(r=>(r&&r.posts)||[]);
+  return admitReelItems(posts.map(post=>({post})));
+}
 async function pullReelPage(){
   if(_reelPromise)return _reelPromise;
   _reelPromise=_pullReelPageOnce().finally(()=>{_reelPromise=null;_reelLoading=false;})
@@ -3786,15 +3764,11 @@ async function _pullReelPageOnce(){
   // FRESH FIRST. The PeerTube archive search used to lead and returned on one clip,
   // so the fresh lanes rarely ran: 0 of 114 of its results were newer than 7 days.
   // The top search almost always admits something too, so it leads only half the
-  // pulls; otherwise spook.tube and the feeds go first and it waits behind them.
-  // spook.tube keeps the 'absurd' lane as a minority.
+  // pulls; otherwise the feeds go first and it waits behind them.
   // CURATED FIRST: already judged for fit, so nothing fresher is worth asking before it.
   try{ const n=await pullCurated(); if(n)return true; }catch(e){}
   const searchLeads=Math.random()<0.5;
   if(searchLeads){ try{ const n=await pullBskyTopVideo(); if(n)return true; }catch(e){} }
-  if(Math.random()<0.25){
-    try{ const n=await pullPeerTubeReels(); if(n)return true; }catch(e){}
-  }
   // Reels-only sources. It used to fall through to BSKY_FEEDS — the feed's own
   // news generators — which is why reels looked like the feed. Never again: if the
   // reel pool runs dry it stays dry rather than borrowing the feed's identity.
@@ -3809,6 +3783,8 @@ async function _pullReelPageOnce(){
         if(admitReelItems(d.feed||[]))return true;
       }catch(e){}
     }
+  // The firehose is the deep lane: it leads most pulls, the feeds and searches get the rest.
+  if(Math.random()<0.7){ try{ const n=await pullJetstream(); if(n)return true; }catch(e){} }
     if(!searchLeads){ try{ const n=await pullBskyTopVideo(); if(n)return true; }catch(e){} }
     // ARCHIVE LAST: on-topic, but old. Only a dry fresh pool reaches it.
     try{ const n=await pullPeerTubeSearch(); if(n)return true; }catch(e){}
@@ -3829,6 +3805,7 @@ async function pullVoidFeed(){
     }
     // No proxy (or it returned nothing) → CORS-enabled real sources the browser can
     // reach directly. Bluesky getFeed is currently the ONLY one that works from a
+    try{ const n=await pullJetstream(); if(n)return true; }catch(e){}
     // page: www.reddit.com answers 403 AND sends no Access-Control-Allow-Origin, so
     // pullRedditPage cannot return anything client-side. It is kept only because it
     // is reachable once VOID_PROXY_BASE is set — it is not a real browser fallback.
@@ -9091,8 +9068,10 @@ function vwRemember(p){
 // is left a recent one may come back, never twice in one batch. Same rule as native.
 const VW_AUTHOR_GAP=8;const _vwAuthors=[];
 function vwWho(p){return String((p&&(p._handle||p._author))||'').replace(/^@/,'').toLowerCase();}
+// REMOVED SOURCES never deal a card from any pool: spook.tube ran 15 cards back to back (2026-10-11).
+const REEL_BLOCK_HOST=/(^|[/.@])spook\.tube\b/i;
 function vwFill(n=5,any){
-  const eligible=p=>(any?true:VW_STYLES.includes(p.style))&&laneFree(p,'reel');
+  const eligible=p=>(any?true:VW_STYLES.includes(p.style))&&laneFree(p,'reel')&&!REEL_BLOCK_HOST.test(String(p._video||'')+' '+String(p._url||''));
   // Top the dedicated reel pool up in the background whenever it runs thin.
   // Throttled so a source that fails instantly cannot spin.
   const fresh=p=>p._video&&!vwSeen.has(p.id)&&!vwRecentHas(p);

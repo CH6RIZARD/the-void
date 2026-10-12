@@ -177,7 +177,7 @@ const PRESENT = {
   'no-news filter': 'function isNewsAccount',
   'reel label gate': 'function reelBlocked',
   'reel pet filter': 'REEL_BLOCK_TOPIC',
-  'peertube reel lane': 'pullPeerTubeReels',
+  'firehose reel lane': 'pullJetstream',
   'persisted dedupe': 'void_seen_ids',
 };
 for (const t of [{ file: 'void2-final.html' }, ...TARGETS]) {

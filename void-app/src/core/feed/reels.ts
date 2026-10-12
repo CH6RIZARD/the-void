@@ -1,7 +1,7 @@
 // ─── REELS SOURCE (separate from the VOID feed) ─────────────────────────
 // Reels used to draw from allPosts — the feed's pool, ~5% video — so "reels" was the
 // feed recycled. Its own pipeline: FRESH lanes first (Bluesky top video of the last
-// 48h, then video-only Bluesky feeds), the absurd spook.tube lane sometimes, and the
+// 48h, then video-only Bluesky feeds), and the
 // PeerTube archive search last. Nothing without a playable video is ever admitted,
 // and reels never borrow the feed's sources.
 import { env, onConfigure } from '../env.ts';
@@ -9,9 +9,10 @@ import type { Post } from '../types.ts';
 import { REEL_BLOCK_TOPIC, isArticleDrop, isFeedMeta, isMuted, isNewsAccount, reelBlocked } from '../rank/filters.ts';
 import { diversify, VW_STYLES, vwScore } from '../rank/order.ts';
 import { admitPost } from '../rank/seen.ts';
+import { BIO_TAGS } from '../rank/bio.ts';
 import { postAgeH } from '../rank/story.ts';
 import { inferTags } from '../rank/tags.ts';
-import { bskyFeedUrl, bskyToPost } from './bluesky.ts';
+import { BSKY_APPVIEW, bskyFeedUrl, bskyToPost } from './bluesky.ts';
 import { peertubeSrc } from './fedi.ts';
 import { proxyPostToApp } from './proxy.ts';
 import { laneClaim, laneFree } from './search.ts';
@@ -38,12 +39,6 @@ export const REEL_FEEDS_META = [
 ];
 export const REEL_FEEDS = REEL_FEEDS_META.flatMap(f => Array(f.w).fill(f.uri) as string[]);
 
-// PeerTube lane — the genuinely UNHINGED end. sort=-views is DETERMINISTIC over a
-// 2,742-item archive, so `start` is randomised per pull; the list carries no stream
-// URL, so each item needs a detail call (N+1, capped, cached — URLs are static).
-export const REEL_PEERTUBE = [
-  { host: 'spook.tube', path: '/api/v1/videos?count=20&sort=-views&isLocal=true&nsfw=false&isLive=false', depth: 2700, lane: 'absurd' },
-];
 // ON-TOPIC VIDEO. 984 posts across 5 topical Bluesky feeds yielded 11 on-topic
 // videos (1.1%). PeerTube SEARCH queries an archive by subject instead:
 // kolektiva.media 73% on-topic, framatube.org 60%. But it is an ARCHIVE: 0 of 114
@@ -108,28 +103,6 @@ export async function pullPeerTubeSearch(): Promise<number> {
   } catch { return 0; }
 }
 
-export async function pullPeerTubeReels(): Promise<number> {
-  const src = REEL_PEERTUBE[Math.floor(env.random() * REEL_PEERTUBE.length)];
-  const start = Math.floor(env.random() * Math.max(1, src.depth));
-  try {
-    const j = await nfFetchJson(`https://${src.host}${src.path}&start=${start}`, 6000);
-    if (!j) return 0;
-    const rows = (j.data || []).filter((v: any) => v && v.uuid && !v.isLive && !v.nsfw && (v.duration || 0) > 2 && (v.duration || 0) < 600);
-    const cand = rows.slice(0, 8)                       // cap the N+1
-      .map((v: any) => ({ v, p: ptReelPost(src.host, v, { url: '', thumb: '' }, [src.lane]) }))
-      .filter(({ p }: { p: Post }) => !isMuted(p) && !REEL_BLOCK_TOPIC.test(p.body || ''));
-    const dets = await Promise.all(cand.map(({ v }: { v: any }) => ptDetail(src.host, v.uuid)));
-    let added = 0;
-    cand.forEach(({ p }: { p: Post }, i: number) => {
-      const det = dets[i]; if (!det) return;
-      p._img = det.thumb; p._video = det.url;
-      if (!admitPost(p)) return;
-      reelPosts.push(p); added++;
-    });
-    return added;
-  } catch { return 0; }
-}
-
 let _reelIdx = 0, _reelLoading = false;
 export let _reelCursors: Record<string, string> = {};
 function loadReelCursors() { try { _reelCursors = JSON.parse(env.storage.getItem('void_reel_cursors') || '{}') || {}; } catch { _reelCursors = {}; } }
@@ -181,6 +154,36 @@ export async function pullBskyTopVideo(): Promise<number> {
   return admitReelItems((d.posts || []).map((post: any) => ({ post })), new RegExp('\\b' + q + '\\b', 'gi'));   // search returns bare PostViews
 }
 
+// FIREHOSE: every Bluesky video post of the last 24h, held by the proxy off Jetstream
+// (~58k/day, ~9k pass these tags, measured 2026-10-11). The proxy hands back links
+// and captions only; the captions are tagged HERE, with the one tag list, and only
+// the hits are hydrated (getPosts, 25 a call), which also drops anything deleted.
+// `before` walks older through the window; a short page restarts at the newest.
+let _jsBefore = 0;
+const _jsTried = new Set<string>();   // hydrated once a session, admitted or not
+// The firehose is everything, so it takes only The Void's own subjects. The feeds above
+// were picked by hand and pass any topic; here music, games and garden clips were 60%
+// of what came through (live sample, 2026-10-11).
+export const JS_TAGS = new Set([...BIO_TAGS.filter(t => t !== 'animals' && t !== 'nature' && t !== 'graphic'), 'incident']);
+
+export async function pullJetstream(): Promise<number> {
+  if (!env.proxyBase) return 0;
+  const d = await nfFetchJson(`${env.proxyBase}/bsky/videos?limit=300${_jsBefore ? '&before=' + _jsBefore : ''}`, 8000);
+  if (!d) return 0;
+  _jsBefore = +d.next || 0;
+  if (_jsTried.size > 20000) _jsTried.clear();
+  const uris: string[] = ((d.items || []) as Array<{ u: string; x: string }>)
+    .filter(it => it && it.u && !_jsTried.has(it.u) && inferTags(it.x || '').some(t => JS_TAGS.has(t)) && !REEL_BLOCK_TOPIC.test(it.x || ''))
+    .map(it => it.u).slice(0, 75);
+  uris.forEach(u => _jsTried.add(u));
+  const calls: Promise<any>[] = [];
+  for (let i = 0; i < uris.length; i += 25) {
+    calls.push(nfFetchJson(BSKY_APPVIEW + '/app.bsky.feed.getPosts?' + uris.slice(i, i + 25).map(u => 'uris=' + encodeURIComponent(u)).join('&'), 8000));
+  }
+  const posts = (await Promise.all(calls)).flatMap(r => (r && r.posts) || []);
+  return admitReelItems(posts.map((post: any) => ({ post })));
+}
+
 // CURATED: the LLM-labelled clips the curator pushed to the proxy (/curated). Same
 // mapper as every proxy item (provenance, the graphic veil), plus the curator's
 // caption and fit; vwScore lifts on the fit. The curator already judged them, so
@@ -214,14 +217,14 @@ async function pullReelPageOnce(): Promise<boolean> {
     // FRESH FIRST. The PeerTube archive used to lead and returned on one clip, so the
     // fresh lanes rarely ran: 0 of 114 of its results were newer than 7 days. The top
     // search almost always admits something too, so it leads only half the pulls;
-    // otherwise spook.tube and the feeds go first and it waits behind them.
+    // otherwise the feeds go first and it waits behind them.
     // CURATED FIRST: already judged for fit, so nothing fresher is worth asking before it.
     try { const n = await pullCurated(); if (n) { emitPostsChanged('reels'); return true; } } catch { /* */ }
+    // The firehose is the deep lane, so it leads most pulls; the curated feeds and
+    // the searches still get the rest, or every reel would be the same kind of clip.
+    if (env.random() < 0.7) { try { const n = await pullJetstream(); if (n) { emitPostsChanged('reels'); return true; } } catch { /* */ } }
     const searchLeads = env.random() < 0.5;
     if (searchLeads) { try { const n = await pullBskyTopVideo(); if (n) { emitPostsChanged('reels'); return true; } } catch { /* */ } }
-    if (env.random() < 0.25) {
-      try { const n = await pullPeerTubeReels(); if (n) { emitPostsChanged('reels'); return true; } } catch { /* */ }
-    }
     // Reels-only feeds. If the reel pool runs dry it stays dry rather than borrowing the feed's identity.
     const chain = REEL_FEEDS;
     for (let attempt = 0; attempt < chain.length; attempt++) {
@@ -234,6 +237,7 @@ async function pullReelPageOnce(): Promise<boolean> {
       } catch { /* */ }
     }
     if (!searchLeads) { try { const n = await pullBskyTopVideo(); if (n) { emitPostsChanged('reels'); return true; } } catch { /* */ } }
+    try { const n = await pullJetstream(); if (n) { emitPostsChanged('reels'); return true; } } catch { /* */ }
     // ARCHIVE LAST: on-topic, but old. Only a dry fresh pool reaches it.
     try { const n = await pullPeerTubeSearch(); if (n) { emitPostsChanged('reels'); return true; } } catch { /* */ }
     return false;
@@ -258,6 +262,11 @@ export const vwSeen = new Set<string>();
 // Now a session-wide window of the last VW_NO_REPEAT clips, keyed by the VIDEO, that
 // vwReset does not clear. Nothing inside it is offered; when nothing outside it is
 // left, vwFill returns nothing and the view waits for the next pull instead of looping.
+// REMOVED SOURCES never deal a card, from any pool. spook.tube (horror-game clips,
+// 800+ days old) ran 15 cards back to back whenever the fresh lanes were dry, and the
+// user never wants it again (2026-10-11). Its lane is deleted; this keeps the feed's
+// PeerTube results from bringing it back through the backstop.
+export const REEL_BLOCK_HOST = /(^|[/.@])spook\.tube\b/i;
 export const VW_NO_REPEAT = 40;
 const _vwRecent: string[] = [];
 const _vwRecentSet = new Set<string>();
@@ -301,7 +310,7 @@ const _vwAuthors: string[] = [];
 export const vwWho = (p: Post) => String(p._handle || p._author || '').replace(/^@/, '').toLowerCase();
 let _vwPullAt = 0;
 export function vwFill(n = 5, any = false): Post[] {
-  const eligible = (p: Post) => (any ? true : VW_STYLES.includes(p.style)) && laneFree(p, 'reel');
+  const eligible = (p: Post) => (any ? true : VW_STYLES.includes(p.style)) && laneFree(p, 'reel') && !REEL_BLOCK_HOST.test(String(p._video || '') + ' ' + String(p._url || ''));
   const fresh = (p: Post) => !!p._video && !vwSeen.has(p.id) && !vwRecentHas(p);
   // Top the reel pool up in the background when thin (throttled: a source that fails
   // instantly must not spin).
