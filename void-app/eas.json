@@ -24,13 +24,6 @@
       },
       "ios": {
         "image": "latest",
-        "simulator": false
-      }
-    },
-    "ios-sideload": {
-      "distribution": "internal",
-      "ios": {
-        "image": "latest",
         "withoutCredentials": true,
         "config": "ios-sideload.yml"
       }

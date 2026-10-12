@@ -20,11 +20,11 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test src/core/__tests__/golden.test.ts src/core/__tests__/more.test.ts src/features/live/__tests__/hlsVariant.test.ts src/features/calls/__tests__/callStore.test.ts src/features/home/__tests__/notifs.test.ts src/features/polls/__tests__/polls.test.ts",
     "build:android": "eas build -p android --profile production",
-    "build:android:preview": "eas build -p android --profile preview",
     "build:ios": "eas build -p ios --profile production",
     "submit:ios": "eas submit -p ios --latest",
     "submit:android": "eas submit -p android --latest",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "build:phones": "eas build -p all --profile preview --non-interactive --no-wait"
   },
   "dependencies": {
     "@config-plugins/react-native-webrtc": "^15.0.2",
