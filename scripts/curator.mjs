@@ -38,6 +38,7 @@ import { readFileSync, writeFileSync, renameSync, statSync, unlinkSync } from 'n
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import os from 'node:os';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const STORE = path.join(ROOT, 'scripts', 'curated.json');
@@ -170,10 +171,14 @@ function rank(c, now) {
   return c.fit * 0.6 + Math.log10(1 + c.likes) * 0.1 + fresh;
 }
 
-const KEY_FILE = process.env.CURATOR_KEY_FILE || 'E:/tmp/curator.key';
+// Outside E:/tmp: clearing temp files deleted the key once (2026-10-11) and every push
+// after that was skipped. The old path is still read as a fallback.
+const KEY_FILE = process.env.CURATOR_KEY_FILE || path.join(os.homedir(), '.void', 'curator.key');
+const KEY_FILE_OLD = 'E:/tmp/curator.key';
 function curatorKey() {
   if (process.env.CURATOR_KEY) return process.env.CURATOR_KEY;
-  try { return readFileSync(KEY_FILE, 'utf8').trim(); } catch { return ''; }
+  for (const f of [KEY_FILE, KEY_FILE_OLD]) { try { const k = readFileSync(f, 'utf8').trim(); if (k) return k; } catch { /* next */ } }
+  return '';
 }
 async function pushCurated(items) {
   const key = curatorKey();
