@@ -22,6 +22,7 @@ import {
   reelPosts,
   resolveRegion,
   vwBump,
+  vwHooks,
   vwFill,
   vwQueue,
   vwRecentHas,
@@ -136,6 +137,7 @@ const saveFollows = () => writeJSON(FOLLOW_KEY, [...follows().values()]);
 export const followedCreators = (): FollowedCreator[] => [...follows().values()].sort((a, b) => b.at - a.at);
 export const vwHandleOf = (p: Partial<Post> | null | undefined) => String((p && (p._handle || p._author)) || '').replace(/^@/, '').toLowerCase();
 export const isFollowing = (p: Partial<Post> | null | undefined) => follows().has(vwHandleOf(p));
+vwHooks.following = isFollowing;                 // the reel scorer lifts followed creators
 /** Optimistic, mirrored onto every card by the same author (re-render), rolled back on rejection. */
 export function toggleFollow(item: Post): void {
   const p = findPost(baseId(item.id)) || item;
@@ -255,8 +257,13 @@ export function appendMore(): Post[] {
   return vwFill(4, true).filter(reelVisible);
 }
 
-/** vwObserve dwell: mild positive signal for the card in view. */
-export function dwell(item: Post): void {
+/** Watch time on a card the reader just left. A card in view used to earn +0.3 the
+ *  moment it appeared, so a half-second swipe-away taught "more of this". The fast
+ *  skip is the strongest signal a reel surface has: under VW_SKIP_MS it is negative,
+ *  past VW_HOLD_MS it is a real positive, between is the old mild dwell. */
+export const VW_SKIP_MS = 1500, VW_HOLD_MS = 6000;
+export const vwWatchDelta = (ms: number) => ms < VW_SKIP_MS ? -0.6 : ms < VW_HOLD_MS ? 0.3 : 0.8;
+export function watched(item: Post, ms: number): void {
   const p = findPost(baseId(item.id));
-  if (p) vwBump(p.tags, 0.3);
+  if (p) vwBump(p.tags, vwWatchDelta(ms));
 }

@@ -35,7 +35,7 @@ import { ReelItem, ReelPlaceholder } from './ReelItem';
 import { ReelModSheet, type ModTarget } from './ReelModSheet';
 import {
   appendMore,
-  dwell,
+  watched,
   fillOpenReel,
   reelVisible,
   seedInline,
@@ -316,8 +316,9 @@ export const ReelsView = memo(function ReelsView({ active, nation, postId, overl
     if (!current || !live) return;
     // counter / FOR YOU tag, dwell signal, play. (Spine fill is marked in
     // renderItem, in the same commit; the append rides the settle.)
-    dwell(current);
+    const t0 = Date.now();
     topUpRef.current();
+    return () => watched(current, Date.now() - t0);   // the signal is how long it held
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current && current._vid, live]);
 

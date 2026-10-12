@@ -154,9 +154,17 @@ export function vwBump(tags: string[] | undefined, d: number): void {
   (tags || []).forEach(t => { vwAff[t] = Math.max(-8, Math.min(8, (vwAff[t] || 0) + d)); });
   try { env.storage.setItem('void_aff', JSON.stringify(vwAff)); } catch { /* */ }
 }
+// FOLLOWED CREATORS RANK UP. Follows live in the reels feature (device storage),
+// so the feature registers the lookup here; core never imports a feature.
+export const vwHooks = { following: (_p: Partial<Post>): boolean => false };
 export function vwScore(p: Partial<Post>): number {
   const rec = 1 / (1 + (env.now() - (p.time as number)) / 36e5);                 // recency
-  const aff = (p.tags || []).reduce((s, t) => s + (vwAff[t] || 0), 0) / 3;       // learned taste
+  // Learned reel taste, PLUS the reader's profile (feed dwell, hearts, the interests
+  // chosen at Ignite): reels used to start from an empty map on every install, so
+  // day one was not catered to anyone. A hot profile tag (100) lifts 1.5, the same
+  // as three LESS taps the other way can take off.
+  const aff = (p.tags || []).reduce((s, t) => s + (vwAff[t] || 0) + (BIO.tags[t] || 0) * 0.03, 0) / 3;
+  const fol = vwHooks.following(p) ? 1.5 : 0;                                   // a creator the reader follows
   const ctr = Math.min(1, (p.replies || 0) / Math.max(1, (p.score || 1) / 10));  // controversy
   // Volume, log-scaled, velocity()'s weights: 50 -> 5,000 likes lifts as much as 5,000
   // -> 500,000, so a viral clip rises without one mega-post owning the rail. PeerTube's
@@ -165,5 +173,5 @@ export function vwScore(p: Partial<Post>): number {
   const vol = (p.source === 'peertube' ? (p.score || 0) / 100 : (p.score || 0)) + 2 * (p._reposts || 0) + 3 * (p._quotes || 0) + 2 * (p.replies || 0);
   // Curated fit (0-1, the curator's own judgement) lifts up to 1.5: a little under
   // the whole recency term, so a judged clip leads but a stale one cannot pin the rail.
-  return rec * 2 + aff * 1.5 + ctr + Math.log10(1 + vol) * .5 + (p._fit || 0) * 1.5 + env.random() * .6;   // + exploration noise
+  return rec * 2 + aff * 1.5 + fol + ctr + Math.log10(1 + vol) * .5 + (p._fit || 0) * 1.5 + env.random() * .6;   // + exploration noise
 }

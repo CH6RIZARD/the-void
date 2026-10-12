@@ -9033,6 +9033,8 @@ function auScrub(pill,e){const r=pill.querySelector('.au-wave').getBoundingClien
 // the reel and the feed played the same video. The video URL is the identity.
 const _lane=new Map();
 const laneKey=p=>{const v=String((p&&p._video)||'').split('?')[0].split('#')[0];return v||(p&&p.id);};
+const VW_SKIP_MS=1500,VW_HOLD_MS=6000;
+function vwWatchDelta(ms){return ms<VW_SKIP_MS?-0.6:ms<VW_HOLD_MS?0.3:0.8;} // fast skip is negative, a held watch a real positive
 const laneFree=(p,mine)=>{const cur=_lane.get(laneKey(p));return !cur||cur===mine;};
 const laneClaim=(p,mine)=>{const k=laneKey(p);if(!_lane.has(k))_lane.set(k,mine);};
 const VW_STYLES=['video','image','carousel','audio'];
@@ -9040,7 +9042,8 @@ let vwQueue=[],vwSeen=new Set(),vwAff=JSON.parse(localStorage.getItem('void_aff'
 function vwBump(tags,d){(tags||[]).forEach(t=>{vwAff[t]=Math.max(-8,Math.min(8,(vwAff[t]||0)+d))});localStorage.setItem('void_aff',JSON.stringify(vwAff));}
 function vwScore(p){
   const rec=1/(1+(Date.now()-p.time)/36e5);                    // recency
-  const aff=(p.tags||[]).reduce((s,t)=>s+(vwAff[t]||0),0)/3;   // learned taste
+  const aff=(p.tags||[]).reduce((s,t)=>s+(vwAff[t]||0)+(BIO.tags[t]||0)*0.03,0)/3;   // learned taste + the reader's profile
+  const fol=vwFollowSet().has(vwHandleOf(p))?1.5:0;              // a creator the reader follows
   const ctr=Math.min(1,(p.replies||0)/Math.max(1,(p.score||1)/10)); // controversy
   // Volume, log-scaled, velocity()'s weights: 50 -> 5,000 likes lifts as much as 5,000
   // -> 500,000, so a viral clip rises without one mega-post owning the rail. PeerTube's
@@ -9049,7 +9052,7 @@ function vwScore(p){
   const vol=(p.source==='peertube'?(p.score||0)/100:(p.score||0))+2*(p._reposts||0)+3*(p._quotes||0)+2*(p.replies||0);
   // Curated fit (0-1, the curator's own judgement) lifts up to 1.5: a little under
   // the whole recency term, so a judged clip leads but a stale one cannot pin the rail.
-  return rec*2+aff*1.5+ctr+Math.log10(1+vol)*.5+(p._fit||0)*1.5+Math.random()*.6;   // + exploration noise
+  return rec*2+aff*1.5+fol+ctr+Math.log10(1+vol)*.5+(p._fit||0)*1.5+Math.random()*.6;   // + exploration noise
 }
 // `any` widens the pool to every post regardless of style. The GLOBE tab needs
 // it: a live feed is mostly text, so a media-only filter returns nothing and the
@@ -9390,7 +9393,7 @@ function vwObserve(ctEl){
       // §9: a post's category tag never renders on the post (reels info included) —
       // tags still drive ranking via vwBump below, they just stay invisible.
       if(tagEl&&p)tagEl.textContent='FOR YOU';
-      if(p)vwBump(p.tags,.3); // dwell = mild positive signal
+      e.target.__t0=Date.now(); // watch time is the signal, taken when the card leaves (vwWatchDelta)
       e.target.querySelector('.vw-spine i').style.width='100%'; // spine fills per item
       vwPlay(e.target);
       // Buffer the NEXT two items while this one plays, so a scroll lands on
@@ -9411,7 +9414,7 @@ function vwObserve(ctEl){
         items.forEach((el,k)=>{ if(Math.abs(k-at)>2) vwRelease(el); });
       })(e.target);
       vwTopUp(ct);                     // landing near the end refills - no scroll event needed
-    }else vwPause(e.target);}),{threshold:.5});
+    }else{ if(e.target.__t0){const p=findPost(e.target.dataset.pid);if(p)vwBump(p.tags,vwWatchDelta(Date.now()-e.target.__t0));e.target.__t0=0;} vwPause(e.target);}}),{threshold:.5});
   if(ct.id==='reel-container')window._vwObs=ct.__obs;
   ct.querySelectorAll('.vw-item').forEach(el=>ct.__obs.observe(el));
 }
