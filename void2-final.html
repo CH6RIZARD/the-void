@@ -526,7 +526,7 @@ body.tab-void .bio-hud{display:flex}
 .prof-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
 .prof-joined{font-family:'Syne Mono',monospace;font-size:8px;letter-spacing:.16em;color:#6a58a0;margin-top:8px;min-height:10px}
 .prof-act{flex:1;padding:11px;border:none;border-radius:22px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);color:var(--white);font-family:'Syne',sans-serif;font-weight:700;font-size:12.5px;cursor:pointer}
-.prof-banner{position:absolute;left:0;right:0;top:0;height:200px;background-size:cover;background-position:center;z-index:0;pointer-events:none}
+.prof-banner{position:absolute;left:12px;right:12px;top:0;height:200px;border-radius:18px;overflow:hidden;background:radial-gradient(circle at 50% 30%,#2a1060,#0d0520 75%);background-size:cover;background-position:center;z-index:0;pointer-events:none}
 .prof-banner::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(4,2,12,.78),rgba(4,2,12,.68) 50%,rgba(4,2,12,.85))}
 :root[data-theme="dark"] .prof-avatar{background:linear-gradient(140deg,var(--card2),var(--bg2))}
 .prof-name{font-family:'Syne',sans-serif;font-weight:700;font-size:19px;line-height:1.2;color:var(--white);overflow-wrap:anywhere;margin-top:14px;position:relative}
@@ -1595,6 +1595,7 @@ body.tab-void .bio-hud{display:flex}
         <div class="settings-row-info"><div class="settings-row-label">Avatar</div><div class="settings-row-sub">The figure you wear when you have no photo</div></div>
         <span id="s-pfp-preview"></span>
       </div>
+      <label class="pfp-toggle" style="display:block;cursor:pointer">CHANGE BANNER<input type="file" id="s-banner-file" accept="image/*" style="display:none" onchange="changeBanner(this)"></label>
       <label class="pfp-toggle" style="display:block;cursor:pointer">CHANGE AVATAR<input type="file" id="s-avatar-file" accept="image/*" style="display:none" onchange="changeAvatar(this)"></label>
       <button class="pfp-toggle" id="pfp-toggle" onclick="togglePfpChoices(this)">OR CHOOSE A FIGURE</button>
       <div class="pfp-choices" id="pfp-choices" hidden></div>
@@ -8686,6 +8687,17 @@ async function changeAvatar(input){
     renderProfile();voidToast('PROFILE SAVED');
   }catch(e){voidToast(String((e&&e.message)||'UPLOAD FAILED').toUpperCase());}
 }
+// CHANGE BANNER: same path, written to profiles.banner_url (migration 012).
+async function changeBanner(input){
+  const file=input&&input.files&&input.files[0];if(!file)return;input.value='';
+  try{
+    if(!VoidAPI._sbReady())throw new Error('SIGN IN TO CHANGE YOUR BANNER');
+    const {blob,mime}=await voidCompressImage(file);
+    const up=await voidUploadMedia(blob,mime,'image');
+    if(!await VoidAuth.upsertProfile({banner_url:up.url}))throw new Error('BANNER NOT SAVED');
+    USER.banner_url=up.url;saveUser();renderProfile();paintProfBanner();voidToast('PROFILE SAVED');
+  }catch(e){voidToast(String((e&&e.message)||'UPLOAD FAILED').toUpperCase());}
+}
 // TRANSLATE POSTS TO: the app's LanguageSheet. The hidden <select> stays the value
 // store so saveSettings keeps reading it.
 function paintLangBtn(){const sel=document.getElementById('s-lang'),b=document.getElementById('s-lang-btn');if(sel&&b)b.textContent=(sel.options[sel.selectedIndex]||{}).text||'English';}
@@ -8723,9 +8735,8 @@ async function loadOwnProfileRow(){
 function paintProfBanner(){
   const m=document.querySelector('.prof-monument');if(!m)return;
   let b=m.querySelector('.prof-banner');
-  if(!USER.banner_url){if(b)b.remove();return;}
   if(!b){b=document.createElement('div');b.className='prof-banner';m.style.position='relative';m.prepend(b);}
-  b.style.backgroundImage=`url(${JSON.stringify(USER.banner_url)})`;
+  b.style.backgroundImage=USER.banner_url?`url(${JSON.stringify(USER.banner_url)})`:'';
 }
 // ─── PROFILE PANES: DROPS / HEARTED / REPLIES, as a list or a 3-wide tile grid ───
 // Ported from native ProfileScreen + profileApi. HEARTED reads the `reactions`
@@ -12255,7 +12266,7 @@ function paint(){
     (_profLayout==='tiles'&&tab==='drops')?`<div class="prof-tiles">${list.map(profTileHtml).join('')}</div>`:list.map(profRowHtml).join('');
   const blocked=(()=>{try{return window.VMod&&typeof isBlocked==='function'&&isBlocked({uid:cur.id,handle:cur.handle});}catch(e){return false;}})();
   e.innerHTML=`<div class="prof-monument" style="position:relative">
-    ${cur.banner_url?`<div class="prof-banner" style="background-image:url(${JSON.stringify(cur.banner_url)})"></div>`:''}
+    <div class="prof-banner"${cur.banner_url?` style="background-image:url(${JSON.stringify(cur.banner_url)})"`:''}></div>
     <div class="prof-top"><button class="su-back" onclick="closeUser()" aria-label="Back">${VICON.back}</button><span class="prof-handle">@${esc_(cur.handle||'')}${blocked?' · BLOCKED':''}</span><button class="su-more" onclick="userMore()" aria-label="More"><svg class="vi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="width:18px;height:18px"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button></div>
     <div class="prof-id"><div class="prof-avatar">${cur.avatar_url?`<img src="${_tcAttr(cur.avatar_url)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">`:pfpHtml(personSeed(cur.id,cur.handle,cur.name),108)}</div>
       <div class="prof-stats"><div class="prof-stat"><div class="prof-stat-num">${stat(cur.drops)}</div><div class="prof-stat-lbl">DROPS</div></div><div class="prof-stat"><div class="prof-stat-num">${stat(cur.followers)}</div><div class="prof-stat-lbl">FOLLOWERS</div></div><div class="prof-stat"><div class="prof-stat-num">${stat(cur.following)}</div><div class="prof-stat-lbl">FOLLOWING</div></div></div></div>

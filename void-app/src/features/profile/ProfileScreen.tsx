@@ -33,6 +33,8 @@ import { ProfileAvatar } from './ProfileAvatar';
 import { fetchDrops, fetchHearted, fetchMyProfile, fetchProfileByHandle, fetchReplies, getLocalAvatar, openReplyThread, registerOffFeed, type ProfileRow } from './profileApi';
 
 /** --prof-glow (VOID): radial-gradient(110% 45% at 50% 0%,#120830 0%,#04020c 58%) */
+/** 6p-f banner backdrop: radial-gradient(circle at 50% 30%,#2a1060,#0d0520 75%) on a ~366x190 box (circle reaches the far corner, ~226px). */
+const BANNER_GLOW: RadialSpec = { rx: 62, ry: 119, cx: 50, cy: 30, stops: [{ color: '#2a1060', offset: 0 }, { color: '#0d0520', offset: 0.75 }] };
 const PROF_GLOW: RadialSpec = { rx: 110, ry: 45, cx: 50, cy: 0, stops: [{ color: '#120830', offset: 0 }, { color: '#04020c', offset: 0.58 }] };
 export const PROFILE_SHARE_BASE = 'https://void-app-d35c.pages.dev/';
 
@@ -260,7 +262,7 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
   }, [tab, authorId, hearted, replies]);
 
   // JOINED and N NATIONS, from what the row already carries.
-  const bannerUrl = (isOther ? (other as any)?.banner_url : (me as any)?.banner_url) || null;
+  const bannerUrl = (isOther ? other?.banner_url : me?.banner_url) || null;
   const joinedLabel = (() => {
     const raw = isOther ? (other as any)?.created_at : (me as any)?.created_at;
     const d = raw ? new Date(raw) : null;
@@ -287,12 +289,11 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
             Absolutely positioned so nothing above it has to move or change:
             it is a backdrop, not a row in the stack. The gradient over it is
             what keeps the handle and the stats readable on any photo. */}
-        {/* Only when there IS one. Painting the placeholder regardless left a flat
-            purple slab cutting across the avatar - a banner's backdrop with no
-            banner in it, which reads as a rendering fault rather than a design. */}
-        {bannerUrl ? (
+        {/* No photo yet: the 6p-f backdrop, its purple glow under the same dark wash. */}
+        {!(isOther && other === null) ? (
           <View pointerEvents="none" style={st.banner}>
-            <Image source={{ uri: bannerUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+            <RadialFill spec={BANNER_GLOW} />
+            {bannerUrl ? <Image source={{ uri: bannerUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
             <LinearGradient
               colors={['rgba(4,2,12,0.78)', 'rgba(4,2,12,0.68)', 'rgba(4,2,12,0.85)']}
               style={StyleSheet.absoluteFill}
@@ -476,6 +477,7 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
           visible={editing}
           onClose={() => setEditing(false)}
           avatarUrl={avatar}
+          bannerUrl={me?.banner_url}
           onSaved={() => {
             load();
             bump((n) => n + 1);

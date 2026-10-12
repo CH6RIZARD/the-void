@@ -27,14 +27,15 @@ export function mimeFromUri(uri: string, fallback = ''): string {
 }
 
 /** Open the gallery. Returns [] when cancelled. Throws 'GALLERY ACCESS DENIED'. */
-export async function pickMedia(opts: { multiple?: boolean; imagesOnly?: boolean; square?: boolean } = {}): Promise<PickedMedia[]> {
+export async function pickMedia(opts: { multiple?: boolean; imagesOnly?: boolean; square?: boolean; aspect?: [number, number] } = {}): Promise<PickedMedia[]> {
+  const crop = opts.aspect || (opts.square ? ([1, 1] as [number, number]) : undefined);
   const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!perm.granted && perm.accessPrivileges !== 'limited') throw new Error('GALLERY ACCESS DENIED');
   const res = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: opts.imagesOnly ? ['images'] : ['images', 'videos'],
-    allowsMultipleSelection: opts.multiple !== false && !opts.square,
-    allowsEditing: !!opts.square,
-    aspect: opts.square ? [1, 1] : undefined,
+    allowsMultipleSelection: opts.multiple !== false && !crop,
+    allowsEditing: !!crop,
+    aspect: crop,
     quality: 1,
     selectionLimit: opts.multiple === false ? 1 : 10,
     orderedSelection: true,

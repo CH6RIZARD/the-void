@@ -1,4 +1,4 @@
-// EDIT PROFILE — name / handle / bio / avatar. Field styling follows .si-field (the
+// EDIT PROFILE — name / handle / bio / avatar / banner. Field styling follows .si-field (the
 // web's only form vocabulary); saving mirrors saveSettings() + a profiles upsert.
 import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
@@ -39,13 +39,14 @@ function Field(props: React.ComponentProps<typeof TextInput> & { label: string }
   );
 }
 
-export function EditProfileSheet({ visible, onClose, avatarUrl, onSaved }: { visible: boolean; onClose: () => void; avatarUrl?: string | null; onSaved?: () => void }) {
+export function EditProfileSheet({ visible, onClose, avatarUrl, bannerUrl, onSaved }: { visible: boolean; onClose: () => void; avatarUrl?: string | null; bannerUrl?: string | null; onSaved?: () => void }) {
   const { colors } = useTheme();
   const { user } = useIdentity();
   const [name, setName] = useState('');
   const [handle, setHandle] = useState('');
   const [bio, setBio] = useState('');
   const [avatar, setAvatar] = useState<PickedMedia | null>(null);
+  const [banner, setBanner] = useState<PickedMedia | null>(null);
   // The figure set: what someone uses when they are not using a photo.
   const [fig, setFig] = useState<number | null>(() => readPfpChoice());
   const [pickingFig, setPickingFig] = useState(false);
@@ -58,16 +59,18 @@ export function EditProfileSheet({ visible, onClose, avatarUrl, onSaved }: { vis
     setHandle(stripHandle(user.handle));
     setBio(user.bio || '');
     setAvatar(null);
+    setBanner(null);
     setFig(readPfpChoice());
     setPickingFig(false);
     setErr('');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
-  const pick = async () => {
+  const pick = async (which: 'avatar' | 'banner' = 'avatar') => {
     try {
-      const [m] = await pickMedia({ multiple: false, imagesOnly: true, square: true });
-      if (m) setAvatar(m);
+      // The 6p-f banner is landscape, 12px in from each edge: crop it wide.
+      const [m] = await pickMedia(which === 'banner' ? { multiple: false, imagesOnly: true, aspect: [16, 9] } : { multiple: false, imagesOnly: true, square: true });
+      if (m) (which === 'banner' ? setBanner : setAvatar)(m);
     } catch (e: any) {
       voidToast(String((e && e.message) || 'GALLERY UNAVAILABLE'));
     }
@@ -78,7 +81,7 @@ export function EditProfileSheet({ visible, onClose, avatarUrl, onSaved }: { vis
     setBusy(true);
     setErr('');
     writePfpChoice(fig);
-    const e = await saveProfile({ name, handle, bio, avatar });
+    const e = await saveProfile({ name, handle, bio, avatar, banner });
     setBusy(false);
     if (e) {
       setErr(e);
@@ -93,7 +96,13 @@ export function EditProfileSheet({ visible, onClose, avatarUrl, onSaved }: { vis
   return (
     <Sheet visible={visible} onClose={onClose}>
       <VHeader title="EDIT PROFILE" onClose={onClose} />
-      <Pressable onPress={pick} style={st.avRow} accessibilityLabel="Change avatar">
+      <Pressable onPress={() => pick('banner')} style={st.bannerRow} accessibilityLabel="Change banner">
+        <View style={st.bannerWrap}>
+          {banner || bannerUrl ? <Image source={{ uri: banner ? banner.uri : bannerUrl! }} style={StyleSheet.absoluteFill} contentFit="cover" /> : null}
+        </View>
+        <VText style={{ fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.2), color: colors.gold }}>CHANGE BANNER</VText>
+      </Pressable>
+      <Pressable onPress={() => pick('avatar')} style={st.avRow} accessibilityLabel="Change avatar">
         {avatar ? (
           <View style={st.avWrap}>
             <Image source={{ uri: avatar.uri }} style={StyleSheet.absoluteFill} contentFit="cover" />
@@ -119,6 +128,8 @@ export function EditProfileSheet({ visible, onClose, avatarUrl, onSaved }: { vis
 }
 
 const st = StyleSheet.create({
+  bannerRow: { gap: 10, paddingTop: 8 },
+  bannerWrap: { height: 96, borderRadius: 18, overflow: 'hidden', backgroundColor: '#0d0520', boxShadow: '0px 0px 0px 1px rgba(201,168,76,0.25)' },
   avRow: { flexDirection: 'row', alignItems: 'center', gap: 18, paddingTop: 8 },
   avWrap: { width: 72, height: 72, borderRadius: 36, overflow: 'hidden', boxShadow: '0px 0px 0px 1px rgba(201,168,76,0.45)' },
   field: { gap: 7, marginTop: 22 },

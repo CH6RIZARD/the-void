@@ -10,7 +10,14 @@ import { compressImage, uploadLocal, type PickedMedia } from '../composer/media'
 
 export const AVATAR_KEY = 'void_avatar_url';
 
-export interface ProfileRow { id: string; handle: string; display_name?: string | null; avatar_url?: string | null }
+export interface ProfileRow { id: string; handle: string; display_name?: string | null; avatar_url?: string | null; banner_url?: string | null }
+
+// banner_url arrives with migration 012; before it, the select 400s, so ask again without it.
+const PROFILE_COLS = 'id,handle,display_name,avatar_url';
+async function profileRow(q: string): Promise<ProfileRow | null> {
+  const rows = await publicGet('/rest/v1/profiles?' + q + '&select=' + PROFILE_COLS + ',banner_url').catch(() => publicGet('/rest/v1/profiles?' + q + '&select=' + PROFILE_COLS));
+  return (rows && rows[0]) || null;
+}
 
 const POST_SELECT = 'id,author_id,reply_to,body,rank_score,created_at,profiles:author_id(handle,display_name),post_media(url,ordinal,kind,mime,duration_s)';
 // sbPostToApp drops reply_to; a row that carries the `parent` embed (fetchReplies) keeps
@@ -151,8 +158,7 @@ export async function fetchMyProfile(): Promise<ProfileRow | null> {
   const uid = VoidAPI._uid();
   if (!uid) return null;
   try {
-    const rows = await publicGet('/rest/v1/profiles?id=eq.' + encodeURIComponent(uid) + '&select=id,handle,display_name,avatar_url');
-    return (rows && rows[0]) || null;
+    return await profileRow('id=eq.' + encodeURIComponent(uid));
   } catch {
     return null;
   }
@@ -163,8 +169,7 @@ export async function fetchProfileByHandle(handle: string): Promise<ProfileRow |
   const h = stripHandle(handle);
   if (!h) return null;
   try {
-    const rows = await publicGet('/rest/v1/profiles?handle=eq.' + encodeURIComponent(h) + '&select=id,handle,display_name,avatar_url');
-    return (rows && rows[0]) || null;
+    return await profileRow('handle=eq.' + encodeURIComponent(h));
   } catch {
     return null;
   }
@@ -183,7 +188,7 @@ export async function getLocalAvatar(): Promise<string | null> {
  * and avatar also go to profiles. Returns '' or the error line.
  * Bio has no profiles column (001) — it stays on the device like the web.
  */
-export async function saveProfile(input: { name: string; handle: string; bio: string; avatar?: PickedMedia | null }): Promise<string> {
+export async function saveProfile(input: { name: string; handle: string; bio: string; avatar?: PickedMedia | null; banner?: PickedMedia | null }): Promise<string> {
   await ensureCore();
   const u = getIdentity();
   const rawHandle = input.handle.trim() || u.handle;
@@ -192,11 +197,12 @@ export async function saveProfile(input: { name: string; handle: string; bio: st
   const handle = '@' + stripHandle(rawHandle);
   const name = input.name.trim() || u.name;
   let avatarUrl: string | undefined;
+  let bannerUrl: string | undefined;
   if (VoidAuth.configured()) {
     try {
       await voidEnsureSession({ handle, name });
     } catch (e: any) {
-      if (input.avatar) return String((e && e.message) || 'NOT SIGNED IN').toUpperCase();
+      if (input.avatar || input.banner) return String((e && e.message) || 'NOT SIGNED IN').toUpperCase();
     }
     if (input.avatar) {
       try {
@@ -207,9 +213,18 @@ export async function saveProfile(input: { name: string; handle: string; bio: st
         return ('AVATAR FAILED · ' + String((e && e.message) || 'UPLOAD')).toUpperCase().slice(0, 60);
       }
     }
+    if (input.banner) {
+      try {
+        const c = await compressImage(input.banner, 1500);
+        bannerUrl = (await uploadLocal(c.uri, c.mime, 'image', { handle, name })).url;
+      } catch (e: any) {
+        return ('BANNER FAILED · ' + String((e && e.message) || 'UPLOAD')).toUpperCase().slice(0, 60);
+      }
+    }
     if (VoidAPI._sbReady()) {
       const fields: Record<string, unknown> = { handle: stripHandle(handle), display_name: name };
       if (avatarUrl) fields.avatar_url = avatarUrl;
+      if (bannerUrl) fields.banner_url = bannerUrl;
       const made = await VoidAuth.upsertProfile(fields);
       if (!made) {
         try {
