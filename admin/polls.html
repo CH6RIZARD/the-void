@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Poll Admin</title>
+<style>
+  :root { --bg:#04020c; --card:#0b0620; --line:rgba(201,168,76,.22); --gold:#c9a84c; --text:#f4f0ff; --dim:#8d7cc0; --red:#e0607a; }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.45 system-ui,-apple-system,Segoe UI,sans-serif }
+  main { max-width:860px; margin:0 auto; padding:24px 16px 80px }
+  h1 { font:italic 400 26px Georgia,serif; margin:0 0 4px }
+  h2 { font-size:11px; letter-spacing:.16em; color:var(--gold); margin:28px 0 10px; font-weight:700 }
+  .sub { color:var(--dim); font-size:12px }
+  .card { background:var(--card); border-radius:14px; box-shadow:inset 0 0 0 1px var(--line); padding:12px 14px; margin-bottom:10px }
+  .card.live { box-shadow:inset 0 0 0 1px var(--gold) }
+  .meta { display:flex; flex-wrap:wrap; gap:12px; color:var(--dim); font-size:11px; letter-spacing:.04em; margin-bottom:6px }
+  .meta b { color:var(--gold); font-weight:700 }
+  textarea { width:100%; min-height:52px; resize:vertical; background:#07041a; color:var(--text); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font:italic 16px/1.35 Georgia,serif }
+  .row { display:flex; align-items:center; gap:8px; margin-top:8px; flex-wrap:wrap }
+  .n { color:var(--dim); font-size:11px; margin-right:auto }
+  .n.bad { color:var(--red) }
+  button { border:0; border-radius:16px; padding:7px 14px; font-weight:700; font-size:12px; cursor:pointer; background:#1b1336; color:var(--text); box-shadow:inset 0 0 0 1px var(--line) }
+  button.gold { background:var(--gold); color:#1a1030 }
+  button.red { color:var(--red) }
+  button:disabled { opacity:.4; cursor:default }
+  input { background:#07041a; color:var(--text); border:1px solid var(--line); border-radius:10px; padding:9px 10px; font-size:14px; width:100% }
+  form { display:grid; gap:10px; max-width:340px; margin-top:20px }
+  .msg { margin-top:12px; color:var(--dim); white-space:pre-wrap }
+  .msg.err { color:var(--red) }
+  code { background:#07041a; padding:2px 6px; border-radius:6px; user-select:all }
+  .top { display:flex; align-items:baseline; gap:12px }
+  .top .sub { margin-left:auto }
+  .tools { display:flex; gap:8px; align-items:center }
+  select { background:#07041a; color:var(--text); border:1px solid var(--line); border-radius:10px; padding:5px 8px }
+</style>
+</head>
+<body>
+<main>
+  <div class="top"><h1>Poll admin</h1><span class="sub" id="who"></span></div>
+  <div class="sub">Edit wording, accept a floor question as The Void's next one (it goes live), or remove it.</div>
+  <div id="app"></div>
+  <div class="msg" id="msg"></div>
+</main>
+<script>
+const CFG = /*CFG*/null;
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+let session = null;
+try { session = JSON.parse(sessionStorage.getItem('pollAdmin') || 'null'); } catch {}
+let sort = 'top';
+
+function say(t, err) { const m = $('#msg'); m.textContent = t || ''; m.className = 'msg' + (err ? ' err' : ''); }
+
+async function api(path, opts = {}) {
+  const r = await fetch(CFG.url + path, {
+    ...opts,
+    headers: { apikey: CFG.key, Authorization: 'Bearer ' + (session?.access_token || CFG.key), 'Content-Type': 'application/json', ...(opts.headers || {}) },
+  });
+  const text = await r.text();
+  let body; try { body = text ? JSON.parse(text) : null; } catch { body = text; }
+  if (r.status === 401 && session) { signOut('Session expired. Sign in again.'); throw new Error('signed out'); }
+  if (!r.ok) throw new Error(body?.message || body?.error_description || body?.msg || ('HTTP ' + r.status));
+  return body;
+}
+const rpc = (fn, args) => api('/rest/v1/rpc/' + fn, { method: 'POST', body: JSON.stringify(args || {}) });
+
+function signOut(note) { session = null; sessionStorage.removeItem('pollAdmin'); render(); say(note || ''); }
+
+function renderSignIn() {
+  $('#who').textContent = '';
+  $('#app').innerHTML = `<form id="f">
+    <input name="email" type="email" placeholder="Void account email" autocomplete="username" required>
+    <input name="pass" type="password" placeholder="Password" autocomplete="current-password" required>
+    <button class="gold">Sign in</button></form>`;
+  $('#f').onsubmit = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    say('Signing in…');
+    try {
+      session = await api('/auth/v1/token?grant_type=password', { method: 'POST', body: JSON.stringify({ email: fd.get('email'), password: fd.get('pass') }) });
+      sessionStorage.setItem('pollAdmin', JSON.stringify(session));
+      say(''); render();
+    } catch (err) { say('Sign-in failed: ' + err.message, true); }
+  };
+}
+
+async function renderBoard() {
+  $('#who').innerHTML = esc(session.user?.email || '') + ' · <a href="#" id="out" style="color:var(--dim)">sign out</a>';
+  $('#out').onclick = (e) => { e.preventDefault(); signOut(); };
+  let admin = false;
+  try { admin = await rpc('is_poll_admin'); } catch (err) {
+    $('#app').innerHTML = ''; return say('Could not check admin rights: ' + err.message + '\nHas migration 013 been run in the Supabase SQL editor?', true);
+  }
+  if (!admin) {
+    $('#app').innerHTML = '';
+    return say(`This account is not a poll admin. Run this in the Supabase SQL editor, then reload:\n`) ||
+      ($('#msg').innerHTML += `<code>insert into poll_admins (user_id) values ('${esc(session.user.id)}');</code>`);
+  }
+  const rows = await api('/rest/v1/poll_board?select=*&order=created_at.desc&limit=500');
+  const voids = rows.filter((r) => r.kind === 'void').sort((a, b) => b.no - a.no);
+  const floor = rows.filter((r) => r.kind === 'floor');
+  floor.sort(sort === 'new' ? (a, b) => (b.created_at > a.created_at ? 1 : -1) : (a, b) => (b.up - b.down) - (a.up - a.down) || (a.created_at > b.created_at ? 1 : -1));
+  const date = (s) => new Date(s).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const card = (r, i) => `<div class="card${r.kind === 'void' && i === 0 ? ' live' : ''}" data-id="${r.id}">
+      <div class="meta">${r.kind === 'void' ? `<b>No. ${r.no}${i === 0 ? ' · LIVE' : ''}</b>` : ''}
+        ${r.by_handle ? '<span>@' + esc(r.by_handle) + '</span>' : ''}<span>${date(r.created_at)}</span>
+        <span>▲ ${r.up} · ▼ ${r.down} · net ${r.up - r.down}</span><span>${r.replies} replies</span></div>
+      <textarea maxlength="140">${esc(r.body)}</textarea>
+      <div class="row"><span class="n"></span>
+        <button data-act="save" disabled>Save</button>
+        ${r.kind === 'floor' ? '<button class="gold" data-act="accept">Accept · goes live</button>' : ''}
+        <button class="red" data-act="remove">Remove</button></div></div>`;
+  $('#app').innerHTML = `
+    <h2>THE VOID'S QUESTIONS · ${voids.length}</h2>${voids.map(card).join('') || '<div class="sub">None yet.</div>'}
+    <div class="row" style="margin-top:28px"><h2 style="margin:0">FLOOR SUGGESTIONS · ${floor.length}</h2>
+      <span class="tools" style="margin-left:auto"><select id="sort"><option value="top">Top</option><option value="new">New</option></select><button id="reload">Reload</button></span></div>
+    <div style="margin-top:10px">${floor.map(card).join('') || '<div class="sub">Nothing suggested yet.</div>'}</div>`;
+  $('#sort').value = sort;
+  $('#sort').onchange = (e) => { sort = e.target.value; render(); };
+  $('#reload').onclick = () => render();
+  const orig = Object.fromEntries(rows.map((r) => [r.id, r.body]));
+  document.querySelectorAll('.card').forEach((el) => {
+    const id = el.dataset.id, ta = el.querySelector('textarea'), n = el.querySelector('.n'), save = el.querySelector('[data-act=save]');
+    const upd = () => { const len = ta.value.trim().length, ok = len >= 12 && len <= 140; n.textContent = len + ' / 140' + (ok ? '' : ' · 12–140 characters'); n.className = 'n' + (ok ? '' : ' bad'); save.disabled = !ok || ta.value.trim() === orig[id]; };
+    ta.oninput = upd; upd();
+    el.querySelectorAll('button').forEach((b) => b.onclick = async () => {
+      const act = b.dataset.act;
+      if (act === 'remove' && !confirm('Remove this question? Its votes and replies go with it.')) return;
+      if (act === 'accept' && ta.value.trim() !== orig[id] && !confirm('You have unsaved wording. Save it and accept?')) return;
+      el.querySelectorAll('button').forEach((x) => (x.disabled = true));
+      try {
+        if (act === 'save' || (act === 'accept' && ta.value.trim() !== orig[id])) await rpc('poll_admin_edit', { p_id: id, p_body: ta.value.trim() });
+        if (act === 'accept') { const no = await rpc('poll_admin_accept', { p_id: id }); say('Accepted as No. ' + no + '. It is live now.'); }
+        else if (act === 'remove') { await rpc('poll_admin_remove', { p_id: id }); say('Removed.'); }
+        else say('Saved.');
+      } catch (err) { say((act === 'save' ? 'Save' : act === 'accept' ? 'Accept' : 'Remove') + ' failed: ' + err.message, true); }
+      render();
+    });
+  });
+}
+
+function render() { if (!session) renderSignIn(); else renderBoard().catch((err) => err.message !== 'signed out' && say(err.message, true)); }
+render();
+</script>
+</body>
+</html>
