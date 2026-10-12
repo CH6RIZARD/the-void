@@ -93,10 +93,15 @@ export async function readBlob(uri: string): Promise<Blob> {
   return r.blob();
 }
 
-/** Upload one local file to post-media. Returns core's {url,path,mime,kind}. */
+/**
+ * Upload one local file to post-media. Returns core's {url,path,mime,kind}.
+ * Sends bytes, not a Blob: expo/fetch (the global fetch) overwrites Content-Type
+ * with a Blob's own type, which for a local file is application/octet-stream, and
+ * the bucket rejects that (400 invalid_mime_type). Bytes keep our image/webp etc.
+ */
 export async function uploadLocal(uri: string, mime: string, kind: 'image' | 'video' | 'audio', user: { handle?: string; name?: string }) {
-  const blob = await readBlob(uri);
-  return voidUploadMedia(blob, blob.size, mime, kind, user);
+  const bytes = await (await fetch(uri)).arrayBuffer();
+  return voidUploadMedia(bytes, bytes.byteLength, mime, kind, user);
 }
 
 export { MEDIA_CAPS, MEDIA_EXT };

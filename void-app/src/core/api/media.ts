@@ -80,7 +80,7 @@ export async function voidUploadMedia(body: any, size: number, mime: string, kin
   }
   if (!r.ok) {
     let m = ''; try { const d = await r.json(); m = d.message || d.error || ''; } catch { /* */ }
-    throw new Error(r.status === 413 || /size|large/i.test(m) ? kind.toUpperCase() + ' TOO LARGE' : /bucket not found/i.test(m) ? 'MEDIA STORAGE NOT READY' : 'UPLOAD FAILED (' + r.status + ')');
+    throw new Error(r.status === 413 || /size|large/i.test(m) ? kind.toUpperCase() + ' TOO LARGE' : /bucket not found/i.test(m) ? 'MEDIA STORAGE NOT READY' : 'UPLOAD FAILED (' + r.status + (m ? ' · ' + m : '') + ')');
   }
   return { url: `${env.supabaseUrl}/storage/v1/object/public/${POST_MEDIA_BUCKET}/${path}`, path, mime, kind };
 }
