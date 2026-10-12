@@ -161,6 +161,26 @@ assert.match(byId.x_106.media[0].url, /gif/);
   assert.deepStrictEqual([c.caption, c.genre, c.topic, c.fit, c.graphic], ['Police line breaks at the bridge', 'footage', 'protest', 0.9, false]);
   assert.ok(c.provenance && c.provenance.sourceHost === 'bsky.app' && c.provenance.responseHash, 'curated items carry provenance or the client refuses them');
   assert.ok((await call('GET', '/health')).body.endpoints.includes('/curated?limit=30'));
+
+  // Jetstream video pool: only created video posts enter, self-labelled adult never,
+  // and /bsky/videos pages newest first with `before`.
+  const { jetstreamVideo, addVideo } = require('./server');
+  const ev = (rkey, embed, ms, extra = {}) => ({ kind: 'commit', did: 'did:plc:a', time_us: ms * 1000,
+    commit: { operation: 'create', collection: 'app.bsky.feed.post', rkey, record: { text: 'clip ' + rkey, embed, ...extra } } });
+  const vid = { $type: 'app.bsky.embed.video' }, t0 = Date.now();
+  assert.deepStrictEqual(jetstreamVideo(ev('v1', vid, t0)), { u: 'at://did:plc:a/app.bsky.feed.post/v1', t: t0, x: 'clip v1' });
+  assert.ok(jetstreamVideo(ev('q1', { $type: 'app.bsky.embed.recordWithMedia', media: vid }, t0)), 'a quote with video is video');
+  assert.strictEqual(jetstreamVideo(ev('i1', { $type: 'app.bsky.embed.images' }, t0)), null, 'images are not reels');
+  assert.strictEqual(jetstreamVideo(ev('a1', vid, t0, { labels: { values: [{ val: 'porn' }] } })), null, 'self-labelled adult never enters');
+  const del = ev('v1', vid, t0); del.commit.operation = 'delete';
+  assert.strictEqual(jetstreamVideo(del), null);
+  for (let i = 0; i < 5; i++) addVideo(jetstreamVideo(ev('p' + i, vid, t0 - (5 - i) * 1000)));
+  addVideo({ u: 'at://old', t: t0 - 25 * 36e5, x: 'too old' });
+  const p1 = (await call('GET', '/bsky/videos?limit=3')).body;
+  assert.deepStrictEqual(p1.items.map((x) => x.x), ['clip p4', 'clip p3', 'clip p2'], 'newest first');
+  const p2 = (await call('GET', '/bsky/videos?limit=3&before=' + p1.next)).body;
+  assert.deepStrictEqual(p2.items.map((x) => x.x), ['clip p1', 'clip p0'], 'before pages older, the day-old clip is out of the window');
+  assert.strictEqual(p2.next, 0, 'a short page ends the window');
   server.close();
 
   console.log('void-proxy test.js: ok');

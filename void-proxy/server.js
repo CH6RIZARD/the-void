@@ -982,6 +982,71 @@ function curatedToPost(it) {
   });
 }
 
+// ─── BLUESKY VIDEO INGEST (Jetstream) ──────────────────────────────────────
+// Reels drew from a handful of feeds and four search words: a few hundred clips.
+// Jetstream is Bluesky's public firehose as JSON, no login. Measured 2026-10-11:
+// ~3.6M posts/day, ~58k of them video, ~9.4k of those pass the app's topic tags.
+// This keeps every video post's link and caption for VIDEO_KEEP_MS; the app tags
+// the captions (one tag list, in the app) and hydrates the ones it wants with
+// getPosts, which also drops anything deleted since. Nothing is rehosted.
+// ponytail: memory only; a redeploy refills from the cursor rewind (VIDEO_REWIND_MS).
+const VIDEO_KEEP_MS = 24 * 36e5, VIDEO_MAX = 120000, VIDEO_REWIND_MS = 6 * 36e5;
+const JETSTREAM_HOSTS = ['jetstream2.us-east.bsky.network', 'jetstream1.us-east.bsky.network', 'jetstream1.us-west.bsky.network', 'jetstream2.us-west.bsky.network'];
+const bskyVideos = [];             // {u, t, x}, oldest first, append-only
+let jsCursor = 0, jsHost = 0, jsBackoff = 1000, jsSocket = null, jsSeen = 0;
+function isVideoEmbed(e) {
+  return !!e && (e.$type === 'app.bsky.embed.video' || (e.$type === 'app.bsky.embed.recordWithMedia' && !!e.media && e.media.$type === 'app.bsky.embed.video'));
+}
+// One Jetstream event -> a pool item, or null. Self-labelled adult posts never enter;
+// the moderation labels the app also checks arrive with the hydrated post.
+function jetstreamVideo(d) {
+  const c = d && d.commit;
+  if (!c || d.kind !== 'commit' || c.operation !== 'create' || c.collection !== 'app.bsky.feed.post') return null;
+  const r = c.record || {};
+  if (!isVideoEmbed(r.embed)) return null;
+  const labels = ((r.labels && r.labels.values) || []).map((v) => String(v && v.val));
+  if (labels.some((v) => /porn|sexual|nudity/.test(v))) return null;
+  return { u: 'at://' + d.did + '/app.bsky.feed.post/' + c.rkey, t: Math.floor(d.time_us / 1000), x: String(r.text || '').slice(0, 300) };
+}
+function addVideo(it) {
+  bskyVideos.push(it);
+  const cut = it.t - VIDEO_KEEP_MS;
+  let drop = 0;
+  while (drop < bskyVideos.length && (bskyVideos[drop].t < cut || bskyVideos.length - drop > VIDEO_MAX)) drop++;
+  if (drop > 256) bskyVideos.splice(0, drop);   // batched: splice per event is O(n) per post
+}
+// Newest first, `before` (ms) pages older. next = 0 means the window is exhausted.
+function videoPage(before, limit) {
+  const cut = Date.now() - VIDEO_KEEP_MS, out = [];
+  for (let i = bskyVideos.length - 1; i >= 0 && out.length < limit; i--) {
+    const it = bskyVideos[i];
+    if (it.t < cut) continue;                    // skip, not stop: a host switch can land out of order
+    if (before && it.t >= before) continue;
+    out.push(it);
+  }
+  return { items: out, next: out.length === limit ? out[out.length - 1].t : 0 };
+}
+function startJetstream() {
+  if (typeof WebSocket !== 'function') { console.warn('[jetstream] no global WebSocket (Node 22+ needed), video ingest off'); return; }
+  const cursor = (jsCursor || (Date.now() - VIDEO_REWIND_MS) * 1000);
+  const url = 'wss://' + JETSTREAM_HOSTS[jsHost % JETSTREAM_HOSTS.length] + '/subscribe?wantedCollections=app.bsky.feed.post&cursor=' + cursor;
+  const ws = jsSocket = new WebSocket(url);
+  ws.onopen = () => { jsBackoff = 1000; console.log('[jetstream] connected', JETSTREAM_HOSTS[jsHost % JETSTREAM_HOSTS.length]); };
+  ws.onmessage = (m) => {
+    let d; try { d = JSON.parse(m.data); } catch (_) { return; }
+    if (d.time_us) jsCursor = d.time_us;
+    jsSeen++;
+    const it = jetstreamVideo(d); if (it) addVideo(it);
+  };
+  ws.onerror = () => { /* onclose follows */ };
+  ws.onclose = () => {
+    if (jsSocket !== ws) return;
+    jsHost++;                                       // next host; the cursor resumes where this one stopped
+    setTimeout(startJetstream, jsBackoff);
+    jsBackoff = Math.min(jsBackoff * 2, 60000);
+  };
+}
+
 const server = http.createServer(async (req, res) => {
   try {
     if (req.method === 'OPTIONS') { cors(res); res.writeHead(204); res.end(); return; }
@@ -1057,6 +1122,12 @@ const server = http.createServer(async (req, res) => {
       const items = body.items.filter((it) => it && it.key && /^https?:\/\//.test(String(it.video || ''))).slice(0, 200).map(curatedToPost);
       curated = { generated: String(body.generated || new Date().toISOString()), items };
       return sendJson(res, 200, { ok: true, count: items.length });
+    }
+
+    // ─── BLUESKY VIDEOS: the Jetstream pool, newest first, `before` pages older ──
+    if (path === '/bsky/videos') {
+      const before = clampInt(u.searchParams.get('before'), 0, 0, 9e15);
+      return sendJson(res, 200, videoPage(before, clampInt(u.searchParams.get('limit'), 300, 1, 500)), FEED_CACHE_HEADERS);
     }
 
     if (path === '/curated') {
@@ -1205,9 +1276,10 @@ const server = http.createServer(async (req, res) => {
     if (path === '/' || path === '/health') {
       return sendJson(res, 200, {
         ok: true,
-        endpoints: ['/feed?mode=tension&limit=40', '/social?country=<name>&mode=tension&limit=30', '/reels?limit=30', '/curated?limit=30', 'POST /curated/ingest {generated, items:[...]} (x-curator-key)', '/hls?u=<m3u8 url>', '/streams/health', 'POST /streams/report {reports:[{u,ok,v,ms}]}', 'POST /translate {texts:[...], target:"en"}'],
+        endpoints: ['/feed?mode=tension&limit=40', '/social?country=<name>&mode=tension&limit=30', '/reels?limit=30', '/curated?limit=30', '/bsky/videos?limit=300&before=<ms>', 'POST /curated/ingest {generated, items:[...]} (x-curator-key)', '/hls?u=<m3u8 url>', '/streams/health', 'POST /streams/report {reports:[{u,ok,v,ms}]}', 'POST /translate {texts:[...], target:"en"}'],
         providers: PROVIDERS.map((p) => ({ platform: p.platform, enabled: p.enabled !== false })),
         reddit: { auth: redditAuthed() ? 'oauth' : 'keyless', userAgent: REDDIT_UA },
+        bskyVideos: { held: bskyVideos.length, eventsSeen: jsSeen, cursorLagS: jsCursor ? Math.round(Date.now() / 1000 - jsCursor / 1e6) : null },
         translate: { provider: DEEPL_KEY ? 'deepl' : 'off', cached: trCache.size },
         xBudget: { dailyPosts: X_DAILY_POSTS, spentToday: xBudget().spent, left: xBudgetLeft(), maxShare: X_MAX_SHARE },
       });
@@ -1223,6 +1295,7 @@ const server = http.createServer(async (req, res) => {
 
 // Listen only when run (npm start), so test.js can require the module offline.
 if (require.main === module) server.listen(PORT, () => {
+  if (process.env.JETSTREAM !== 'off') startJetstream();
   console.log(`[void-proxy] listening on http://localhost:${PORT}`);
   console.log(`[void-proxy] providers: reddit(${redditAuthed() ? 'oauth' : 'keyless — 403 likely, set REDDIT_CLIENT_ID/REDDIT_SECRET'})` +
     `, x(${process.env.X_BEARER ? `on, ${xBudgetLeft()}/${X_DAILY_POSTS} posts left today` : 'off — set X_BEARER'})` +
@@ -1328,4 +1401,4 @@ function loadDotEnv() {
   } catch (_) { /* ignore */ }
 }
 
-module.exports = { server, tensionScore, capXShare, xBudgetLeft, X_GLOBAL_QUERIES, X_MAX_RESULTS, X_CACHE_MS, X_DAILY_POSTS, redditToken, redditAuthed, deeplTarget, translateTexts, rankItems, subsForCountry, withProvenance, interleaveRegional, page, bestVariant, aggregateReels, RedditProvider, XProvider, ThreadsProvider };
+module.exports = { server, jetstreamVideo, addVideo, videoPage, bskyVideos, tensionScore, capXShare, xBudgetLeft, X_GLOBAL_QUERIES, X_MAX_RESULTS, X_CACHE_MS, X_DAILY_POSTS, redditToken, redditAuthed, deeplTarget, translateTexts, rankItems, subsForCountry, withProvenance, interleaveRegional, page, bestVariant, aggregateReels, RedditProvider, XProvider, ThreadsProvider };

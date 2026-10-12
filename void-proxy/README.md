@@ -15,7 +15,7 @@ npm i        # no dependencies — completes instantly
 npm start    # -> node server.js, listens on http://localhost:8787
 ```
 
-Requires **Node 18+** (uses the built-in global `fetch`; falls back to `https`
+Requires **Node 22+** (built-in `WebSocket` for the Bluesky video ingest, built-in `fetch`; falls back to `https`
 on older runtimes). Set a different port with `PORT=9000 npm start`.
 
 ## Connect the client
