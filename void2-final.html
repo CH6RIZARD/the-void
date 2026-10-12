@@ -3382,6 +3382,24 @@ function _saveBskyState(){
 // Feed-generator operators pin housekeeping posts (feed announcements, Graze
 // promos) to the top of their own feed. They are not content.
 function isFeedMeta(t){return /PINNED POST|graze\.social|remixing the .{0,20}feed|feed info/i.test(t||'');}
+// NO VOICE: a topic word but nobody saying anything - whats-hot's content farms and the
+// topical feeds' bots (live 2026-10-11: ~15 of 21 whats-hot admits). Credit lines
+// ("🎨 <painter>" under a famous poem, "📸: @x", "Photo by X on Wikimedia Commons"),
+// encyclopedia copy (a binomial beside field-guide words), scheduled hashtag games,
+// tags over a caption, and bot templates ("Now Playing", "Read More", scanner logs).
+const NV_CREDIT=/(?:^|[\s(])(?:📸|📷|🎨)\s*(?:[:：]\s*)?(?:@\w|\p{Lu})|\b(?:photo|image|picture|painting|artwork)s?\s+(?:by|courtesy of)\s+\p{Lu}|\bphoto\s*:\s*(?:@\w|\p{Lu})|\b(?:photo|image)\s*credit\b|\bwikimedia\b/mu;
+const NV_BINOMIAL=/\(\p{Lu}[a-z]+ [a-z]{4,}(?:\)| ')/u;
+const NV_FIELD_GUIDE=/\b(?:species|subspecies|genus|native to|endemic|habitat|scientific name|shrub|perennial|bird|duck|fish|plant|flower|moth|butterfly|beetle|spider|squid|octopus|whale|frog|snake|lizard|mammal)s?\b/i;
+const NV_GAME=/#(?:\w*hour|poetry|haiku|poem\w*|photomo\d*|dailyphoto\w*|photooftheday|\w*challenge|onthisday|thisdayinhistory|bloomscrolling|womensart|fridayflowers|caturday)\b/i;
+const NV_BOT=/\bnow playing\b|\btune in at\b|\bread (?:more|full)\b|\|\s*units:|⟶|^📰|\bsource:\s*@\S+ on x\b/im;
+function isNoVoice(p){
+  const t=String(p.body||'');
+  if(NV_CREDIT.test(t)||(NV_BINOMIAL.test(t)&&NV_FIELD_GUIDE.test(t))||NV_GAME.test(t)||NV_BOT.test(t))return true;
+  // Tags under a real paragraph are a person filing their post; tags over a caption are not.
+  const tags=t.match(/#[\p{L}\p{N}_]+/gu)||[];
+  if(tags.length>=8)return true;
+  return tags.length>=3&&t.replace(/#[\p{L}\p{N}_]+/gu,'').replace(/https?:\/\/\S+/g,'').replace(/\s+/g,' ').trim().length<140;
+}
 // How a post's origin reads on screen. Items pulled from the AT Protocol appview
 // render as native Void: the wall is one surface, not a list of other people's
 // servers. Internal source/provenance values are untouched — only the label is.
@@ -3451,6 +3469,7 @@ function feedGate(p){
   noteStory(p);                                    // corroboration counts even if refused below
   const st=storyOf(p);
   const exempt=isBreaking(p)&&(!st||st.exempt<STORY_EXEMPT_CAP);
+  if(isNoVoice(p))return 'no-voice';               // content farm / bot, not a person talking
   if(isNewsAccount(p)&&!exempt)return 'news-account';   // outlet account — not a person
   if(isArticleDrop(p)&&!exempt)return 'article-drop';   // headline + link, not speech
   if(isMuted(p))return 'muted';                    // user-muted subject
@@ -3710,25 +3729,6 @@ async function pullBskyTopVideo(){
   saveReelCursor(key,d.cursor);
   return admitReelItems((d.posts||[]).map(post=>({post})),new RegExp('\\b'+q+'\\b','gi'));   // search returns bare PostViews
 }
-// CURATED: the LLM-labelled clips the curator pushed to the proxy (/curated). Same
-// mapper as every proxy item (provenance, the graphic veil), plus the curator's
-// caption and fit; vwScore lifts on the fit. The curator already judged them, so
-// only the cross-surface dedupe stands between them and the pool.
-async function pullCurated(){
-  if(!VOID_PROXY_BASE)return 0;
-  const d=await nfFetchJson(`${VOID_PROXY_BASE}/curated?limit=30`,8000);
-  let added=0;
-  for(const it of (d&&d.items)||[]){
-    const p=proxyPostToApp(it); if(!p||!p._video)continue;
-    p._caption=it.caption||''; p._fit=+it.fit||0; p._genre=it.genre||'';
-    if(!admitPost(p))continue;
-    reelPosts.push(p);added++;
-  }
-  return added;
-}
-// Callers get the IN-FLIGHT pull instead of an instant false. Returning false
-// while a pull was already running is what let fillGlobeReels believe the work was
-// finished and retry immediately, forever.
 // FIREHOSE: every Bluesky video post of the last 24h, held by the proxy off Jetstream
 // (~58k/day, measured 2026-10-11). Links and captions only: the captions are tagged
 // here and only The Void's own subjects are hydrated (getPosts, 25 a call), which also
@@ -3748,6 +3748,25 @@ async function pullJetstream(){
   const posts=(await Promise.all(calls)).flatMap(r=>(r&&r.posts)||[]);
   return admitReelItems(posts.map(post=>({post})));
 }
+// CURATED: the LLM-labelled clips the curator pushed to the proxy (/curated). Same
+// mapper as every proxy item (provenance, the graphic veil), plus the curator's
+// caption and fit; vwScore lifts on the fit. The curator already judged them, so
+// only the cross-surface dedupe stands between them and the pool.
+async function pullCurated(){
+  if(!VOID_PROXY_BASE)return 0;
+  const d=await nfFetchJson(`${VOID_PROXY_BASE}/curated?limit=30`,8000);
+  let added=0;
+  for(const it of (d&&d.items)||[]){
+    const p=proxyPostToApp(it); if(!p||!p._video)continue;
+    p._caption=it.caption||''; p._fit=+it.fit||0; p._genre=it.genre||'';
+    if(!admitPost(p))continue;
+    reelPosts.push(p);added++;
+  }
+  return added;
+}
+// Callers get the IN-FLIGHT pull instead of an instant false. Returning false
+// while a pull was already running is what let fillGlobeReels believe the work was
+// finished and retry immediately, forever.
 async function pullReelPage(){
   if(_reelPromise)return _reelPromise;
   _reelPromise=_pullReelPageOnce().finally(()=>{_reelPromise=null;_reelLoading=false;})
@@ -3767,6 +3786,8 @@ async function _pullReelPageOnce(){
   // pulls; otherwise the feeds go first and it waits behind them.
   // CURATED FIRST: already judged for fit, so nothing fresher is worth asking before it.
   try{ const n=await pullCurated(); if(n)return true; }catch(e){}
+  // The firehose is the deep lane: it leads most pulls, the feeds and searches get the rest.
+  if(Math.random()<0.7){ try{ const n=await pullJetstream(); if(n)return true; }catch(e){} }
   const searchLeads=Math.random()<0.5;
   if(searchLeads){ try{ const n=await pullBskyTopVideo(); if(n)return true; }catch(e){} }
   // Reels-only sources. It used to fall through to BSKY_FEEDS — the feed's own
@@ -3783,9 +3804,8 @@ async function _pullReelPageOnce(){
         if(admitReelItems(d.feed||[]))return true;
       }catch(e){}
     }
-  // The firehose is the deep lane: it leads most pulls, the feeds and searches get the rest.
-  if(Math.random()<0.7){ try{ const n=await pullJetstream(); if(n)return true; }catch(e){} }
     if(!searchLeads){ try{ const n=await pullBskyTopVideo(); if(n)return true; }catch(e){} }
+    try{ const n=await pullJetstream(); if(n)return true; }catch(e){}
     // ARCHIVE LAST: on-topic, but old. Only a dry fresh pool reaches it.
     try{ const n=await pullPeerTubeSearch(); if(n)return true; }catch(e){}
     return false;
@@ -3805,7 +3825,6 @@ async function pullVoidFeed(){
     }
     // No proxy (or it returned nothing) → CORS-enabled real sources the browser can
     // reach directly. Bluesky getFeed is currently the ONLY one that works from a
-    try{ const n=await pullJetstream(); if(n)return true; }catch(e){}
     // page: www.reddit.com answers 403 AND sends no Access-Control-Allow-Origin, so
     // pullRedditPage cannot return anything client-side. It is kept only because it
     // is reachable once VOID_PROXY_BASE is set — it is not a real browser fallback.
@@ -9010,12 +9029,12 @@ function auScrub(pill,e){const r=pill.querySelector('.au-wave').getBoundingClien
 // the reel and the feed played the same video. The video URL is the identity.
 const _lane=new Map();
 const laneKey=p=>{const v=String((p&&p._video)||'').split('?')[0].split('#')[0];return v||(p&&p.id);};
-const VW_SKIP_MS=1500,VW_HOLD_MS=6000;
-function vwWatchDelta(ms){return ms<VW_SKIP_MS?-0.6:ms<VW_HOLD_MS?0.3:0.8;} // fast skip is negative, a held watch a real positive
 const laneFree=(p,mine)=>{const cur=_lane.get(laneKey(p));return !cur||cur===mine;};
 const laneClaim=(p,mine)=>{const k=laneKey(p);if(!_lane.has(k))_lane.set(k,mine);};
 const VW_STYLES=['video','image','carousel','audio'];
 let vwQueue=[],vwSeen=new Set(),vwAff=JSON.parse(localStorage.getItem('void_aff')||'{}');
+const VW_SKIP_MS=1500,VW_HOLD_MS=6000;
+function vwWatchDelta(ms){return ms<VW_SKIP_MS?-0.6:ms<VW_HOLD_MS?0.3:0.8;} // fast skip is negative, a held watch a real positive
 function vwBump(tags,d){(tags||[]).forEach(t=>{vwAff[t]=Math.max(-8,Math.min(8,(vwAff[t]||0)+d))});localStorage.setItem('void_aff',JSON.stringify(vwAff));}
 function vwScore(p){
   const rec=1/(1+(Date.now()-p.time)/36e5);                    // recency
@@ -9049,6 +9068,8 @@ function vwScore(p){
 // and pulls more (vwTopUp) - a short wait instead of a loop.
 const VW_NO_REPEAT=40;
 const _vwRecent=[],_vwRecentSet=new Set();
+// REMOVED SOURCES never deal a card from any pool: spook.tube ran 15 cards back to back (2026-10-11).
+const REEL_BLOCK_HOST=/(^|[/.@])spook\.tube\b/i;
 function vwKey(p){const u=String((p&&(p._video||p.id))||'').split('?')[0].split('#')[0];
   // The clip, not the poster: video.bsky.app/watch/<did>/<cid>/playlist.m3u8 - a repost by
   // another account changes the did, never the content-addressed cid. One clip, one key.
@@ -9068,8 +9089,6 @@ function vwRemember(p){
 // is left a recent one may come back, never twice in one batch. Same rule as native.
 const VW_AUTHOR_GAP=8;const _vwAuthors=[];
 function vwWho(p){return String((p&&(p._handle||p._author))||'').replace(/^@/,'').toLowerCase();}
-// REMOVED SOURCES never deal a card from any pool: spook.tube ran 15 cards back to back (2026-10-11).
-const REEL_BLOCK_HOST=/(^|[/.@])spook\.tube\b/i;
 function vwFill(n=5,any){
   const eligible=p=>(any?true:VW_STYLES.includes(p.style))&&laneFree(p,'reel')&&!REEL_BLOCK_HOST.test(String(p._video||'')+' '+String(p._url||''));
   // Top the dedicated reel pool up in the background whenever it runs thin.
@@ -11807,7 +11826,7 @@ Object.assign(VoidAPI,{
   async pollReplies(qid){if(!this._uuid(qid)||!SUPABASE_URL)return [];const r=await fetch(SUPABASE_URL+'/rest/v1/poll_replies?question_id=eq.'+encodeURIComponent(qid)+'&select=id,body,created_at,author_id,profiles:author_id(handle,display_name),poll_reply_likes(count)&order=created_at.asc&limit=200',{headers:ANON_H()});if(!r.ok)throw new Error('poll_replies '+r.status);const rows=await r.json();return Array.isArray(rows)?rows:[];},
   async pollReply(qid,body){if(!this._uuid(qid)||!this._sbReady())return {ok:true,local:true};const rows=await this._sb('/rest/v1/poll_replies','POST',[{question_id:qid,author_id:this._uid(),body:String(body||'').slice(0,1000)}],{'Prefer':'return=representation'});return {ok:true,id:rows&&rows[0]&&rows[0].id};},
   async pollLike(rid,on){if(!this._uuid(rid)||!this._sbReady())return {ok:true,local:true};const m=this._uid();if(on)await this._sb('/rest/v1/poll_reply_likes','POST',[{reply_id:rid,user_id:m}],{'Prefer':'resolution=merge-duplicates,return=minimal'});else await this._sb('/rest/v1/poll_reply_likes?reply_id=eq.'+encodeURIComponent(rid)+'&user_id=eq.'+encodeURIComponent(m),'DELETE');return {ok:true};},
-  async notifs(){if(!this._sbReady())return [];const m=encodeURIComponent(this._uid());const q=s=>'/rest/v1/notifications?user_id=eq.'+m+'&type=in.(rank,follow,reply)&select='+s+'&order=created_at.desc&limit=120';const full='id,type,read_at,created_at,actor:actor_id(id,handle,display_name),post:post_id(id,body,reply_to,post_media(url,ordinal),parent:reply_to(id,body,post_media(url,ordinal)))';const flat='id,type,read_at,created_at,actor:actor_id(id,handle,display_name),post:post_id(id,body,reply_to,post_media(url,ordinal))';try{return await this._sb(q(full));}catch(e){return await this._sb(q(flat));}},
+  async notifs(){if(!this._sbReady())return [];const m=encodeURIComponent(this._uid());const q=(s,t)=>'/rest/v1/notifications?user_id=eq.'+m+'&type=in.('+(t||'rank,follow,reply')+')&select='+s+'&order=created_at.desc&limit=120';const full='id,type,read_at,created_at,actor:actor_id(id,handle,display_name),post:post_id(id,body,reply_to,post_media(url,ordinal),parent:reply_to(id,body,post_media(url,ordinal)))';try{return await this._sb(q(full+',question:question_id(id,body),poll_reply:poll_reply_id(id,body)','rank,follow,reply,mention,chime,chime_bolt,void'));}catch(e){}const flat='id,type,read_at,created_at,actor:actor_id(id,handle,display_name),post:post_id(id,body,reply_to,post_media(url,ordinal))';try{return await this._sb(q(full));}catch(e){return await this._sb(q(flat));}},
   async notifsSeen(){if(!this._sbReady())return {ok:true,local:true};await this._sb('/rest/v1/notifications?user_id=eq.'+encodeURIComponent(this._uid())+'&read_at=is.null','PATCH',{read_at:new Date().toISOString()},{'Prefer':'return=minimal'});return {ok:true};},
 });
 const fail=()=>{try{voidToast('SIGNAL LOST · RETRY');}catch(e){}};
@@ -11893,36 +11912,49 @@ const DAY=86400000;const sectionOf=(n,now)=>n.unread?'new':now-n.time<DAY?'today
 const imgOf=m=>(m||[]).slice().sort((a,b)=>a.ordinal-b.ordinal).map(x=>x.url)[0];
 function addActor(n,a){if(!a||n.by.some(x=>x.id===a.id))return;if(n.by.length<3)n.by.push(a);else n.others++;}
 function groupRows(rows,now){
-  const out=[],bolts=new Map(),follows=new Map();
+  const out=[],bolts=new Map(),follows=new Map(),cbolts=new Map();
   for(const r of rows){const time=Date.parse(r.created_at)||now,un=!r.read_at;const a=r.actor?{id:r.actor.id,handle:String(r.actor.handle||'').replace(/^@/,''),name:r.actor.display_name||r.actor.handle||'anon'}:null;
-    if(r.type==='rank'&&r.post){let n=bolts.get(r.post.id);if(!n){n={id:'b:'+r.post.id,kind:'bolt',by:[],others:0,post:{id:r.post.id,body:r.post.body||'',img:imgOf(r.post.post_media)},time,unread:un};bolts.set(r.post.id,n);out.push(n);}if(un)n.unread=true;addActor(n,a);}
-    else if(r.type==='follow'&&a){const probe={kind:'follow',by:[],others:0,time,unread:un};const key=sectionOf(probe,now);let n=follows.get(key);if(!n){n={...probe,id:'f:'+key};follows.set(key,n);out.push(n);}addActor(n,a);}
-    else if(r.type==='reply'&&r.post){const e=r.post.parent;const local=!e&&r.post.reply_to&&typeof allPosts!=='undefined'?allPosts.find(p=>p.id===r.post.reply_to):null;const parent=e?{id:e.id,body:e.body||'',img:imgOf(e.post_media)}:local?{id:local.id,body:local.body||'',img:local._img}:undefined;out.push({id:r.id,kind:'reply',by:a?[a]:[],others:0,text:r.post.body||'',post:parent,time,unread:un});}}
+    if(r.type==='rank'&&r.post){let n=bolts.get(r.post.id);if(!n){n={id:'b:'+r.post.id,kind:'bolt',by:[],others:0,post:{id:r.post.id,body:r.post.body||'',img:imgOf(r.post.post_media)},time,unread:un};bolts.set(r.post.id,n);out.push(n);}if(un)n.unread=true;addActor(n,a);n.go={thread:r.post.id};}
+    else if(r.type==='chime_bolt'&&r.poll_reply&&r.question){let n=cbolts.get(r.poll_reply.id);if(!n){n={id:'cb:'+r.poll_reply.id,kind:'chimeBolt',by:[],others:0,text:r.poll_reply.body||'',post:{id:r.question.id,body:r.question.body||''},time,unread:un,go:{topic:r.question.id}};cbolts.set(r.poll_reply.id,n);out.push(n);}if(un)n.unread=true;addActor(n,a);}
+    else if((r.type==='chime'||r.type==='mention')&&r.question){out.push({id:r.id,kind:r.type,by:a?[a]:[],others:0,text:(r.poll_reply&&r.poll_reply.body)||'',post:{id:r.question.id,body:r.question.body||''},time,unread:un,go:{topic:r.question.id}});}
+    else if(r.type==='mention'&&r.post){out.push({id:r.id,kind:'mention',by:a?[a]:[],others:0,text:r.post.body||'',post:{id:r.post.id,body:r.post.body||'',img:imgOf(r.post.post_media)},time,unread:un,go:{thread:r.post.id}});}
+    else if(r.type==='void'&&r.question){out.push({id:r.id,kind:'void',by:[],others:0,post:{id:r.question.id,body:r.question.body||''},time,unread:un,go:{topic:r.question.id}});}
+    else if(r.type==='follow'&&a){const probe={kind:'follow',by:[],others:0,time,unread:un};const key=sectionOf(probe,now);let n=follows.get(key);if(!n){n={...probe,id:'f:'+key,go:{user:a.handle,uid:a.id}};follows.set(key,n);out.push(n);}addActor(n,a);}
+    else if(r.type==='reply'&&r.post){const e=r.post.parent;const local=!e&&r.post.reply_to&&typeof allPosts!=='undefined'?allPosts.find(p=>p.id===r.post.reply_to):null;const parent=e?{id:e.id,body:e.body||'',img:imgOf(e.post_media)}:local?{id:local.id,body:local.body||'',img:local._img}:undefined;const top=(parent&&parent.id)||r.post.reply_to;out.push({id:r.id,kind:'reply',by:a?[a]:[],others:0,text:r.post.body||'',post:parent,time,unread:un,go:{thread:top||r.post.id}});}}
   return out.sort((x,y)=>y.time-x.time);
 }
-async function pullNotifs(){if(pullingN||!VoidAPI._sbReady())return;pullingN=true;try{const rows=await VoidAPI.notifs();N={items:groupRows(Array.isArray(rows)?rows:[],Date.now()),unread:0};N.unread=N.items.filter(n=>n.unread).length;$('v22-mailbox').classList.toggle('seen',!N.unread);if(S.mail)renderMail();}catch(e){}finally{pullingN=false;}}
+async function pullNotifs(){if(pullingN||!VoidAPI._sbReady())return;pullingN=true;try{const rows=await VoidAPI.notifs();N={items:groupRows(Array.isArray(rows)?rows:[],Date.now()),unread:0};N.unread=N.items.filter(n=>n.unread).length;$('v22-mailbox').classList.toggle('seen',!N.unread);if(S.mail)renderMail();seedFollowing();}catch(e){}finally{pullingN=false;}}
+async function seedFollowing(){const ppl=N.items.filter(n=>n.kind==='follow').flatMap(n=>n.by);if(!ppl.length||!VoidAPI._sbReady())return;try{const rows=await VoidAPI._sb('/rest/v1/follows?follower_id=eq.'+encodeURIComponent(VoidAPI._uid())+'&followee_id=in.('+ppl.map(a=>a.id).join(',')+')&select=followee_id');const on=new Set((rows||[]).map(r=>r.followee_id));ppl.forEach(a=>{if(on.has(a.id))following.add(a.handle);});if(S.mail)renderMail();}catch(e){}}
 V22.mailTap=function(){if(S.mail){S.mail=false;document.body.classList.remove('v22-mail');return;}S.mail=true;fold();document.body.classList.add('v22-mail');renderMail();pullNotifs();
   if(N.unread){N.unread=0;$('v22-mailbox').classList.add('seen');VoidAPI.notifsSeen().catch(()=>{});}};
 const following=new Set();
 V22.follow=function(h){const on=!following.has(h);if(on)following.add(h);else following.delete(h);renderMail();VoidAPI.follow(h,on).catch(()=>{if(on)following.delete(h);else following.add(h);renderMail();fail();});};
-const ACT={bolt:'bolted your drop',reply:'replied to your drop',follow:'started following you',void:'put your question on the floor',repost:'reposted your drop',mention:'mentioned you'};
-const CTX={bolt:'Bolted your drop',reply:'Replying to you',follow:'Started following you',void:'The Void · on the floor',repost:'Reposted your drop',mention:'Mentioned you'};
+const ACT={bolt:'bolted your drop',reply:'replied to your drop',follow:'started following you',void:'took your question up · it is live',repost:'reposted your drop',mention:'mentioned you',chime:'chimed in on your question',chimeBolt:'bolted your chime'};
+const CTX={bolt:'Bolted your drop',reply:'Replying to you',follow:'Started following you',void:'The Void · on the floor',repost:'Reposted your drop',mention:'Mentioned you',chime:'Chimed in on your question',chimeBolt:'Bolted your chime'};
 const KICON={bolt:'M13 2 4.5 13.5H11L10 22l8.5-11.5H12z',reply:'M21 12a8 8 0 0 1-11.6 7.1L4 21l1.9-5.4A8 8 0 1 1 21 12z',repost:'M17 2l4 4-4 4M3 11V8a2 2 0 0 1 2-2h16M7 22l-4-4 4-4M21 13v3a2 2 0 0 1-2 2H3',follow:'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M19 8v6M22 11h-6',mention:'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.9 7.9',void:'M12 2l8.7 5v10L12 22l-8.7-5V7z'};
+KICON.chime=KICON.reply;KICON.chimeBolt=KICON.bolt;
+// where a Mail row goes: the thread (fetched when it is not in the feed), the person, or the Polls topic
+V22.mailGo=async function(i){const n=N.items[i];if(!n||!n.go)return;const g=n.go;
+  if(g.user){if(window.openUser)openUser(g.uid||null,g.user);return;}
+  if(g.topic){S.mail=false;document.body.classList.remove('v22-mail');if(S.section!=='polls')setSection('polls');const go=()=>{if(P.topics.some(t=>t.id===g.topic)){V22.openTopic(g.topic);return true;}return false;};if(!go()){await pullPolls();if(!go())fail();}return;}
+  if(g.thread){if(allPosts.find(p=>p.id===g.thread)){openThread(g.thread);return;}
+    try{const rows=await VoidAPI.recentPosts(1,[g.thread]);const p=rows[0]&&sbPostToApp(rows[0]);if(p){allPosts.push(p);openThread(p.id);return;}}catch(e){}
+    try{voidToast('GONE · THIS DROP WAS DELETED');}catch(e){}}};
 function thumb(post){if(!post)return '';return `<span style="display:block;width:46px;height:46px;border-radius:9px;background:${post.img?`url(${_tcAttr(post.img)}) center/cover`:'linear-gradient(180deg,#120b2c,#0b0620)'};box-shadow:inset 0 0 0 1px rgba(201,168,76,.3);padding:5px 6px;box-sizing:border-box;flex-shrink:0;align-self:flex-start;overflow:hidden;font-family:${SERIF};font-size:6.5px;line-height:1.3;color:#c9bfe8">${post.img?'':esc(post.body)}</span>`;}
 function renderMail(){
   const now=Date.now();const groups=[['new','New'],['today','Today'],['week','This week']].map(([k,l])=>({k,l,items:N.items.filter(n=>sectionOf(n,now)===k)})).filter(g=>g.items.length);
   let i=0;
-  const row=n=>{const isPost=n.kind==='reply'||n.kind==='mention',isVoid=n.kind==='void';const hs=n.by.map(a=>'@'+a.handle);const who=isVoid?'The Void':n.others?hs.slice(0,2).join(', ')+' and '+fmt(n.others)+' others':hs.length>1?hs.slice(0,-1).join(', ')+' and '+hs[hs.length-1]:(hs[0]||'someone');
-    const open=n.post?` onclick="openThread('${_tcAttr(n.post.id)}')" style="cursor:pointer"`:'';const bg=n.unread?'rgba(201,168,76,.045)':'transparent';
+  const row=n=>{const isPost=n.kind==='reply'||n.kind==='mention'||n.kind==='chime',isVoid=n.kind==='void';const hs=n.by.map(a=>'@'+a.handle);const who=isVoid?'The Void':n.others?hs.slice(0,2).join(', ')+' and '+fmt(n.others)+' others':hs.length>1?hs.slice(0,-1).join(', ')+' and '+hs[hs.length-1]:(hs[0]||'someone');
+    const open=n.go?` onclick="V22.mailGo(${N.items.indexOf(n)})" style="cursor:pointer"`:'';const bg=n.unread?'rgba(201,168,76,.045)':'transparent';
     if(isPost){const a=n.by[0]||{};return `<div style="display:flex;gap:12px;padding:12px 2px;border-bottom:1px solid rgba(201,168,76,.10);background:${bg};animation:${DEAL(60+i++*45)}"${open}>${pfp(a.id,a.handle,a.name,38)}<span style="flex:1;min-width:0"><span style="display:flex;align-items:baseline;gap:6px;font-size:13.5px;flex-wrap:wrap"><b>${esc(a.name||'anon')}</b><span style="color:${DIM};font-size:12px">@${esc(a.handle||'anon')} · ${agoM(n.time)}</span></span><span style="display:block;font-size:12px;color:${DIM};margin-top:2px">${CTX[n.kind]}</span><span style="display:block;font-size:14px;line-height:1.4;margin-top:5px;text-wrap:pretty">${esc(n.text||'')}</span></span>${thumb(n.post)}</div>`;}
     const avs=!isVoid&&n.by.length?`<span style="display:flex;gap:6px;margin-bottom:8px">${n.by.slice(0,3).map(a=>pfp(a.id,a.handle,a.name,26)).join('')}</span>`:'';
-    const quote=n.post&&(n.kind==='bolt'||n.kind==='repost'||isVoid)?`<span style="display:block;font-size:13px;line-height:1.4;color:${MUTED};margin-top:5px;text-wrap:pretty">${esc(n.post.body)}</span>`:'';
+    const quote=n.kind==='chimeBolt'&&n.text?`<span style="display:block;font-size:13px;line-height:1.4;color:${MUTED};margin-top:5px;text-wrap:pretty">${esc(n.text)}</span>`:n.post&&(n.kind==='bolt'||n.kind==='repost'||isVoid)?`<span style="display:block;font-size:13px;line-height:1.4;color:${MUTED};margin-top:5px;text-wrap:pretty">${esc(n.post.body)}</span>`:'';
     const fb=n.kind==='follow'?`<span style="display:flex;flex-wrap:wrap;gap:8px;margin-top:9px">${n.by.map(a=>{const on=following.has(a.handle);return `<button class="v22-btn" onclick="event.stopPropagation();V22.follow('${_tcAttr(a.handle)}')" style="padding:7px 14px;border-radius:999px;background:${on?'transparent':GON};box-shadow:${on?'inset 0 0 0 1px rgba(201,168,76,.4)':GONSH};color:${on?'#c9a84c':'#1a1030'};font-size:11px;font-weight:700;white-space:nowrap;transition:background .2s,color .2s">${on?'Following':'Follow back'}</button>`;}).join('')}</span>`:'';
-    const gold=n.kind==='bolt'||isVoid;
+    const gold=n.kind==='bolt'||n.kind==='chimeBolt'||isVoid;
     return `<div style="display:flex;gap:12px;padding:12px 2px;border-bottom:1px solid rgba(201,168,76,.10);background:${bg};animation:${DEAL(60+i++*45)}"${open}><svg width="24" height="24" viewBox="0 0 24 24" fill="${gold?GOLD:'none'}" stroke="${gold?GOLD:'#c9bfe8'}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><path d="${KICON[n.kind]}"></path></svg><span style="flex:1;min-width:0">${avs}<span style="display:block;font-size:13.5px;line-height:1.4;text-wrap:pretty"><b>${esc(who)}</b> ${ACT[n.kind]} <span style="color:${DIM};font-size:12px">${agoM(n.time)}</span></span>${quote}${fb}</span>${thumb(n.post)}</div>`;};
   $('v22-mail').innerHTML=`<div style="padding:16px 16px 0;display:flex;align-items:center;gap:8px;flex-shrink:0;height:50px;box-sizing:border-box"><span class="v22-gold" style="font-size:10px;font-weight:700;letter-spacing:.12em">MAIL</span><span style="font-size:10px;letter-spacing:.06em;color:${DIM}">· ${N.unread} new</span></div>
   <div class="v22-scroll" style="padding:8px 16px 60px"><div style="font-family:${SERIF};font-size:30px;line-height:1;margin:6px 2px 4px">Notifications</div>
-  ${groups.length?groups.map(g=>`<div style="font-size:13px;font-weight:700;margin:18px 2px 4px">${g.l}</div>${g.items.map(row).join('')}`).join(''):`<div class="tc-empty">${VoidAPI._sbReady()?'NOTHING YET · BOLTS, REPLIES AND FOLLOWS LAND HERE':'SIGN IN TO SEE YOUR MAIL'}</div>`}</div>`;
+  ${groups.length?groups.map(g=>`<div style="font-size:13px;font-weight:700;margin:18px 2px 4px">${g.l}</div>${g.items.map(row).join('')}`).join(''):`<div class="tc-empty">${VoidAPI._sbReady()?'NOTHING YET · BOLTS, REPLIES, MENTIONS, FOLLOWS AND CHIMES LAND HERE':'SIGN IN TO SEE YOUR MAIL'}</div>`}</div>`;
 }
 
 // ─── polls board ─────────────────────────────────────────────────────────────
