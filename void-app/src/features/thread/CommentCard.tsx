@@ -110,7 +110,7 @@ export const CommentCard = memo(function CommentCard({ c, opAuthor, kidsN, paren
         <VText onPress={toUser ? () => openUser(toUser) : undefined} style={[styles.name, { fontSize: nested ? 10.5 : 11, color: colors.white }]}>
           {c.author || 'anon'}
           {isOp ? ' ' : ''}
-          {isOp ? <VText style={styles.op}>{' OP '}</VText> : null}
+          {isOp ? <VText style={[styles.op, isLight && { color: colors.purple, backgroundColor: colors.pdim }]}>{' OP '}</VText> : null}
           <VText style={[styles.time, { color: colors.navDim }]}>{' · ' + ago(c.time)}</VText>
         </VText>
         {kidsLabel ? <VText style={[styles.parentTag, { color: kidsOn ? colors.gold : colors.navDim }]}>{kidsLabel}</VText> : parent ? <VText style={[styles.parentTag, { color: colors.gold }]}>PARENT</VText> : null}

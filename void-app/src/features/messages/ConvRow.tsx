@@ -3,6 +3,7 @@ import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme';
+import { useInk } from '../../theme/ink';
 import { FONTS, em } from '../../theme/palettes';
 import { VText } from '../../ui/Text';
 import { Pfp } from '../../ui/Pfp';
@@ -35,6 +36,7 @@ export function ConvAvatar({ id, name, handle, size = 44, fontSize, ring }: { id
 
 function NameLine({ name, handle }: { name: string; handle: string }) {
   const { colors } = useTheme();
+  const ink = useInk();
   return (
     <View style={st.nameRow}>
       <VText numberOfLines={1} style={{ flexShrink: 1, fontFamily: FONTS.sansBold, fontSize: 13, color: colors.white }}>{name}</VText>
@@ -46,6 +48,7 @@ function NameLine({ name, handle }: { name: string; handle: string }) {
 /** One conversation. `hit` replaces the preview with a highlighted search snippet. */
 export function ConvRow({ c, onPress, hit }: { c: DmConv; onPress: () => void; hit?: { before: string; match: string; after: string; mine: boolean } }) {
   const { colors } = useTheme();
+  const ink = useInk();
   const me = dmMe();
   const last = c.last;
   const preview = last ? (last.sender_id === me ? 'You: ' : '') + last.body.slice(0, 38) + (last.body.length > 38 ? '…' : '') : 'no messages yet';
@@ -53,7 +56,7 @@ export function ConvRow({ c, onPress, hit }: { c: DmConv; onPress: () => void; h
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [st.item, pressed ? { backgroundColor: 'rgba(255,255,255,0.03)' } : null]}>
       {unread ? (
-        <LinearGradient pointerEvents="none" colors={['rgba(124,58,237,0.1)', 'rgba(124,58,237,0)']} locations={[0, 0.7]} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={[StyleSheet.absoluteFill, { borderRadius: 18 }]} />
+        <LinearGradient pointerEvents="none" colors={[`rgba(${ink.vrgb},0.1)`, `rgba(${ink.vrgb},0)`]} locations={[0, 0.7]} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={[StyleSheet.absoluteFill, { borderRadius: 18 }]} />
       ) : null}
       <ConvAvatar id={c.other.id} name={c.other.name} handle={c.other.handle} ring={unread} />
       <View style={st.info}>
@@ -74,7 +77,7 @@ export function ConvRow({ c, onPress, hit }: { c: DmConv; onPress: () => void; h
             style={{
               fontFamily: unread ? FONTS.sansBold : FONTS.sans,
               fontSize: 12.5,
-              color: unread ? '#f4f0ff' : '#6a58a0',
+              color: unread ? ink.hi : ink.dim,
               marginTop: 2,
             }}
           >
@@ -83,7 +86,7 @@ export function ConvRow({ c, onPress, hit }: { c: DmConv; onPress: () => void; h
         )}
       </View>
       <View style={st.right}>
-        <VText style={{ fontFamily: FONTS.mono, fontSize: 8, color: unread ? colors.gold : '#6a58a0', textTransform: 'uppercase' }}>{last ? ago(Date.parse(last.created_at)) : ''}</VText>
+        <VText style={{ fontFamily: FONTS.mono, fontSize: 8, color: unread ? colors.gold : ink.dim, textTransform: 'uppercase' }}>{last ? ago(Date.parse(last.created_at)) : ''}</VText>
         {unread ? <View style={[st.dot, { backgroundColor: colors.gold }]} /> : null}
       </View>
     </Pressable>
@@ -92,6 +95,7 @@ export function ConvRow({ c, onPress, hit }: { c: DmConv; onPress: () => void; h
 
 export function PersonRow({ p, onPress }: { p: DmPerson; onPress: () => void }) {
   const { colors } = useTheme();
+  const ink = useInk();
   const name = p.display_name || p.handle;
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [st.item, pressed ? { backgroundColor: 'rgba(255,255,255,0.03)' } : null]}>
@@ -106,6 +110,7 @@ export function PersonRow({ p, onPress }: { p: DmPerson; onPress: () => void }) 
 
 export function ConvSect({ label }: { label: string }) {
   const { colors } = useTheme();
+  const ink = useInk();
   return (
     <View style={st.sect}>
       <VText style={{ fontFamily: FONTS.mono, fontSize: 7, letterSpacing: em(7, 0.25), color: colors.gold }}>{label}</VText>
@@ -116,6 +121,7 @@ export function ConvSect({ label }: { label: string }) {
 
 export function ConvEmpty({ lines, onPress }: { lines: string[]; onPress?: () => void }) {
   const { colors } = useTheme();
+  const ink = useInk();
   return (
     <Pressable disabled={!onPress} onPress={onPress} style={st.empty}>
       <VText align="center" style={{ fontFamily: FONTS.mono, fontSize: 9, letterSpacing: em(9, 0.15), color: colors.muted, lineHeight: 9 * 1.6 }}>
@@ -126,8 +132,9 @@ export function ConvEmpty({ lines, onPress }: { lines: string[]; onPress?: () =>
 }
 
 export function ConvFoot() {
+  const ink = useInk();
   return (
-    <VText align="center" style={{ fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.2), color: '#231d42', marginTop: 26, paddingBottom: 20 }}>
+    <VText align="center" style={{ fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.2), color: ink.faint, marginTop: 26, paddingBottom: 20 }}>
       {DM_FOOT}
     </VText>
   );

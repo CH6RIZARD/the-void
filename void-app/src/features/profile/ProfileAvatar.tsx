@@ -11,15 +11,14 @@ import { FONTS } from '../../theme/palettes';
 import { MyPfp, PersonPfp } from '../../ui/Pfp';
 
 export function ProfileAvatar({ name, url, size = 72, own = false, uid }: { name: string; url?: string | null; size?: number; own?: boolean; uid?: string | null }) {
-  const { colors, name: theme } = useTheme();
-  const light = theme === 'light';
+  const { colors, name: theme, isLight: light } = useTheme();
   const grad = theme === 'dark' ? [colors.card2, colors.bg2] : ['#1d0d45', '#0a0522'];
   return (
     <View
       style={[
         { width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
         light
-          ? { backgroundColor: '#ded7c5', boxShadow: 'inset 0px 0px 0px 1px rgba(26,20,36,0.12), 0px 2px 6px rgba(26,20,36,0.12)' }
+          ? { backgroundColor: colors.pdim, boxShadow: `inset 0px 0px 0px 1px ${colors.hairline}, 0px 2px 6px ${colors.hairline}` }
           : { boxShadow: '0px 0px 0px 1px rgba(201,168,76,0.45)' },
       ]}
     >

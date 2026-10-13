@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NAV_PILL_HEIGHT, useBottomNavOffset } from '../../nav/layout';
 import { useAuth } from '../../lib/auth';
 import { useTheme } from '../../theme/ThemeProvider';
+import { useInk } from '../../theme/ink';
 import { FONTS, em } from '../../theme/palettes';
 import { FLICK_VELOCITY, WEB } from '../../theme/motion';
 import { DealIn } from '../../ui/DealIn';
@@ -49,6 +50,7 @@ export interface PollsLayerProps {
 }
 
 export function PollsLayer({ open, width, onCover, backRef }: PollsLayerProps) {
+  const ink = useInk(), GOLD = ink.gold, MUTED = ink.muted, DIM = ink.dim;
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const navTop = useBottomNavOffset() + NAV_PILL_HEIGHT; // the write line sits on the nav pill
@@ -127,7 +129,7 @@ export function PollsLayer({ open, width, onCover, backRef }: PollsLayerProps) {
       <ScrollView
         contentContainerStyle={{ paddingTop: 44 + insets.top + 10, paddingBottom: navTop + 90, paddingHorizontal: 16 }}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={GOLD} colors={[GOLD]} progressBackgroundColor="#1b1336" progressViewOffset={44 + insets.top} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={GOLD} colors={[GOLD]} progressBackgroundColor={ink.card2} progressViewOffset={44 + insets.top} />}
       >
         {/* live: big number, LET'S TALK, the question */}
         <Pressable onPress={() => openTopic(LIVE)} style={styles.live}>
@@ -159,7 +161,7 @@ export function PollsLayer({ open, width, onCover, backRef }: PollsLayerProps) {
                     <GoldText text={String(t.no).padStart(2, '0')} size={14} family={FONTS.serif} height={15} />
                   </View>
                 </View>
-                <VText style={styles.archQ}>{t.q}</VText>
+                <VText style={[styles.archQ, { color: ink.lilac }]}>{t.q}</VText>
               </Pressable>
             ))
           ) : (
@@ -185,7 +187,7 @@ export function PollsLayer({ open, width, onCover, backRef }: PollsLayerProps) {
           <View style={styles.sortBtns}>
             {(['top', 'new'] as const).map((s) => (
               <Pressable key={s} onPress={() => resort(s)} hitSlop={8}>
-                <VText style={[styles.sec, { color: sort === s ? '#f4f0ff' : DIM }]}>{s.toUpperCase()}</VText>
+                <VText style={[styles.sec, { color: sort === s ? ink.hi : DIM }]}>{s.toUpperCase()}</VText>
               </Pressable>
             ))}
           </View>
@@ -206,9 +208,9 @@ export function PollsLayer({ open, width, onCover, backRef }: PollsLayerProps) {
 
       {/* suggest: the write line */}
       <Pressable onPress={() => setSheet(true)} style={[styles.suggest, { bottom: navTop }]}>
-        <LinearGradient colors={['rgba(5,3,15,0)', colors.bg]} locations={[0, 0.34]} style={StyleSheet.absoluteFill} pointerEvents="none" />
+        <LinearGradient colors={[ink.scrim, colors.bg]} locations={[0, 0.34]} style={StyleSheet.absoluteFill} pointerEvents="none" />
         <View style={styles.suggestLine}>
-          <VText numberOfLines={1} style={[styles.suggestT, { color: draft ? '#c9bfe8' : MUTED }]}>{draft || 'Suggest a question for The Void'}</VText>
+          <VText numberOfLines={1} style={[styles.suggestT, { color: draft ? ink.lilac : MUTED }]}>{draft || 'Suggest a question for The Void'}</VText>
           <LinearGradient colors={['rgba(201,168,76,0)', GOLD]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.rule} />
           <View style={styles.write}>
             <GoldText text="WRITE" size={9.5} family={FONTS.sansBold} letterSpacing={em(9.5, 0.22)} em={0.8} height={12} />
@@ -224,6 +226,7 @@ export function PollsLayer({ open, width, onCover, backRef }: PollsLayerProps) {
 }
 
 function Tile({ f, i }: { f: FloorQ; i: number }) {
+  const ink = useInk(), GOLD = ink.gold, MUTED = ink.muted, DIM = ink.dim;
   // ponytail: no rank numeral on tiles, as the mock; the floor is read by sort order
   const { colors } = useTheme();
   const v = voteOf(f.id);
@@ -231,7 +234,7 @@ function Tile({ f, i }: { f: FloorQ; i: number }) {
   const tall = i % 4 === 0 || i % 4 === 3;
   return (
     <DealIn delay={120 + Math.min(i, 8) * 50}>
-      <LinearGradient colors={['#120b2c', '#0b0620']} style={[styles.tile, { minHeight: tall ? 196 : 160 }]}>
+      <LinearGradient colors={[ink.cardTop, ink.card]} style={[styles.tile, { minHeight: tall ? 196 : 160 }]}>
         <View style={styles.tileHead}>
           <View style={styles.av}>
             <PersonPfp handle={f.by} label={f.by} size={16} />
@@ -241,12 +244,12 @@ function Tile({ f, i }: { f: FloorQ; i: number }) {
         <VText style={[styles.tileQ, { color: colors.white }]}>{f.q}</VText>
         <View style={styles.votes}>
           <Pressable onPress={() => vote(f.id, 1)} hitSlop={8} style={styles.vBtn} accessibilityLabel="Up">
-            <VText style={[styles.vUpN, { color: v === 1 ? '#e2c56a' : GOLD }, v === 1 && styles.under]}>{fmt(t.up)}</VText>
-            <VText style={[styles.vLbl, { color: v === 1 ? '#e2c56a' : GOLD }]}>UP</VText>
+            <VText style={[styles.vUpN, { color: v === 1 ? ink.goldHi : GOLD }, v === 1 && styles.under]}>{fmt(t.up)}</VText>
+            <VText style={[styles.vLbl, { color: v === 1 ? ink.goldHi : GOLD }]}>UP</VText>
           </Pressable>
           <Pressable onPress={() => vote(f.id, -1)} hitSlop={8} style={styles.vBtn} accessibilityLabel="Down">
-            <VText style={[styles.vDownN, { color: v === -1 ? '#f4f0ff' : MUTED }, v === -1 && styles.under]}>{fmt(t.down)}</VText>
-            <VText style={[styles.vLbl, { color: v === -1 ? '#f4f0ff' : MUTED }]}>DOWN</VText>
+            <VText style={[styles.vDownN, { color: v === -1 ? ink.hi : MUTED }, v === -1 && styles.under]}>{fmt(t.down)}</VText>
+            <VText style={[styles.vLbl, { color: v === -1 ? ink.hi : MUTED }]}>DOWN</VText>
           </Pressable>
         </View>
         <View style={[styles.bar, { opacity: v === -1 ? 0.35 : 1 }]}>
@@ -258,6 +261,7 @@ function Tile({ f, i }: { f: FloorQ; i: number }) {
 }
 
 function TopicPage({ topic, open, width, recede, onClose }: { topic: Topic | null; open: boolean; width: number; recede: SharedValue<number>; onClose: () => void }) {
+  const ink = useInk(), GOLD = ink.gold, MUTED = ink.muted, DIM = ink.dim;
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const auth = useAuth();
@@ -299,17 +303,17 @@ function TopicPage({ topic, open, width, recede, onClose }: { topic: Topic | nul
       <GestureDetector gesture={swipeOut}>
       <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={[styles.topicHead, { paddingTop: insets.top + 14 }]}>
-          <Pressable onPress={onClose} hitSlop={10} style={styles.backBtn} accessibilityLabel="Back">
+          <Pressable onPress={onClose} hitSlop={10} style={[styles.backBtn, { backgroundColor: ink.card2 }]} accessibilityLabel="Back">
             <Icon name="back" size={16} color={GOLD} />
           </Pressable>
           <GoldText text={topic.live ? 'LET’S TALK' : 'THE VOID ARCHIVE · NO. ' + topic.no} size={10} family={FONTS.sansBold} letterSpacing={em(10, 0.12)} em={0.8} height={13} />
-          {topic.live ? <VText style={[styles.meta10, { color: '#c9bfe8', marginLeft: 'auto', letterSpacing: em(10, 0.06) }]}>Live</VText> : null}
+          {topic.live ? <VText style={[styles.meta10, { color: ink.lilac, marginLeft: 'auto', letterSpacing: em(10, 0.06) }]}>Live</VText> : null}
         </View>
         <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 24 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          <LinearGradient colors={['#140c30', '#0b0620']} style={styles.topicCard}>
+          <LinearGradient colors={[ink.cardTop, ink.card]} style={styles.topicCard}>
             <VText style={[styles.topicQ, { color: colors.white }]}>{topic.q}</VText>
             <VText style={[styles.meta11, { color: MUTED, fontSize: 11.5, marginTop: 12 }]}>{fmt(reps.length) + ' replies · ' + ago(topic.t)}</VText>
-            <View style={styles.chip}>
+            <View style={[styles.chip, { backgroundColor: ink.card }]}>
               <VText style={[styles.chipT, { color: topic.by ? GOLD : MUTED }]}>{topic.by ? 'FROM @' + topic.by.toUpperCase() : 'SET BY THE VOID'}</VText>
             </View>
           </LinearGradient>
@@ -323,9 +327,9 @@ function TopicPage({ topic, open, width, recede, onClose }: { topic: Topic | nul
                     setCsort(s);
                     setSeq((n) => n + 1);
                   }}
-                  style={[styles.segBtn, csort === s && styles.segOn]}
+                  style={[styles.segBtn, csort === s && [styles.segOn, { backgroundColor: ink.card2 }]]}
                 >
-                  <VText style={[styles.segT, { color: csort === s ? '#f4f0ff' : DIM }]}>{s === 'top' ? 'Top' : 'New'}</VText>
+                  <VText style={[styles.segT, { color: csort === s ? ink.hi : DIM }]}>{s === 'top' ? 'Top' : 'New'}</VText>
                 </Pressable>
               ))}
             </View>

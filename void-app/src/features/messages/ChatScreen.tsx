@@ -7,6 +7,7 @@ import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme';
+import { useInk } from '../../theme/ink';
 import { FONTS, em } from '../../theme/palettes';
 import { VText } from '../../ui/Text';
 import { Pfp } from '../../ui/Pfp';
@@ -48,6 +49,7 @@ function timeLabel(d: Date) {
  */
 function HeadBtn({ icon, label, onPress, disabled }: { icon: 'phone' | 'camera'; label: string; onPress: () => void; disabled?: boolean }) {
   const { colors } = useTheme();
+  const ink = useInk();
   const [pressed, setPressed] = useState(false);
   const still = useReducedMotion();
   return (
@@ -63,6 +65,7 @@ export default function ChatScreen({ id: idProp }: { id?: string }) {
   const params = useLocalSearchParams<{ id?: string }>();
   const convId = String(idProp || params.id || '');
   const { colors } = useTheme();
+  const ink = useInk();
   const insets = useSafeAreaInsets();
   const { convs, msgs } = useDmStore();
   const conv = convs.find((c) => c.id === convId) || null;
@@ -138,7 +141,7 @@ export default function ChatScreen({ id: idProp }: { id?: string }) {
       const day = dayLabel(d);
       if (day !== lastDay) {
         out.push(
-          <VText key={'d' + (it.t === 'msg' ? it.m.id : it.c.id)} align="center" style={{ fontFamily: FONTS.mono, fontSize: 7, letterSpacing: em(7, 0.25), color: '#231d42', marginVertical: 6 }}>
+          <VText key={'d' + (it.t === 'msg' ? it.m.id : it.c.id)} align="center" style={{ fontFamily: FONTS.mono, fontSize: 7, letterSpacing: em(7, 0.25), color: ink.faint, marginVertical: 6 }}>
             {day}
           </VText>,
         );
@@ -171,7 +174,7 @@ export default function ChatScreen({ id: idProp }: { id?: string }) {
           ) : null}
           {mine ? (
             <View style={st.bMine}>
-              <LinearGradient colors={['#7c3aed', '#5b21d4']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+              <LinearGradient colors={ink.violet} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
               <VText selectable style={st.bText}>{m.body}</VText>
             </View>
           ) : (
@@ -236,7 +239,7 @@ export default function ChatScreen({ id: idProp }: { id?: string }) {
     <View style={[st.fill, { backgroundColor: colors.bg }]}>
       <KeyboardAvoidingView style={st.fill} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={[st.head, { paddingTop: 12 + insets.top }]}>
-          <LinearGradient pointerEvents="none" colors={['rgba(13,8,32,0.6)', 'rgba(13,8,32,0)']} style={StyleSheet.absoluteFill} />
+          <LinearGradient pointerEvents="none" colors={ink.shade} style={StyleSheet.absoluteFill} />
           <Pressable accessibilityLabel="Back" onPress={close} style={st.back} hitSlop={6}>
             {({ pressed }) => <Icon name="back" size={18} color={pressed ? colors.white : colors.dim} />}
           </Pressable>

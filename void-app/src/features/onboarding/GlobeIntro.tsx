@@ -7,7 +7,7 @@ import { RadialFill } from '../../ui/Surface';
 import type { RadialSpec } from '../../theme/palettes';
 import { t } from './copy';
 import { OnboardGlobe } from './OnboardGlobe';
-import { CTA, DIM, Enter, LAV, Mono, Serif } from './parts';
+import { CTA, Enter, Mono, Serif, useOb } from './parts';
 import { VText } from '../../ui/Text';
 import { FONTS } from '../../theme/palettes';
 
@@ -16,10 +16,11 @@ const HORIZON: RadialSpec = { rx: 90, ry: 55, cx: 50, cy: 100, stops: [{ color: 
 
 export function GlobeIntro({ onNext }: { onNext: () => void }) {
   const insets = useSafeAreaInsets();
+  const { DIM, LAV, BG, HI, isLight } = useOb();
   return (
-    <Enter style={[StyleSheet.absoluteFill, { backgroundColor: '#04020c' }]}>
+    <Enter style={[StyleSheet.absoluteFill, { backgroundColor: BG }]}>
       <View style={s.globeBox}>
-        <RadialFill spec={HORIZON} />
+        <RadialFill spec={isLight ? { ...HORIZON, stops: [{ color: HI, offset: 0 }, { color: BG, offset: 0.75 }] } : HORIZON} />
         <View style={s.globeInner}>
           <OnboardGlobe />
         </View>

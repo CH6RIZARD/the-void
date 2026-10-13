@@ -17,6 +17,7 @@ import {
   useAudioRecorderState,
 } from 'expo-audio';
 import { useTheme } from '../../theme';
+import { useInk } from '../../theme/ink';
 import { FONTS, em } from '../../theme/palettes';
 import { Sheet } from '../../ui/Sheet';
 import { Pill } from '../../ui/Pill';
@@ -71,6 +72,7 @@ function Thumb({ m, onRemove }: { m: PickedMedia; onRemove: () => void }) {
 /** The B2 player pill previewing the finished take (.au-pill). */
 function TakePill({ take, onRedo }: { take: DraftAudio; onRedo: () => void }) {
   const { colors } = useTheme();
+  const ink = useInk();
   const player = useAudioPlayer(take.uri);
   const status = useAudioPlayerStatus(player);
   const owner = useSafeClaimAudio();
@@ -97,7 +99,7 @@ function TakePill({ take, onRedo }: { take: DraftAudio; onRedo: () => void }) {
   return (
     <View>
       <View style={st.auPill}>
-        <LinearGradient colors={['rgba(124,58,237,0.18)', 'rgba(13,8,32,0.9)']} locations={[0, 0.65]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, { borderRadius: 30 }]} />
+        <LinearGradient colors={[`rgba(${ink.vrgb},0.18)`, ink.glass]} locations={[0, 0.65]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, { borderRadius: 30 }]} />
         <Pressable accessibilityLabel={status.playing ? 'Pause' : 'Play'} onPress={toggle} style={st.auPlay}>
           <LinearGradient colors={['#c9a84c', '#8a6d2c']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, { borderRadius: 19 }]} />
           <Icon name={status.playing ? 'pause' : 'play'} size={15} color="#04020c" />

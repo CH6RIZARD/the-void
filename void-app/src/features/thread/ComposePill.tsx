@@ -7,6 +7,7 @@ import React, { forwardRef } from 'react';
 import { Pressable, StyleSheet, TextInput, View, type StyleProp, type ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/ThemeProvider';
+import { useInk } from '../../theme/ink';
 import { FONTS, em } from '../../theme/palettes';
 import { Icon } from '../../ui/icons';
 import { VText } from '../../ui/Text';
@@ -26,6 +27,7 @@ export interface ComposePillProps {
 
 export const ComposePill = forwardRef<TextInput, ComposePillProps>(function ComposePill({ value, onChangeText, onSubmit, placeholder, avatar, pinned, style }, ref) {
   const { colors } = useTheme();
+  const { violet } = useInk();
   const tk = useThreadTokens();
   const has = !!value.trim();
   return (
@@ -60,7 +62,7 @@ export const ComposePill = forwardRef<TextInput, ComposePillProps>(function Comp
         />
         <Pressable onPress={onSubmit} accessibilityLabel="Send" style={({ pressed }) => [styles.send, pressed && { opacity: 0.8 }]}>
           {has ? (
-            <LinearGradient colors={['#7c3aed', '#5b21d4']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.sendFill}>
+            <LinearGradient colors={violet} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.sendFill}>
               <Icon name="send" size={16} color="#fff" />
             </LinearGradient>
           ) : (

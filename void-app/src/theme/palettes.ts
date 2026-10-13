@@ -6,7 +6,8 @@
 // as CSS box-shadow strings: React Native 0.86 (New Architecture) renders the
 // `boxShadow` style prop natively, including `inset`, on both platforms.
 
-export type ThemeName = 'void' | 'dark' | 'light';
+/** 'light' shows as VOID CREAM in Settings; 'void' is no longer offered but a saved VOID still renders. */
+export type ThemeName = 'void' | 'dark' | 'light' | 'cream';
 
 /** A CSS radial-gradient(W% H% at X% Y%, c0 s0, c1 s1) as data (drawn by <Backdrop>). */
 export interface RadialSpec {
@@ -140,7 +141,41 @@ export const LIGHT: Palette = {
   feedLoaderBg: '#f7f3ea',
 };
 
-export const PALETTES: Record<ThemeName, Palette> = { void: VOID, dark: DARK, light: LIGHT };
+/** CREAM: the loading screen's palette. Brown where the other themes use violet; gold only as a spark. */
+export const CREAM: Palette = {
+  bg: '#efe6d3',
+  bg2: '#f1ead9',
+  card: '#f1ead9',
+  card2: '#e3d4b6',
+  border: '#e3d4b6',
+  glow: '#e3d4b6',
+  purple: '#764d33',
+  pdim: '#e3d4b6',
+  // gold text on cream is unreadable, so the accent ink is the brown; #c9a84c stays for sparks (gdim).
+  gold: '#764d33',
+  gdim: '#c9a84c',
+  gglow: 'rgba(201,168,76,0.16)',
+  white: '#1a1410',
+  dim: '#5a3a24',
+  muted: 'rgba(90,58,36,0.5)',
+  red: '#d43c3c',
+  green: '#10b981',
+  navDim: '#5a3a24',
+  hairline: 'rgba(90,58,36,0.18)',
+  bgRadial: { rx: 120, ry: 60, cx: 50, cy: 0, stops: [{ color: '#f1ead9', offset: 0 }, { color: '#efe6d3', offset: 0.6 }] },
+  navBg: 'rgba(241,234,217,0.92)',
+  navShadow: '0px -4px 20px rgba(42,26,16,0.16)',
+  sheet: '#f1ead9',
+  elev: '0px 6px 18px rgba(42,26,16,0.12)',
+  insetHi: 'rgba(255,255,255,0.6)',
+  orbitInner: '#2a1a10',
+  feedLoaderBg: '#f1ead9',
+};
+
+export const PALETTES: Record<ThemeName, Palette> = { void: VOID, dark: DARK, light: LIGHT, cream: CREAM };
+
+/** "r,g,b" of a #rrggbb, for rgba() fades built from a palette colour. */
+export const rgbOf = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(',');
 
 /** Media surfaces (globe, reels, photo viewer) stay dark in every theme. */
 export const MEDIA_SURFACE = { bg: '#05020e', text: '#f4f0ff', loaderBg: 'rgba(3,1,10,0.97)' } as const;

@@ -35,6 +35,8 @@ import { earthAstcAsync, earthAstcReady } from './astcMap';
 import { ASTC_BLOCK, ASTC_H, ASTC_LEVELS, ASTC_W } from './earthAstc';
 import { unzlibSync } from 'fflate';
 import { THUMB_H, THUMB_W, THUMB_Z } from './earthThumb';
+import { MASK_H, MASK_W, MASK_Z } from './earthMask';
+export { globePaint } from './globePaint';
 
 export interface WorkletGlobeShared {
   // gesture (written by the Gesture.Manual worklets in GlobeCanvas)
@@ -56,6 +58,23 @@ export interface WorkletGlobeShared {
   lastFrameSV: SharedValue<number>; // timestamp of the last drawn frame
   texStateSV: SharedValue<number>;  // 0 fallback showing · 1 real map showing
   texIdSV: SharedValue<number>;     // the earth texture's EXGL object id, 0 until created
+  /** globePaint(): [] = the night globe; else the light theme's colours (read every frame). */
+  paintSV: SharedValue<number[]>;
+}
+
+
+// The land mask (earthMask.ts), inflated once per app run and kept on the UI runtime.
+let maskOnUI = false;
+function earthMaskOnce(): Uint8Array | null {
+  if (maskOnUI) return null;
+  try {
+    const px = unzlibSync(Uint8Array.from(globalThis.atob(MASK_Z), (c) => c.charCodeAt(0)));
+    if (px.length !== MASK_W * MASK_H) return null;
+    maskOnUI = true;
+    return px;
+  } catch {
+    return null;
+  }
 }
 
 /** Marker positions: lat/lon -> unit sphere x1.02, the scene's exact formula. */
@@ -309,8 +328,9 @@ export function startWorkletGlobe(
   const { markers, sprite, spriteHot } = mkCache;
   const markerCount = countries.length;
   const thumb = earthThumbOnce();
+  const mask = earthMaskOnce();
 
-  runOnUI((ctxId: number, mk: Float32Array, mkN: number, sp: Uint8Array, spHot: Uint8Array, vw: number, vh: number, myGen: number, th: Uint8Array | null, spinK: number) => {
+  runOnUI((ctxId: number, mk: Float32Array, mkN: number, sp: Uint8Array, spHot: Uint8Array, vw: number, vh: number, myGen: number, th: Uint8Array | null, spinK: number, mskIn: Uint8Array | null) => {
     'worklet';
     // The raw global, not an import: expo-gl's own getWorkletContext is just
     // this lookup, and whether a library function survives workletization
@@ -500,6 +520,17 @@ export function startWorkletGlobe(
     // map into this exact texture from a second dispatch. (Id is written by
     // createWebGLObject on the wrapper; same native context both ways.)
     sv.texIdSV.value = (earthTex as any)?.id ?? 0;
+    // Land mask for the light globe: one byte per texel, row 0 north like the thumb (1024 wide,
+    // so rows stay 4-byte aligned without touching UNPACK_ALIGNMENT).
+    if (mskIn) gg.__voidEarthMask = mskIn;
+    const msk: Uint8Array | undefined = gg.__voidEarthMask;
+    const maskTex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, maskTex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, msk ? 1024 : 1, msk ? 512 : 1, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, msk ?? new Uint8Array(1));
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     const mkTex = texFromPixels(sp, 128, 128);
     const mkTexHot = texFromPixels(spHot, 128, 128);
 
@@ -519,9 +550,23 @@ export function startWorkletGlobe(
       }`,
       `precision highp float;
       uniform sampler2D uMap; uniform float uZoom;
+      uniform float uLight; uniform sampler2D uMask; uniform vec3 uOcean; uniform vec3 uLand; uniform vec3 uCity;
       varying vec2 vUv; varying vec3 vN; varying vec3 vPos;
       void main(){
         vec3 texel = texture2D(uMap, vUv).rgb;
+        if (uLight > 0.5) {
+          // LIGHT THEMES: ocean and land from the mask, a darker coastline, the night
+          // map's city lights as gold specks, soft sun shading and a darker limb.
+          float m = texture2D(uMask, vUv).r;
+          vec3 col = mix(uOcean, uLand, m);
+          col = mix(col, uLand * 0.55, clamp(m * (1.0 - m) * 4.0, 0.0, 1.0) * 0.7);
+          col = mix(col, uCity, m * smoothstep(0.2, 0.6, max(texel.r, texel.g)));
+          vec3 N = normalize(vN);
+          float dNL = max(dot(N, vec3(0.745356, 0.298142, 0.596285)), 0.0);
+          float limb = pow(1.0 - max(dot(N, normalize(-vPos)), 0.0), 3.0);
+          gl_FragColor = vec4(col * (0.84 + 0.22 * dNL) * (1.0 - 0.18 * limb), 1.0);
+          return;
+        }
         vec3 emissive = 0.85 * texel;
         vec3 indirect = vec3(10.0,6.0,32.0)/255.0 * 3.0;
         vec3 N = normalize(vN);
@@ -576,7 +621,7 @@ export function startWorkletGlobe(
         gl_Position = uProjM * vec4(vp, 1.0);
       }`,
       `precision highp float;
-      uniform float uZoom;
+      uniform float uZoom; uniform float uLight; uniform vec4 uAtmo;
       varying vec3 vN; varying vec3 vPos;
       void main(){
         // ray from camera through this fragment vs the unit planet
@@ -585,6 +630,7 @@ export function startWorkletGlobe(
         float b = dot(d, uCtr);
         float c = dot(uCtr, uCtr) - 1.0;
         if (b * b - c > 0.0) discard;
+        if (uLight > 0.5) { gl_FragColor = uAtmo; return; }
         vec3 texel = vec3(59.0,30.0,138.0)/255.0;   // diffuse color
         vec3 emissive = vec3(26.0,8.0,64.0)/255.0;
         vec3 indirect = vec3(10.0,6.0,32.0)/255.0 * 3.0;
@@ -670,10 +716,13 @@ export function startWorkletGlobe(
     const eU = {
       proj: gl.getUniformLocation(earthProg, 'uProjM'), rot: gl.getUniformLocation(earthProg, 'uRot'),
       zoom: gl.getUniformLocation(earthProg, 'uZoom'), map: gl.getUniformLocation(earthProg, 'uMap'),
+      light: gl.getUniformLocation(earthProg, 'uLight'), mask: gl.getUniformLocation(earthProg, 'uMask'),
+      ocean: gl.getUniformLocation(earthProg, 'uOcean'), land: gl.getUniformLocation(earthProg, 'uLand'), city: gl.getUniformLocation(earthProg, 'uCity'),
       pos: gl.getAttribLocation(earthProg, 'position'), uv: gl.getAttribLocation(earthProg, 'uv'),
     };
     const aU = {
       proj: gl.getUniformLocation(atmoProg, 'uProjM'), zoom: gl.getUniformLocation(atmoProg, 'uZoom'),
+      light: gl.getUniformLocation(atmoProg, 'uLight'), atmo: gl.getUniformLocation(atmoProg, 'uAtmo'),
       pos: gl.getAttribLocation(atmoProg, 'position'),
     };
     const sU = {
@@ -796,12 +845,15 @@ export function startWorkletGlobe(
 
       // ─── draw ────────────────────────────────────────────────────────────
       gl.viewport(0, 0, renderW, renderH);
-      gl.clearColor(4 / 255, 2 / 255, 12 / 255, 1);
+      const P = sv.paintSV.value, lt = P.length > 0;
+      if (lt) gl.clearColor(P[0], P[1], P[2], 1);
+      else gl.clearColor(4 / 255, 2 / 255, 12 / 255, 1);
       gl.disable(gl.DEPTH_TEST);
       gl.depthMask(false);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-      // 1. stars (opaque, behind everything by draw order)
+      // 1. stars (opaque, behind everything by draw order); none on a light sky
+      if (!lt) {
       gl.useProgram(starProg);
       gl.uniformMatrix4fv(sU.proj, false, projM);
       gl.uniform1f(sU.zoom, globeZoom);
@@ -819,6 +871,7 @@ export function startWorkletGlobe(
       gl.uniform3f(sU.color, 30 / 255, 18 / 255, 112 / 255);
       gl.drawArrays(gl.POINTS, 0, 400);
       gl.disableVertexAttribArray(sU.pos);
+      }
 
       // 2. earth (opaque; overdraws stars behind it - the depth-free layering)
       gl.useProgram(earthProg);
@@ -828,6 +881,16 @@ export function startWorkletGlobe(
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, earthTex);
       gl.uniform1i(eU.map, 0);
+      gl.uniform1f(eU.light, lt ? 1 : 0);
+      if (lt) {
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, maskTex);
+        gl.uniform1i(eU.mask, 1);
+        gl.uniform3f(eU.ocean, P[3], P[4], P[5]);
+        gl.uniform3f(eU.land, P[6], P[7], P[8]);
+        gl.uniform3f(eU.city, P[9], P[10], P[11]);
+        gl.activeTexture(gl.TEXTURE0);
+      }
       gl.enableVertexAttribArray(eU.pos);
       gl.bindBuffer(gl.ARRAY_BUFFER, sphereVB);
       gl.vertexAttribPointer(eU.pos, 3, gl.FLOAT, false, 0, 0);
@@ -845,6 +908,8 @@ export function startWorkletGlobe(
       gl.useProgram(atmoProg);
       gl.uniformMatrix4fv(aU.proj, false, projM);
       gl.uniform1f(aU.zoom, globeZoom);
+      gl.uniform1f(aU.light, lt ? 1 : 0);
+      if (lt) gl.uniform4f(aU.atmo, P[12], P[13], P[14], P[15]);
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       gl.cullFace(gl.FRONT);
@@ -893,7 +958,7 @@ export function startWorkletGlobe(
       }
     };
     (globalThis as any).requestAnimationFrame(loop);
-  })(exglCtxId, markers, markerCount, sprite, spriteHot, viewW, viewH, gen, thumb, spin);
+  })(exglCtxId, markers, markerCount, sprite, spriteHot, viewW, viewH, gen, thumb, spin, mask);
 }
 
 /**

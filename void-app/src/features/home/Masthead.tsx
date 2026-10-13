@@ -36,7 +36,7 @@ export interface MastheadProps {
 
 /** Owns the open / fold state; renders its own scrim. Mount it absolute-fill with pointerEvents="box-none". */
 export function Masthead({ section, onSwitch, hidden, reveal, right }: MastheadProps) {
-  const { colors } = useTheme();
+  const { colors, isLight } = useTheme();
   const insets = useSafeAreaInsets();
   const kind = reveal || revealForNow();
   const word = section === 'feed' ? 'Polls' : 'Feed';
@@ -165,7 +165,7 @@ export function Masthead({ section, onSwitch, hidden, reveal, right }: MastheadP
                 <View onLayout={(e) => setWordW(Math.ceil(e.nativeEvent.layout.width) + 8)} style={styles.letters}>
                   {letters.slice(0, MAX_LETTERS).map((ch, i) => (
                     <Animated.View key={word + i} style={letterStyles[i]}>
-                      <VText style={styles.word}>{ch}</VText>
+                      <VText style={[styles.word, isLight && { color: colors.gold }]}>{ch}</VText>
                     </Animated.View>
                   ))}
                 </View>

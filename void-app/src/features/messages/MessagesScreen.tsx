@@ -6,6 +6,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme';
+import { useInk } from '../../theme/ink';
 import { FONTS, em } from '../../theme/palettes';
 import { VText } from '../../ui/Text';
 import { Icon } from '../../ui/icons/Icon';
@@ -38,6 +39,7 @@ export async function openDmWith(userId: string): Promise<void> {
  */
 function PinnedRow({ convs, msgs, onOpen }: { convs: DmConv[]; msgs: Record<string, DmMessage[]>; onOpen: (c: DmConv) => void }) {
   const { colors } = useTheme();
+  const ink = useInk();
   const pinned = useMemo(() => {
     const count = (c: DmConv) => (msgs[c.id] || []).length;
     return convs.map((c, i) => ({ c, i })).sort((a, b) => count(b.c) - count(a.c) || a.i - b.i).slice(0, 5).map((x) => x.c);
@@ -79,6 +81,7 @@ function PinnedRow({ convs, msgs, onOpen }: { convs: DmConv[]; msgs: Record<stri
 
 export default function MessagesScreen() {
   const { colors } = useTheme();
+  const ink = useInk();
   const insets = useSafeAreaInsets();
   const navSpace = useBottomNavSpace();
   const { convs, msgs, state } = useDmStore();
@@ -166,7 +169,7 @@ export default function MessagesScreen() {
   return (
     <View style={[st.fill, { backgroundColor: colors.bg }]}>
       <View style={[st.head, { paddingTop: 14 + insets.top }]}>
-        <LinearGradient pointerEvents="none" colors={['rgba(13,8,32,0.6)', 'rgba(13,8,32,0)']} style={StyleSheet.absoluteFill} />
+        <LinearGradient pointerEvents="none" colors={ink.shade} style={StyleSheet.absoluteFill} />
         <VText style={{ flex: 1, fontFamily: FONTS.serif, fontSize: 24, color: colors.white }}>Messages</VText>
         <Pressable
           onPress={() => searchRef.current?.focus()}
@@ -180,7 +183,7 @@ export default function MessagesScreen() {
       </View>
       <View style={st.badgeRow}>
         <Icon name="unlock" size={11} color="#6a58a0" />
-        <VText style={{ fontFamily: FONTS.mono, fontSize: 7, letterSpacing: em(7, 0.2), color: '#6a58a0' }}>NOT ENCRYPTED</VText>
+        <VText style={{ fontFamily: FONTS.mono, fontSize: 7, letterSpacing: em(7, 0.2), color: ink.dim }}>NOT ENCRYPTED</VText>
       </View>
       <View style={st.searchWrap}>
         <TextInput

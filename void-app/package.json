@@ -18,7 +18,7 @@
     "ios": "expo run:ios",
     "native:prebuild": "expo prebuild --clean",
     "typecheck": "tsc --noEmit",
-    "test": "node --test src/core/__tests__/golden.test.ts src/core/__tests__/more.test.ts src/features/live/__tests__/hlsVariant.test.ts src/features/calls/__tests__/callStore.test.ts src/features/home/__tests__/notifs.test.ts src/features/polls/__tests__/polls.test.ts",
+    "test": "node --test src/core/__tests__/golden.test.ts src/core/__tests__/more.test.ts src/features/live/__tests__/hlsVariant.test.ts src/features/calls/__tests__/callStore.test.ts src/features/home/__tests__/notifs.test.ts src/features/polls/__tests__/polls.test.ts src/theme/__tests__/resolve.test.ts",
     "build:android": "eas build -p android --profile production",
     "build:ios": "eas build -p ios --profile production",
     "submit:ios": "eas submit -p ios --latest",

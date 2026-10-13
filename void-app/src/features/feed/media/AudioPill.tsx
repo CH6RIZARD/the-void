@@ -12,6 +12,7 @@ import type { Post } from '../../../core';
 import { Icon } from '../../../ui/icons';
 import { VText } from '../../../ui/Text';
 import { FONTS, em } from '../../../theme/palettes';
+import { useInk } from '../../../theme/ink';
 import { useClaimAudio } from '../../live/AudioOwner';
 import { auBars, auDuration, auFmt } from '../format';
 import { auScrub, auToggle, restingTime, usePill, usePillTick } from '../audioStore';
@@ -34,6 +35,7 @@ export interface AudioPillProps {
 
 export const AudioPill = memo(function AudioPill({ post: p, index, style }: AudioPillProps) {
   const pill = usePill(p.id);
+  const ink = useInk();
   usePillTick();
   const claim = useSafeClaim();
   const width = useRef(1);
@@ -60,7 +62,7 @@ export const AudioPill = memo(function AudioPill({ post: p, index, style }: Audi
 
   return (
     <Pressable onPress={() => {}} style={[styles.pillWrap, style]}>
-      <LinearGradient colors={['rgba(124,58,237,0.18)', 'rgba(13,8,32,0.9)']} locations={[0, 0.65]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.pill}>
+      <LinearGradient colors={[`rgba(${ink.vrgb},0.18)`, ink.glass]} locations={[0, 0.65]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.pill}>
         <Pressable onPress={toggle} style={({ pressed }) => [styles.play, pressed && { opacity: 0.72 }]} accessibilityLabel={playing ? 'Pause' : 'Play'} hitSlop={6}>
           <LinearGradient colors={['#c9a84c', '#8a6d2c']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.playFill}>
             <Icon name={playing ? 'pause' : 'play'} size={15} color="#04020c" />

@@ -1,13 +1,15 @@
 // Port of the web theme switch (void2-final.html: currentTheme / setTheme /
 // resolveTheme / toggleMatchSystem / syncThemeUI).
-//   - saved theme: AsyncStorage `void_theme` ('void' | 'dark' | 'light', default 'void')
-//   - `void_theme_match_system` === 'true' follows the device between dark/light,
-//     EXCEPT when the saved theme is VOID ("VOID STAYS VOID").
-//   - choosing VOID switches Match system off.
+//   - saved theme: AsyncStorage `void_theme` ('dark' | 'light' = VOID CREAM | 'cream'; a saved 'void' still renders)
+//   - FIRST LAUNCH (nothing stored) follows the device: light -> VOID CREAM, dark -> DARK, and it
+//     stays live, onboarding included, until the person picks a theme in Settings.
+//   - `void_theme_match_system` === 'true' keeps following the device the same way.
+//   - picking any theme in Settings is a manual choice: it switches Match system off.
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Appearance, type ColorSchemeName } from 'react-native';
 import { getString, KEYS, setString } from '../lib/storage';
 import { FONTS, LAYOUT, PALETTES, RADII, em, type Palette, type ThemeName } from './palettes';
+import { resolveTheme } from './resolve';
 
 export interface Theme {
   /** Theme actually rendered (after Match system). */
@@ -29,24 +31,19 @@ export interface Theme {
   toggleMatchSystem: () => void;
 }
 
-function resolve(saved: ThemeName, match: boolean, scheme: ColorSchemeName): ThemeName {
-  if (match && saved !== 'void') return scheme === 'light' ? 'light' : 'dark';
-  return saved;
-}
-
 function build(saved: ThemeName, match: boolean, scheme: ColorSchemeName, ready: boolean, setTheme: Theme['setTheme'], toggleMatchSystem: Theme['toggleMatchSystem']): Theme {
-  const name = resolve(saved, match, scheme);
+  const name = resolveTheme(saved, match, scheme);
   return {
     name,
     saved,
     matchSystem: match,
-    matchSystemSub: saved === 'void' ? 'VOID STAYS VOID' : 'Follow your device between dark and light',
+    matchSystemSub: 'Follow your device between dark and light',
     colors: PALETTES[name],
     fonts: FONTS,
     radii: RADII,
     layout: LAYOUT,
     em,
-    isLight: name === 'light',
+    isLight: name === 'light' || name === 'cream',
     ready,
     setTheme,
     toggleMatchSystem,
@@ -57,7 +54,7 @@ const noop = () => {};
 // Default value lets components render (VOID) outside the provider, e.g. in tests.
 const ThemeContext = createContext<Theme>(build('void', false, 'dark', false, noop, noop));
 
-const isThemeName = (v: unknown): v is ThemeName => v === 'void' || v === 'dark' || v === 'light';
+const isThemeName = (v: unknown): v is ThemeName => v === 'void' || v === 'dark' || v === 'light' || v === 'cream';
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [saved, setSaved] = useState<ThemeName>('void');
@@ -70,7 +67,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     Promise.all([getString(KEYS.theme), getString(KEYS.themeMatchSystem)]).then(([t, m]) => {
       if (!alive) return;
       if (isThemeName(t)) setSaved(t);
-      setMatch(m === 'true');
+      // Never chosen: follow the device from the first screen.
+      setMatch(m === null ? true : m === 'true');
       setReady(true);
     });
     const sub = Appearance.addChangeListener(({ colorScheme }) => setScheme(colorScheme));
@@ -83,11 +81,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const setTheme = useCallback((t: ThemeName) => {
     setSaved(t);
     setString(KEYS.theme, t);
-    // Choosing VOID is a statement, not a light/dark preference: it opts out of system matching.
-    if (t === 'void') {
-      setMatch(false);
-      setString(KEYS.themeMatchSystem, 'false');
-    }
+    // A theme picked by hand wins over the device until Match system is turned back on.
+    setMatch(false);
+    setString(KEYS.themeMatchSystem, 'false');
   }, []);
 
   const toggleMatchSystem = useCallback(() => {

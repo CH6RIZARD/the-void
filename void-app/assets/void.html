@@ -19,11 +19,11 @@ try{
   window.VOID_GRID=2;
   window.VOID_NATIVE_SHELL=true;
   document.documentElement.classList.remove('g3');
-  /* Theme is stamped here, before first paint, so LIGHT never flashes the VOID
-     background on reload. "Match system" only arbitrates DARK vs LIGHT —
-     choosing VOID is an explicit choice and the OS does not get to override it. */
-  var th=localStorage.getItem('void_theme')||'void';
-  if(localStorage.getItem('void_theme_match_system')==='true'&&th!=='void')
+  /* Theme is stamped here, before first paint, so a light theme never flashes the
+     dark background on reload. Until the person picks a theme (Match system unset or
+     on) it follows the device: light -> VOID CREAM ('light'), dark -> DARK. */
+  var th=localStorage.getItem('void_theme')||'void',_m=localStorage.getItem('void_theme_match_system');
+  if(_m===null||_m==='true')
     th=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';
   document.documentElement.setAttribute('data-theme',th);
 }catch(e){document.documentElement.setAttribute('data-theme','void');}
@@ -141,25 +141,35 @@ window.loadLib=function(name){
   --sheet:#141417;--elev:0 10px 30px rgba(0,0,0,.5)}
 /* LIGHT — toned warm greige with real depth, never flat white. Gold deepens so
    it still holds against a light ground. */
-:root[data-theme="light"]{--bg:#e7e0cf;--bg2:#efe9dc;--card:#f6f1e6;--card2:#ece5d6;--border:#d5cdb8;
+:root:is([data-theme="light"],[data-theme="cream"]){--bg:#e7e0cf;--bg2:#efe9dc;--card:#f6f1e6;--card2:#ece5d6;--border:#d5cdb8;
   --glow:#c3b89e;--purple:#8a7f6b;--pdim:#ded7c5;--gold:#9a7b2d;--gdim:#c2b58f;--gglow:rgba(154,123,45,.12);
   --white:#1a1424;--dim:#7c7668;--muted:#a9a190;--nav-dim:#7c7668;--hairline:rgba(26,20,36,.14);
   --bg-radial:radial-gradient(120% 60% at 50% 0%,#f2ecdd 0%,#e7e0cf 60%);
   --nav-bg:rgba(250,247,240,.92);--nav-shadow:0 -4px 20px rgba(26,20,36,.16);
   --sheet:#f6f1e6;--elev:0 6px 18px rgba(26,20,36,.12);--red:#d43c3c}
+/* CREAM: the loading screen's palette. Brown where the other themes use violet; gold only as a spark. */
+:root[data-theme="cream"]{--bg:#efe6d3;--bg2:#f1ead9;--card:#f1ead9;--card2:#e3d4b6;--border:#e3d4b6;
+  --glow:#e3d4b6;--purple:#764d33;--pdim:#e3d4b6;--gold:#764d33;--gdim:#c9a84c;--gglow:rgba(201,168,76,.16);
+  --white:#1a1410;--dim:#5a3a24;--muted:rgba(90,58,36,.5);--nav-dim:#5a3a24;--hairline:rgba(90,58,36,.18);
+  --bg-radial:radial-gradient(120% 60% at 50% 0%,#f1ead9 0%,#efe6d3 60%);
+  --nav-bg:rgba(241,234,217,.92);--nav-shadow:0 -4px 20px rgba(42,26,16,.16);
+  --sheet:#f1ead9;--elev:0 6px 18px rgba(42,26,16,.12);--red:#d43c3c}
+:root[data-theme="cream"] :is(.search-go,.thread-post-btn,#compose-fab){background:linear-gradient(135deg,#764d33,#5a3a24)}
+:root[data-theme="cream"] :is(.lfill,.vw-spine i){background:linear-gradient(90deg,#764d33,#c9a84c)}
 /* LIGHT depth pass: seeded avatars and embed placeholders would otherwise be
    dark blobs on a warm ground. Ring + soft shadow rather than a flat fill. */
-:root[data-theme="light"] .post-avatar,:root[data-theme="light"] .prof-avatar,
-:root[data-theme="light"] .conv-av,:root[data-theme="light"] .thread-comment-av,
-:root[data-theme="light"] .post-av{background:#ded7c5!important;color:#4a4234;box-shadow:inset 0 0 0 1px rgba(26,20,36,.12),0 2px 6px rgba(26,20,36,.12)}
+:root:is([data-theme="light"],[data-theme="cream"]) .post-avatar,:root:is([data-theme="light"],[data-theme="cream"]) .prof-avatar,
+:root:is([data-theme="light"],[data-theme="cream"]) .conv-av,:root:is([data-theme="light"],[data-theme="cream"]) .thread-comment-av,
+:root:is([data-theme="light"],[data-theme="cream"]) .post-av{background:#ded7c5!important;color:#4a4234;box-shadow:inset 0 0 0 1px rgba(26,20,36,.12),0 2px 6px rgba(26,20,36,.12)}
 /* No striped stand-in. Media surfaces stay neutral in LIGHT; the only thing that
    ever covers them is the orbit (image) or sparkle (video) loader. */
-:root[data-theme="light"] .post-media,:root[data-theme="light"] .cmedia-thumb{background:#e2dbc9}
-:root[data-theme="light"] .bnav{box-shadow:var(--nav-shadow),inset 0 1px 0 rgba(255,255,255,.85)}
+:root:is([data-theme="light"],[data-theme="cream"]) .post-media,:root:is([data-theme="light"],[data-theme="cream"]) .cmedia-thumb{background:#e2dbc9}
+:root:is([data-theme="light"],[data-theme="cream"]) .bnav{box-shadow:var(--nav-shadow),inset 0 1px 0 rgba(255,255,255,.85)}
 /* Media surfaces are not chrome — the globe, the reels and the photo viewer stay
    dark in every theme so footage is never washed out by a light backdrop. */
-:root[data-theme="light"] #globe-canvas-wrap,:root[data-theme="light"] #reel-overlay,
-:root[data-theme="light"] #greel-container,:root[data-theme="light"] #photo-overlay{background:#05020e;color:#f4f0ff}
+:root:is([data-theme="light"],[data-theme="cream"]) #reel-overlay,
+:root:is([data-theme="light"],[data-theme="cream"]) #greel-container,:root:is([data-theme="light"],[data-theme="cream"]) #photo-overlay{background:#05020e;color:#f4f0ff}
+/* The globe draws a light planet in the light themes (_globeTheme); its chrome follows the theme. */
 html,body{height:100%;background:var(--bg);background-image:var(--bg-radial);color:var(--white);font-family:'Syne',sans-serif;overflow:hidden;-webkit-font-smoothing:antialiased}
 .screen{position:fixed;inset:0;top:0;bottom:58px;overflow-y:auto;overflow-x:hidden;display:none;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 .screen.active{display:block}
@@ -205,6 +215,11 @@ html,body{height:100%;background:var(--bg);background-image:var(--bg-radial);col
 @keyframes fout{to{opacity:0}}
 #globe-search-icon{position:absolute;top:10px;left:12px;z-index:15;width:30px;height:30px;background:rgba(4,2,12,.8);border:1px solid var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;backdrop-filter:blur(8px);transition:border-color .2s}
 #globe-search-icon:hover{border-color:var(--glow)}
+/* Light themes, globe mode: the controls sit on a light sky, so they take the palette (over reels they stay dark glass). */
+:root:is([data-theme="light"],[data-theme="cream"]) #screen-globe:not(.reels-mode) :is(.gmode-toggle,#globe-search-icon,#globe-refresh-icon){background:color-mix(in srgb,var(--card) 82%,transparent);box-shadow:inset 0 0 0 1px var(--hairline),0 4px 14px rgba(26,20,36,.08)}
+:root:is([data-theme="light"],[data-theme="cream"]) #screen-globe:not(.reels-mode) .gmode.on{background:var(--hairline)}
+:root:is([data-theme="light"],[data-theme="cream"]) #screen-globe:not(.reels-mode) #globe-search-icon{color:var(--white)}
+:root[data-theme="cream"] #compose-fab{box-shadow:0 8px 24px rgba(118,77,51,.4)}
 #globe-refresh-icon{position:absolute;top:10px;right:16px;z-index:31;width:36px;height:36px;background:rgba(13,8,32,.72);border:0;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;backdrop-filter:blur(8px);transition:border-color .2s,transform .5s}
 #globe-refresh-icon:hover{border-color:var(--glow)}
 #globe-refresh-icon.spin{transform:rotate(360deg)}
@@ -418,11 +433,11 @@ html,body{height:100%;background:var(--bg);background-image:var(--bg-radial);col
 /* Themes. The hero stays a dark media surface in every theme (§7: footage is never
    washed out); the chrome around it follows the theme. */
 :root[data-theme="dark"] .c-overlay{background:var(--bg)}
-:root[data-theme="light"] .c-overlay{background:radial-gradient(120% 35% at 50% 0%,#f2ecdd 0%,#e7e0cf 55%)}
+:root:is([data-theme="light"],[data-theme="cream"]) .c-overlay{background:radial-gradient(120% 35% at 50% 0%,#f2ecdd 0%,#e7e0cf 55%)}
 :root[data-theme="dark"] .nc-eyebrow.about{color:#9d9aa3}
-:root[data-theme="light"] .nc-eyebrow.about{color:var(--purple)}
-:root[data-theme="light"] .nation-card{box-shadow:var(--elev),inset 0 1px 0 rgba(255,255,255,.85)}
-:root[data-theme="light"] .cn-cta-head::after,:root[data-theme="light"] .cn-feed-lbl::after{background:linear-gradient(90deg,rgba(154,123,45,.35),transparent)}
+:root:is([data-theme="light"],[data-theme="cream"]) .nc-eyebrow.about{color:var(--purple)}
+:root:is([data-theme="light"],[data-theme="cream"]) .nation-card{box-shadow:var(--elev),inset 0 1px 0 rgba(255,255,255,.85)}
+:root:is([data-theme="light"],[data-theme="cream"]) .cn-cta-head::after,:root:is([data-theme="light"],[data-theme="cream"]) .cn-feed-lbl::after{background:linear-gradient(90deg,rgba(154,123,45,.35),transparent)}
 /* Thread OP for an article (GDELT) or Lemmy link/self post (openThread). */
 #thread-overlay .t-desc{font-size:12.5px;line-height:1.55;color:var(--tc-text);margin-top:10px;white-space:pre-line;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:8;-webkit-box-orient:vertical;overflow:hidden}
 #thread-overlay .t-article{display:flex;align-items:center;gap:10px;margin-top:12px;padding:11px 13px;border-radius:13px;background:var(--tc-card);box-shadow:inset 0 1px 0 var(--tc-hi),0 0 0 1px var(--hairline);text-decoration:none;color:var(--white)}
@@ -506,7 +521,7 @@ html.g3 .c-stream-grid{grid-template-columns:1fr 1fr 1fr}
    not scroll with the content (overflow container + attachment:scroll), which is
    what lets the sticky .prof-top reuse the identical gradient seamlessly. */
 #screen-profile{--prof-glow:radial-gradient(110% 45% at 50% 0%,#120830 0%,#04020c 58%);padding-bottom:100px;overflow-y:auto;background-color:var(--bg);background-image:var(--prof-glow);background-repeat:no-repeat}
-:root[data-theme="dark"] #screen-profile,:root[data-theme="light"] #screen-profile{--prof-glow:var(--bg-radial)}
+:root[data-theme="dark"] #screen-profile,:root:is([data-theme="light"],[data-theme="cream"]) #screen-profile{--prof-glow:var(--bg-radial)}
 .prof-monument{padding:0 24px 24px}
 /* The only header in the app that was not pinned — PROFILE + the gear scrolled
    away with the drops list, so on a long profile there was no way back to
@@ -550,10 +565,10 @@ body.tab-void .bio-hud{display:flex}
 /* 5b's lavender (#8d7cc0) and white-alpha hairlines are VOID values; DARK has no
    purple and LIGHT has no dark ground, so they map onto those themes' tokens. */
 :root[data-theme="dark"] .prof-bio,:root[data-theme="dark"] .prof-share,:root[data-theme="dark"] .profile-settings-btn,
-:root[data-theme="light"] .prof-bio,:root[data-theme="light"] .prof-share,:root[data-theme="light"] .profile-settings-btn{color:var(--dim)}
-:root[data-theme="light"] .prof-stat+.prof-stat::before{background:var(--hairline)}
-:root[data-theme="light"] .prof-share{box-shadow:inset 0 0 0 1px var(--hairline)}
-:root[data-theme="light"] .prof-edit{background:var(--white);color:var(--card)}
+:root:is([data-theme="light"],[data-theme="cream"]) .prof-bio,:root:is([data-theme="light"],[data-theme="cream"]) .prof-share,:root:is([data-theme="light"],[data-theme="cream"]) .profile-settings-btn{color:var(--dim)}
+:root:is([data-theme="light"],[data-theme="cream"]) .prof-stat+.prof-stat::before{background:var(--hairline)}
+:root:is([data-theme="light"],[data-theme="cream"]) .prof-share{box-shadow:inset 0 0 0 1px var(--hairline)}
+:root:is([data-theme="light"],[data-theme="cream"]) .prof-edit{background:var(--white);color:var(--card)}
 .profile-me-label{font-family:'Syne Mono',monospace;font-size:8px;letter-spacing:.25em;color:var(--dim)}
 .profile-monument{display:flex;flex-direction:column;align-items:center;text-align:center;padding:0 16px 8px}
 .profile-avatar-mon{width:96px;height:96px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:800;color:var(--white);background:linear-gradient(135deg,#7c3aed,#1a0840);box-shadow:0 0 0 2px #04020c,0 0 0 4px rgba(201,168,76,.6),0 0 40px rgba(124,58,237,.45)}
@@ -663,6 +678,9 @@ body.tab-void .bio-hud{display:flex}
 .tsw-light{background:radial-gradient(120% 70% at 50% 0%,#f2ecdd,#e7e0cf 60%)}
 .tsw-light i{background:#f6f1e6;box-shadow:0 2px 5px rgba(26,20,36,.14)}
 .tsw-light b{background:#9a7b2d}
+.tsw-cream{background:radial-gradient(120% 70% at 50% 0%,#f1ead9,#efe6d3 60%)}
+.tsw-cream i{background:#e3d4b6;box-shadow:0 2px 5px rgba(42,26,16,.14)}
+.tsw-cream b{background:#764d33}
 .theme-card-lbl{font-family:'Syne Mono',monospace;font-size:7.5px;letter-spacing:.2em;color:var(--nav-dim);text-align:center;margin-top:7px}
 .theme-card.on .theme-card-lbl{color:var(--gold)}
 .settings-select{background:rgba(255,255,255,.06);border:none;color:var(--white);font-family:'Syne Mono',monospace;font-size:10.5px;padding:5px 11px;border-radius:16px;outline:none;cursor:pointer}
@@ -750,7 +768,7 @@ body.tab-void .bio-hud{display:flex}
 @supports (background:color-mix(in srgb,red 50%,transparent)){
   #thread-overlay,#reply-overlay{--tc-card:color-mix(in srgb,var(--card) 95%,transparent);--tc-opbg:color-mix(in srgb,var(--card) 96%,transparent);--tc-reply:color-mix(in srgb,var(--card2) 95%,transparent);--tc-edge1:color-mix(in srgb,var(--card) 68%,transparent);--tc-edge2:color-mix(in srgb,var(--card) 45%,transparent);--tc-sheet:color-mix(in srgb,var(--sheet) 97%,transparent)}
 }
-:root[data-theme="light"] #thread-overlay,:root[data-theme="light"] #reply-overlay{--tc-text:#4a4234;--tc-hi:rgba(255,255,255,.85);--tc-shadow:rgba(26,20,36,.16);--tc-handle:var(--hairline)}
+:root:is([data-theme="light"],[data-theme="cream"]) #thread-overlay,:root:is([data-theme="light"],[data-theme="cream"]) #reply-overlay{--tc-text:#4a4234;--tc-hi:rgba(255,255,255,.85);--tc-shadow:rgba(26,20,36,.16);--tc-handle:var(--hairline)}
 .thread-scrim{position:absolute;inset:0;background:rgba(2,1,8,.7);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);opacity:0;transition:opacity .24s ease-out}
 .thread-overlay.shown .thread-scrim{opacity:1}
 .thread-overlay .thread-body{position:relative;flex:1;min-height:0;padding:26px 18px 24px}
@@ -763,7 +781,7 @@ body.tab-void .bio-hud{display:flex}
 @keyframes tFadeIn{from{opacity:0}to{opacity:1}}
 /* OP CTA card */
 #thread-original.thread-op{position:relative;border-radius:22px;background:var(--tc-opbg);box-shadow:0 18px 50px rgba(0,0,0,.6),0 0 0 1px rgba(201,168,76,.25),inset 0 1px 0 rgba(255,255,255,.07);padding:18px 18px 15px;transform-origin:50% 50%}
-:root[data-theme="light"] #thread-original.thread-op{box-shadow:0 18px 50px var(--tc-shadow),0 0 0 1px rgba(154,123,45,.35),inset 0 1px 0 var(--tc-hi)}
+:root:is([data-theme="light"],[data-theme="cream"]) #thread-original.thread-op{box-shadow:0 18px 50px var(--tc-shadow),0 0 0 1px rgba(154,123,45,.35),inset 0 1px 0 var(--tc-hi)}
 #thread-original.thread-op .post-head{gap:9px;margin-bottom:11px}
 #thread-original.thread-op .post-av{width:32px;height:32px;font-size:11px;box-shadow:none}
 #thread-original.thread-op .post-meta{flex:1}
@@ -878,7 +896,7 @@ body.tab-void .bio-hud{display:flex}
 .si-alt-btn:hover{color:var(--white);background:rgba(255,255,255,.09)}
 .si-alt-btn.on{color:var(--gold);background:rgba(201,168,76,.12)}
 .si-legal{font-family:'Syne Mono',monospace;font-size:7px;letter-spacing:.2em;color:var(--muted);text-align:center;margin-top:22px}
-:root[data-theme="light"] #signin{background-image:var(--bg-radial)}
+:root:is([data-theme="light"],[data-theme="cream"]) #signin{background-image:var(--bg-radial)}
 .loader-logo{font-family:'Syne',sans-serif;font-weight:800;font-size:26px;letter-spacing:.18em}
 .loader-logo em{color:var(--gold);font-style:normal;text-shadow:0 0 24px rgba(201,168,76,.6)}
 .lbar{width:150px;height:2px;background:rgba(255,255,255,.07);border-radius:1px;overflow:hidden}
@@ -919,7 +937,7 @@ body.tab-void .bio-hud{display:flex}
 .img-load-in i{width:2px;height:2px;background:#a78bfa}
 /* 6c: the inner ring is purple only in VOID; DARK/LIGHT retire purple, so the
    counter-rotating pair drops to the theme's dim neutral everywhere it renders. */
-:root[data-theme="dark"] .img-load-in i,:root[data-theme="light"] .img-load-in i{background:var(--dim)}
+:root[data-theme="dark"] .img-load-in i,:root:is([data-theme="light"],[data-theme="cream"]) .img-load-in i{background:var(--dim)}
 .img-load-in i:nth-child(1){top:-1px;left:50%;margin-left:-1px;opacity:.7}
 .img-load-in i:nth-child(2){bottom:1px;left:50%;margin-left:-1px;opacity:.35}
 /* LIGHT MODE ONLY, and only on the feed: the loader ground is milky white, never
@@ -929,20 +947,20 @@ body.tab-void .bio-hud{display:flex}
    Deliberately scoped to feed surfaces: the globe stream grid, the reel and the
    photo viewer are media surfaces and stay dark in every theme so footage is
    never washed out. */
-:root[data-theme="light"] .post-media .img-load,
-:root[data-theme="light"] .post-car-cell .img-load,
-:root[data-theme="light"] .search-post-cover .img-load,
-:root[data-theme="light"] .cmedia-thumb .img-load,
-:root[data-theme="light"] .post-media .sparkle-fallback,
-:root[data-theme="light"] .post-car-cell .sparkle-fallback{background:#f7f3ea}
+:root:is([data-theme="light"],[data-theme="cream"]) .post-media .img-load,
+:root:is([data-theme="light"],[data-theme="cream"]) .post-car-cell .img-load,
+:root:is([data-theme="light"],[data-theme="cream"]) .search-post-cover .img-load,
+:root:is([data-theme="light"],[data-theme="cream"]) .cmedia-thumb .img-load,
+:root:is([data-theme="light"],[data-theme="cream"]) .post-media .sparkle-fallback,
+:root:is([data-theme="light"],[data-theme="cream"]) .post-car-cell .sparkle-fallback{background:#f7f3ea}
 /* On that milky ground the sparks take the deepened LIGHT gold and the caption a
    readable neutral - the dark-theme values disappear against it. */
-:root[data-theme="light"] .post-media .sparkle-fallback-particle,
-:root[data-theme="light"] .post-car-cell .sparkle-fallback-particle{background:var(--gold)}
-:root[data-theme="light"] .post-media .sparkle-fallback-label,
-:root[data-theme="light"] .post-media .img-load-lbl,
-:root[data-theme="light"] .post-car-cell .img-load-lbl{color:var(--dim)}
-:root[data-theme="light"] .post-media .img-load-in i{background:var(--dim)}
+:root:is([data-theme="light"],[data-theme="cream"]) .post-media .sparkle-fallback-particle,
+:root:is([data-theme="light"],[data-theme="cream"]) .post-car-cell .sparkle-fallback-particle{background:var(--gold)}
+:root:is([data-theme="light"],[data-theme="cream"]) .post-media .sparkle-fallback-label,
+:root:is([data-theme="light"],[data-theme="cream"]) .post-media .img-load-lbl,
+:root:is([data-theme="light"],[data-theme="cream"]) .post-car-cell .img-load-lbl{color:var(--dim)}
+:root:is([data-theme="light"],[data-theme="cream"]) .post-media .img-load-in i{background:var(--dim)}
 .img-load-lbl{font-family:'Syne Mono',monospace;font-size:7px;letter-spacing:.3em;color:var(--nav-dim)}
 @keyframes orbit{to{transform:rotate(360deg)}}
 @keyframes orbit-rev{to{transform:rotate(-360deg)}}
@@ -1638,17 +1656,17 @@ body.tab-void .bio-hud{display:flex}
     <div class="settings-section">
       <div class="settings-section-label">Appearance</div>
       <div class="theme-cards">
-        <div class="theme-card" data-theme-card="void" onclick="setTheme('void')">
-          <div class="theme-swatch tsw-void"><i></i><b></b></div>
-          <div class="theme-card-lbl">VOID</div>
-        </div>
         <div class="theme-card" data-theme-card="dark" onclick="setTheme('dark')">
           <div class="theme-swatch tsw-dark"><i></i><b></b></div>
           <div class="theme-card-lbl">DARK</div>
         </div>
         <div class="theme-card" data-theme-card="light" onclick="setTheme('light')">
           <div class="theme-swatch tsw-light"><i></i><b></b></div>
-          <div class="theme-card-lbl">LIGHT</div>
+          <div class="theme-card-lbl">VOID CREAM</div>
+        </div>
+        <div class="theme-card" data-theme-card="cream" onclick="setTheme('cream')">
+          <div class="theme-swatch tsw-cream"><i></i><b></b></div>
+          <div class="theme-card-lbl">CREAM</div>
         </div>
       </div>
       <div class="settings-row">
@@ -2026,39 +2044,48 @@ function currentTheme(){return document.documentElement.getAttribute('data-theme
 function applyTheme(t){
   document.documentElement.setAttribute('data-theme',t);
   document.querySelectorAll('.theme-card').forEach(c=>c.classList.toggle('on',c.dataset.themeCard===t));
+  try{window._globeTheme&&window._globeTheme();}catch(e){}
 }
+// Never set = follow the device from the first screen (onboarding included).
+function matchSystemOn(){const m=localStorage.getItem('void_theme_match_system');return m===null||m==='true';}
 function setTheme(t){
   localStorage.setItem('void_theme',t);
-  // Choosing VOID is a statement, not a light/dark preference — it opts out of
-  // system matching rather than being overridden by it.
-  if(t==='void')localStorage.setItem('void_theme_match_system','false');
+  // A theme picked by hand wins over the device until Match system is turned back on.
+  localStorage.setItem('void_theme_match_system','false');
   applyTheme(resolveTheme());
   syncThemeUI();
 }
 function resolveTheme(){
-  const saved=localStorage.getItem('void_theme')||'void';
-  if(localStorage.getItem('void_theme_match_system')==='true'&&saved!=='void')
-    return matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';
-  return saved;
+  if(matchSystemOn())return matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';
+  return localStorage.getItem('void_theme')||'void';
 }
 function toggleMatchSystem(){
-  const on=localStorage.getItem('void_theme_match_system')==='true';
-  localStorage.setItem('void_theme_match_system',String(!on));
+  localStorage.setItem('void_theme_match_system',String(!matchSystemOn()));
   applyTheme(resolveTheme());syncThemeUI();
 }
 function syncThemeUI(){
-  const saved=localStorage.getItem('void_theme')||'void';
-  const match=localStorage.getItem('void_theme_match_system')==='true';
+  const match=matchSystemOn();
+  // Following the device: no card is the choice, the toggle is.
+  const saved=match?'':localStorage.getItem('void_theme')||'void';
   document.querySelectorAll('.theme-card').forEach(c=>c.classList.toggle('on',c.dataset.themeCard===saved));
   const tg=document.getElementById('s-match');if(tg)tg.className='toggle'+(match?' on':'');
   const sub=document.getElementById('s-match-sub');
-  if(sub)sub.textContent=saved==='void'?'VOID STAYS VOID':'Follow your device between dark and light';
+  if(sub)sub.textContent='Follow your device between dark and light';
+}
+// The light globe's colours for the theme in force ([] = the night globe): background,
+// ocean, land, city lights, atmosphere + alpha. Same rule as void-app globePaint.ts.
+function globePaint(t){
+  if(t!=='light'&&t!=='cream')return [];
+  const cs=getComputedStyle(document.documentElement),v=k=>cs.getPropertyValue('--'+k).trim();
+  const c=h=>{h=h.replace('#','');return [0,2,4].map(i=>parseInt(h.substr(i,2),16)/255);};
+  return t==='cream'?[...c(v('bg')),...c(v('card2')),...c(v('dim')),...c(v('gdim')),...c(v('gdim')),.2]
+    :[...c(v('bg')),...c(v('card')),...c(v('purple')),...c(v('gold')),...c('#7c3aed'),.1];
 }
 // MediaQueryList.addEventListener is absent on older WebKit, where this threw a
 // TypeError at top level and took the entire script - including init() - with it.
 try{
   const _mq=matchMedia('(prefers-color-scheme: light)');
-  const _onScheme=()=>{ if(localStorage.getItem('void_theme_match_system')==='true')applyTheme(resolveTheme()); };
+  const _onScheme=()=>{ if(matchSystemOn())applyTheme(resolveTheme()); };
   if(_mq.addEventListener)_mq.addEventListener('change',_onScheme);
   else if(_mq.addListener)_mq.addListener(_onScheme);          // legacy fallback
 }catch(e){}
@@ -4947,7 +4974,27 @@ function initGlobe(){const gsi=document.getElementById('globe-search-icon');if(g
   // near-indistinguishable from 80 at the limb but ~20% fewer triangles; the
   // vertex cost is trivial next to fragment cost either way.
   const _globeSeg=_globeMobile?72:80;
-  const globe=new THREE.Mesh(new THREE.SphereGeometry(1,_globeSeg,_globeSeg),new THREE.MeshPhongMaterial({map:tex,emissive:0x020010,emissiveIntensity:.7,specular:0x3a1e90,shininess:18}));sc.add(globe);window._globe3d=globe;sc.add(new THREE.Mesh(new THREE.SphereGeometry(1.06,32,32),new THREE.MeshPhongMaterial({color:0x3b1e8a,emissive:0x1a0840,transparent:true,opacity:.12,side:THREE.BackSide})));function mkTex(hot){const cv=document.createElement('canvas');cv.width=cv.height=128;const ctx=cv.getContext('2d');const g2=ctx.createRadialGradient(64,64,0,64,64,64);g2.addColorStop(0,hot?'rgba(255,235,100,1)':'rgba(200,165,76,1)');g2.addColorStop(.12,hot?'rgba(220,170,50,1)':'rgba(160,128,52,.9)');g2.addColorStop(.3,hot?'rgba(140,100,20,.5)':'rgba(90,65,20,.35)');g2.addColorStop(.6,'rgba(0,0,0,.05)');g2.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=g2;ctx.fillRect(0,0,128,128);return new THREE.CanvasTexture(cv);}
+  const globe=new THREE.Mesh(new THREE.SphereGeometry(1,_globeSeg,_globeSeg),new THREE.MeshPhongMaterial({map:tex,emissive:0x020010,emissiveIntensity:.7,specular:0x3a1e90,shininess:18}));sc.add(globe);window._globe3d=globe;const _atmo=new THREE.Mesh(new THREE.SphereGeometry(1.06,32,32),new THREE.MeshPhongMaterial({color:0x3b1e8a,emissive:0x1a0840,transparent:true,opacity:.12,side:THREE.BackSide}));sc.add(_atmo);
+  // LIGHT THEMES: ocean and land from three-globe's water mask (the night map cannot tell a
+  // desert from the sea), a darker coastline, the night map's city lights as gold specks,
+  // soft sun shading, a flat tinted halo and no stars. Same shader as void-app globeWorklet.
+  const _nightMat=globe.material,_atmoNight=_atmo.material;let _lightMat=null,_atmoLight=null;
+  window._globeTheme=()=>{
+    const P=globePaint(currentTheme()),lt=P.length>0;
+    renderer.setClearColor(lt?new THREE.Color(P[0],P[1],P[2]):0x04020c,1);
+    sc.children.forEach(o=>{if(o.isPoints)o.visible=!lt;});
+    if(!lt){globe.material=_nightMat;_atmo.material=_atmoNight;return;}
+    if(!_lightMat)_lightMat=new THREE.ShaderMaterial({
+      uniforms:{uMap:{value:tex},uMask:{value:new THREE.TextureLoader().load('https://unpkg.com/three-globe@2.31.0/example/img/earth-water.png')},uOcean:{value:new THREE.Color()},uLand:{value:new THREE.Color()},uCity:{value:new THREE.Color()}},
+      vertexShader:'varying vec2 vUv;varying vec3 vN;varying vec3 vPos;void main(){vUv=uv;vN=normalize(normalMatrix*normal);vec4 mv=modelViewMatrix*vec4(position,1.0);vPos=mv.xyz;gl_Position=projectionMatrix*mv;}',
+      fragmentShader:'uniform sampler2D uMap;uniform sampler2D uMask;uniform vec3 uOcean;uniform vec3 uLand;uniform vec3 uCity;varying vec2 vUv;varying vec3 vN;varying vec3 vPos;void main(){vec3 texel=texture2D(uMap,vUv).rgb;float m=1.0-texture2D(uMask,vUv).r;vec3 col=mix(uOcean,uLand,m);col=mix(col,uLand*0.55,clamp(m*(1.0-m)*4.0,0.0,1.0)*0.7);col=mix(col,uCity,m*smoothstep(0.2,0.6,max(texel.r,texel.g)));vec3 N=normalize(vN);float dNL=max(dot(N,vec3(0.745356,0.298142,0.596285)),0.0);float limb=pow(1.0-max(dot(N,normalize(-vPos)),0.0),3.0);gl_FragColor=vec4(col*(0.84+0.22*dNL)*(1.0-0.18*limb),1.0);}'
+    });
+    _lightMat.uniforms.uOcean.value.setRGB(P[3],P[4],P[5]);_lightMat.uniforms.uLand.value.setRGB(P[6],P[7],P[8]);_lightMat.uniforms.uCity.value.setRGB(P[9],P[10],P[11]);
+    if(!_atmoLight)_atmoLight=new THREE.MeshBasicMaterial({transparent:true,side:THREE.BackSide,depthWrite:false});
+    _atmoLight.color.setRGB(P[12],P[13],P[14]);_atmoLight.opacity=P[15];
+    globe.material=_lightMat;_atmo.material=_atmoLight;
+  };
+  window._globeTheme();function mkTex(hot){const cv=document.createElement('canvas');cv.width=cv.height=128;const ctx=cv.getContext('2d');const g2=ctx.createRadialGradient(64,64,0,64,64,64);g2.addColorStop(0,hot?'rgba(255,235,100,1)':'rgba(200,165,76,1)');g2.addColorStop(.12,hot?'rgba(220,170,50,1)':'rgba(160,128,52,.9)');g2.addColorStop(.3,hot?'rgba(140,100,20,.5)':'rgba(90,65,20,.35)');g2.addColorStop(.6,'rgba(0,0,0,.05)');g2.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=g2;ctx.fillRect(0,0,128,128);return new THREE.CanvasTexture(cv);}
 const mT=mkTex(false),mTA=mkTex(true);const markers=[];function ll(lat,lon,r=1){const phi=(90-lat)*Math.PI/180,th=(lon+180)*Math.PI/180;return new THREE.Vector3(-r*Math.sin(phi)*Math.cos(th),r*Math.cos(phi),r*Math.sin(phi)*Math.sin(th));}
 C.forEach(c=>{const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:mT,transparent:true,sizeAttenuation:true,opacity:.85,depthWrite:false}));sp.position.copy(ll(c.lat,c.lon,1.02));sp.scale.set(.055,.055,1);sp.userData=c;globe.add(sp);markers.push(sp);});
 const ray=new THREE.Raycaster();ray.params.Sprite={threshold:.05};const mv=new THREE.Vector2();const tip=document.getElementById('gtip');let hov=null,pt=0;const cvs=document.getElementById('gc');cvs.style.cursor='grab';
@@ -11315,6 +11362,29 @@ window.VMod={SUPPORT_EMAIL,TERMS_URL,PRIVACY_URL,menu,cmenu,author,reportSheet,p
 #onb .ob-tabs{display:flex;gap:2px;padding:3px;border-radius:20px;background:rgba(13,8,32,.72);box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
 #onb .ob-tabs button{padding:6px 12px;border:none;border-radius:16px;background:transparent;font-family:'Syne Mono',monospace;font-size:7.5px;letter-spacing:.18em;color:#5c4d8a;cursor:pointer}
 #onb .ob-tabs button.on{background:rgba(255,255,255,.07);color:#c9a84c}
+/* LIGHT THEMES: the page around the dark name tag takes the palette (the tag stays a dark object). */
+:root:is([data-theme="light"],[data-theme="cream"]) #onb{background:var(--bg);color:var(--white)}
+:root:is([data-theme="light"],[data-theme="cream"]) #onb input:not(.ob-tag *)::placeholder{color:var(--muted)}
+:root:is([data-theme="light"],[data-theme="cream"]) #onb .ob-mono:not(.ob-tag *){color:var(--dim)}
+:root:is([data-theme="light"],[data-theme="cream"]) #onb .ob-cta.ghost{color:var(--purple);box-shadow:inset 0 0 0 1px var(--hairline)}
+:root:is([data-theme="light"],[data-theme="cream"]) #onb .ob-link:not(.ob-tag *){color:var(--purple)!important}
+:root:is([data-theme="light"],[data-theme="cream"]) #onb .ob-fade{background:linear-gradient(180deg,color-mix(in srgb,var(--bg) 55%,transparent) 0%,transparent 18%,transparent 42%,color-mix(in srgb,var(--bg) 92%,transparent) 62%,var(--bg) 78%)}
+:root:is([data-theme="light"],[data-theme="cream"]) #onb .ob-globe{background:var(--bg-radial),var(--bg)}
+:root:is([data-theme="light"],[data-theme="cream"]) #onb .ob-card-bg{background:var(--bg2);background-image:var(--bg-radial)}
+:root:is([data-theme="light"],[data-theme="cream"]) #onb :is(.ob-pill,.ob-tabs){background:color-mix(in srgb,var(--card) 86%,transparent);box-shadow:inset 0 0 0 1px var(--hairline)}
+:root:is([data-theme="light"],[data-theme="cream"]) #onb .ob-tabs button{color:var(--dim)}
+:root:is([data-theme="light"],[data-theme="cream"]) #onb .ob-tabs button.on{background:var(--hairline);color:var(--gold)}
+:root:is([data-theme="light"],[data-theme="cream"]) #onb :is(.ob-prov,.ob-box){background:var(--card);color:var(--white)}
+:root:is([data-theme="light"],[data-theme="cream"]) #onb .ob-prov{box-shadow:inset 0 0 0 1px var(--hairline)}
+:root:is([data-theme="light"],[data-theme="cream"]) #onb .ob-bar{background:var(--hairline)}
+:root:is([data-theme="light"],[data-theme="cream"]) #onb .ob-chip:not(.on){background:var(--card);box-shadow:inset 0 0 0 1px var(--hairline);color:var(--white)}
+:root:is([data-theme="light"],[data-theme="cream"]) #onb .ob-chip small{color:var(--dim)}
+/* inline colours from the step templates */
+:root:is([data-theme="light"],[data-theme="cream"]) #onb [style*="color:#8d7cc0"]:not(.ob-tag *){color:var(--purple)!important}
+:root:is([data-theme="light"],[data-theme="cream"]) #onb [style*="rgba(255,255,255,.08)"]:not(.ob-tag *),
+:root:is([data-theme="light"],[data-theme="cream"]) #onb .ob-dots [style*="rgba(255,255,255,.14)"]{background:var(--hairline)!important}
+:root:is([data-theme="light"],[data-theme="cream"]) #onb .ob-screen[style*="#04020c"]{background:var(--bg)!important;background-image:var(--bg-radial)!important}
+:root[data-theme="cream"] #onb .ob-bar div{background:linear-gradient(90deg,#764d33,#c9a84c)}
 /* THE NAME TAG on its LANYARD (v2, 2026-09-30) — the web twin of
    void-app/src/features/onboarding/{CardGate,Lanyard}.tsx. Same tag, same
    ribbon stack, same hardware, same ten flows; one rolls at random per
@@ -11519,13 +11589,15 @@ function startGlobe(cv){
     const R=new T.WebGLRenderer({canvas:cv,antialias:true,alpha:true});R.setPixelRatio(pr);R.setClearColor(0,0);
     const scene=new T.Scene(),cam=new T.PerspectiveCamera(38,1,0.1,50),g=new T.Group();scene.add(g);
     const shell=(r,vs,fs,side)=>new T.Mesh(new T.SphereGeometry(r,64,64),new T.ShaderMaterial({vertexShader:vs,fragmentShader:fs,side,transparent:true,depthWrite:false,depthTest:false,blending:T.AdditiveBlending}));
-    const body=new T.Mesh(new T.SphereGeometry(BODY_R,48,48),new T.MeshBasicMaterial({color:0x07031a,depthTest:false}));body.renderOrder=0;g.add(body);
-    const rim=shell(1.0,RIM_VS,RIM_FS,T.FrontSide);rim.renderOrder=2;g.add(rim);
-    const atmo=shell(ATMO_R,ATMO_VS,ATMO_FS,T.BackSide);atmo.renderOrder=3;g.add(atmo);
+    const P=globePaint(currentTheme()),lt=P.length>0;
+    const body=new T.Mesh(new T.SphereGeometry(BODY_R,48,48),new T.MeshBasicMaterial({color:lt?new T.Color(P[3],P[4],P[5]):0x07031a,depthTest:false}));body.renderOrder=0;g.add(body);
+    const rim=shell(1.0,RIM_VS,RIM_FS,T.FrontSide);rim.renderOrder=2;if(!lt)g.add(rim);
+    const atmo=shell(ATMO_R,ATMO_VS,ATMO_FS,T.BackSide);atmo.renderOrder=3;if(!lt)g.add(atmo);
     const n=NATIONS.length,pos=new Float32Array(n*3),ph=new Float32Array(n),sp=new Float32Array(n);
     NATIONS.forEach(([la,lo],i)=>{const phi=(90-la)*Math.PI/180,th=(lo+180)*Math.PI/180,r=1.003;pos.set([-r*Math.sin(phi)*Math.cos(th),r*Math.cos(phi),r*Math.sin(phi)*Math.sin(th)],i*3);ph[i]=Math.random()*Math.PI*2;sp[i]=0.6+Math.random()*1.4;});
     const lg=new T.BufferGeometry();lg.setAttribute('position',new T.BufferAttribute(pos,3));lg.setAttribute('phase',new T.BufferAttribute(ph,1));lg.setAttribute('speed',new T.BufferAttribute(sp,1));
-    const lm=new T.ShaderMaterial({vertexShader:LIGHT_VS,fragmentShader:LIGHT_FS,transparent:true,depthWrite:false,depthTest:false,blending:T.AdditiveBlending,uniforms:{uTime:{value:0},uPR:{value:pr},uColor:{value:new T.Color(0xc9a84c)}}});
+    // On a light page the lights blend normally, premultiplied (the canvas composites premultiplied; straight alpha washes them out).
+    const lm=new T.ShaderMaterial({vertexShader:LIGHT_VS,fragmentShader:lt?LIGHT_FS.replace('gl_FragColor=vec4(uColor+vec3(core*0.7),a*vA);','gl_FragColor=vec4((uColor+vec3(core*0.7))*a*vA,a*vA);'):LIGHT_FS,premultipliedAlpha:lt,transparent:true,depthWrite:false,depthTest:false,blending:lt?T.NormalBlending:T.AdditiveBlending,uniforms:{uTime:{value:0},uPR:{value:pr},uColor:{value:lt?new T.Color(P[9],P[10],P[11]):new T.Color(0xc9a84c)}}});
     const lights=new T.Points(lg,lm);lights.renderOrder=4;g.add(lights);
     const fit=()=>{const w=cv.clientWidth,h=cv.clientHeight;if(w<2||h<2)return;R.setSize(w,h,false);cam.aspect=w/h;const half=1.16/cam.aspect;cam.position.set(0,0,half/Math.tan(cam.fov*Math.PI/360));g.position.y=-half*0.98;cam.updateProjectionMatrix();};
     fit();const ro=new ResizeObserver(fit);ro.observe(cv);

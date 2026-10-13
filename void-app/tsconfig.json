@@ -26,6 +26,7 @@
     "src/features/live/__tests__",
     "src/features/calls/__tests__",
     "src/features/home/__tests__",
-    "src/features/polls/__tests__"
+    "src/features/polls/__tests__",
+    "src/theme/__tests__"
   ]
 }

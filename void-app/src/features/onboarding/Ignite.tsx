@@ -8,12 +8,13 @@ import { FONTS, em, type RadialSpec } from '../../theme/palettes';
 import { VText } from '../../ui/Text';
 import { t, TOPICS, type Topic } from './copy';
 import { PLACES, type LivePlace } from './places';
-import { CTA, DIM, Enter, GOLD, Mono, Rule, Serif, WHITE } from './parts';
+import { CTA, Enter, Mono, Rule, Serif, useOb } from './parts';
 
 /** radial-gradient(120% 50% at 50% 0%, #0e0726 0%, #04020c 60%) */
 const BG: RadialSpec = { rx: 120, ry: 50, cx: 50, cy: 0, stops: [{ color: '#0e0726', offset: 0 }, { color: '#04020c', offset: 0.6 }] };
 
 function Chip({ on, onPress, children }: { on: boolean; onPress: () => void; children: React.ReactNode }) {
+  const ob = useOb();
   return (
     <Pressable
       onPress={onPress}
@@ -23,7 +24,7 @@ function Chip({ on, onPress, children }: { on: boolean; onPress: () => void; chi
         s.chip,
         on
           ? { backgroundColor: 'rgba(201,168,76,0.14)', boxShadow: '0px 0px 0px 1px rgba(201,168,76,0.6)' }
-          : { backgroundColor: 'rgba(13,8,32,0.95)', boxShadow: 'inset 0px 1px 0px rgba(255,255,255,0.06)' },
+          : { backgroundColor: ob.isLight ? ob.PANEL : 'rgba(13,8,32,0.95)', boxShadow: `inset 0px 1px 0px ${ob.isLight ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.06)'}` },
       ]}
     >
       {children}
@@ -45,12 +46,13 @@ export function Ignite({
   onIgnite: () => void;
 }) {
   const insets = useSafeAreaInsets();
+  const ob = useOb(), { GOLD, WHITE, DIM } = ob;
   const n = topics.length + places.length;
   const line = n === 0 ? t('s4.headline.0') : n < 3 ? t('s4.headline.1to2') : t('s4.headline.3plus');
   const chipText = (on: boolean) => ({ fontFamily: FONTS.serifItalic, fontSize: 16, color: on ? GOLD : WHITE });
   return (
-    <Enter style={[StyleSheet.absoluteFill, { backgroundColor: '#04020c' }]}>
-      <RadialFill spec={BG} />
+    <Enter style={[StyleSheet.absoluteFill, { backgroundColor: ob.BG }]}>
+      <RadialFill spec={ob.isLight ? { ...BG, stops: [{ color: ob.HI, offset: 0 }, { color: ob.BG, offset: 0.6 }] } : BG} />
       <View style={[s.page, { paddingTop: 78 + insets.top, paddingBottom: 46 + insets.bottom }]}>
         <Mono color={DIM}>{t('s4.eyebrow', { n })}</Mono>
         <Serif size={30} style={{ marginTop: 12 }}>

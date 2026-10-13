@@ -3,7 +3,8 @@ import React, { useEffect } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withTiming } from 'react-native-reanimated';
-import { FONTS, em } from '../../theme/palettes';
+import { FONTS, PALETTES, em, rgbOf, type Palette } from '../../theme/palettes';
+import { useTheme } from '../../theme/ThemeProvider';
 import { VText } from '../../ui/Text';
 
 export const GOLD = '#c9a84c';
@@ -12,6 +13,20 @@ export const WHITE = '#f4f0ff';
 export const LAV = '#8d7cc0';
 export const DIM = '#5c4d8a';
 export const RED = '#ef4444';
+
+/** Onboarding colours for the theme in force: VOID/DARK keep the night look above; the light themes
+ *  (VOID CREAM, CREAM) take their palette's hexes. The lanyard card itself is a dark physical object and keeps the constants. */
+export interface Ob { isLight: boolean; GOLD: string; WHITE: string; LAV: string; DIM: string; RED: string; BG: string; BG2: string; SURF: string; LINE: string; RING: string; PANEL: string; TAB: string; PLACEHOLDER: string; /** top of the page glow */ HI: string }
+const OB_DARK: Ob = { isLight: false, GOLD, WHITE, LAV, DIM, RED, BG: INK, BG2: '#0a0620', SURF: 'rgba(255,255,255,0.05)', LINE: 'rgba(255,255,255,0.08)', RING: 'rgba(255,255,255,0.12)', PANEL: 'rgba(13,8,32,0.72)', TAB: 'rgba(255,255,255,0.07)', PLACEHOLDER: '#3a2f60', HI: '#160a3a' };
+const obLight = (c: Palette): Ob => {
+  const ink = rgbOf(c.white);
+  return { isLight: true, GOLD: c.gold, WHITE: c.white, LAV: c.purple, DIM: c.dim, RED: c.red, BG: c.bg, BG2: c.bg2, SURF: `rgba(${ink},0.05)`, LINE: c.hairline, RING: `rgba(${ink},0.16)`, PANEL: `rgba(${rgbOf(c.card)},0.86)`, TAB: `rgba(${ink},0.07)`, PLACEHOLDER: c.muted, HI: c.bgRadial?.stops[0].color ?? c.bg2 };
+};
+const OB_LIGHT = { light: obLight(PALETTES.light), cream: obLight(PALETTES.cream) };
+export function useOb(): Ob {
+  const { isLight, name } = useTheme();
+  return isLight ? OB_LIGHT[name === 'cream' ? 'cream' : 'light'] : OB_DARK;
+}
 
 /** @keyframes vfadeIn { from { opacity:0; translateY(14px) } } .5s ease */
 export function Enter({ children, style, delay = 0 }: { children: React.ReactNode; style?: StyleProp<ViewStyle>; delay?: number }) {
@@ -25,6 +40,7 @@ export function Enter({ children, style, delay = 0 }: { children: React.ReactNod
 
 /** The red live dot: @keyframes blink 1.3s. */
 export function BlinkDot({ size = 5 }: { size?: number }) {
+  const { RED } = useOb();
   const v = useSharedValue(1);
   useEffect(() => {
     v.value = withRepeat(withTiming(0.1, { duration: 650 }), -1, true);
@@ -35,6 +51,7 @@ export function BlinkDot({ size = 5 }: { size?: number }) {
 
 /** Gold CTA: padding 16, radius 26, Syne 800 13 .3em (a size up from Pill gold). */
 export function CTA({ label, onPress, disabled, ghost, style }: { label: string; onPress: () => void; disabled?: boolean; ghost?: boolean; style?: StyleProp<ViewStyle> }) {
+  const { LAV, RING } = useOb();
   return (
     <Pressable
       accessibilityRole="button"
@@ -43,7 +60,7 @@ export function CTA({ label, onPress, disabled, ghost, style }: { label: string;
       onPress={onPress}
       style={({ pressed }) => [
         s.cta,
-        ghost ? { boxShadow: 'inset 0px 0px 0px 1px rgba(255,255,255,0.12)' } : { boxShadow: '0px 10px 30px rgba(201,168,76,0.3)' },
+        ghost ? { boxShadow: `inset 0px 0px 0px 1px ${RING}` } : { boxShadow: '0px 10px 30px rgba(201,168,76,0.3)' },
         disabled ? { opacity: 0.55 } : pressed ? { opacity: 0.92 } : null,
         style,
       ]}
@@ -65,15 +82,18 @@ export function CTA({ label, onPress, disabled, ghost, style }: { label: string;
   );
 }
 
-export function Mono({ children, size = 8, tracking = 0.3, color = DIM, style }: { children: React.ReactNode; size?: number; tracking?: number; color?: string; style?: any }) {
-  return <VText style={[{ fontFamily: FONTS.mono, fontSize: size, letterSpacing: em(size, tracking), color }, style]}>{children}</VText>;
+export function Mono({ children, size = 8, tracking = 0.3, color, style }: { children: React.ReactNode; size?: number; tracking?: number; color?: string; style?: any }) {
+  const { DIM } = useOb();
+  return <VText style={[{ fontFamily: FONTS.mono, fontSize: size, letterSpacing: em(size, tracking), color: color ?? DIM }, style]}>{children}</VText>;
 }
 
 export function Serif({ children, size, style }: { children: React.ReactNode; size: number; style?: any }) {
+  const { WHITE } = useOb();
   return <VText style={[{ fontFamily: FONTS.serifItalic, fontSize: size, lineHeight: size * 1.18, color: WHITE }, style]}>{children}</VText>;
 }
 
 export function Logo({ size = 15 }: { size?: number }) {
+  const { WHITE, GOLD } = useOb();
   return (
     <VText style={{ fontFamily: FONTS.sansExtraBold, fontSize: size, letterSpacing: em(size, 0.14), color: WHITE }}>
       THE
@@ -85,6 +105,7 @@ export function Logo({ size = 15 }: { size?: number }) {
 
 /** Section rule: GOLD LABEL ────── (optional right label). */
 export function Rule({ label, right }: { label: string; right?: string }) {
+  const { GOLD, DIM } = useOb();
   return (
     <View style={s.rule}>
       <Mono tracking={0.22} color={GOLD}>

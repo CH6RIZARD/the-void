@@ -9,7 +9,8 @@ import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { createGlobeScene, type GlobeScene } from './globeScene';
-import { deliverEarthPixels, pickCountry, startWorkletGlobe } from './globeWorklet';
+import { deliverEarthPixels, globePaint, pickCountry, startWorkletGlobe } from './globeWorklet';
+import { useTheme } from '../../theme/ThemeProvider';
 import { GlobeSearch } from './GlobeSearch';
 import { countries, type Country } from '../live/core';
 import { wallScrollAtSV } from '../live/wallScrollSignal';
@@ -148,6 +149,13 @@ export const GlobeCanvas = memo(function GlobeCanvas({ running, onOpenCountry, r
   const lastFrameSV = useSharedValue(0);
   const texStateSV = useSharedValue(0);
   const texIdSV = useSharedValue(0);
+  // Light themes draw a light globe; the worklet reads this every frame, so a theme switch is live.
+  const theme = useTheme();
+  const paint = useMemo(() => globePaint(theme.name, theme.colors), [theme.name, theme.colors]);
+  const paintSV = useSharedValue(paint);
+  useEffect(() => {
+    paintSV.value = paint;
+  }, [paint, paintSV]);
   const onContextCreate = useCallback((gl: ExpoWebGLRenderingContext) => {
     // See the guard in app/_layout.tsx: a re-created surface can hand back a context
     // that is not real. Building a renderer on it would fail in a dozen places.
@@ -166,7 +174,7 @@ export const GlobeCanvas = memo(function GlobeCanvas({ running, onOpenCountry, r
         texIdSV.value = 0; // a fresh context mints a fresh texture id; never upload into a stale one
         const shared = {
           accX, accY, accZoom, velX, velY, dragSV,
-          runningSV, genSV: glGenSV, hotSV, rotXSV, rotYSV, zoomSV, lastFrameSV, texStateSV, texIdSV,
+          runningSV, genSV: glGenSV, hotSV, rotXSV, rotYSV, zoomSV, lastFrameSV, texStateSV, texIdSV, paintSV,
           wallScrollAtSV,
         };
         try { console.warn('[globe] context ' + (gl as any).contextId + ', gen ' + gen); } catch {}
@@ -443,7 +451,7 @@ export const GlobeCanvas = memo(function GlobeCanvas({ running, onOpenCountry, r
   }, [hintO]);
 
   return (
-    <View style={[styles.wrap, { height }]}>
+    <View style={[styles.wrap, { height }, paint.length > 0 && { backgroundColor: theme.colors.bg }]}>
       <GestureDetector gesture={gesture}>
         <View style={StyleSheet.absoluteFill} collapsable={false}>
           {/* The globe screen shows the GLOBE. There is no flat-map stand-in: a still

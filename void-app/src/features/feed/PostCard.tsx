@@ -12,7 +12,7 @@ import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withDelay,
 import { LinearGradient } from 'expo-linear-gradient';
 import { moderation, onRepliesChanged, type Post } from '../../core';
 import { useTheme } from '../../theme/ThemeProvider';
-import { FONTS, em } from '../../theme/palettes';
+import { FONTS, em, rgbOf } from '../../theme/palettes';
 import { Icon, type IconName } from '../../ui/icons';
 import { VText } from '../../ui/Text';
 import { ImageOrbitLoader } from '../../ui/ImageOrbitLoader';
@@ -110,7 +110,7 @@ export const PostCard = memo(function PostCard({ post: p, index: i, onOpenThread
 
   const avatarStyle = isLight
     ? { boxShadow: 'inset 0px 0px 0px 1px rgba(26,20,36,0.12), 0px 2px 6px rgba(26,20,36,0.12)' }
-    : { boxShadow: p._user ? '0px 0px 0px 2px rgba(201,168,76,0.35)' : '0px 0px 0px 2px rgba(124,58,237,0.35)' };
+    : { boxShadow: p._user ? '0px 0px 0px 2px rgba(201,168,76,0.35)' : `0px 0px 0px 2px rgba(${theme.name === 'cream' ? rgbOf(colors.purple) : '124,58,237'},0.35)` };
 
   // Void accounts only (they have a uid). External/source authors, and drops already
   // on their author's profile (ownerUid), leave the tap to the card, which opens the thread.
@@ -132,7 +132,7 @@ export const PostCard = memo(function PostCard({ post: p, index: i, onOpenThread
         {highlight ? (
           <LinearGradient
             pointerEvents="none"
-            colors={['rgba(124,58,237,0.14)', 'rgba(13,8,32,0.9)']}
+            colors={isLight ? [colors.gglow, colors.card] : ['rgba(124,58,237,0.14)', 'rgba(13,8,32,0.9)']}
             locations={[0, 0.6]}
             start={{ x: 0.33, y: 0 }}
             end={{ x: 0.67, y: 1 }}

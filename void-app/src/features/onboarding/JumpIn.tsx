@@ -10,7 +10,8 @@ import { FONTS, em } from '../../theme/palettes';
 import { VText } from '../../ui/Text';
 import { t } from './copy';
 import { MARQUEE_PLACES, WINDOW_COUNT, type LivePlace } from './places';
-import { BlinkDot, CTA, Enter, GOLD, Logo, Mono, RED, Serif, WHITE } from './parts';
+import { rgbOf } from '../../theme/palettes';
+import { BlinkDot, CTA, Enter, GOLD, Logo, Mono, RED, Serif, WHITE, useOb } from './parts';
 
 const TILE_W = 164,
   TILE_H = 96,
@@ -57,12 +58,14 @@ function Row({ places, seconds, reverse }: { places: LivePlace[]; seconds: numbe
 
 export function JumpIn({ onNext, onSignIn }: { onNext: () => void; onSignIn: () => void }) {
   const insets = useSafeAreaInsets();
+  // The live windows stay dark (they are media); the page fades into the theme behind them.
+  const ob = useOb(), fade = rgbOf(ob.BG);
   const rows = useMemo(() => {
     const M = MARQUEE_PLACES;
     return [M.slice(0, 7), M.slice(7, 14), M.slice(14, 21)];
   }, []);
   return (
-    <Enter style={StyleSheet.absoluteFill}>
+    <Enter style={[StyleSheet.absoluteFill, { backgroundColor: ob.BG }]}>
       <View style={[s.marquee, { top: 70 + insets.top }]} pointerEvents="none">
         <Row places={rows[0]} seconds={52} />
         <Row places={rows[1]} seconds={64} reverse />
@@ -70,7 +73,7 @@ export function JumpIn({ onNext, onSignIn }: { onNext: () => void; onSignIn: () 
       </View>
       <LinearGradient
         pointerEvents="none"
-        colors={['rgba(4,2,12,0.55)', 'rgba(4,2,12,0)', 'rgba(4,2,12,0)', 'rgba(4,2,12,0.92)', '#04020c']}
+        colors={[`rgba(${fade},0.55)`, `rgba(${fade},0)`, `rgba(${fade},0)`, `rgba(${fade},0.92)`, ob.BG]}
         locations={[0, 0.18, 0.42, 0.62, 0.78]}
         style={StyleSheet.absoluteFill}
       />
@@ -78,7 +81,7 @@ export function JumpIn({ onNext, onSignIn }: { onNext: () => void; onSignIn: () 
         <Logo />
         <View style={s.liveLine}>
           <BlinkDot />
-          <Mono tracking={0.25} color={RED}>
+          <Mono tracking={0.25} color={ob.RED}>
             {t('s1.live', { n: WINDOW_COUNT })}
           </Mono>
         </View>
@@ -87,7 +90,7 @@ export function JumpIn({ onNext, onSignIn }: { onNext: () => void; onSignIn: () 
         </Serif>
         <CTA label={t('s1.cta')} onPress={onNext} style={{ marginTop: 8 }} />
         <Pressable onPress={onSignIn} hitSlop={8} style={{ alignSelf: 'center', padding: 6 }}>
-          <Mono tracking={0.2} color="#6a58a0">
+          <Mono tracking={0.2} color={ob.isLight ? ob.LAV : '#6a58a0'}>
             {t('s1.signin')}
           </Mono>
         </Pressable>

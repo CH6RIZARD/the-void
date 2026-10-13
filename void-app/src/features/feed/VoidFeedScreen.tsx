@@ -33,6 +33,7 @@ import {
 } from '../../core';
 import { timed } from '../../core/slow';
 import { useTheme } from '../../theme/ThemeProvider';
+import { useInk } from '../../theme/ink';
 import { FONTS, em } from '../../theme/palettes';
 import { VText } from '../../ui/Text';
 import { voidToast } from '../../ui/Toast';
@@ -59,6 +60,7 @@ let dealt: Post[] = [];
 
 export default function VoidFeedScreen() {
   const { colors } = useTheme();
+  const ink = useInk();
   const insets = useSafeAreaInsets();
   const modVersion = useModerationVersion();
   useTick(30000); // ago() labels
@@ -375,7 +377,7 @@ export default function VoidFeedScreen() {
         accessibilityLabel="Compose"
         style={({ pressed }) => [styles.fab, { bottom: 88 + insets.bottom }, pressed && { opacity: 0.85 }]}
       >
-        <LinearGradient colors={['#7c3aed', '#5b21d4']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.fabFill}>
+        <LinearGradient colors={ink.violet} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.fabFill}>
           <VText style={styles.fabT}>+</VText>
         </LinearGradient>
       </Pressable> : null}

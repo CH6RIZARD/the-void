@@ -15,6 +15,8 @@ import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTimin
 import * as THREE from 'three';
 import { landPositions } from './landDots';
 import { buildGlobe } from './globeBuild';
+import { globePaint } from '../globe/globePaint';
+import { useTheme } from '../../theme/ThemeProvider';
 
 /** A three.js renderer on an expo-gl context — the same shims as globeScene.ts. */
 function makeRenderer(gl: ExpoWebGLRenderingContext): THREE.WebGLRenderer {
@@ -55,6 +57,10 @@ export function OnboardGlobe({ running = true }: { running?: boolean }) {
   const raf = useRef<number | null>(null);
   const shown = useSharedValue(0);
   const fade = useAnimatedStyle(() => ({ opacity: shown.value }));
+  const { name, colors } = useTheme();
+  const paint = globePaint(name, colors);
+  const paintRef = useRef(paint);
+  paintRef.current = paint;
 
   useEffect(
     () => () => {
@@ -72,7 +78,7 @@ export function OnboardGlobe({ running = true }: { running?: boolean }) {
       } catch {
         return; // no GL on this device: the static layer stays
       }
-      const { scene, camera, group, setTime } = buildGlobe(THREE, gl.drawingBufferWidth, gl.drawingBufferHeight, PixelRatio.get(), landPositions(1.0));
+      const { scene, camera, group, setTime } = buildGlobe(THREE, gl.drawingBufferWidth, gl.drawingBufferHeight, PixelRatio.get(), landPositions(1.0), false, paintRef.current);
       const t0 = Date.now();
       let first = true;
       const loop = () => {
@@ -120,7 +126,8 @@ export function OnboardGlobe({ running = true }: { running?: boolean }) {
     <GestureDetector gesture={pan}>
       <View style={StyleSheet.absoluteFill}>
         <Animated.View style={[StyleSheet.absoluteFill, fade]}>
-          <GLView style={StyleSheet.absoluteFill} onContextCreate={onContextCreate} msaaSamples={4} />
+          {/* keyed by theme: a switch rebuilds the scene in the new colours */}
+          <GLView key={name} style={StyleSheet.absoluteFill} onContextCreate={onContextCreate} msaaSamples={4} />
         </Animated.View>
       </View>
     </GestureDetector>

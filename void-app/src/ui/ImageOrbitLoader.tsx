@@ -38,7 +38,7 @@ export const ImageOrbitLoader = memo(function ImageOrbitLoader({ label = 'LOADIN
   const inT = useLoaderLoop(IN_MS, 0, running);
   const lightFeed = surface === 'feed' && theme.isLight;
   const bg = lightFeed ? '#f7f3ea' : 'rgba(3,1,10,0.97)';
-  const inner = theme.name === 'void' ? '#a78bfa' : theme.colors.dim;
+  const inner = theme.name === 'void' ? '#a78bfa' : theme.colors.orbitInner;
   const labelColor = lightFeed ? theme.colors.dim : theme.colors.navDim;
 
   const outStyle = useMemo(() => ({ transform: [{ rotate: outT.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }] }), [outT]);

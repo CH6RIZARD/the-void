@@ -14,6 +14,7 @@ import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } 
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme/ThemeProvider';
+import { useInk } from '../../theme/ink';
 import { FONTS, em } from '../../theme/palettes';
 import { WEB } from '../../theme/motion';
 import { DealIn } from '../../ui/DealIn';
@@ -37,6 +38,7 @@ const KICON: Record<Notif['kind'], IconName> = { bolt: 'boltFill', reply: 'reply
 
 export function MailLayer({ open, width, onTopic }: { open: boolean; width: number; onTopic: (questionId: string) => void }) {
   const { colors } = useTheme();
+  const ink = useInk();
   const insets = useSafeAreaInsets();
   const { items, unread } = useNotifs();
   const x = useSharedValue(open ? 0 : 1);
@@ -84,6 +86,7 @@ function follow(go: Go | undefined, onTopic: (id: string) => void): (() => void)
 
 const Row = memo(function Row({ n, onTopic }: { n: Notif; onTopic: (id: string) => void }) {
   const { colors } = useTheme();
+  const ink = useInk();
   const isVoid = n.kind === 'void';
   const isGold = n.kind === 'bolt' || n.kind === 'chimeBolt' || isVoid;
   const hs = n.by.map((a) => '@' + a.handle);
@@ -114,7 +117,7 @@ const Row = memo(function Row({ n, onTopic }: { n: Notif; onTopic: (id: string) 
   return (
     <Pressable onPress={toThread} disabled={!toThread} style={[styles.row, { backgroundColor: bg }]}>
       <View style={styles.kind}>
-        <Icon name={KICON[n.kind]} size={24} color={isGold ? colors.gold : '#c9bfe8'} />
+        <Icon name={KICON[n.kind]} size={24} color={isGold ? colors.gold : ink.lilac} />
       </View>
       <View style={styles.body}>
         {!isVoid && n.by.length ? (
@@ -156,6 +159,7 @@ const Row = memo(function Row({ n, onTopic }: { n: Notif; onTopic: (id: string) 
 /** 46px: the drop's image if it has one, else the text card (dark, gold hairline, 6.5px text). */
 function Thumb({ post }: { post?: Notif['post'] }) {
   const { colors } = useTheme();
+  const ink = useInk();
   if (!post) return null;
   return (
     <View style={[styles.thumb, { backgroundColor: colors.card }]}>

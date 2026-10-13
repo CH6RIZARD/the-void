@@ -89,7 +89,9 @@ const SWATCH: Record<ThemeName, { bg: string[]; radial?: RadialSpec; bar: string
   void: { bg: [], radial: { rx: 120, ry: 70, cx: 50, cy: 0, stops: [{ color: '#160b38', offset: 0 }, { color: '#04020c', offset: 0.65 }] }, bar: '#0d0820', dot: '#c9a84c' },
   dark: { bg: ['#0a0a0c'], bar: '#1a1a1e', dot: '#c9a84c' },
   light: { bg: [], radial: { rx: 120, ry: 70, cx: 50, cy: 0, stops: [{ color: '#f2ecdd', offset: 0 }, { color: '#e7e0cf', offset: 0.6 }] }, bar: '#f6f1e6', barShadow: '0px 2px 5px rgba(26,20,36,0.14)', dot: '#9a7b2d' },
+  cream: { bg: [], radial: { rx: 120, ry: 70, cx: 50, cy: 0, stops: [{ color: '#f1ead9', offset: 0 }, { color: '#efe6d3', offset: 0.6 }] }, bar: '#e3d4b6', barShadow: '0px 2px 5px rgba(42,26,16,0.14)', dot: '#764d33' },
 };
+const LABEL: Record<ThemeName, string> = { void: 'VOID', dark: 'DARK', light: 'VOID CREAM', cream: 'CREAM' };
 
 function ThemeCard({ t }: { t: ThemeName }) {
   const { colors, saved, setTheme } = useTheme();
@@ -102,7 +104,7 @@ function ThemeCard({ t }: { t: ThemeName }) {
         <View style={[st.swI, { backgroundColor: sw.bar }, sw.barShadow ? { boxShadow: sw.barShadow } : null]} />
         <View style={[st.swB, { backgroundColor: sw.dot }]} />
       </View>
-      <VText align="center" style={{ fontFamily: FONTS.mono, fontSize: 7.5, letterSpacing: em(7.5, 0.2), color: on ? colors.gold : colors.navDim, marginTop: 7 }}>{t.toUpperCase()}</VText>
+      <VText align="center" style={{ fontFamily: FONTS.mono, fontSize: 7.5, letterSpacing: em(7.5, 0.2), color: on ? colors.gold : colors.navDim, marginTop: 7 }}>{LABEL[t]}</VText>
     </Pressable>
   );
 }
@@ -279,9 +281,9 @@ export default function SettingsScreen({ onClose }: { onClose?: () => void }) {
 
             <Section label="Appearance">
               <View style={st.themeCards}>
-                <ThemeCard t="void" />
                 <ThemeCard t="dark" />
                 <ThemeCard t="light" />
+                <ThemeCard t="cream" />
               </View>
               <Row label="Match system" sub={matchSystemSub}>
                 <Toggle on={matchSystem} onPress={toggleMatchSystem} />

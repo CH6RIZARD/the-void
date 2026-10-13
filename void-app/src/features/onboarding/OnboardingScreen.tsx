@@ -18,7 +18,7 @@ import { JumpIn } from './JumpIn';
 import { GlobeIntro } from './GlobeIntro';
 import { CardGate } from './CardGate';
 import { Ignite } from './Ignite';
-import { DIM, Enter, GOLD, Mono, Serif } from './parts';
+import { Enter, Mono, Serif, useOb } from './parts';
 import { VText } from '../../ui/Text';
 
 type Step = 0 | 1 | 2 | 3 | 4;
@@ -33,12 +33,13 @@ function litLine(via: Via | null, topics: Topic[], places: LivePlace[]): string 
 }
 
 function Dots({ step }: { step: Step }) {
+  const { GOLD, RING } = useOb();
   const insets = useSafeAreaInsets();
   const at = Math.min(step, 3);
   return (
     <View pointerEvents="none" style={[s.dots, { top: 58 + insets.top }]}>
       {[0, 1, 2, 3].map((i) => (
-        <View key={i} style={{ width: i === at ? 18 : 6, height: 2, borderRadius: 1, backgroundColor: i === at ? GOLD : i < step ? 'rgba(201,168,76,0.4)' : 'rgba(255,255,255,0.14)' }} />
+        <View key={i} style={{ width: i === at ? 18 : 6, height: 2, borderRadius: 1, backgroundColor: i === at ? GOLD : i < step ? 'rgba(201,168,76,0.4)' : RING }} />
       ))}
     </View>
   );
@@ -55,6 +56,7 @@ export default function OnboardingScreen() {
   const [via, setVia] = useState<Via | null>(resumeIgnite ? 'email' : null);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [places, setPlaces] = useState<LivePlace[]>([]);
+  const { GOLD, DIM, BG } = useOb();
   const leaving = useRef(false);
   // Read at exit time only: auth is rebuilt on unrelated renders, which would keep
   // restarting the Lit timer.
@@ -101,7 +103,7 @@ export default function OnboardingScreen() {
   }, [step]);
 
   return (
-    <View style={s.fill}>
+    <View style={[s.fill, { backgroundColor: BG }]}>
       {step === 0 ? (
         <JumpIn
           onNext={() => setStep(1)}
@@ -123,7 +125,7 @@ export default function OnboardingScreen() {
         />
       ) : null}
       {step === 4 ? (
-        <Enter style={s.lit}>
+        <Enter style={[s.lit, { backgroundColor: BG }]}>
           <VText style={{ fontSize: 44, color: GOLD, textShadowColor: 'rgba(201,168,76,0.7)', textShadowRadius: 34 }}>⬡</VText>
           <Serif size={26} style={{ lineHeight: 26 * 1.25, marginTop: 24, textAlign: 'center' }}>
             {litLine(via, topics, places)}

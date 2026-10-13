@@ -28,7 +28,7 @@ import {
   type AuthResult,
   type Via,
 } from './onboardAuth';
-import { CTA, DIM, Enter, GOLD, LAV, Mono, RED, WHITE } from './parts';
+import { CTA, DIM, Enter, GOLD, LAV, Mono, RED, WHITE, useOb } from './parts';
 
 /** radial-gradient(70% 45% at 50% 40%, #1a0c44 0%, #0a0620 65%) */
 const BG: RadialSpec = { rx: 70, ry: 45, cx: 50, cy: 40, stops: [{ color: '#1a0c44', offset: 0 }, { color: '#0a0620', offset: 0.65 }] };
@@ -89,16 +89,17 @@ const GlobeIcon = () => (
 );
 
 function ProviderBtn({ label, icon, onPress, disabled, ring }: { label: string; icon: React.ReactNode; onPress: () => void; disabled?: boolean; ring?: boolean }) {
+  const ob = useOb();
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={label}
-      style={({ pressed }) => [s.provider, { boxShadow: `inset 0px 0px 0px 1px ${ring || pressed ? GOLD : 'rgba(255,255,255,0.12)'}` }, disabled ? { opacity: 0.5 } : null]}
+      style={({ pressed }) => [s.provider, { backgroundColor: ob.SURF, boxShadow: `inset 0px 0px 0px 1px ${ring || pressed ? ob.GOLD : ob.RING}` }, disabled ? { opacity: 0.5 } : null]}
     >
       {icon}
-      <Mono size={7.5} tracking={0.18} color={WHITE}>
+      <Mono size={7.5} tracking={0.18} color={ob.WHITE}>
         {label}
       </Mono>
     </Pressable>
@@ -106,16 +107,17 @@ function ProviderBtn({ label, icon, onPress, disabled, ring }: { label: string; 
 }
 
 function Input(props: React.ComponentProps<typeof TextInput>) {
+  const ob = useOb();
   return (
     <TextInput
-      placeholderTextColor="#3a2f60"
-      selectionColor={GOLD}
-      cursorColor={GOLD}
+      placeholderTextColor={ob.PLACEHOLDER}
+      selectionColor={ob.GOLD}
+      cursorColor={ob.GOLD}
       autoCorrect={false}
       spellCheck={false}
       autoCapitalize="none"
       {...props}
-      style={[s.input, props.style]}
+      style={[s.input, { color: ob.WHITE }, props.style]}
     />
   );
 }
@@ -136,6 +138,7 @@ function Shimmer({ width }: { width: number }) {
 }
 
 function Success({ via, handle, onDone }: { via: Via; handle: string; onDone: () => void }) {
+  const ob = useOb();
   const bar = useSharedValue(0);
   useEffect(() => {
     // Linear: it stands for the 1.6s wait, so it must not look nearly done early.
@@ -150,10 +153,10 @@ function Success({ via, handle, onDone }: { via: Via; handle: string; onDone: ()
   return (
     <Enter style={s.done}>
       <VText style={{ fontSize: 40, color: GOLD, textShadowColor: 'rgba(201,168,76,0.7)', textShadowRadius: 30 }}>⬡</VText>
-      <VText align="center" style={{ fontFamily: FONTS.serifItalic, fontSize: 26, lineHeight: 26 * 1.2, color: WHITE, marginTop: 22 }}>
+      <VText align="center" style={{ fontFamily: FONTS.serifItalic, fontSize: 26, lineHeight: 26 * 1.2, color: ob.WHITE, marginTop: 22 }}>
         {welcome}
       </VText>
-      <View style={s.barTrack}>
+      <View style={[s.barTrack, { backgroundColor: ob.RING }]}>
         <Animated.View style={[{ height: '100%', width: '100%', overflow: 'hidden', transformOrigin: 'left' }, fill]}>
           <LinearGradient colors={['#7c3aed', GOLD]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ width: 150, height: '100%' }} />
         </Animated.View>
@@ -331,17 +334,19 @@ export function CardGate({ stepLabel, initialMode = 'create', onEnter }: { stepL
 
   const finish = useMemo(() => () => done && onEnter(done.via, done.handle), [done, onEnter]);
 
-  const tabBg = (on: boolean) => ({ backgroundColor: on ? 'rgba(255,255,255,0.07)' : 'transparent' });
+  const ob = useOb();
+  const tabBg = (on: boolean) => ({ backgroundColor: on ? ob.TAB : 'transparent' });
+  const box = [s.boxInput, { backgroundColor: ob.SURF, color: ob.WHITE }];
   const pass2Ring = pass2 && pass2 !== pass ? 'rgba(239,68,68,0.6)' : pass2 && pass2 === pass ? 'rgba(16,185,129,0.6)' : 'rgba(201,168,76,0.35)';
   const errLine = (
-    <VText align="center" style={{ minHeight: 12, fontFamily: FONTS.mono, fontSize: 7.5, letterSpacing: em(7.5, 0.14), color: RED }}>
+    <VText align="center" style={{ minHeight: 12, fontFamily: FONTS.mono, fontSize: 7.5, letterSpacing: em(7.5, 0.14), color: ob.RED }}>
       {err}
     </VText>
   );
 
   return (
     <View
-      style={[StyleSheet.absoluteFill, { backgroundColor: '#0a0620' }]}
+      style={[StyleSheet.absoluteFill, { backgroundColor: ob.BG2 }]}
       onLayout={(e) => {
         // The strap's coordinate space IS this box. Re-measure when it changes so the
         // ribbons keep meeting the slot through a rotation or a keyboard.
@@ -353,7 +358,7 @@ export function CardGate({ stepLabel, initialMode = 'create', onEnter }: { stepL
         }
       }}
     >
-      <RadialFill spec={BG} />
+      <RadialFill spec={ob.isLight ? { ...BG, stops: [{ color: ob.HI, offset: 0 }, { color: ob.BG2, offset: 0.65 }] } : BG} />
       {/* The strap spans the SCREEN - its 402x874 space is the screen's, which is
           why the slot is measured in page coordinates. Behind everything: the
           notes put the ribbons under all text and buttons. */}
@@ -368,23 +373,23 @@ export function CardGate({ stepLabel, initialMode = 'create', onEnter }: { stepL
         <KeyboardAvoidingView style={[s.page, { paddingTop: 78 + insets.top, paddingBottom: 40 + insets.bottom }]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <View style={s.head}>
             {/* On a pill, so a ribbon passing behind it cannot run through the words. */}
-            <View style={s.eyebrowPill}>
-              <Mono color={DIM}>{t('s3.eyebrow', { step: stepLabel })}</Mono>
+            <View style={[s.eyebrowPill, { backgroundColor: ob.PANEL }]}>
+              <Mono color={ob.DIM}>{t('s3.eyebrow', { step: stepLabel })}</Mono>
             </View>
-            <View style={s.tabs}>
+            <View style={[s.tabs, { backgroundColor: ob.PANEL }]}>
               <Pressable onPress={() => reset('create')} style={[s.tab, tabBg(!login)]}>
-                <Mono size={7.5} tracking={0.18} color={login ? DIM : GOLD}>
+                <Mono size={7.5} tracking={0.18} color={login ? ob.DIM : ob.GOLD}>
                   {t('s3.tab.new')}
                 </Mono>
               </Pressable>
               <Pressable onPress={() => reset('login')} style={[s.tab, tabBg(login)]}>
-                <Mono size={7.5} tracking={0.18} color={login ? GOLD : DIM}>
+                <Mono size={7.5} tracking={0.18} color={login ? ob.GOLD : ob.DIM}>
                   {t('s3.tab.login')}
                 </Mono>
               </Pressable>
             </View>
           </View>
-          <VText style={{ fontFamily: FONTS.serifItalic, fontSize: 27, lineHeight: 27 * 1.2, color: WHITE, marginTop: 10 }}>
+          <VText style={{ fontFamily: FONTS.serifItalic, fontSize: 27, lineHeight: 27 * 1.2, color: ob.WHITE, marginTop: 10 }}>
             {login ? t('s3.login.headline') : t('s3.new.headline')}
           </VText>
 
@@ -427,6 +432,7 @@ export function CardGate({ stepLabel, initialMode = 'create', onEnter }: { stepL
                     autoFocus
                     returnKeyType="go"
                     onSubmitEditing={cardEnter}
+                    placeholderTextColor="#3a2f60"
                     style={s.cardInput}
                   />
                   <Pressable onPress={() => setShowPass((v) => !v)} hitSlop={8}>
@@ -448,6 +454,7 @@ export function CardGate({ stepLabel, initialMode = 'create', onEnter }: { stepL
                     maxLength={20}
                     returnKeyType={login ? 'next' : 'done'}
                     onSubmitEditing={() => login && needHandle() && setFlipped(true)}
+                    placeholderTextColor="#3a2f60"
                     style={s.cardInput}
                   />
                 </View>
@@ -485,13 +492,13 @@ export function CardGate({ stepLabel, initialMode = 'create', onEnter }: { stepL
                     }}
                     style={s.flipBtn}
                   >
-                    <VText style={{ fontSize: 12, color: GOLD }}>⟲</VText>
-                    <Mono tracking={0.22} color={GOLD}>
+                    <VText style={{ fontSize: 12, color: ob.GOLD }}>⟲</VText>
+                    <Mono tracking={0.22} color={ob.GOLD}>
                       {flipped ? t('s3.login.toggle.toHandle') : t('s3.login.toggle.toPass')}
                     </Mono>
                   </Pressable>
                   {flipped ? (
-                    <Mono size={7} tracking={0.2} color={pass ? GOLD : DIM}>
+                    <Mono size={7} tracking={0.2} color={pass ? ob.GOLD : ob.DIM}>
                       {t('s3.login.globeHint')}
                     </Mono>
                   ) : null}
@@ -504,20 +511,20 @@ export function CardGate({ stepLabel, initialMode = 'create', onEnter }: { stepL
           {stage === 'providers' || login ? (
             <View style={s.bottom}>
               <View style={s.orRow}>
-                <View style={s.hair} />
-                <Mono size={7} tracking={0.22} color={DIM}>
+                <View style={[s.hair, { backgroundColor: ob.LINE }]} />
+                <Mono size={7} tracking={0.22} color={ob.DIM}>
                   {login ? t('s3.login.providers') : h ? t('s3.new.providers.filled', { HANDLE: H }) : t('s3.new.providers.empty')}
                 </Mono>
-                <View style={s.hair} />
+                <View style={[s.hair, { backgroundColor: ob.LINE }]} />
               </View>
               <View style={s.providers}>
-                <ProviderBtn label="APPLE" icon={<AppleIcon c={WHITE} />} onPress={provider('apple')} disabled={busy} />
+                <ProviderBtn label="APPLE" icon={<AppleIcon c={ob.WHITE} />} onPress={provider('apple')} disabled={busy} />
                 <ProviderBtn label="GOOGLE" icon={<GoogleIcon />} onPress={provider('google')} disabled={busy} />
-                <ProviderBtn label="EMAIL" icon={<MailIcon c={WHITE} />} onPress={viaEmail} disabled={busy} ring={login && loginEmailOpen} />
+                <ProviderBtn label="EMAIL" icon={<MailIcon c={ob.WHITE} />} onPress={viaEmail} disabled={busy} ring={login && loginEmailOpen} />
               </View>
               {login && loginEmailOpen ? (
                 <Enter style={{ gap: 8 }}>
-                  <Input value={email} onChangeText={setEmail} placeholder={t('s3.login.email.placeholder')} keyboardType="email-address" autoComplete="email" style={s.boxInput} />
+                  <Input value={email} onChangeText={setEmail} placeholder={t('s3.login.email.placeholder')} keyboardType="email-address" autoComplete="email" style={box} />
                   <Input
                     value={pass}
                     onChangeText={setPass}
@@ -526,14 +533,14 @@ export function CardGate({ stepLabel, initialMode = 'create', onEnter }: { stepL
                     autoComplete="current-password"
                     returnKeyType="go"
                     onSubmitEditing={loginEmailGo}
-                    style={s.boxInput}
+                    style={box}
                   />
                   <CTA label={t('s3.login.email.cta')} onPress={loginEmailGo} disabled={busy} style={{ paddingVertical: 14 }} />
                 </Enter>
               ) : null}
               {errLine}
               {!login && !h ? <CTA label={t('s3.new.blank.cta')} onPress={() => run(enterBlank)} disabled={busy} /> : null}
-              <Mono size={7} tracking={0.2} color={DIM} style={{ textAlign: 'center' }}>
+              <Mono size={7} tracking={0.2} color={ob.DIM} style={{ textAlign: 'center' }}>
                 {login ? t('s3.login.legal') : h ? t('s3.new.legal.filled') : t('s3.new.legal.blank')}
               </Mono>
             </View>
@@ -541,9 +548,9 @@ export function CardGate({ stepLabel, initialMode = 'create', onEnter }: { stepL
             <Enter style={s.bottom}>
               <View style={s.stepHead}>
                 <Pressable onPress={() => (setStage('providers'), setErr(''))} hitSlop={10}>
-                  <VText style={{ fontSize: 16, color: LAV }}>‹</VText>
+                  <VText style={{ fontSize: 16, color: ob.LAV }}>‹</VText>
                 </Pressable>
-                <Mono size={7} tracking={0.22} color={DIM}>
+                <Mono size={7} tracking={0.22} color={ob.DIM}>
                   {t('s3.new.email.eyebrow', { HANDLE: H })}
                 </Mono>
               </View>
@@ -556,11 +563,11 @@ export function CardGate({ stepLabel, initialMode = 'create', onEnter }: { stepL
                 autoFocus
                 returnKeyType="next"
                 onSubmitEditing={emailNext}
-                style={s.boxInput}
+                style={box}
               />
               {errLine}
               <CTA label={t('s3.new.email.cta')} onPress={emailNext} />
-              <Mono size={7} tracking={0.2} color={DIM} style={{ textAlign: 'center' }}>
+              <Mono size={7} tracking={0.2} color={ob.DIM} style={{ textAlign: 'center' }}>
                 {t('s3.new.email.legal')}
               </Mono>
             </Enter>
@@ -568,9 +575,9 @@ export function CardGate({ stepLabel, initialMode = 'create', onEnter }: { stepL
             <Enter style={s.bottom}>
               <View style={s.stepHead}>
                 <Pressable onPress={() => (setStage('email'), setErr(''))} hitSlop={10}>
-                  <VText style={{ fontSize: 16, color: LAV }}>‹</VText>
+                  <VText style={{ fontSize: 16, color: ob.LAV }}>‹</VText>
                 </Pressable>
-                <Mono size={7} tracking={0.22} color={DIM}>
+                <Mono size={7} tracking={0.22} color={ob.DIM}>
                   {t('s3.new.pass.eyebrow', { EMAIL: email.toUpperCase().slice(0, 18) })}
                 </Mono>
               </View>
@@ -581,7 +588,7 @@ export function CardGate({ stepLabel, initialMode = 'create', onEnter }: { stepL
                 secureTextEntry
                 autoComplete="new-password"
                 autoFocus
-                style={s.boxInput}
+                style={box}
               />
               <Input
                 value={pass2}
@@ -591,7 +598,7 @@ export function CardGate({ stepLabel, initialMode = 'create', onEnter }: { stepL
                 autoComplete="new-password"
                 returnKeyType="go"
                 onSubmitEditing={createGo}
-                style={[s.boxInput, { boxShadow: `inset 0px 0px 0px 1px ${pass2Ring}` }]}
+                style={[...box, { boxShadow: `inset 0px 0px 0px 1px ${pass2Ring}` }]}
               />
               {errLine}
               <CTA label={t('s3.new.pass.cta')} onPress={createGo} disabled={busy} />

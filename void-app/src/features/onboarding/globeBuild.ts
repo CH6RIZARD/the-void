@@ -98,8 +98,11 @@ export interface GlobeParts {
  * @param W,H   drawing-buffer size in device px
  * @param pr    device px per layout px (the mock sized lights in CSS px × DPR)
  * @param land  land-dot xyz (landPositions())
+ * @param paint globePaint() of a light theme: ocean body, ink land dots, gold lights, no glow shells. [] = night.
  */
-export function buildGlobe(T: THREE, W: number, H: number, pr: number, land: Float32Array, showLand = false): GlobeParts {
+export function buildGlobe(T: THREE, W: number, H: number, pr: number, land: Float32Array, showLand = false, paint: number[] = []): GlobeParts {
+  const lt = paint.length > 0;
+  if (lt) showLand = true;
   const scene = new T.Scene();
   const camera = new T.PerspectiveCamera(38, W / Math.max(1, H), 0.1, 50);
   const group = new T.Group();
@@ -112,7 +115,7 @@ export function buildGlobe(T: THREE, W: number, H: number, pr: number, land: Flo
     );
 
   // Body first (opaque), then everything else painted over it in order.
-  const body = new T.Mesh(new T.SphereGeometry(BODY_R, 96, 96), new T.MeshBasicMaterial({ color: 0x07031a, depthTest: false }));
+  const body = new T.Mesh(new T.SphereGeometry(BODY_R, 96, 96), new T.MeshBasicMaterial({ color: lt ? new T.Color().setRGB(paint[3], paint[4], paint[5], T.SRGBColorSpace) : 0x07031a, depthTest: false }));
   body.renderOrder = 0;
   group.add(body);
 
@@ -127,7 +130,7 @@ export function buildGlobe(T: THREE, W: number, H: number, pr: number, land: Flo
       depthWrite: false,
       depthTest: false,
       // three's PointsMaterial attenuation: size × (bufferHeight/2) / depth.
-      uniforms: { uSize: { value: 0.011 }, uScale: { value: H / 2 }, uColor: { value: new T.Color(0x8d7cc0) }, uOpacity: { value: 0.7 } },
+      uniforms: { uSize: { value: 0.011 }, uScale: { value: H / 2 }, uColor: { value: lt ? new T.Color(paint[6], paint[7], paint[8]) : new T.Color(0x8d7cc0) }, uOpacity: { value: lt ? 0.9 : 0.7 } },
     }),
   );
   landPts.renderOrder = 1;
@@ -136,10 +139,11 @@ export function buildGlobe(T: THREE, W: number, H: number, pr: number, land: Flo
 
   const edge = shell(1.0, RIM_VS, RIM_FS, T.FrontSide);
   edge.renderOrder = 2;
-  group.add(edge);
+  // The rim and halo glow additively: on a light page they vanish, so light themes skip them.
+  if (!lt) group.add(edge);
   const halo = shell(ATMO_R, ATMO_VS, ATMO_FS, T.BackSide);
   halo.renderOrder = 3;
-  group.add(halo);
+  if (!lt) group.add(halo);
 
   const n = NATIONS.length,
     pos = new Float32Array(n * 3),
@@ -156,12 +160,14 @@ export function buildGlobe(T: THREE, W: number, H: number, pr: number, land: Flo
   lg.setAttribute('speed', new T.BufferAttribute(speed, 1));
   const lightMat = new T.ShaderMaterial({
     vertexShader: LIGHT_VS,
-    fragmentShader: LIGHT_FS,
+    // On a light page the lights blend normally, premultiplied (straight alpha washes them out).
+    fragmentShader: lt ? LIGHT_FS.replace('gl_FragColor=vec4(uColor+vec3(core*0.7),a*vA);', 'gl_FragColor=vec4((uColor+vec3(core*0.7))*a*vA,a*vA);') : LIGHT_FS,
+    premultipliedAlpha: lt,
     transparent: true,
     depthWrite: false,
     depthTest: false,
-    blending: T.AdditiveBlending,
-    uniforms: { uTime: { value: 0 }, uPR: { value: pr }, uColor: { value: new T.Color(0xc9a84c) } },
+    blending: lt ? T.NormalBlending : T.AdditiveBlending,
+    uniforms: { uTime: { value: 0 }, uPR: { value: pr }, uColor: { value: lt ? new T.Color(paint[9], paint[10], paint[11]) : new T.Color(0xc9a84c) } },
   });
   const lights = new T.Points(lg, lightMat);
   lights.renderOrder = 4;

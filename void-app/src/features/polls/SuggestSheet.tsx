@@ -10,6 +10,7 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { useTheme } from '../../theme/ThemeProvider';
+import { useInk } from '../../theme/ink';
 import { FONTS, em } from '../../theme/palettes';
 import { Sheet } from '../../ui/Sheet';
 import { Icon } from '../../ui/icons';
@@ -22,6 +23,7 @@ const GOLD = '#c9a84c';
 
 export function SuggestSheet({ visible, onClose, draft, setDraft }: { visible: boolean; onClose: () => void; draft: string; setDraft: (s: string) => void }) {
   const { colors } = useTheme();
+  const ink = useInk();
   usePolls();
   const [step, setStep] = useState<Step>('write');
   const [gate, setGate] = useState<FloorQ[]>([]);
@@ -81,7 +83,7 @@ export function SuggestSheet({ visible, onClose, draft, setDraft }: { visible: b
             allowFontScaling={false}
           />
           <VText style={[styles.count, { color: colors.navDim }]}>{draft.length + ' / ' + MAXLEN}</VText>
-          <VText style={[styles.note, { color: '#8d7cc0' }]}>
+          <VText style={[styles.note, { color: ink.muted }]}>
             {req === 0 ? 'Nothing is on the floor yet, so there is nothing to rank. Yours goes straight to the Void.' : `Before it goes up, you vote on ${req} on the floor. Ups and downs both show.`}
           </VText>
           <Pressable onPress={next} disabled={!okLen} style={[styles.btn, okLen ? styles.btnGold : styles.btnOff]}>
@@ -91,18 +93,18 @@ export function SuggestSheet({ visible, onClose, draft, setDraft }: { visible: b
       ) : step === 'rank' ? (
         <>
           <VText style={[styles.title, { color: colors.white }]}>{gateDone ? 'Done. Yours is ready.' : `Vote on ${gate.length} before yours goes up.`}</VText>
-          <VText style={[styles.note, { color: '#8d7cc0' }]}>
+          <VText style={[styles.note, { color: ink.muted }]}>
             {gateDone ? 'Publish it and it joins the floor.' : gate.length < GATE_SIZE ? `Only ${gate.length} on the floor so far, so ${gate.length} it is.` : 'These have the fewest votes, so they need eyes most. Up or down, both count.'}
           </VText>
           <View style={styles.gatePips}>
             {gate.map((g, i) => (
-              <View key={g.id} style={[styles.gatePip, i < done ? styles.gatePipOn : { backgroundColor: '#0b0620', boxShadow: 'inset 0px 1px 2px rgba(0,0,0,0.8), inset 0px 0px 0px 1px rgba(201,168,76,0.15)' }]} />
+              <View key={g.id} style={[styles.gatePip, i < done ? styles.gatePipOn : { backgroundColor: ink.card, boxShadow: 'inset 0px 1px 2px rgba(0,0,0,0.8), inset 0px 0px 0px 1px rgba(201,168,76,0.15)' }]} />
             ))}
           </View>
           {cur ? (
             <View style={[styles.cand, { backgroundColor: colors.card }]}>
               <VText style={[styles.candQ, { color: colors.white }]}>{cur.q}</VText>
-              <VText style={[styles.candBy, { color: '#8d7cc0' }]}>{'@' + cur.by + ' · ' + ago(cur.t) + ' · ' + cur.up + ' up · ' + cur.down + ' down'}</VText>
+              <VText style={[styles.candBy, { color: ink.muted }]}>{'@' + cur.by + ' · ' + ago(cur.t) + ' · ' + cur.up + ' up · ' + cur.down + ' down'}</VText>
               <View style={styles.candVotes}>
                 <Pressable onPress={() => gv(1)} style={[styles.voteBtn, styles.btnGold]} accessibilityLabel="Up">
                   <Icon name="arrowUp" size={16} color="#1a1030" />
@@ -110,7 +112,7 @@ export function SuggestSheet({ visible, onClose, draft, setDraft }: { visible: b
                 </Pressable>
                 <Pressable onPress={() => gv(-1)} style={[styles.voteBtn, styles.btnOff]} accessibilityLabel="Down">
                   <Icon name="arrowDown" size={16} color="#8d7cc0" />
-                  <VText style={[styles.btnT, { color: '#8d7cc0' }]}>Down</VText>
+                  <VText style={[styles.btnT, { color: ink.muted }]}>Down</VText>
                 </Pressable>
               </View>
             </View>
@@ -124,7 +126,7 @@ export function SuggestSheet({ visible, onClose, draft, setDraft }: { visible: b
           <VText style={[styles.kicker, { color: GOLD }]}>SENT</VText>
           <VText style={[styles.title, { color: colors.white }]}>It is on the floor.</VText>
           <VText style={[styles.sentQ, { color: colors.white }]}>{sentQ}</VText>
-          <VText style={[styles.note, { color: '#8d7cc0' }]}>Yours sits under Mine with 0 / 0 until the floor votes on it.</VText>
+          <VText style={[styles.note, { color: ink.muted }]}>Yours sits under Mine with 0 / 0 until the floor votes on it.</VText>
           <Pressable onPress={onClose} style={[styles.btn, styles.btnGold]}>
             <VText style={[styles.btnT, { color: '#1a1030' }]}>Done</VText>
           </Pressable>

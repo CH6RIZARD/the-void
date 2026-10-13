@@ -10,6 +10,7 @@ import { Pressable, StyleSheet, View, type PressableProps, type StyleProp, type 
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../theme/ThemeProvider';
+import { useInk } from '../theme/ink';
 import type { RadialSpec } from '../theme/palettes';
 
 export type CardVariant = 'post' | 'tile' | 'highlight';
@@ -25,6 +26,7 @@ export interface CardProps extends ViewProps {
 
 export function Card({ variant = 'post', flush, onPress, onLongPress, style, children, ...rest }: CardProps) {
   const { colors, isLight } = useTheme();
+  const ink = useInk();
   let base: ViewStyle;
   if (variant === 'tile') {
     base = {
@@ -45,7 +47,7 @@ export function Card({ variant = 'post', flush, onPress, onLongPress, style, chi
     variant === 'highlight' ? (
       <LinearGradient
         // linear-gradient(160deg, rgba(124,58,237,.14), rgba(13,8,32,.9) 60%)
-        colors={['rgba(124,58,237,0.14)', 'rgba(13,8,32,0.9)']}
+        colors={[`rgba(${ink.vrgb},0.14)`, ink.glass]}
         locations={[0, 0.6]}
         start={{ x: 0.33, y: 0 }}
         end={{ x: 0.67, y: 1 }}
