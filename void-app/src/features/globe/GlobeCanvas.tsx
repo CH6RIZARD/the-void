@@ -1,7 +1,7 @@
 // #globe-canvas-wrap: the three.js globe on expo-gl + its overlays
 // (#gtip tap label, #globe-search-icon, .globe-hint-line, #globe-search-modal).
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, AppState, Easing, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, AppState, Easing, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { GLView, type ExpoWebGLRenderingContext } from 'expo-gl';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS, useReducedMotion, useSharedValue } from 'react-native-reanimated';
@@ -356,9 +356,25 @@ export const GlobeCanvas = memo(function GlobeCanvas({ running, onOpenCountry, r
       openRef.current(c);
     }
   }, []);
-  // Built once: the handlers are worklets over shared values, and rebuilding
-  // the gesture object on every render made each parent re-render re-register
-  // it with the gesture handler for nothing.
+  // THE GLOBE WENT DEAD ON iOS AFTER A TAB SWITCH. Leaving the tab sets
+  // display:none on the screen (GlobeScreen), and on Fabric iOS that can recycle
+  // the UIView under this GestureDetector. iOS recognizers live on the UIView
+  // instance, so the handler stayed on the old one and drags hit nothing.
+  // gesture-handler only re-binds handlers to their current views when it
+  // flushes an update, and this gesture is memoised, so it never sent one. (The
+  // REELS/GLOBE swipe is rebuilt every render, which is why it kept working.)
+  // Android dispatches by view tag, so it never broke there. Once the globe is
+  // showing again and the mount has settled, hand gesture-handler a fresh
+  // gesture object: the update re-binds every handler to its live view.
+  const [rebind, setRebind] = useState(0);
+  useEffect(() => {
+    if (Platform.OS !== 'ios' || !running) return;
+    const id = setTimeout(() => setRebind((n) => n + 1), 120);
+    return () => clearTimeout(id);
+  }, [running]);
+  // Otherwise built once: the handlers are worklets over shared values, and
+  // rebuilding the gesture object on every render made each parent re-render
+  // re-register it with the gesture handler for nothing.
   const gesture = useMemo(() => Gesture.Manual()
     .withRef(gestureRef as any)
     .onTouchesDown((e, mgr) => {
@@ -413,8 +429,9 @@ export const GlobeCanvas = memo(function GlobeCanvas({ running, onOpenCountry, r
       dragSV.value = 0;
       mgr.end();
     }),
-    // every dep is referentially stable, so this computes exactly once
-    [accX, accY, accZoom, velX, velY, dragSV, tg, rotXSV, rotYSV, zoomSV, gestureRef, onTouchStartJS, onTapJS],
+    // every other dep is referentially stable; rebind changes only on iOS, when the globe comes back
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [accX, accY, accZoom, velX, velY, dragSV, tg, rotXSV, rotYSV, zoomSV, gestureRef, onTouchStartJS, onTapJS, rebind],
   );
 
   // .globe-hint-line{animation:fout 5s ease forwards 3s}
