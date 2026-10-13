@@ -30,6 +30,8 @@ export interface GlobeCanvasProps {
   /** Render loop runs only while true (tab focused, GLOBE mode, app foregrounded). */
   running: boolean;
   onOpenCountry(c: Country): void;
+  /** Search modal open/closed, so the screen can hide what floats over the globe (mode toggle, refresh). */
+  onSearch?: (open: boolean) => void;
 }
 
 /** #globe-canvas-wrap{height:clamp(240px,42vh,320px)} */
@@ -41,7 +43,7 @@ export function useGlobeHeight() {
 // memo: GlobeScreen's own state flips (refreshing, sliding, globeTouching) must
 // not re-run this body - every prop it receives is primitive or referentially
 // stable, so shallow equality is the whole job.
-export const GlobeCanvas = memo(function GlobeCanvas({ running, onOpenCountry, refreshNonce = 0, gestureRef, onTouching }: GlobeCanvasProps) {
+export const GlobeCanvas = memo(function GlobeCanvas({ running, onOpenCountry, refreshNonce = 0, gestureRef, onTouching, onSearch }: GlobeCanvasProps) {
   const t = useLiveTheme();
   const { width } = useWindowDimensions();
   const height = useGlobeHeight();
@@ -51,6 +53,11 @@ export const GlobeCanvas = memo(function GlobeCanvas({ running, onOpenCountry, r
   size.current = { w: width, h: height };
   const [tip, setTip] = useState<{ x: number; y: number; name: string } | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  useEffect(() => {
+    if (!searchOpen) return;
+    onSearch?.(true);
+    return () => onSearch?.(false);
+  }, [searchOpen, onSearch]);
   const openRef = useRef(onOpenCountry);
   openRef.current = onOpenCountry;
   // EAS Observe TTI for the globe tab: the first frame the globe actually draws.

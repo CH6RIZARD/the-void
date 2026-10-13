@@ -10107,5 +10107,90 @@
   },
   "since": 1791841452120,
   "why": "status 502"
+ },
+ "https://tv.ensonhaber.com/haberturk/haberturk.m3u8": {
+  "country": "Turkey",
+  "src": {
+   "type": "hls",
+   "url": "https://tv.ensonhaber.com/haberturk/haberturk.m3u8",
+   "label": "Haberturk TV",
+   "w": 640
+  },
+  "since": 1791842892338,
+  "why": "status 403"
+ },
+ "https://tv.ensonhaber.com/haberglobal/haberglobal.m3u8": {
+  "country": "Turkey",
+  "src": {
+   "type": "hls",
+   "url": "https://tv.ensonhaber.com/haberglobal/haberglobal.m3u8",
+   "label": "Haber Global"
+  },
+  "since": 1791842892338,
+  "why": "status 403"
+ },
+ "https://tv.ensonhaber.com/tv24/tv24.m3u8": {
+  "country": "Turkey",
+  "src": {
+   "type": "hls",
+   "url": "https://tv.ensonhaber.com/tv24/tv24.m3u8",
+   "label": "24 TV"
+  },
+  "since": 1791842892338,
+  "why": "status 403"
+ },
+ "https://tv.ensonhaber.com/benguturk/benguturk.m3u8": {
+  "country": "Turkey",
+  "src": {
+   "type": "hls",
+   "url": "https://tv.ensonhaber.com/benguturk/benguturk.m3u8",
+   "label": "Benguturk TV"
+  },
+  "since": 1791842892338,
+  "why": "status 403"
+ },
+ "https://hgmtv.com:19360/garudatvlivestreaming/garudatvlivestreaming.m3u8": {
+  "country": "Indonesia",
+  "src": {
+   "type": "hls",
+   "url": "https://hgmtv.com:19360/garudatvlivestreaming/garudatvlivestreaming.m3u8",
+   "label": "Garuda TV",
+   "w": 854
+  },
+  "since": 1791842892344,
+  "why": "segment 404"
+ },
+ "https://cdn.pishow.tv/ott/live/1279/master.m3u8": {
+  "country": "India",
+  "src": {
+   "type": "hls",
+   "url": "https://cdn.pishow.tv/ott/live/1279/master.m3u8",
+   "label": "News J",
+   "w": 424
+  },
+  "since": 1791845172104,
+  "why": "segment 404"
+ },
+ "https://app.ncare.live/c3VydmVyX8RpbEU9Mi8xNy8yMDE0GIDU6RgzQ6NTAgdEoaeFzbF92YWxIZTO0U0ezN1IzMyfvcGVMZEJCTEFWeVN3PTOmdFsaWRtaW51aiPhnPTI2/atnbanglauk-off.stream/playlist.m3u8": {
+  "country": "United Kingdom",
+  "src": {
+   "type": "hls",
+   "url": "https://app.ncare.live/c3VydmVyX8RpbEU9Mi8xNy8yMDE0GIDU6RgzQ6NTAgdEoaeFzbF92YWxIZTO0U0ezN1IzMyfvcGVMZEJCTEFWeVN3PTOmdFsaWRtaW51aiPhnPTI2/atnbanglauk-off.stream/playlist.m3u8",
+   "label": "ATN Bangla UK",
+   "w": 1024
+  },
+  "since": 1791845172108,
+  "why": "segment 500"
+ },
+ "https://183.bozztv.com/giatv/giatv-cnal70tv/cnal70tv/playlist.m3u8": {
+  "country": "Dominican Republic",
+  "src": {
+   "type": "hls",
+   "url": "https://183.bozztv.com/giatv/giatv-cnal70tv/cnal70tv/playlist.m3u8",
+   "label": "Canal 70",
+   "w": 1280
+  },
+  "since": 1791846726947,
+  "why": "status 404"
  }
 }

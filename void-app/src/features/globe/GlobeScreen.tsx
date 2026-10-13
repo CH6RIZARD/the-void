@@ -284,6 +284,8 @@ function GlobeSurfaces({
   // the same size holds the layout.
   const globeH = useGlobeHeight();
   const [globeSeen, setGlobeSeen] = useState(initialMode === 'globe');
+  // The search modal fills the globe box; the toggle and refresh float over it and hid its input.
+  const [searching, setSearching] = useState(false);
   useEffect(() => {
     if (mode === 'globe') setGlobeSeen(true);
   }, [mode]);
@@ -301,7 +303,7 @@ function GlobeSurfaces({
             <Animated.View style={[styles.view, { top: insets.top }, mapStyle]} pointerEvents={mode === 'globe' ? 'auto' : 'none'}>
               <LoaderActiveContext.Provider value={globeVisible}>
                 {globeSeen ? (
-                  <GlobeCanvas running={globeVisible} onOpenCountry={openCountry} refreshNonce={globeNonce} gestureRef={globeGesture} onTouching={markGlobeTouching} />
+                  <GlobeCanvas running={globeVisible} onOpenCountry={openCountry} refreshNonce={globeNonce} gestureRef={globeGesture} onTouching={markGlobeTouching} onSearch={setSearching} />
                 ) : (
                   <View style={{ height: globeH, backgroundColor: '#04020c' }} />
                 )}
@@ -313,6 +315,7 @@ function GlobeSurfaces({
         </GestureDetector>
       {/* Tapping the mode you are already in re-snaps the slide instead of doing
           nothing, so a surface that ever drifts out of sync is one tap from fixed. */}
+      {searching && mode === 'globe' ? null : (<>
       <GlobeModeToggle mode={mode} topInset={insets.top} onChange={(m) => setMode(m, m !== mode)} />
       {/* Top right, opposite the search button. A deliberate tap, which is the
           whole point - the pull gesture it replaces could not be told apart
@@ -326,6 +329,7 @@ function GlobeSurfaces({
       >
         <Icon name="repost" size={16} color="#c9a84c" />
       </Pressable>
+      </>)}
     </>
   );
 }
