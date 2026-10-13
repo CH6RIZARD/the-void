@@ -140,12 +140,16 @@ export function Masthead({ section, onSwitch, hidden, reveal, right }: MastheadP
       {open ? <Pressable style={[StyleSheet.absoluteFill, { zIndex: 61 }]} onPress={fold} accessibilityLabel="Close" /> : null}
       <Animated.View pointerEvents={hidden ? 'none' : 'box-none'} style={[styles.hud, { paddingTop: insets.top }, hudStyle]}>
         <View style={styles.row} pointerEvents="box-none">
-          <Pressable onPress={open ? fold : unfold} accessibilityLabel={open ? 'Close' : 'Sections'} hitSlop={8} style={styles.mark}>
-            <VText style={[styles.logo, { color: colors.white }]}>
-              THE<VText style={[styles.logo, { color: colors.gold }]}>⬡</VText>
-            </VText>
-          </Pressable>
-          <View style={styles.slot}>
+          {/* the icon, centred in the header */}
+          <View style={styles.center} pointerEvents="box-none">
+            <Pressable onPress={open ? fold : unfold} accessibilityLabel={open ? 'Close' : 'Sections'} hitSlop={8} style={styles.mark}>
+              <VText style={[styles.logo, { color: colors.white }]}>
+                THE<VText style={[styles.logo, { color: colors.gold }]}>⬡</VText>
+              </VText>
+            </Pressable>
+          </View>
+          {/* the menu (stagger icon) and the Polls / Feed word it unfolds into, on the left */}
+          <Pressable onPress={open ? undefined : unfold} disabled={open} accessibilityLabel="Sections" style={styles.slot}>
             {/* the icon, in the word's place */}
             <Animated.View pointerEvents="none" style={[styles.icon, iconStyle]}>
               {LINE_W.map((w, i) => (
@@ -167,7 +171,7 @@ export function Masthead({ section, onSwitch, hidden, reveal, right }: MastheadP
                 </View>
               </Animated.View>
             </Pressable>
-          </View>
+          </Pressable>
           <View style={styles.right} pointerEvents="box-none">
             {right}
           </View>
@@ -182,9 +186,10 @@ export function Masthead({ section, onSwitch, hidden, reveal, right }: MastheadP
 const styles = StyleSheet.create({
   hud: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 62 },
   row: { height: 44, flexDirection: 'row', alignItems: 'center', paddingLeft: 18, paddingRight: 10 },
-  mark: { paddingVertical: 8, paddingRight: 8 },
+  center: { position: 'absolute', left: 0, right: 0, top: 0, height: 44, alignItems: 'center', justifyContent: 'center' },
+  mark: { paddingVertical: 8, paddingHorizontal: 8 },
   logo: { fontFamily: FONTS.sansExtraBold, fontSize: 15, letterSpacing: em(15, 0.14) },
-  slot: { height: 44, justifyContent: 'center' },
+  slot: { height: 44, minWidth: 44, justifyContent: 'center' },
   icon: { position: 'absolute', left: 0, top: 14, height: 16, justifyContent: 'space-between', alignItems: 'flex-start' },
   wordRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
   rule: { width: 22, height: 1, marginRight: 8, overflow: 'hidden', transformOrigin: 'left' },
