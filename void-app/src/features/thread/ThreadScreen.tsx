@@ -14,8 +14,10 @@
 // into the OP slot (measured rects, Reanimated), gold ring fading in; the deck deals up
 // with a 60ms stagger from T+120. Closing reverses it and hands the card back.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BackHandler, Dimensions, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { BackHandler, Dimensions, KeyboardAvoidingView, Linking, Platform, Pressable, Share, StyleSheet, TextInput, View } from 'react-native';
+// RNGH's ScrollView, not RN's: on iOS a native UIScrollView claims every pan, so the
+// swipe-right-to-leave gesture below never fired. This one negotiates with it.
+import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
 import Animated, { runOnJS, ReduceMotion, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
 import { EASE_OUT as UI_EASE_OUT, FLICK_VELOCITY, WEB } from '../../theme/motion';
 import { LinearGradient } from 'expo-linear-gradient';

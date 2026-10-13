@@ -9,20 +9,22 @@
 //           toggles, reply pre-fills @handle, Enter or send posts as you.
 // Votes are {+1, 0, −1}; the same side again clears it.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
+import { KeyboardAvoidingView, Platform, Pressable, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
+import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
+import Animated, { ReduceMotion, runOnJS, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NAV_PILL_HEIGHT, useBottomNavOffset } from '../../nav/layout';
 import { useAuth } from '../../lib/auth';
 import { useTheme } from '../../theme/ThemeProvider';
 import { FONTS, em } from '../../theme/palettes';
-import { WEB } from '../../theme/motion';
+import { FLICK_VELOCITY, WEB } from '../../theme/motion';
 import { DealIn } from '../../ui/DealIn';
 import { Icon } from '../../ui/icons';
 import { PersonPfp } from '../../ui/Pfp';
 import { GoldText } from '../../ui/GoldText';
 import { VText } from '../../ui/Text';
+import { CommentCard } from '../thread/CommentCard';
 import { ComposePill } from '../thread/ComposePill';
 import { viewerName } from '../thread/threadModel';
 import { ago, fmt } from '../feed/format';
@@ -57,6 +59,13 @@ export function PollsLayer({ open, width, onCover, backRef }: PollsLayerProps) {
   const [topicOpen, setTopicOpen] = useState(false);
   const [sheet, setSheet] = useState(false);
   const [draft, setDraft] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
+    await pullPolls();
+    setRefreshing(false);
+    setSeq((n) => n + 1);
+  }, []);
 
   const x = useSharedValue(open ? 0 : 1);
   const back = useSharedValue(0); // topic open -> board recedes
@@ -65,6 +74,10 @@ export function PollsLayer({ open, width, onCover, backRef }: PollsLayerProps) {
     if (open) {
       setSeq((n) => n + 1);
       pullPolls();
+    } else {
+      // closed from outside (Home tab): the next open starts on the board
+      setTopicOpen(false);
+      setSheet(false);
     }
   }, [open, x]);
   useEffect(() => {
@@ -111,7 +124,11 @@ export function PollsLayer({ open, width, onCover, backRef }: PollsLayerProps) {
 
   return (
     <Animated.View style={[StyleSheet.absoluteFill, styles.layer, { backgroundColor: colors.bg }, slide]} pointerEvents={open ? 'auto' : 'none'}>
-      <ScrollView contentContainerStyle={{ paddingTop: 44 + insets.top + 10, paddingBottom: navTop + 90, paddingHorizontal: 16 }} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={{ paddingTop: 44 + insets.top + 10, paddingBottom: navTop + 90, paddingHorizontal: 16 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={GOLD} colors={[GOLD]} progressBackgroundColor="#1b1336" progressViewOffset={44 + insets.top} />}
+      >
         {/* live: big number, LET'S TALK, the question */}
         <Pressable onPress={() => openTopic(LIVE)} style={styles.live}>
           <GoldText text={String(LIVE.no)} size={64} family={FONTS.serif} letterSpacing={-2.5} height={58} />
@@ -260,6 +277,14 @@ function TopicPage({ topic, open, width, recede, onClose }: { topic: Topic | nul
     }
   }, [open, x, topic]);
   const slide = useAnimatedStyle(() => ({ transform: [{ translateX: (width + 90) * x.value + width * 0.28 * recede.value }] }));
+  // swipe right to leave, as the thread: a deliberate push right, never a drift while scrolling
+  const swipeOut = Gesture.Pan()
+    .activeOffsetX([-9999, 24])
+    .failOffsetY([-14, 14])
+    .onEnd((e) => {
+      'worklet';
+      if ((e.translationX > 80 && e.velocityX > 0) || e.velocityX > FLICK_VELOCITY) runOnJS(onClose)();
+    });
   const send = useCallback(() => {
     if (!topic) return;
     const c = chime(topic.id, text, auth.session?.user?.id || null);
@@ -271,6 +296,7 @@ function TopicPage({ topic, open, width, recede, onClose }: { topic: Topic | nul
   const reps = chimesOf(topic.id, csort);
   return (
     <Animated.View style={[StyleSheet.absoluteFill, styles.topic, { backgroundColor: colors.bg }, slide]} pointerEvents={open ? 'auto' : 'none'}>
+      <GestureDetector gesture={swipeOut}>
       <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={[styles.topicHead, { paddingTop: insets.top + 14 }]}>
           <Pressable onPress={onClose} hitSlop={10} style={styles.backBtn} accessibilityLabel="Back">
@@ -306,41 +332,22 @@ function TopicPage({ topic, open, width, recede, onClose }: { topic: Topic | nul
           </View>
           <View key={seq}>
             {reps.length ? (
-              reps.map((c, i) => {
-                const on = liked(c.id);
-                return (
-                  <DealIn key={c.id} delay={c.id === fresh ? 0 : 120 + Math.min(i, 8) * 60}>
-                    <View style={styles.rep}>
-                      <View style={styles.repHead}>
-                        <View style={styles.av22}>
-                          <PersonPfp uid={c.authorId} handle={c.handle} label={c.author} size={22} />
-                        </View>
-                        <VText numberOfLines={1} style={[styles.repName, { color: colors.white }]}>
-                          {c.author}
-                          <VText style={[styles.meta11, { color: DIM }]}>{' · ' + ago(c.t)}</VText>
-                        </VText>
-                      </View>
-                      <VText style={[styles.repText, { color: '#c9bfe8' }]}>{c.text}</VText>
-                      <View style={styles.repActs}>
-                        <Pressable onPress={() => toggleLike(c.id)} hitSlop={8} style={styles.act}>
-                          <Icon name={on ? 'boltFill' : 'bolt'} size={11} color={on ? GOLD : '#5c4d8a'} />
-                          <VText style={[styles.actT, { color: on ? GOLD : '#5c4d8a' }]}>{fmt(likesOf(c))}</VText>
-                        </Pressable>
-                        <Pressable
-                          onPress={() => {
-                            setText('@' + c.handle + ' ');
-                            input.current?.focus();
-                          }}
-                          hitSlop={8}
-                          style={styles.act}
-                        >
-                          <VText style={[styles.actT, { color: '#5c4d8a' }]}>REPLY</VText>
-                        </Pressable>
-                      </View>
-                    </View>
-                  </DealIn>
-                );
-              })
+              // the thread's own reply card (CommentCard), so poll replies read exactly like thread replies
+              reps.map((c, i) => (
+                <CommentCard
+                  key={c.id}
+                  c={{ id: c.id, author: c.author, handle: c.handle, authorId: c.authorId, text: c.text, time: c.t, bolts: likesOf(c), mine: liked(c.id), parentId: null }}
+                  opAuthor=""
+                  kidsN={0}
+                  deal
+                  delay={c.id === fresh ? 0 : 120 + Math.min(i, 8) * 60}
+                  onBolt={() => toggleLike(c.id)}
+                  onReply={() => {
+                    setText('@' + c.handle + ' ');
+                    input.current?.focus();
+                  }}
+                />
+              ))
             ) : (
               <VText style={[styles.empty, { color: colors.navDim }]}>NO ONE HAS CHIMED IN YET · GO FIRST</VText>
             )}
@@ -348,6 +355,7 @@ function TopicPage({ topic, open, width, recede, onClose }: { topic: Topic | nul
         </ScrollView>
         <ComposePill ref={input} value={text} onChangeText={setText} onSubmit={send} placeholder="Add your reply…" avatar={viewerName(auth.user?.name)[0]?.toUpperCase() || '◎'} style={{ marginHorizontal: 16, marginBottom: 14 + insets.bottom }} />
       </KeyboardAvoidingView>
+      </GestureDetector>
     </Animated.View>
   );
 }
@@ -413,13 +421,5 @@ const styles = StyleSheet.create({
   segBtn: { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 9 },
   segOn: { backgroundColor: '#1b1336', boxShadow: 'inset 0px 0px 0px 1px rgba(201,168,76,0.28)' },
   segT: { fontFamily: FONTS.sansBold, fontSize: 11.5 },
-  rep: { marginBottom: 10, borderRadius: 16, backgroundColor: '#0b0620', paddingTop: 13, paddingHorizontal: 14, paddingBottom: 11, boxShadow: 'inset 0px 0px 0px 1px rgba(201,168,76,0.14), 0px 8px 18px rgba(0,0,0,0.45)' },
-  repHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  av22: { width: 22, height: 22, borderRadius: 11, overflow: 'hidden' },
-  repName: { flex: 1, fontFamily: FONTS.sansBold, fontSize: 12 },
-  repText: { fontFamily: FONTS.sans, fontSize: 13, lineHeight: 19.5, marginTop: 7 },
-  repActs: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 10 },
-  act: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  actT: { fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.08) },
 });
 export default PollsLayer;

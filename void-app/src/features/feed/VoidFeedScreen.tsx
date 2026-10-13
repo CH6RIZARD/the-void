@@ -195,6 +195,17 @@ export default function VoidFeedScreen() {
     nav.setOptions({ tabBarStyle: pollsCovered ? { display: 'none' } : undefined });
   }, [nav, pollsCovered]);
   const pollsBack = useRef<() => boolean>(() => false);
+  // Home tab while Polls or Mail is open: back to the feed (instead of the reselect refresh).
+  useEffect(
+    () =>
+      (nav as any).addListener('tabPress', (e: { preventDefault(): void }) => {
+        if (section !== 'polls' && !mailOpen) return;
+        if (focused) e.preventDefault();
+        setSection('feed');
+        setMailOpen(false);
+      }),
+    [nav, section, mailOpen, focused],
+  );
   const { unread } = useNotifs();
   useEffect(() => {
     pullNotifs();
