@@ -5,7 +5,7 @@ import { Alert, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, Scrol
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { moderation, wipeLocalAccountData } from '../../core';
+import { hideSlop, moderation, setHideSlop, wipeLocalAccountData } from '../../core';
 import { useTheme } from '../../theme';
 import { FONTS, em, type RadialSpec, type ThemeName } from '../../theme/palettes';
 import { RadialFill } from '../../ui/Surface';
@@ -166,6 +166,7 @@ export default function SettingsScreen({ onClose }: { onClose?: () => void }) {
   const [notify, setNotify] = useState(prefs.notify);
   const [grid3, setGrid3] = useState(prefs.grid3);
   const [gfx, setGfx] = useState(true);
+  const [slopOn, setSlopOn] = useState(hideSlop);
   const [blockCount, setBlockCount] = useState(0);
   const [sheet, setSheet] = useState<null | 'delete' | 'contact' | 'lang' | 'blocked'>(null);
   const [saving, setSaving] = useState(false);
@@ -293,6 +294,9 @@ export default function SettingsScreen({ onClose }: { onClose?: () => void }) {
               </Row>
               <Row label="Notifications" sub="Thread activity alerts">
                 <Toggle on={notify} onPress={() => setNotify((v) => !v)} />
+              </Row>
+              <Row label="Hide slop" sub="AI filler, engagement bait and spam, checked by a local model">
+                <Toggle on={slopOn} onPress={() => { setHideSlop(!slopOn); setSlopOn(!slopOn); }} />
               </Row>
               <Row label="Hide graphic content" sub="Blur graphic media until you tap it">
                 <Toggle

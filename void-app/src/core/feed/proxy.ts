@@ -5,6 +5,22 @@ import { env } from '../env.ts';
 import type { Post } from '../types.ts';
 import { stampRegion } from '../data/regions.ts';
 import { inferTags } from '../rank/tags.ts';
+import { setSlopVerdicts } from '../rank/filters.ts';
+
+// The local LLM's slop verdicts (curator -> proxy /slop), refreshed at most every
+// 10 min. Resolves how many verdicts are held, 0 when nothing changed.
+let slopAt = 0;
+export async function pullSlopVerdicts(): Promise<number> {
+  if (!env.proxyBase || env.now() - slopAt < 10 * 60e3) return 0;
+  slopAt = env.now();
+  try {
+    const r = await env.fetch(`${env.proxyBase}/slop`);
+    if (!r.ok) return 0;
+    const d = await r.json();
+    setSlopVerdicts(d.items);
+    return (d.items || []).length;
+  } catch { return 0; }
+}
 
 export function proxyPostToApp(p: any): Post | null {
   if (!p?.provenance?.sourceHost || !p?.provenance?.responseHash) return null;

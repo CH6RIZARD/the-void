@@ -3,7 +3,7 @@
 import { env, onConfigure } from '../env.ts';
 import type { Post } from '../types.ts';
 import { BIO } from './bio.ts';
-import { admitPost } from './seen.ts';
+import { _h, _normText, admitPost } from './seen.ts';
 import { STORY_EXEMPT_CAP, isBreaking, noteStory, storyOf } from './story.ts';
 
 // ─── ANIMAL / FLUFF SUPPRESSION (adaptive) ──────────────────────────────
@@ -109,6 +109,54 @@ export function isNoVoice(p: Partial<Post>): boolean {
   return tags.length >= 3 && t.replace(/#[\p{L}\p{N}_]+/gu, '').replace(/https?:\/\/\S+/g, '').replace(/\s+/g, ' ').trim().length < 140;
 }
 
+// ─── SLOP ───────────────────────────────────────────────────────────────
+// No-voice catches bots and farms by shape; this catches the rest of the soulless
+// stuff by what it says: AI filler ("in today's fast-paced world", "let's dive in"),
+// engagement bait ("drop a 🔥 if", "follow for more"), sales spam and hustle/rage
+// hooks. Two layers:
+//  1. slopScore(): a fast phrase/shape score, 0..1. >= SLOP_HARD is refused outright.
+//  2. SLOP_VERDICTS: what the local LLM said about the borderline ones. The curator
+//     (scripts/curator.mjs, Ollama on the user's PC) scores them and pushes
+//     {k: slopKey, s: 0..1} to the proxy's /slop; the app pulls that and refuses
+//     s >= SLOP_LLM. Keyed by normalised text, so the same words posted anywhere
+//     share one verdict.
+export const SLOP_FILLER = /\bin today'?s (?:fast[- ]paced|digital|ever[- ]changing|modern) world\b|\blet'?s dive in\b|\bdelve\b|\btapestry\b|\bgame[- ]?changer\b|\bunlock (?:your|the) (?:full |true )?potential\b|\bembrace the (?:journey|process)\b|\ba testament to\b|\bnavigat\w* the (?:complexit|landscape)\w*|\bit'?s not just (?:a|an|about) [^,.]{1,40}, it'?s\b|\belevate your\b|\bin conclusion\b|\bkey takeaways?\b|\bstay tuned\b|\blevel up your\b/i;
+export const SLOP_BAIT = /\bfollow (?:me )?for more\b|\blike (?:and|&) (?:share|retweet|repost|follow)\b|\b(?:repost|retweet|rt|share|like) (?:this )?if (?:you|u)\b|\bdrop an? \S+ (?:if|below|in the)\b|\bcomment below\b|\btag (?:someone|a friend)\b|\bwho else\b[^?\n]*\?|^(?:agree|thoughts|am i wrong|right)\s*\?\s*$|\blink in (?:my )?bio\b|\bgiveaway\b|👇/imu;
+export const SLOP_SPAM = /\b(?:promo|discount|coupon) code\b|\buse (?:my )?code\b|\b\d{2}% off\b|\bbuy now\b|\blimited time offer\b|\bairdrop\b|\bonlyfans\b|\bcheck out my (?:shop|store|page|channel|link)\b|\bpassive income\b|\bdm (?:me )?(?:for|to) (?:collab|promo|price)/i;
+export const SLOP_HYPE = /#(?:motivation\w*|mindset|hustle\w*|grindset|entrepreneur\w*|quoteoftheday|successmindset)\b|\brise and grind\b|\bnever give up\b|\byou won'?t believe\b|\bnobody is talking about\b|\bthey don'?t want you to know\b|\bwake up,? (?:people|sheeple)\b/i;
+export const SLOP_HARD = 0.7, SLOP_LLM = 0.6;
+export function slopScore(p: Partial<Post>): number {
+  const t = String(p.body || '');
+  if (!t) return 0;
+  let s = 0;
+  if (SLOP_FILLER.test(t)) s += 0.45;
+  const bait = (t.match(new RegExp(SLOP_BAIT.source, 'gimu')) || []).length;   // each extra bait line adds up
+  if (bait) s += 0.25 + 0.25 * bait;
+  if (SLOP_SPAM.test(t)) s += 0.7;
+  if (SLOP_HYPE.test(t)) s += 0.45;
+  const letters = t.replace(/[^\p{L}]/gu, ''), caps = letters.replace(/[^\p{Lu}]/gu, '').length;
+  if (letters.length >= 24 && caps / letters.length > 0.6) s += 0.3;   // shouting hook
+  const emoji = (t.match(/\p{Extended_Pictographic}/gu) || []).length;
+  if (emoji >= 5 && emoji / t.length > 0.04) s += 0.3;                // emoji wall
+  if ((t.match(/!/g) || []).length >= 4) s += 0.2;
+  return Math.min(1, s);
+}
+export const SLOP_VERDICTS = new Map<string, number>();
+export function slopKey(p: Partial<Post>): string { return _h(_normText(p.body).slice(0, 280)); }
+export function setSlopVerdicts(items: unknown): void {
+  SLOP_VERDICTS.clear();
+  for (const it of Array.isArray(items) ? items : []) if (it && it.k) SLOP_VERDICTS.set(String(it.k), Math.max(0, Math.min(1, +it.s || 0)));
+}
+/** Settings → Hide slop. On unless turned off. */
+export function hideSlop(): boolean { try { return env.storage.getItem('void_hide_slop') !== '0'; } catch { return true; } }
+export function setHideSlop(on: boolean): void { try { env.storage.setItem('void_hide_slop', on ? '1' : '0'); } catch { /* */ } }
+export function isSlop(p: Partial<Post>): boolean {
+  if (!hideSlop() || !p.body) return false;
+  if (slopScore(p) >= SLOP_HARD) return true;
+  const v = SLOP_VERDICTS.get(slopKey(p));
+  return v !== undefined && v >= SLOP_LLM;
+}
+
 /**
  * The feed's intent gate. Returns '' to admit, otherwise the refusal reason.
  * BREAKING EXEMPTION: the first, most-shared reports of a tragedy ARE outlet posts
@@ -116,7 +164,7 @@ export function isNoVoice(p: Partial<Post>): boolean {
  * crisis/graphic post at >= BREAKING_MIN_V passes — at most STORY_EXEMPT_CAP per
  * story — and is still demoted as wire by textFit/earned once admitted.
  */
-export function feedGate(p: Post): '' | 'empty' | 'meta' | 'no-tags' | 'no-voice' | 'news-account' | 'article-drop' | 'muted' | 'animal' | 'dedupe' {
+export function feedGate(p: Post): '' | 'empty' | 'meta' | 'no-tags' | 'no-voice' | 'slop' | 'news-account' | 'article-drop' | 'muted' | 'animal' | 'dedupe' {
   if (!(p.body || p._img || p._video)) return 'empty';
   if (isFeedMeta(p.body)) return 'meta';             // feed-operator housekeeping
   if (!p.tags.length) return 'no-tags';              // no topical signal => not this app's content
@@ -124,6 +172,7 @@ export function feedGate(p: Post): '' | 'empty' | 'meta' | 'no-tags' | 'no-voice
   const st = storyOf(p);
   const exempt = isBreaking(p) && (!st || st.exempt < STORY_EXEMPT_CAP);
   if (isNoVoice(p)) return 'no-voice';               // content farm / bot, not a person talking
+  if (isSlop(p)) return 'slop';                      // AI filler, bait, spam (phrases + the local LLM's verdicts)
   if (isNewsAccount(p) && !exempt) return 'news-account';
   if (isArticleDrop(p) && !exempt) return 'article-drop';
   if (isMuted(p)) return 'muted';

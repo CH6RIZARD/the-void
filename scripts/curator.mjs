@@ -20,6 +20,9 @@
  *             and one clean caption. Measured: one warm 5-clip batch is tens
  *             of seconds on this CPU, so a pass labels at most 6 batches and
  *             the rest wait for the next pass.
+ *   5. SLOP   score the feed's borderline posts (AI filler, bait, spam vs a person's
+ *             own voice) and push the verdicts to the proxy's /slop; the app and web
+ *             hide what scores high. See slopPass() below.
  *   4. STORE  scripts/curated.json (everything labeled, 72h window) and
  *             scripts/curated.public.json (the top 60 by fit, likes and
  *             freshness) which the proxy serves. Writes are tmp+rename so a
@@ -39,6 +42,9 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import os from 'node:os';
+// The app's own slop rules and key, so the curator and the clients agree exactly.
+import { slopScore, slopKey, SLOP_HARD } from '../void-app/src/core/rank/filters.ts';
+import { BSKY_FEEDS } from '../void-app/src/core/feed/bluesky.ts';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const STORE = path.join(ROOT, 'scripts', 'curated.json');
@@ -190,6 +196,71 @@ async function pushCurated(items) {
   } catch (e) { log('push failed: ' + (e && e.message)); }
 }
 
+// ─── 5. slop ────────────────────────────────────────────────────────────────
+// The feed is pulled by each phone straight from Bluesky (and X via the proxy), so
+// the curator reads the same sources, keeps only the BORDERLINE posts (the phrase
+// score already refuses the obvious ones on the phone), asks the local model about
+// those once each, and pushes the verdicts. Keyed by slopKey (normalised text hash).
+const SLOP_STORE = path.join(ROOT, 'scripts', 'slop.json');
+const SLOP_KEEP_MS = 48 * 3600e3, SLOP_MAX = 30, SLOP_PUSH_MIN = 0.5;
+const SLOP_SYSTEM = `You screen social posts for a feed that only wants real people saying real things. Score each from 0 to 1 for slop. 1 = AI-generated filler, engagement bait, ads or spam, generic motivation or self-help, rage-bait or clickbait, content-farm or bot copy. 0 = a person's own voice: an opinion, eyewitness report, joke, question or argument, even blunt, angry or political. Reply JSON only: {"items":[{"i":<n>,"slop":<0-1>}]}. One entry per numbered line.`;
+const PERSONAL = /\b(?:i|i'm|im|my|me|we|our|us)\b/i;
+function slopCandidate(text) {
+  const sc = slopScore({ body: text });
+  if (sc >= SLOP_HARD) return false;                         // refused on the phone already
+  return sc >= 0.2 || (text.length >= 160 && !PERSONAL.test(text)); // a hint, or long and impersonal
+}
+async function slopBatch(texts) {
+  const body = { model: MODEL, stream: false, format: 'json', keep_alive: '2m', options: { temperature: 0, num_ctx: 2048 },
+    messages: [{ role: 'system', content: SLOP_SYSTEM }, { role: 'user', content: texts.map((t, i) => `${i}. ${t.replace(/\s+/g, ' ').slice(0, 280)}`).join('\n') }] };
+  let best = null;
+  for (let t = 0; t < 2; t++) {
+    let r;
+    try { r = await fetch(OLLAMA + '/api/chat', { method: 'POST', body: JSON.stringify(body) }); } catch { return 'down'; }
+    try {
+      const by = new Map((JSON.parse((await r.json()).message.content).items || []).map(x => [Number(x.i), Math.max(0, Math.min(1, Number(x.slop) || 0))]));
+      if (texts.every((_, i) => by.has(i))) return by;
+      if (!best || by.size > best.size) best = by;
+    } catch (e) { log(`  slop batch failed (${t + 1}/2): ${e.message}`); }
+  }
+  return best;
+}
+async function pushSlop(items) {
+  const key = curatorKey();
+  if (!key) { log('slop push skipped: no CURATOR_KEY'); return; }
+  try {
+    const r = await fetch(PROXY + '/slop/ingest', { method: 'POST', headers: { 'content-type': 'application/json', 'x-curator-key': key, 'user-agent': UA }, body: JSON.stringify({ generated: new Date().toISOString(), items }), signal: AbortSignal.timeout(30000) });
+    log('slop push ' + r.status + ' ' + (await r.text()).slice(0, 60));
+  } catch (e) { log('slop push failed: ' + (e && e.message)); }
+}
+async function slopPass(up) {
+  let store = { items: {} };
+  try { store = JSON.parse(readFileSync(SLOP_STORE, 'utf8')); } catch {}
+  const items = store.items || (store.items = {});
+  const texts = [];
+  for (const f of BSKY_FEEDS) {
+    const d = await getJSON(`https://public.api.bsky.app/xrpc/app.bsky.feed.getFeed?feed=${encodeURIComponent(f)}&limit=50`);
+    for (const fi of (d && d.feed) || []) texts.push(String((fi.post && fi.post.record && fi.post.record.text) || ''));
+  }
+  const px = await getJSON(`${PROXY}/feed?mode=tension&limit=50`);
+  for (const it of (px && px.items) || []) texts.push(String(it.text || ''));
+  const queue = new Map();
+  for (const t of texts) { const k = slopKey({ body: t }); if (t && !items[k] && !queue.has(k) && slopCandidate(t)) queue.set(k, t); }
+  const todo = [...queue].slice(0, SLOP_MAX);
+  let scored = 0;
+  for (let b = 0; up && b * BATCH < todo.length; b++) {
+    const batch = todo.slice(b * BATCH, (b + 1) * BATCH);
+    const by = await slopBatch(batch.map(([, t]) => t));
+    if (by === 'down') { log('  ollama went away during slop scoring'); break; }
+    batch.forEach(([k, t], i) => { if (by && by.has(i)) { items[k] = { s: by.get(i), t: Date.now() }; scored++; if (DRY) log(`  slop ${by.get(i).toFixed(2)} "${t.slice(0, 80)}"`); } });
+  }
+  const now = Date.now();
+  for (const k in items) if (now - items[k].t > SLOP_KEEP_MS) delete items[k];
+  const flagged = Object.entries(items).filter(([, v]) => v.s >= SLOP_PUSH_MIN).map(([k, v]) => ({ k, s: v.s }));
+  log(`slop: read ${texts.length}, borderline new ${queue.size}, scored ${scored}, held ${Object.keys(items).length}, flagged ${flagged.length}${DRY ? ' (dry)' : ''}`);
+  if (!DRY) { writeAtomic(SLOP_STORE, store); if (Object.keys(items).length) await pushSlop(flagged); }
+}
+
 const LOCK = path.join(ROOT, 'scripts', '.curator.lock');
 function takeLock() {
   try {
@@ -255,6 +326,8 @@ async function pass() {
   // the file is still written for a manual curl.
   if (!DRY && pub.length) await pushCurated(pub);
   if (DRY) for (const c of Object.values(items).filter(c => !c.error && c.labeledAt >= new Date(t0).toISOString()).slice(0, 3)) log(`  sample ${c.genre} fit=${c.fit} graphic=${c.graphic} "${c.caption}"`);
+  // Slop scoring shares the model; it runs after the clips and never blocks them.
+  try { await slopPass(up && (queue.length ? true : await ensureOllama())); } catch (e) { log('slop pass failed: ' + (e && e.message)); }
 }
 
 (async () => {

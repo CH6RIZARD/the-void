@@ -8,8 +8,9 @@ import { orderFeedBatch } from '../rank/order.ts';
 import { mixFeed } from './feedMixer.ts';
 import { setRefreshBoost } from '../rank/bio.ts';
 import { admitPost, wasSeen } from '../rank/seen.ts';
+import { isSlop } from '../rank/filters.ts';
 import { pullBlueskyPage } from './bluesky.ts';
-import { pullProxyPage, resetProxyOffset } from './proxy.ts';
+import { pullProxyPage, pullSlopVerdicts, resetProxyOffset } from './proxy.ts';
 import { pullRedditPage } from './reddit.ts';
 import { laneClaim, laneFree, surfaceClaim, surfaceFree } from './search.ts';
 import { allPosts, emitPostsChanged, trimStore } from './store.ts';
@@ -37,8 +38,10 @@ export async function pullVoidFeed(): Promise<FeedPullResult> {
   if (feedLoading) return 'busy'; feedLoading = true;
   try {
     let landed = 0;
+    // New slop verdicts also clear what is already held but not yet on screen.
+    pullSlopVerdicts().then(n => { if (n) pruneSlop(); }, () => {});
     const px = env.proxyBase
-      ? pullProxyPage().then(ps => { for (const p of ps) if (admitPost(p)) { allPosts.push(p); landed++; } }, () => {})
+      ? pullProxyPage().then(ps => { for (const p of ps) if (!isSlop(p) && admitPost(p)) { allPosts.push(p); landed++; } }, () => {})
       : Promise.resolve();
     const bs = pullBlueskyPage().then(ps => { landed += ps.length; }, () => {});   // gates and pushes, never emits
     const both = Promise.all([px, bs]);
@@ -117,6 +120,12 @@ export function restoreFeedCache(): number {
 // tail is ranked and appended (re-sorting everything restarted videos and jumped
 // posts under the reader's thumb).
 export const _rendered = new Set<string>();
+/** Drop held posts the slop check now refuses; rows already on screen stay put. */
+export function pruneSlop(): number {
+  let n = 0;
+  for (let i = allPosts.length - 1; i >= 0; i--) if (!_rendered.has(allPosts[i].id) && isSlop(allPosts[i])) { allPosts.splice(i, 1); n++; }
+  return n;
+}
 export const _evicted = new Set<string>();   // windowed out of the list; must not come back as fresh
 
 /**

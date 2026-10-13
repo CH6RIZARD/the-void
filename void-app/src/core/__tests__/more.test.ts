@@ -57,7 +57,7 @@ test('feedGate returns the same verdicts as the web (seeded animal trickle)', ()
   for (const n of ['C', 'REGION_ALIASES', '_regionNorm', '_REGION_ALIAS_N', '_regionByName', '_regionByCode', 'resolveRegion', 'stampRegion', 'TAG_KEYWORDS', 'TAG_RE', 'CRISIS_WEAK', 'CRISIS_INTL', 'inferTags',
     'TENSION_TAGS', 'SPIKE_HALF_LIFE_H', 'hasTension', 'postAgeH', 'velocity', 'isBreaking', 'STORY_KIND', 'STORY_PLACE_HINTS', '_placeRe', 'regionInText', 'STORY_STOP', 'storyTokens', 'storyInfo', '_stories', '_storyTokIdx', 'storyOf', 'noteStory',
     '_SEEN_CAP', '_h', '_loadSeen', '_seenIds', '_seenDirty', '_normText', '_linkKey', 'admitPost', 'BIO', 'ANIMAL_WORDS', 'ANIMAL_CJK', 'ANIMAL_EMOJI', 'isAnimalPost', 'ANIMAL_UNLOCK', 'animalSuppressed',
-    'VOID_NATIVE', 'isNewsAccount', 'isArticleDrop', 'MUTED', 'MUTE_RE', '_muteRe', 'isMuted', 'isFeedMeta', 'NV_CREDIT', 'NV_BINOMIAL', 'NV_FIELD_GUIDE', 'NV_GAME', 'NV_BOT', 'isNoVoice', 'feedGate', 'dispHandle', 'bskyToPost']) w.load(n);
+    'VOID_NATIVE', 'isNewsAccount', 'isArticleDrop', 'MUTED', 'MUTE_RE', '_muteRe', 'isMuted', 'isFeedMeta', 'NV_CREDIT', 'NV_BINOMIAL', 'NV_FIELD_GUIDE', 'NV_GAME', 'NV_BOT', 'isNoVoice', 'SLOP_FILLER', 'SLOP_BAIT', 'SLOP_SPAM', 'SLOP_HYPE', 'SLOP_HARD', 'slopScore', 'SLOP_VERDICTS', 'slopKey', 'setSlopVerdicts', 'hideSlop', 'isSlop', 'feedGate', 'dispHandle', 'bskyToPost']) w.load(n);
   const H = 3600000;
   const items = fx('bsky-feed.json').feed;
   const synth = [
@@ -77,7 +77,15 @@ test('feedGate returns the same verdicts as the web (seeded animal trickle)', ()
     { id: 'n4', body: 'Now Playing on The Source:Smooth Jazz Radio: Jack Prybylski - Ice Cream', tags: [], _handle: '@jazz.bsky.social' },
     { id: 'n5', body: 'Zionism (Jewish nationalism) is based. So is Palestinian nationalism. You can support both.', tags: [], _handle: '@fj.bsky.social' },
     { id: 'n6', body: 'Putin and Russia are laying out domestic cover propaganda for using chemical weapons - again - in Ukraine. It has been part of their playbook since at least Syria. #democracy #usa #gop #fascists #fascism', tags: [], _handle: '@cx.bsky.social' },
+    // slop: phrase/shape score, and the local LLM's verdict on a borderline one
+    { id: 's1', body: "In today's fast-paced world this election is a game-changer. Let's dive in! Follow for more 👇", tags: [], _handle: '@s1.bsky.social' },
+    { id: 's2', body: 'Use code VOID20 for 20% off protest gear, buy now', tags: [], _handle: '@s2.bsky.social' },
+    { id: 's3', body: 'The war in Ukraine shows how important it is for all of us to stay informed and engaged.', tags: [], _handle: '@s3.bsky.social' },
+    { id: 's4', body: 'My whole street voted in the election tonight and the queue went round the block', tags: [], _handle: '@s4.bsky.social' },
   ].map(p => ({ score: 0, replies: 0, time: NOW - 2 * H, source: 'bluesky', country: '', iso: '', style: 'take', ...p, tags: core.inferTags(p.body) }));
+  const verdicts = [{ k: core.slopKey({ body: 'The war in Ukraine shows how important it is for all of us to stay informed and engaged.' }), s: 0.8 }];
+  core.setSlopVerdicts(verdicts);
+  w.run(`setSlopVerdicts(${JSON.stringify(verdicts)});`);
   w.run(`var __items=${JSON.stringify(items)};var __synth=${JSON.stringify(synth)};`);
   const mine = [...items.map((it: any) => core.feedGate(core.bskyToPost(it))), ...synth.map(p => core.feedGate(JSON.parse(JSON.stringify(p))))];
   const theirs = JSON.parse(w.run('JSON.stringify([...__items.map(it=>feedGate(bskyToPost(it))),...__synth.map(p=>feedGate(p))])'));
@@ -87,6 +95,25 @@ test('feedGate returns the same verdicts as the web (seeded animal trickle)', ()
   assert.equal(byId.g6, 'article-drop'); assert.equal(byId.g7, 'meta'); assert.equal(byId.g8, 'no-tags'); assert.equal(byId.g9, 'dedupe');
   assert.equal(byId.n1, 'no-voice'); assert.equal(byId.n2, 'no-voice'); assert.equal(byId.n3, 'no-voice'); assert.equal(byId.n4, 'no-voice');
   assert.equal(byId.n5, ''); assert.equal(byId.n6, ''); // a person talking, tags or not
+  assert.equal(byId.s1, 'slop'); assert.equal(byId.s2, 'slop'); assert.equal(byId.s3, 'slop'); assert.equal(byId.s4, '');
+  core.setSlopVerdicts([]);
+});
+
+test('slop: phrase score, LLM verdicts by normalised text, and the Hide slop switch', () => {
+  fresh();
+  assert.ok(core.slopScore({ body: 'Drop a 🔥 if you agree! Like and share! Link in bio' }) >= core.SLOP_HARD);
+  assert.equal(core.slopScore({ body: 'Riot police pushed the crowd back at the bridge an hour ago' }), 0);
+  assert.ok(core.slopScore({ body: 'THIS IS THE MOST IMPORTANT THING YOU WILL READ TODAY!!!!' }) >= 0.5);
+  const b = 'Stay informed. Stay engaged. Democracy depends on it.';
+  assert.equal(core.isSlop({ body: b }), false);
+  core.setSlopVerdicts([{ k: core.slopKey({ body: b + ' https://t.co/x' }), s: 0.9 }]);   // links and punctuation do not change the key
+  assert.equal(core.isSlop({ body: 'stay informed, stay engaged: democracy depends on it!' }), true);
+  core.setHideSlop(false);
+  assert.equal(core.isSlop({ body: b }), false, 'Hide slop off shows everything');
+  core.setHideSlop(true);
+  core.setSlopVerdicts([{ k: core.slopKey({ body: b }), s: 0.4 }]);
+  assert.equal(core.isSlop({ body: b }), false, 'a low verdict is not slop');
+  core.setSlopVerdicts([]);
 });
 
 test('nation feed pool deals a format mix: <=3 in a row while others wait, audio spaced', () => {

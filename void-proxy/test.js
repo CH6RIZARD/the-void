@@ -162,6 +162,14 @@ assert.match(byId.x_106.media[0].url, /gif/);
   assert.ok(c.provenance && c.provenance.sourceHost === 'bsky.app' && c.provenance.responseHash, 'curated items carry provenance or the client refuses them');
   assert.ok((await call('GET', '/health')).body.endpoints.includes('/curated?limit=30'));
 
+  // /slop: the curator's LLM verdicts, keyed by text hash; bad keys and junk rows refused.
+  assert.deepStrictEqual((await call('GET', '/slop')).body.items, [], 'nothing before the first push');
+  const sp = { generated: '2026-10-13T00:00:00.000Z', items: [{ k: 'abc123', s: 0.83 }, { k: 'BAD KEY!', s: 1 }, { k: 'xyz', s: 'n/a' }, { k: 'z9', s: 4 }] };
+  assert.strictEqual((await call('POST', '/slop/ingest', sp, { 'x-curator-key': 'wrong' })).status, 401);
+  assert.deepStrictEqual((await call('POST', '/slop/ingest', sp, { 'x-curator-key': 'test-curator-key' })).body, { ok: true, count: 2 });
+  assert.deepStrictEqual((await call('GET', '/slop')).body, { generated: sp.generated, items: [{ k: 'abc123', s: 0.83 }, { k: 'z9', s: 1 }] }, 'scores clamp to 0..1');
+  assert.ok((await call('GET', '/health')).body.endpoints.includes('/slop'));
+
   // Jetstream video pool: only created video posts enter, self-labelled adult never,
   // and /bsky/videos pages newest first with `before`.
   const { jetstreamVideo, addVideo } = require('./server');

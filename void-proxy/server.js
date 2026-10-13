@@ -969,6 +969,10 @@ function curatorKeyOk(k) {
   return !!CURATOR_KEY && k.length === CURATOR_KEY.length && require('crypto').timingSafeEqual(Buffer.from(k), Buffer.from(CURATOR_KEY));
 }
 let curated = { generated: '', items: [] };
+// Slop verdicts (POST /slop/ingest): the curator's local LLM scores borderline feed
+// posts; clients hide what scores high. {k: hash of normalised text, s: 0..1}.
+// ponytail: memory only, replaced per push; a redeploy is empty until the next pass.
+let slop = { generated: '', items: [] };
 // The /reels item shape (the client maps it with proxyPostToApp) plus the
 // curator's labels. createdAt is ms like every other lane: an ISO string would
 // make the client's `time` a string and every age maths NaN.
@@ -1124,6 +1128,19 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { ok: true, count: items.length });
     }
 
+    if (path === '/slop/ingest') {
+      if (req.method !== 'POST') return sendJson(res, 405, { error: 'POST only' });
+      if (!curatorKeyOk(req.headers['x-curator-key'])) return sendJson(res, 401, { error: 'bad key' });
+      let body;
+      try { body = JSON.parse(await readBody(req, 1024 * 1024)); } catch (_) { return sendJson(res, 400, { error: 'bad body' }); }
+      if (!Array.isArray(body && body.items)) return sendJson(res, 400, { error: 'items: array' });
+      const items = body.items.filter((it) => it && /^[a-z0-9]{1,16}$/.test(String(it.k || '')) && Number.isFinite(+it.s))
+        .slice(0, 5000).map((it) => ({ k: String(it.k), s: Math.round(Math.max(0, Math.min(1, +it.s)) * 100) / 100 }));
+      slop = { generated: String(body.generated || new Date().toISOString()), items };
+      return sendJson(res, 200, { ok: true, count: items.length });
+    }
+    if (path === '/slop') return sendJson(res, 200, slop, FEED_CACHE_HEADERS);
+
     // ─── BLUESKY VIDEOS: the Jetstream pool, newest first, `before` pages older ──
     if (path === '/bsky/videos') {
       const before = clampInt(u.searchParams.get('before'), 0, 0, 9e15);
@@ -1276,7 +1293,7 @@ const server = http.createServer(async (req, res) => {
     if (path === '/' || path === '/health') {
       return sendJson(res, 200, {
         ok: true,
-        endpoints: ['/feed?mode=tension&limit=40', '/social?country=<name>&mode=tension&limit=30', '/reels?limit=30', '/curated?limit=30', '/bsky/videos?limit=300&before=<ms>', 'POST /curated/ingest {generated, items:[...]} (x-curator-key)', '/hls?u=<m3u8 url>', '/streams/health', 'POST /streams/report {reports:[{u,ok,v,ms}]}', 'POST /translate {texts:[...], target:"en"}'],
+        endpoints: ['/feed?mode=tension&limit=40', '/social?country=<name>&mode=tension&limit=30', '/reels?limit=30', '/curated?limit=30', '/bsky/videos?limit=300&before=<ms>', 'POST /curated/ingest {generated, items:[...]} (x-curator-key)', '/slop', 'POST /slop/ingest {generated, items:[{k,s}]} (x-curator-key)', '/hls?u=<m3u8 url>', '/streams/health', 'POST /streams/report {reports:[{u,ok,v,ms}]}', 'POST /translate {texts:[...], target:"en"}'],
         providers: PROVIDERS.map((p) => ({ platform: p.platform, enabled: p.enabled !== false })),
         reddit: { auth: redditAuthed() ? 'oauth' : 'keyless', userAgent: REDDIT_UA },
         bskyVideos: { held: bskyVideos.length, eventsSeen: jsSeen, cursorLagS: jsCursor ? Math.round(Date.now() / 1000 - jsCursor / 1e6) : null },
