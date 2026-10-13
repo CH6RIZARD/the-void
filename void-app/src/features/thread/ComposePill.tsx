@@ -7,7 +7,7 @@ import React, { forwardRef } from 'react';
 import { Pressable, StyleSheet, TextInput, View, type StyleProp, type ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/ThemeProvider';
-import { FONTS } from '../../theme/palettes';
+import { FONTS, em } from '../../theme/palettes';
 import { Icon } from '../../ui/icons';
 import { VText } from '../../ui/Text';
 import { useThreadTokens } from './threadTheme';
@@ -19,14 +19,26 @@ export interface ComposePillProps {
   placeholder: string;
   /** thread deck pill shows the viewer's initial; the reply overlay pill does not */
   avatar?: string | null;
+  /** `REPLYING TO NAME` line inside the pill (margin 0 0 8 38; Syne Mono 7.5 .18em gold), clearable */
+  pinned?: { name: string; onClear: () => void } | null;
   style?: StyleProp<ViewStyle>;
 }
 
-export const ComposePill = forwardRef<TextInput, ComposePillProps>(function ComposePill({ value, onChangeText, onSubmit, placeholder, avatar, style }, ref) {
+export const ComposePill = forwardRef<TextInput, ComposePillProps>(function ComposePill({ value, onChangeText, onSubmit, placeholder, avatar, pinned, style }, ref) {
   const { colors } = useTheme();
   const tk = useThreadTokens();
+  const has = !!value.trim();
   return (
     <View style={[styles.pill, { backgroundColor: tk.card }, style]}>
+      {pinned ? (
+        <View style={styles.pin}>
+          <Icon name="reply" size={11} color={colors.gold} />
+          <VText style={[styles.pinT, { color: colors.gold }]}>{'REPLYING TO ' + pinned.name.toUpperCase()}</VText>
+          <Pressable onPress={pinned.onClear} hitSlop={8} style={styles.pinX} accessibilityLabel="Clear">
+            <Icon name="x" size={11} color={colors.navDim} />
+          </Pressable>
+        </View>
+      ) : null}
       <View style={styles.row}>
         {avatar != null ? (
           <View style={[styles.av, { backgroundColor: colors.pdim }]}>
@@ -47,9 +59,15 @@ export const ComposePill = forwardRef<TextInput, ComposePillProps>(function Comp
           allowFontScaling={false}
         />
         <Pressable onPress={onSubmit} accessibilityLabel="Send" style={({ pressed }) => [styles.send, pressed && { opacity: 0.8 }]}>
-          <LinearGradient colors={['#7c3aed', '#5b21d4']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.sendFill}>
-            <Icon name="send" size={16} color="#fff" />
-          </LinearGradient>
+          {has ? (
+            <LinearGradient colors={['#7c3aed', '#5b21d4']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.sendFill}>
+              <Icon name="send" size={16} color="#fff" />
+            </LinearGradient>
+          ) : (
+            <View style={[styles.sendFill, { backgroundColor: 'rgba(255,255,255,0.08)' }]}>
+              <Icon name="send" size={16} color={colors.navDim} />
+            </View>
+          )}
         </Pressable>
       </View>
     </View>
@@ -61,6 +79,9 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   av: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   input: { flex: 1, fontFamily: FONTS.sans, fontSize: 13, lineHeight: 13 * 1.4, paddingVertical: 6, paddingHorizontal: 0, minHeight: 24, maxHeight: 120 },
-  send: { width: 36, height: 36, borderRadius: 18, marginLeft: 'auto', boxShadow: '0px 4px 14px rgba(124,58,237,0.4)' },
+  send: { width: 36, height: 36, borderRadius: 18, marginLeft: 'auto', boxShadow: '0px 4px 14px rgba(124,58,237,0.3)' },
+  pin: { flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: 38, marginBottom: 8 },
+  pinT: { fontFamily: FONTS.mono, fontSize: 7.5, letterSpacing: em(7.5, 0.18) },
+  pinX: { paddingHorizontal: 4 },
   sendFill: { flex: 1, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
 });

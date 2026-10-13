@@ -17,6 +17,10 @@ export interface ThreadTokens {
   reply: string;
   edge1: string;
   edge2: string;
+  /** peek tab under a card with children (22b peek-fan): card @62% */
+  peek: string;
+  /** peek line text (#8d7cc0) */
+  peekText: string;
   sheet: string;
   text: string;
   hi: string;
@@ -36,6 +40,8 @@ export function useThreadTokens(): ThreadTokens {
       reply: withAlpha(colors.card2, 0.95),
       edge1: withAlpha(colors.card, 0.68),
       edge2: withAlpha(colors.card, 0.45),
+      peek: withAlpha(colors.card, 0.62),
+      peekText: isLight ? colors.dim : '#8d7cc0',
       sheet: withAlpha(colors.sheet, 0.97),
       text: isLight ? '#4a4234' : '#c9bfe8',
       hi: isLight ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.06)',

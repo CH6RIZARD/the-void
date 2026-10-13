@@ -57,9 +57,11 @@ export interface CommentCardProps extends DealProps {
   kidsLabel?: string;
   kidsOn?: boolean;
   noEdges?: boolean;
+  /** a card in the horizontal fan (22b): fixed width, equal heights, no bottom margin */
+  width?: number;
 }
 
-export const CommentCard = memo(function CommentCard({ c, opAuthor, kidsN, parent, nested, onOpen, onReply, onBolt, onMore, deal, delay = 0, closing, closeDelay = 0, peekOf, peekMore = 0, kidsLabel, kidsOn, noEdges }: CommentCardProps) {
+export const CommentCard = memo(function CommentCard({ c, opAuthor, kidsN, parent, nested, onOpen, onReply, onBolt, onMore, deal, delay = 0, closing, closeDelay = 0, peekOf, peekMore = 0, kidsLabel, kidsOn, noEdges, width }: CommentCardProps) {
   const { colors, isLight } = useTheme();
   const tk = useThreadTokens();
   const v = useSharedValue(deal ? 0 : 1);
@@ -82,7 +84,7 @@ export const CommentCard = memo(function CommentCard({ c, opAuthor, kidsN, paren
 
   const isOp = (c.author || '') === opAuthor;
   const edges = noEdges ? 0 : kidsN >= 2 ? 2 : kidsN === 1 ? 1 : 0;
-  const mb = nested ? (edges ? 18 : 8) : edges ? 26 : 16;
+  const mb = width ? 0 : nested ? (edges ? 18 : 8) : edges ? 26 : 16;
   const canMore = !!onMore && (c.remote || !!c.authorId);
   const toUser = c.authorId ? c.handle : null; // Void accounts only; remote handles have no /u page
 
@@ -100,7 +102,7 @@ export const CommentCard = memo(function CommentCard({ c, opAuthor, kidsN, paren
   const avStyle = isLight ? { boxShadow: 'inset 0px 0px 0px 1px rgba(26,20,36,0.12), 0px 2px 6px rgba(26,20,36,0.12)' } : null;
 
   const body = (
-    <View style={cardStyle}>
+    <View style={[cardStyle, styles.cardZ, width ? { flex: 1 } : null]}>
       <View style={[styles.head, { gap: nested ? 7 : 8, marginBottom: nested ? 6 : 8 }]}>
         <Pressable disabled={!toUser} onPress={() => openUser(toUser)} style={[styles.av, { width: av, height: av, borderRadius: av / 2 }, avStyle]}>
           <PersonPfp uid={c.authorId} handle={c.handle} label={c.author} size={av} />
@@ -118,7 +120,7 @@ export const CommentCard = memo(function CommentCard({ c, opAuthor, kidsN, paren
         <View style={[styles.img, imgShown ? null : { minHeight: 120 }]}>
           <Image
             source={{ uri: c.img }}
-            style={imgShown ? styles.imgIn : StyleSheet.absoluteFill}
+            style={imgShown ? { width: '100%', height: width ? 110 : nested ? 140 : 160 } : StyleSheet.absoluteFill}
             contentFit="cover"
             onDisplay={() => setImgShown(true)}
             onError={() => setImgDead(true)}
@@ -140,26 +142,35 @@ export const CommentCard = memo(function CommentCard({ c, opAuthor, kidsN, paren
           </Pressable>
         ) : null}
       </View>
-      {peekOf ? (
-        <View style={[styles.peek, { borderTopColor: colors.hairline }]}>
-          <View style={styles.peekAv}>
-            <PersonPfp uid={peekOf.authorId} handle={peekOf.handle} label={peekOf.author} size={18} />
-          </View>
-          <VText numberOfLines={1} style={[styles.peekT, { color: colors.navDim }]}>
-            <VText style={[styles.peekName, { color: tk.text }]}>{(peekOf.author || 'anon') + '  '}</VText>
-            {peekOf.text || ''}
-          </VText>
-          {peekMore > 0 ? <VText style={[styles.peekMore, { color: colors.gold }]}>{'+' + peekMore + ' MORE'}</VText> : null}
-        </View>
-      ) : null}
     </View>
+  );
+  // .peek: a tab tucked under the card's bottom edge (margin -6px 8px 0; r 0 0 14 14; card @62%)
+  const peek = peekOf ? (
+    <View style={[styles.peek, { backgroundColor: tk.peek }]}>
+      <View style={styles.peekAv}>
+        <PersonPfp uid={peekOf.authorId} handle={peekOf.handle} label={peekOf.author} size={18} />
+      </View>
+      <VText numberOfLines={1} style={[styles.peekT, { color: tk.peekText }]}>
+        <VText style={[styles.peekName, { color: tk.text }]}>{(peekOf.author || 'anon') + ' '}</VText>
+        {peekOf.text || ''}
+      </VText>
+      {peekMore > 0 ? <VText style={[styles.peekMore, { color: colors.gold }]}>{'+' + peekMore + ' MORE'}</VText> : null}
+    </View>
+  ) : null;
+  const inner = peek ? (
+    <>
+      {body}
+      {peek}
+    </>
+  ) : (
+    body
   );
 
   return (
-    <Animated.View style={[{ position: 'relative', marginBottom: mb }, style]}>
+    <Animated.View style={[{ position: 'relative', marginBottom: mb }, width ? { width } : null, style]}>
       {edges >= 2 ? <View pointerEvents="none" style={[styles.e2, { backgroundColor: tk.edge2 }]} /> : null}
       {edges >= 1 ? <View pointerEvents="none" style={[styles.e1, { backgroundColor: tk.edge1 }]} /> : null}
-      {parent || !onOpen ? body : <Pressable onPress={() => onOpen(c)}>{body}</Pressable>}
+      {parent || !onOpen ? inner : <Pressable onPress={() => onOpen(c)} style={width ? { flex: 1 } : null}>{inner}</Pressable>}
     </Animated.View>
   );
 });
@@ -175,13 +186,13 @@ const styles = StyleSheet.create({
   parentTag: { marginLeft: 'auto', fontFamily: FONTS.mono, fontSize: 7, letterSpacing: em(7, 0.14) },
   text: { fontFamily: FONTS.sans },
   img: { position: 'relative', marginTop: 8, borderRadius: 12, overflow: 'hidden' },
-  imgIn: { width: '100%', height: 200 },
   acts: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   act: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   actT: { fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.08) },
-  peek: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 10, paddingTop: 9, borderTopWidth: 1 },
+  cardZ: { position: 'relative', zIndex: 3 },
+  peek: { zIndex: 2, flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: -6, marginHorizontal: 8, paddingTop: 14, paddingHorizontal: 12, paddingBottom: 9, borderBottomLeftRadius: 14, borderBottomRightRadius: 14, boxShadow: 'inset 0px 1px 0px rgba(255,255,255,0.04)' },
   peekAv: { width: 18, height: 18, borderRadius: 9, overflow: 'hidden', flexShrink: 0 },
   peekT: { flex: 1, minWidth: 0, fontFamily: FONTS.sans, fontSize: 11 },
-  peekName: { fontFamily: FONTS.sansBold, fontSize: 10 },
-  peekMore: { fontFamily: FONTS.mono, fontSize: 7, letterSpacing: em(7, 0.14), flexShrink: 0 },
+  peekName: { fontFamily: FONTS.sansBold, fontSize: 11 },
+  peekMore: { fontFamily: FONTS.mono, fontSize: 6.5, letterSpacing: em(6.5, 0.14), flexShrink: 0 },
 });

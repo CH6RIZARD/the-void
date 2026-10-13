@@ -46,6 +46,8 @@ import { ComposePill } from './ComposePill';
 import { getThreadComments, postReply, setThreadSort, tcSort, tcTree, toggleCommentBolt, useThreadSort, useThreadVersion, viewerName } from './threadModel';
 import { useThreadTokens } from './threadTheme';
 
+/** a fan card: width 258px, scroll-snap per card */
+const FAN_W = 258;
 const FLIP_EASE = WEB.SHEET;
 const EASE_OUT = WEB.EASE_OUT;
 // REDUCED MOTION DROPS THE MOVEMENT, NOT THE FADES. The flip (translate + scale)
@@ -599,33 +601,40 @@ function Thread({ post: p, focus }: { post: Post; focus?: string }) {
                           <View style={styles.fanHead}>
                             {path.length ? (
                               <Pressable onPress={() => setFanPath((f) => ({ ...f, [c.id]: (f[c.id] || []).slice(0, -1) }))} hitSlop={8} style={styles.fanBack} accessibilityLabel="Back">
-                                <Icon name="back" size={12} color={colors.navDim} />
+                                <Icon name="back" size={10} color={colors.white} />
+                                <VText style={[styles.fanLbl, { color: colors.white }]}>BACK</VText>
                               </Pressable>
                             ) : null}
                             <VText style={[styles.fanLbl, { color: colors.gold }]}>{(path.length ? 'UNDER ' + (cur.author || 'anon').toUpperCase() + ' · ' : '') + lbl(fan.length)}</VText>
+                            <LinearGradient colors={['rgba(201,168,76,0.4)', 'rgba(201,168,76,0)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.hair} />
+                            <VText style={[styles.fanLbl, { color: colors.navDim }]}>SWIPE</VText>
                           </View>
-                          {fan.map((kid, j) => {
-                            const kk = (kids[kid.id] || []).length;
-                            return (
-                              <CommentCard
-                                key={kid.id}
-                                c={kid}
-                                nested
-                                noEdges
-                                opAuthor={author}
-                                kidsN={kk}
-                                deal
-                                delay={kid.id === newId ? 0 : j * 60}
-                                closing={closing || !!folding[c.id]}
-                                kidsLabel={kk ? '▾ ' + lbl(kk) : undefined}
-                                onOpen={kk ? (x) => setFanPath((f) => ({ ...f, [c.id]: (f[c.id] || []).concat(x.id) })) : undefined}
-                                onReply={pin}
-                                onBolt={(x) => toggleCommentBolt(p.id, x.id)}
-                                onMore={(x: Comment) => openCommentMenu(x, p)}
-                              />
-                            );
-                          })}
-                          {!fan.length ? <VText style={[styles.empty, { color: colors.navDim }]}>NO REPLIES YET</VText> : null}
+                          <ScrollView horizontal showsHorizontalScrollIndicator={false} snapToInterval={FAN_W + 10} decelerationRate="fast" contentContainerStyle={styles.fanRow}>
+                            {fan.map((kid, j) => {
+                              const kk = (kids[kid.id] || []).length;
+                              return (
+                                <CommentCard
+                                  key={kid.id}
+                                  c={kid}
+                                  nested
+                                  noEdges
+                                  width={FAN_W}
+                                  opAuthor={author}
+                                  kidsN={kk}
+                                  deal
+                                  delay={kid.id === newId ? 0 : j * 60}
+                                  closing={closing || !!folding[c.id]}
+                                  kidsLabel={kk ? lbl(kk) + ' ›' : undefined}
+                                  kidsOn
+                                  onOpen={kk ? (x) => setFanPath((f) => ({ ...f, [c.id]: (f[c.id] || []).concat(x.id) })) : undefined}
+                                  onReply={pin}
+                                  onBolt={(x) => toggleCommentBolt(p.id, x.id)}
+                                  onMore={(x: Comment) => openCommentMenu(x, p)}
+                                />
+                              );
+                            })}
+                            {!fan.length ? <VText style={[styles.fanEmpty, { color: colors.navDim }]}>NO REPLIES YET</VText> : null}
+                          </ScrollView>
                         </View>
                       ) : null}
                     </View>
@@ -633,7 +642,7 @@ function Thread({ post: p, focus }: { post: Post; focus?: string }) {
                 })
               ) : (
                 <Animated.View style={chromeStyle}>
-                  <VText style={[styles.empty, { color: colors.navDim }]}>{loading ? 'PULLING REPLIES…' : 'BE FIRST TO ENTER THE THREAD'}</VText>
+                  <VText style={[styles.empty, { color: colors.navDim }]}>{loading ? 'PULLING REPLIES…' : 'NO REPLIES YET · START IT'}</VText>
                 </Animated.View>
               )}
             </View>
@@ -643,20 +652,13 @@ function Thread({ post: p, focus }: { post: Post; focus?: string }) {
         {/* .thread-compose */}
         <Animated.View style={[chromeStyle]}>
           <Animated.View style={popStyle}>
-            {replyTo ? (
-              <View style={styles.pin}>
-                <VText style={[styles.pinT, { color: colors.gold }]}>{'REPLYING TO ' + replyTo.name.toUpperCase()}</VText>
-                <Pressable onPress={() => setReplyTo(null)} hitSlop={8} accessibilityLabel="Clear">
-                  <Icon name="x" size={11} color={colors.navDim} />
-                </Pressable>
-              </View>
-            ) : null}
             <ComposePill
               ref={input}
               value={text}
               onChangeText={setText}
               onSubmit={submit}
               placeholder={replyTo ? 'reply to ' + replyTo.name + '…' : 'add to the thread…'}
+              pinned={replyTo ? { name: replyTo.name, onClear: () => setReplyTo(null) } : null}
               avatar={viewerName(auth.user?.name)[0]?.toUpperCase() || '◎'}
               style={{ marginTop: 8, marginHorizontal: 18, marginBottom: 16 + insets.bottom }}
             />
@@ -704,11 +706,12 @@ const styles = StyleSheet.create({
   hair: { flex: 1, height: 1 },
   sorts: { flexDirection: 'row', gap: 12, flexShrink: 0 },
   sortT: { fontFamily: FONTS.mono, fontSize: 7, letterSpacing: em(7, 0.2) },
-  empty: { textAlign: 'center', padding: 30, fontFamily: FONTS.mono, fontSize: 9, letterSpacing: em(9, 0.12) },
-  fan: { marginLeft: 22, marginBottom: 10 },
-  fanHead: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingBottom: 10 },
-  fanBack: { width: 20, height: 20, alignItems: 'center', justifyContent: 'center', marginLeft: -4 },
-  fanLbl: { fontFamily: FONTS.mono, fontSize: 7, letterSpacing: em(7, 0.25) },
-  pin: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 30, marginTop: 8 },
-  pinT: { fontFamily: FONTS.mono, fontSize: 7, letterSpacing: em(7, 0.2) },
+  empty: { textAlign: 'center', paddingVertical: 34, paddingHorizontal: 20, fontFamily: FONTS.mono, fontSize: 9, letterSpacing: em(9, 0.12) },
+  // .fan: margin -8px -18px 22px (bleeds to the screen edge); head padding 0 20px 10px
+  fan: { marginTop: -8, marginHorizontal: -18, marginBottom: 22 },
+  fanHead: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingBottom: 10 },
+  fanBack: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  fanLbl: { fontFamily: FONTS.mono, fontSize: 7, letterSpacing: em(7, 0.22) },
+  fanRow: { gap: 10, paddingHorizontal: 18, paddingBottom: 6, alignItems: 'stretch' },
+  fanEmpty: { paddingVertical: 14, fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.12) },
 });
