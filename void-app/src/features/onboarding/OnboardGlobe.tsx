@@ -15,7 +15,7 @@ import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTimin
 import * as THREE from 'three';
 import { landPositions } from './landDots';
 import { buildGlobe } from './globeBuild';
-import { globePaint } from '../globe/globePaint';
+import { onboardPaint } from '../globe/globePaint';
 import { useTheme } from '../../theme/ThemeProvider';
 
 /** A three.js renderer on an expo-gl context — the same shims as globeScene.ts. */
@@ -57,8 +57,8 @@ export function OnboardGlobe({ running = true }: { running?: boolean }) {
   const raf = useRef<number | null>(null);
   const shown = useSharedValue(0);
   const fade = useAnimatedStyle(() => ({ opacity: shown.value }));
-  const { name, colors } = useTheme();
-  const paint = globePaint(name, colors);
+  const { name } = useTheme();
+  const paint = onboardPaint(name);
   const paintRef = useRef(paint);
   paintRef.current = paint;
 

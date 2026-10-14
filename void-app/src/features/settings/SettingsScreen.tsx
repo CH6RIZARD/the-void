@@ -7,7 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { hideSlop, moderation, setHideSlop, wipeLocalAccountData } from '../../core';
 import { useTheme } from '../../theme';
-import { FONTS, em, type RadialSpec, type ThemeName } from '../../theme/palettes';
+import { FONTS, em, isCreamTheme, type RadialSpec, type ThemeName } from '../../theme/palettes';
 import { RadialFill } from '../../ui/Surface';
 import { Sheet } from '../../ui/Sheet';
 import { VText } from '../../ui/Text';
@@ -90,8 +90,9 @@ const SWATCH: Record<ThemeName, { bg: string[]; radial?: RadialSpec; bar: string
   dark: { bg: ['#0a0a0c'], bar: '#1a1a1e', dot: '#c9a84c' },
   light: { bg: [], radial: { rx: 120, ry: 70, cx: 50, cy: 0, stops: [{ color: '#f2ecdd', offset: 0 }, { color: '#e7e0cf', offset: 0.6 }] }, bar: '#f6f1e6', barShadow: '0px 2px 5px rgba(26,20,36,0.14)', dot: '#9a7b2d' },
   cream: { bg: [], radial: { rx: 120, ry: 70, cx: 50, cy: 0, stops: [{ color: '#f1ead9', offset: 0 }, { color: '#efe6d3', offset: 0.6 }] }, bar: '#e3d4b6', barShadow: '0px 2px 5px rgba(42,26,16,0.14)', dot: '#764d33' },
+  creamDark: { bg: [], radial: { rx: 120, ry: 70, cx: 50, cy: 0, stops: [{ color: '#211b14', offset: 0 }, { color: '#12100d', offset: 0.65 }] }, bar: '#241f18', dot: '#c9a84c' },
 };
-const LABEL: Record<ThemeName, string> = { void: 'VOID', dark: 'DARK', light: 'VOID CREAM', cream: 'CREAM' };
+const LABEL: Record<ThemeName, string> = { void: 'VOID', dark: 'DARK', light: 'LIGHT', cream: 'CREAM', creamDark: 'CREAM DARK' };
 
 function ThemeCard({ t }: { t: ThemeName }) {
   const { colors, saved, setTheme } = useTheme();
@@ -152,7 +153,8 @@ function useSafeSensing() {
 }
 
 export default function SettingsScreen({ onClose }: { onClose?: () => void }) {
-  const { colors, name: themeName, matchSystem, matchSystemSub, toggleMatchSystem } = useTheme();
+  const { colors, name: themeName, isLight, matchSystem, matchSystemSub, toggleMatchSystem, setTheme } = useTheme();
+  const alt = isCreamTheme(themeName);
   const insets = useSafeAreaInsets();
   const auth = useAuth();
   const sensing = useSafeSensing();
@@ -281,10 +283,12 @@ export default function SettingsScreen({ onClose }: { onClose?: () => void }) {
 
             <Section label="Appearance">
               <View style={st.themeCards}>
-                <ThemeCard t="dark" />
-                <ThemeCard t="light" />
-                <ThemeCard t="cream" />
+                <ThemeCard t={alt ? 'creamDark' : 'dark'} />
+                <ThemeCard t={alt ? 'cream' : 'light'} />
               </View>
+              <Row label="Alternative" sub="Cream and Cream Dark">
+                <Toggle on={alt} onPress={() => setTheme(alt ? (isLight ? 'light' : 'dark') : isLight ? 'cream' : 'creamDark', true)} />
+              </Row>
               <Row label="Match system" sub={matchSystemSub}>
                 <Toggle on={matchSystem} onPress={toggleMatchSystem} />
               </Row>

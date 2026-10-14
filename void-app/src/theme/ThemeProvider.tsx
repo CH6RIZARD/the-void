@@ -1,7 +1,7 @@
 // Port of the web theme switch (void2-final.html: currentTheme / setTheme /
 // resolveTheme / toggleMatchSystem / syncThemeUI).
-//   - saved theme: AsyncStorage `void_theme` ('dark' | 'light' = VOID CREAM | 'cream'; a saved 'void' still renders)
-//   - FIRST LAUNCH (nothing stored) follows the device: light -> VOID CREAM, dark -> DARK, and it
+//   - saved theme: AsyncStorage `void_theme` ('dark' | 'light' | 'cream' | 'creamDark'; a saved 'void' still renders)
+//   - FIRST LAUNCH (nothing stored) follows the device: light -> LIGHT, dark -> DARK, and it
 //     stays live, onboarding included, until the person picks a theme in Settings.
 //   - `void_theme_match_system` === 'true' keeps following the device the same way.
 //   - picking any theme in Settings is a manual choice: it switches Match system off.
@@ -27,7 +27,7 @@ export interface Theme {
   isLight: boolean;
   /** Storage has been read (hold the splash until true). */
   ready: boolean;
-  setTheme: (t: ThemeName) => void;
+  setTheme: (t: ThemeName, keepMatch?: boolean) => void;
   toggleMatchSystem: () => void;
 }
 
@@ -54,7 +54,7 @@ const noop = () => {};
 // Default value lets components render (VOID) outside the provider, e.g. in tests.
 const ThemeContext = createContext<Theme>(build('void', false, 'dark', false, noop, noop));
 
-const isThemeName = (v: unknown): v is ThemeName => v === 'void' || v === 'dark' || v === 'light' || v === 'cream';
+const isThemeName = (v: unknown): v is ThemeName => v === 'void' || v === 'dark' || v === 'light' || v === 'cream' || v === 'creamDark';
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [saved, setSaved] = useState<ThemeName>('void');
@@ -78,9 +78,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const setTheme = useCallback((t: ThemeName) => {
+  const setTheme = useCallback((t: ThemeName, keepMatch = false) => {
     setSaved(t);
     setString(KEYS.theme, t);
+    if (keepMatch) return; // the Alternative switch changes the family, not the device following
     // A theme picked by hand wins over the device until Match system is turned back on.
     setMatch(false);
     setString(KEYS.themeMatchSystem, 'false');

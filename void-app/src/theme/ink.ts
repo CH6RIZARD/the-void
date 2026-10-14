@@ -15,9 +15,9 @@ export interface Ink {
 const NIGHT: Ink = { gold: '#c9a84c', goldHi: '#e2c56a', muted: '#8d7cc0', dim: '#6a58a0', hi: '#f4f0ff', lilac: '#c9bfe8', card: '#0b0620', card2: '#1b1336', cardTop: '#120b2c', scrim: 'rgba(5,3,15,0)', faint: '#231d42', shade: ['rgba(13,8,32,0.6)', 'rgba(13,8,32,0)'], violet: ['#7c3aed', '#5b21d4'], vrgb: '124,58,237', glass: 'rgba(13,8,32,0.9)' };
 
 export function inkFor(name: ThemeName, isLight: boolean, c: Palette): Ink {
-  if (!isLight) return NIGHT;
+  if (!isLight && name !== 'creamDark') return NIGHT;
   // VOID CREAM keeps the violet; CREAM has none, its accent is the brown.
-  const cream = name === 'cream';
+  const cream = name === 'cream' || name === 'creamDark';
   return {
     violet: cream ? [c.purple, c.dim] : NIGHT.violet,
     vrgb: cream ? rgbOf(c.purple) : NIGHT.vrgb,

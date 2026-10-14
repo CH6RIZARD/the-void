@@ -22,9 +22,11 @@ const obLight = (c: Palette): Ob => {
   const ink = rgbOf(c.white);
   return { isLight: true, GOLD: c.gold, WHITE: c.white, LAV: c.purple, DIM: c.dim, RED: c.red, BG: c.bg, BG2: c.bg2, SURF: `rgba(${ink},0.05)`, LINE: c.hairline, RING: `rgba(${ink},0.16)`, PANEL: `rgba(${rgbOf(c.card)},0.86)`, TAB: `rgba(${ink},0.07)`, PLACEHOLDER: c.muted, HI: c.bgRadial?.stops[0].color ?? c.bg2 };
 };
-const OB_LIGHT = { light: obLight(PALETTES.light), cream: obLight(PALETTES.cream) };
+// CREAM DARK takes its palette the same way (isLight here means "palette-driven", not a light page).
+const OB_LIGHT = { light: obLight(PALETTES.light), cream: obLight(PALETTES.cream), creamDark: obLight(PALETTES.creamDark) };
 export function useOb(): Ob {
   const { isLight, name } = useTheme();
+  if (name === 'creamDark') return OB_LIGHT.creamDark;
   return isLight ? OB_LIGHT[name === 'cream' ? 'cream' : 'light'] : OB_DARK;
 }
 

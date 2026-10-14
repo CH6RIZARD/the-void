@@ -12,7 +12,7 @@ import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withDelay,
 import { LinearGradient } from 'expo-linear-gradient';
 import { moderation, onRepliesChanged, type Post } from '../../core';
 import { useTheme } from '../../theme/ThemeProvider';
-import { FONTS, em, rgbOf } from '../../theme/palettes';
+import { FONTS, em, isCreamTheme, rgbOf } from '../../theme/palettes';
 import { Icon, type IconName } from '../../ui/icons';
 import { VText } from '../../ui/Text';
 import { ImageOrbitLoader } from '../../ui/ImageOrbitLoader';
@@ -110,7 +110,7 @@ export const PostCard = memo(function PostCard({ post: p, index: i, onOpenThread
 
   const avatarStyle = isLight
     ? { boxShadow: 'inset 0px 0px 0px 1px rgba(26,20,36,0.12), 0px 2px 6px rgba(26,20,36,0.12)' }
-    : { boxShadow: p._user ? '0px 0px 0px 2px rgba(201,168,76,0.35)' : `0px 0px 0px 2px rgba(${theme.name === 'cream' ? rgbOf(colors.purple) : '124,58,237'},0.35)` };
+    : { boxShadow: p._user ? '0px 0px 0px 2px rgba(201,168,76,0.35)' : `0px 0px 0px 2px rgba(${isCreamTheme(theme.name) ? rgbOf(colors.purple) : '124,58,237'},0.35)` };
 
   // Void accounts only (they have a uid). External/source authors, and drops already
   // on their author's profile (ownerUid), leave the tap to the card, which opens the thread.

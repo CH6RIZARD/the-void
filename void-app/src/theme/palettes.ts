@@ -6,8 +6,8 @@
 // as CSS box-shadow strings: React Native 0.86 (New Architecture) renders the
 // `boxShadow` style prop natively, including `inset`, on both platforms.
 
-/** 'light' shows as VOID CREAM in Settings; 'void' is no longer offered but a saved VOID still renders. */
-export type ThemeName = 'void' | 'dark' | 'light' | 'cream';
+/** VOID: 'dark' | 'light'. ALTERNATIVE (Settings toggle): 'cream' | 'creamDark'. A saved 'void' still renders. */
+export type ThemeName = 'void' | 'dark' | 'light' | 'cream' | 'creamDark';
 
 /** A CSS radial-gradient(W% H% at X% Y%, c0 s0, c1 s1) as data (drawn by <Backdrop>). */
 export interface RadialSpec {
@@ -172,7 +172,38 @@ export const CREAM: Palette = {
   feedLoaderBg: '#f1ead9',
 };
 
-export const PALETTES: Record<ThemeName, Palette> = { void: VOID, dark: DARK, light: LIGHT, cream: CREAM };
+/** CREAM DARK: warm black and grey, cream ink, brown accents. */
+export const CREAM_DARK: Palette = {
+  bg: '#12100d',
+  bg2: '#17140f',
+  card: '#1c1813',
+  card2: '#241f18',
+  border: '#2e271e',
+  glow: '#3a3024',
+  purple: '#8a6448',
+  pdim: '#2a2219',
+  gold: '#c9a84c',
+  gdim: '#5c4420',
+  gglow: 'rgba(201,168,76,0.1)',
+  white: '#efe6d3',
+  dim: '#a8947a',
+  muted: '#4a4034',
+  red: '#ef4444',
+  green: '#10b981',
+  navDim: '#8f7d66',
+  hairline: 'rgba(239,230,211,0.08)',
+  bgRadial: { rx: 120, ry: 60, cx: 50, cy: 0, stops: [{ color: '#211b14', offset: 0 }, { color: '#12100d', offset: 0.55 }] },
+  navBg: 'rgba(28,24,19,0.92)',
+  navShadow: '0px -4px 24px rgba(0,0,0,0.5)',
+  sheet: '#1c1813',
+  elev: '0px 10px 30px rgba(0,0,0,0.5)',
+  insetHi: 'rgba(239,230,211,0.06)',
+  orbitInner: '#e3d4b6',
+  feedLoaderBg: '#12100d',
+};
+
+export const PALETTES: Record<ThemeName, Palette> = { void: VOID, dark: DARK, light: LIGHT, cream: CREAM, creamDark: CREAM_DARK };
+export { isCreamTheme } from './resolve';
 
 /** "r,g,b" of a #rrggbb, for rgba() fades built from a palette colour. */
 export const rgbOf = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(',');

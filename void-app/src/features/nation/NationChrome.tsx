@@ -21,7 +21,7 @@ export function OverlaySkin() {
   const { name, colors } = useTheme();
   // :root[data-theme="dark"] .c-overlay{background:var(--bg)}
   if (name === 'dark') return <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg }]} />;
-  const spec = name === 'light' ? LIGHT_SKIN : name === 'cream' ? { ...LIGHT_SKIN, stops: [{ color: '#f1ead9', offset: 0 }, { color: colors.bg, offset: 0.55 }] } : VOID_SKIN;
+  const spec = name === 'light' ? LIGHT_SKIN : name === 'creamDark' ? { ...VOID_SKIN, stops: [{ color: '#211b14', offset: 0 }, { color: colors.bg, offset: 0.55 }] } : name === 'cream' ? { ...LIGHT_SKIN, stops: [{ color: '#f1ead9', offset: 0 }, { color: colors.bg, offset: 0.55 }] } : VOID_SKIN;
   return (
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: spec.stops[1].color }]}>
       <RadialFill spec={spec} />

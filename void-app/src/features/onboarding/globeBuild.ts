@@ -98,7 +98,7 @@ export interface GlobeParts {
  * @param W,H   drawing-buffer size in device px
  * @param pr    device px per layout px (the mock sized lights in CSS px × DPR)
  * @param land  land-dot xyz (landPositions())
- * @param paint globePaint() of a light theme: ocean body, ink land dots, gold lights, no glow shells. [] = night.
+ * @param paint onboardPaint() of a cream theme: body, land dots, lights, no glow shells. [] = night.
  */
 export function buildGlobe(T: THREE, W: number, H: number, pr: number, land: Float32Array, showLand = false, paint: number[] = []): GlobeParts {
   const lt = paint.length > 0;
