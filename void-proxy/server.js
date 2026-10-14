@@ -973,6 +973,23 @@ let curated = { generated: '', items: [] };
 // posts; clients hide what scores high. {k: hash of normalised text, s: 0..1}.
 // ponytail: memory only, replaced per push; a redeploy is empty until the next pass.
 let slop = { generated: '', items: [] };
+// The curator pass (labels clips, scores slop), run here instead of on a PC: Supabase's
+// pg_cron POSTs /curator/run every few minutes (supabase/migrations/014). One pass at a
+// time, as a child process of curator.cjs (a bundle of scripts/curator.mjs); it pushes its
+// results back into this server through /curated/ingest and /slop/ingest like before.
+// ponytail: state lives in /tmp, so a redeploy relabels the last 72 h once; persist if that costs too much.
+let curatorRun = null; // { started, child }
+function startCurator() {
+  if (curatorRun) return false;
+  const env = { ...process.env, CURATOR_DIR: process.env.CURATOR_DIR || '/tmp/void-curator', PROXY_BASE: 'http://127.0.0.1:' + PORT };
+  require('fs').mkdirSync(env.CURATOR_DIR, { recursive: true });
+  const child = require('child_process').spawn(process.execPath, [require('path').join(__dirname, 'curator.cjs'), '--once'], { env, stdio: 'inherit' });
+  curatorRun = { started: Date.now(), child };
+  const done = () => { curatorRun = null; };
+  child.on('exit', done); child.on('error', done);
+  setTimeout(() => { if (curatorRun && curatorRun.child === child) child.kill(); }, 10 * 60 * 1000).unref(); // a pass never holds the slot past 10 min
+  return true;
+}
 // The /reels item shape (the client maps it with proxyPostToApp) plus the
 // curator's labels. createdAt is ms like every other lane: an ISO string would
 // make the client's `time` a string and every age maths NaN.
@@ -1140,6 +1157,12 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { ok: true, count: items.length });
     }
     if (path === '/slop') return sendJson(res, 200, slop, FEED_CACHE_HEADERS);
+    if (path === '/curator/run') {
+      if (req.method !== 'POST') return sendJson(res, 405, { error: 'POST only' });
+      if (!curatorKeyOk(req.headers['x-curator-key'])) return sendJson(res, 401, { error: 'bad key' });
+      const started = startCurator();
+      return sendJson(res, 202, { started, running: !!curatorRun, since: curatorRun ? curatorRun.started : null, model: process.env.LLM_URL ? 'api' : 'none' });
+    }
 
     // ─── BLUESKY VIDEOS: the Jetstream pool, newest first, `before` pages older ──
     if (path === '/bsky/videos') {
@@ -1293,7 +1316,7 @@ const server = http.createServer(async (req, res) => {
     if (path === '/' || path === '/health') {
       return sendJson(res, 200, {
         ok: true,
-        endpoints: ['/feed?mode=tension&limit=40', '/social?country=<name>&mode=tension&limit=30', '/reels?limit=30', '/curated?limit=30', '/bsky/videos?limit=300&before=<ms>', 'POST /curated/ingest {generated, items:[...]} (x-curator-key)', '/slop', 'POST /slop/ingest {generated, items:[{k,s}]} (x-curator-key)', '/hls?u=<m3u8 url>', '/streams/health', 'POST /streams/report {reports:[{u,ok,v,ms}]}', 'POST /translate {texts:[...], target:"en"}'],
+        endpoints: ['/feed?mode=tension&limit=40', '/social?country=<name>&mode=tension&limit=30', '/reels?limit=30', '/curated?limit=30', '/bsky/videos?limit=300&before=<ms>', 'POST /curated/ingest {generated, items:[...]} (x-curator-key)', '/slop', 'POST /slop/ingest {generated, items:[{k,s}]} (x-curator-key)', 'POST /curator/run (x-curator-key)', '/hls?u=<m3u8 url>', '/streams/health', 'POST /streams/report {reports:[{u,ok,v,ms}]}', 'POST /translate {texts:[...], target:"en"}'],
         providers: PROVIDERS.map((p) => ({ platform: p.platform, enabled: p.enabled !== false })),
         reddit: { auth: redditAuthed() ? 'oauth' : 'keyless', userAgent: REDDIT_UA },
         bskyVideos: { held: bskyVideos.length, eventsSeen: jsSeen, cursorLagS: jsCursor ? Math.round(Date.now() / 1000 - jsCursor / 1e6) : null },

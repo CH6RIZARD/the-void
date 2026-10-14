@@ -56,3 +56,5 @@ scripts/curated.json
 scripts/curated.public.json
 scripts/slop.json
 scripts/.curator.lock
+
+.claude/settings.local.json

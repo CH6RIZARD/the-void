@@ -34,7 +34,11 @@
  *   node scripts/curator.mjs --once       # one pass
  *   node scripts/curator.mjs --once --dry # label, write nothing
  *
- * Env: OLLAMA_URL, CURATOR_MODEL, PROXY_BASE, CURATOR_EVERY_MS.
+ * Env: OLLAMA_URL, CURATOR_MODEL, PROXY_BASE, CURATOR_EVERY_MS, CURATOR_DIR (state files).
+ * LLM_URL + LLM_KEY: an OpenAI-compatible API (OpenRouter, a hosted model, Open WebUI on a
+ * GPU box) instead of local Ollama. That is how it runs off this PC: the proxy carries a
+ * bundle of this file (void-proxy/curator.cjs, `npm run curator:bundle`) and Supabase's
+ * pg_cron calls POST /curator/run on it every few minutes (supabase/migrations/014).
  * Ollama down -> logged once, scouting still runs, labeling waits.
  */
 import { readFileSync, writeFileSync, renameSync, statSync, unlinkSync } from 'node:fs';
@@ -46,9 +50,10 @@ import os from 'node:os';
 import { slopScore, slopKey, SLOP_HARD } from '../void-app/src/core/rank/filters.ts';
 import { BSKY_FEEDS } from '../void-app/src/core/feed/bluesky.ts';
 
-const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const STORE = path.join(ROOT, 'scripts', 'curated.json');
-const PUBLIC = path.join(ROOT, 'scripts', 'curated.public.json');
+// CURATOR_DIR first: in the proxy's CommonJS bundle import.meta.url does not exist.
+const DIR = process.env.CURATOR_DIR || path.join(path.dirname(path.dirname(fileURLToPath(import.meta.url))), 'scripts');
+const STORE = path.join(DIR, 'curated.json');
+const PUBLIC = path.join(DIR, 'curated.public.json');
 const OLLAMA = process.env.OLLAMA_URL || 'http://127.0.0.1:11434';
 // Nothing else keeps the server up: the tray app was stopped because it re-warms
 // the model into RAM during builds, and the install on D: sat on a drive that
@@ -57,8 +62,11 @@ const OLLAMA = process.env.OLLAMA_URL || 'http://127.0.0.1:11434';
 // is not spawned from here: a child of this process died with the pass.
 const OLLAMA_TASK = process.env.OLLAMA_TASK || 'VoidOllama';
 
+const LLM_URL = (process.env.LLM_URL || '').replace(/\/+$/, '');
+const LLM_KEY = process.env.LLM_KEY || '';
 const ollamaUp = () => fetch(OLLAMA + '/api/tags').then(r => r.ok).catch(() => false);
 async function ensureOllama() {
+  if (LLM_URL) return true; // a hosted API: nothing to start
   if (await ollamaUp()) return true;
   try { execFileSync('schtasks', ['/run', '/tn', OLLAMA_TASK], { stdio: 'ignore', timeout: 20000 }); }
   catch (e) { log('  could not run task ' + OLLAMA_TASK + ': ' + e.message); return false; }
@@ -69,6 +77,22 @@ async function ensureOllama() {
   return false;
 }
 const MODEL = process.env.CURATOR_MODEL || 'qwen2.5:3b';
+/** One JSON chat call. Returns the reply text, or null when the server is unreachable. */
+async function chatJSON(system, user) {
+  const messages = [{ role: 'system', content: system }, { role: 'user', content: user }];
+  let r;
+  try {
+    r = LLM_URL
+      ? await fetch(LLM_URL + '/chat/completions', { method: 'POST', headers: { 'content-type': 'application/json', ...(LLM_KEY ? { authorization: 'Bearer ' + LLM_KEY } : {}) },
+          body: JSON.stringify({ model: MODEL, temperature: 0, response_format: { type: 'json_object' }, messages }), signal: AbortSignal.timeout(90000) })
+      // keep_alive 2m: the model leaves RAM between passes. On this 16 GB laptop a
+      // resident 2 GB model made release builds take 35 min; the reload is ~10 s a pass.
+      : await fetch(OLLAMA + '/api/chat', { method: 'POST', body: JSON.stringify({ model: MODEL, stream: false, format: 'json', keep_alive: '2m', options: { temperature: 0, num_ctx: 2048 }, messages }) });
+  } catch { return null; }
+  const j = await r.json();
+  if (LLM_URL) { if (!r.ok) throw new Error(r.status + ' ' + JSON.stringify(j).slice(0, 120)); return j.choices[0].message.content; }
+  return j.message.content;
+}
 const PROXY = process.env.PROXY_BASE || 'https://void-proxy-production.up.railway.app';
 const EVERY = parseInt(process.env.CURATOR_EVERY_MS, 10) || 5 * 60 * 1000;
 const UA = 'void-curator/1';
@@ -142,9 +166,6 @@ const SYSTEM = `You label short video clips for a news-and-current-events feed. 
 
 async function labelBatch(batch) {
   const lines = batch.map((c, i) => `${i}. ${c.platform} | ${c.text.replace(/\s+/g, ' ').slice(0, 240)} | likes ${c.likes} | age ${Math.max(0, Math.round((Date.now() - Date.parse(c.createdAt)) / 3600e3))}h`).join('\n');
-  // keep_alive 2m: the model leaves RAM between passes. On this 16 GB laptop a
-  // resident 2 GB model made release builds take 35 min; the reload is ~10 s a pass.
-  const body = { model: MODEL, stream: false, format: 'json', keep_alive: '2m', options: { temperature: 0, num_ctx: 2048 }, messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: lines }] };
   // A complete answer returns at once; an incomplete one is retried once and
   // the fuller of the two is kept. The old all-or-nothing rule threw away 3-4
   // good labels whenever the 3B model dropped one index, which on this CPU it
@@ -155,11 +176,10 @@ async function labelBatch(batch) {
   // pass stops labeling instead of burning every remaining clip as an error.
   let best = null;
   for (let t = 0; t < 2; t++) {
-    let r;
-    try { r = await fetch(OLLAMA + '/api/chat', { method: 'POST', body: JSON.stringify(body) }); }
-    catch { return 'down'; }
     try {
-      const out = JSON.parse((await r.json()).message.content);
+      const reply = await chatJSON(SYSTEM, lines);
+      if (reply === null) return 'down';
+      const out = JSON.parse(reply);
       const by = new Map((out.items || []).map(x => [Number(x.i), x]));
       if (batch.every((_, i) => by.has(i))) return by;
       if (!best || by.size > best.size) best = by;
@@ -201,7 +221,7 @@ async function pushCurated(items) {
 // the curator reads the same sources, keeps only the BORDERLINE posts (the phrase
 // score already refuses the obvious ones on the phone), asks the local model about
 // those once each, and pushes the verdicts. Keyed by slopKey (normalised text hash).
-const SLOP_STORE = path.join(ROOT, 'scripts', 'slop.json');
+const SLOP_STORE = path.join(DIR, 'slop.json');
 const SLOP_KEEP_MS = 48 * 3600e3, SLOP_MAX = 30, SLOP_PUSH_MIN = 0.5;
 const SLOP_SYSTEM = `You screen social posts for a feed that only wants real people saying real things. Score each from 0 to 1 for slop. 1 = AI-generated filler, engagement bait, ads or spam, generic motivation or self-help, rage-bait or clickbait, content-farm or bot copy. 0 = a person's own voice: an opinion, eyewitness report, joke, question or argument, even blunt, angry or political. Reply JSON only: {"items":[{"i":<n>,"slop":<0-1>}]}. One entry per numbered line.`;
 const PERSONAL = /\b(?:i|i'm|im|my|me|we|our|us)\b/i;
@@ -211,14 +231,13 @@ function slopCandidate(text) {
   return sc >= 0.2 || (text.length >= 160 && !PERSONAL.test(text)); // a hint, or long and impersonal
 }
 async function slopBatch(texts) {
-  const body = { model: MODEL, stream: false, format: 'json', keep_alive: '2m', options: { temperature: 0, num_ctx: 2048 },
-    messages: [{ role: 'system', content: SLOP_SYSTEM }, { role: 'user', content: texts.map((t, i) => `${i}. ${t.replace(/\s+/g, ' ').slice(0, 280)}`).join('\n') }] };
+  const user = texts.map((t, i) => `${i}. ${t.replace(/\s+/g, ' ').slice(0, 280)}`).join('\n');
   let best = null;
   for (let t = 0; t < 2; t++) {
-    let r;
-    try { r = await fetch(OLLAMA + '/api/chat', { method: 'POST', body: JSON.stringify(body) }); } catch { return 'down'; }
     try {
-      const by = new Map((JSON.parse((await r.json()).message.content).items || []).map(x => [Number(x.i), Math.max(0, Math.min(1, Number(x.slop) || 0))]));
+      const reply = await chatJSON(SLOP_SYSTEM, user);
+      if (reply === null) return 'down';
+      const by = new Map((JSON.parse(reply).items || []).map(x => [Number(x.i), Math.max(0, Math.min(1, Number(x.slop) || 0))]));
       if (texts.every((_, i) => by.has(i))) return by;
       if (!best || by.size > best.size) best = by;
     } catch (e) { log(`  slop batch failed (${t + 1}/2): ${e.message}`); }
@@ -251,7 +270,7 @@ async function slopPass(up) {
   for (let b = 0; up && b * BATCH < todo.length; b++) {
     const batch = todo.slice(b * BATCH, (b + 1) * BATCH);
     const by = await slopBatch(batch.map(([, t]) => t));
-    if (by === 'down') { log('  ollama went away during slop scoring'); break; }
+    if (by === 'down') { log('  model went away during slop scoring'); break; }
     batch.forEach(([k, t], i) => { if (by && by.has(i)) { items[k] = { s: by.get(i), t: Date.now() }; scored++; if (DRY) log(`  slop ${by.get(i).toFixed(2)} "${t.slice(0, 80)}"`); } });
   }
   const now = Date.now();
@@ -261,7 +280,7 @@ async function slopPass(up) {
   if (!DRY) { writeAtomic(SLOP_STORE, store); if (Object.keys(items).length) await pushSlop(flagged); }
 }
 
-const LOCK = path.join(ROOT, 'scripts', '.curator.lock');
+const LOCK = path.join(DIR, '.curator.lock');
 function takeLock() {
   try {
     const st = statSync(LOCK);
@@ -291,12 +310,12 @@ async function pass() {
 
   let labeled = 0, errors = 0;
   const up = queue.length ? await ensureOllama() : true;
-  if (!up) log('  ollama unreachable at ' + OLLAMA + ' - labeling skipped this pass');
+  if (!up) log('  model unreachable at ' + (LLM_URL || OLLAMA) + ' - labeling skipped this pass');
   for (let b = 0; up && b < MAX_BATCHES && b * BATCH < queue.length; b++) {
     const batch = queue.slice(b * BATCH, (b + 1) * BATCH);
     const tb = Date.now();
     const by = await labelBatch(batch);
-    if (by === 'down') { log(`  ollama went away during batch ${b + 1} - rest waits for next pass`); break; }
+    if (by === 'down') { log(`  model went away during batch ${b + 1} - rest waits for next pass`); break; }
     log(`  batch ${b + 1}: ${batch.length} clips ${Date.now() - tb}ms ${by ? 'ok' : 'FAILED'}`);
     batch.forEach((c, i) => {
       const v = by && by.get(i);
@@ -331,7 +350,7 @@ async function pass() {
 }
 
 (async () => {
-  log(`curator start (once=${ONCE} dry=${DRY} model=${MODEL})`);
+  log(`curator start (once=${ONCE} dry=${DRY} model=${MODEL} via ${LLM_URL ? 'api' : 'ollama'})`);
   for (;;) {
     if (!takeLock()) { log('another pass is running - skipped'); if (ONCE) break; await new Promise(r => setTimeout(r, EVERY)); continue; }
     try { await pass(); } catch (e) { log('pass failed: ' + (e && e.message)); } finally { dropLock(); }

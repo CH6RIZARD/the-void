@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node server.js",
     "check": "node --check server.js",
-    "test": "node test.js"
+    "test": "node test.js",
+    "curator:bundle": "cd .. && npx --yes esbuild@0.25.0 scripts/curator.mjs --bundle --platform=node --format=cjs --target=node22 --log-level=error --outfile=void-proxy/curator.cjs"
   },
   "engines": {
     "node": ">=22"
