@@ -7,7 +7,7 @@ export const rgb01 = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i,
 /** The cream ramp, finalised in the Cream Globe artifact. gain: night light -> ramp; lift: land over ocean. */
 export const CREAM_GLOBE = {
   space: '#0f0d0b', ocean: '#1a1612', land: '#6b5a45', high: '#efe6d3', glow: '#f3d79a',
-  atmo: '#e3d4b6', atmoA: 0.16, gain: 2.2, lift: 0.08,
+  atmo: '#e3d4b6', atmoA: 0.08, gain: 1.6, lift: 0.08,
 };
 
 const isCream = (name: string) => name === 'cream' || name === 'creamDark';
