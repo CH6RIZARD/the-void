@@ -28,6 +28,22 @@ const START = '/* ==== IPTV_SOURCES:GENERATED:START ==== */';
 const END   = '/* ==== IPTV_SOURCES:GENERATED:END ==== */';
 
 const data = JSON.parse(fs.readFileSync(GEN, 'utf8'));
+
+// PUBLISH. The apps read the live list from the proxy (GET /streams/pool), so it goes out
+// two ways: copied next to the proxy, so its next deploy ships it, and pushed now with the
+// curator key (~/.void/curator.key or CURATOR_KEY). The proxy refuses a list under half of
+// the one it has. Never fatal: the html block below is written either way.
+fs.writeFileSync(path.join(ROOT, 'void-proxy', 'iptv-pool.json'), JSON.stringify({ generated: data.generated, sources: data.sources }));
+(async () => {
+  let key = process.env.CURATOR_KEY || '';
+  if (!key) try { key = fs.readFileSync(path.join(require('os').homedir(), '.void', 'curator.key'), 'utf8').trim(); } catch { /* none */ }
+  if (!key) return console.log('pool push skipped: no curator key');
+  const proxy = process.env.PROXY_BASE || 'https://void-proxy-production.up.railway.app';
+  try {
+    const r = await fetch(proxy + '/streams/pool/ingest', { method: 'POST', headers: { 'content-type': 'application/json', 'x-curator-key': key }, body: JSON.stringify({ generated: data.generated, sources: data.sources }), signal: AbortSignal.timeout(30000) });
+    console.log('pool push ' + r.status + ' ' + (await r.text()).slice(0, 80));
+  } catch (e) { console.log('pool push failed: ' + e.message); }
+})();
 let html = fs.readFileSync(SRC, 'utf8');
 const nl = html.includes('\r\n') ? '\r\n' : '\n';
 

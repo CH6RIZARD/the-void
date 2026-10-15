@@ -12,11 +12,15 @@ export const CREAM_GLOBE = {
 
 const isCream = (name: string) => name === 'cream' || name === 'creamDark';
 
-/** Globe tab: [] = the night globe; else [space, ocean, land, high, glow, atmo rgb, atmo a, gain, lift] (21). */
-export function globePaint(name: string): number[] {
-  if (!isCream(name)) return [];
+const LIGHT_PAGE = new Set(['light', 'cream']);
+
+/** Globe tab: [] = the night globe on night space; [page rgb] (3) = the night globe on a light page, no
+ *  stars (LIGHT); else [space, ocean, land, high, glow, atmo rgb, atmo a, gain, lift] (21), the cream
+ *  regrade, whose space is the page colour in CREAM and dark (with stars) in CREAM DARK. */
+export function globePaint(name: string, page = '#e7e0cf'): number[] {
+  if (!isCream(name)) return LIGHT_PAGE.has(name) ? rgb01(page) : [];
   const g = CREAM_GLOBE;
-  return [...rgb01(g.space), ...rgb01(g.ocean), ...rgb01(g.land), ...rgb01(g.high), ...rgb01(g.glow), ...rgb01(g.atmo), g.atmoA, g.gain, g.lift];
+  return [...rgb01(LIGHT_PAGE.has(name) ? page : g.space), ...rgb01(g.ocean), ...rgb01(g.land), ...rgb01(g.high), ...rgb01(g.glow), ...rgb01(g.atmo), g.atmoA, g.gain, g.lift];
 }
 
 /** Onboarding's dotted globe: [] = night; else [space, body, land dots, lights, atmo rgb, atmo a] (16). */
@@ -26,5 +30,5 @@ export function onboardPaint(name: string): number[] {
   return [...rgb01(g.space), ...rgb01(g.ocean), ...rgb01(g.high), ...rgb01(g.glow), ...rgb01(g.atmo), g.atmoA];
 }
 
-/** The page colour behind the globe. */
-export const globeSpace = (name: string) => (isCream(name) ? CREAM_GLOBE.space : '#04020c');
+/** The colour behind the globe: the page in the light themes, space in the dark ones. */
+export const globeSpace = (name: string, page: string) => (LIGHT_PAGE.has(name) ? page : isCream(name) ? CREAM_GLOBE.space : '#04020c');

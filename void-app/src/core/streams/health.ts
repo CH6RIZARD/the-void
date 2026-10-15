@@ -14,6 +14,8 @@
 // refreshes, next launch) get the knowledge. Nothing here can block or fail a
 // wall build.
 import type { StreamSource } from '../types.ts';
+import { env } from '../env.ts';
+import { iptvPool, poolCount, setLiveIptv } from '../data/sources.ts';
 
 // Lazy require, not import: lib/config pulls expo-constants (react-native),
 // and this module must stay runnable under plain node - the golden parity
@@ -32,8 +34,43 @@ let map: Record<string, H> = {};
 let fetchedAt = 0;
 let inflight = false;
 
+// THE STREAM LIST ITSELF, LIVE. It used to exist only as iptv.generated.ts inside each
+// release, so a fix or a new stream needed a rebuild, and on 2026-10-14 an empty list made
+// on an offline PC shipped and every wall tile read NO SIGNAL. Now the proxy serves the
+// current list (GET /streams/pool), each launch fetches it, and the last good copy is kept.
+// A list under half of the one in force is refused: an outage upstream must not blank
+// everyone's wall.
+const POOL_KEY = 'void_iptv_pool_v1';
+let poolTried = false;
+/** Take a pool from the network or storage; returns whether it was accepted. */
+export function acceptPool(sources: unknown): boolean {
+  if (!sources || typeof sources !== 'object') return false;
+  const pool = sources as Record<string, StreamSource[]>;
+  const n = poolCount(pool);
+  if (!n || n < poolCount(iptvPool()) * 0.5) return false;
+  setLiveIptv(pool);
+  return true;
+}
+function ensurePool(base: string): void {
+  if (poolTried) return;
+  poolTried = true;
+  try {
+    const kept = env.storage.getItem(POOL_KEY);
+    if (kept) acceptPool(JSON.parse(kept).sources);
+  } catch {}
+  fetch(base + '/streams/pool')
+    .then((r) => (r.ok ? r.json() : null))
+    .then((d) => {
+      if (d && acceptPool(d.sources)) {
+        try { env.storage.setItem(POOL_KEY, JSON.stringify({ generated: d.generated, sources: d.sources })); } catch {}
+      }
+    })
+    .catch(() => {});
+}
+
 export function ensureHealth(): void {
   const base = proxyBase();
+  if (base) ensurePool(base);
   if (!base || inflight || Date.now() - fetchedAt < 10 * 60_000) return;
   inflight = true;
   fetch(base + '/streams/health')

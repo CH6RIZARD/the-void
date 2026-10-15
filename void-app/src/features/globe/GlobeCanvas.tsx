@@ -151,7 +151,7 @@ export const GlobeCanvas = memo(function GlobeCanvas({ running, onOpenCountry, r
   const texIdSV = useSharedValue(0);
   // Light themes draw a light globe; the worklet reads this every frame, so a theme switch is live.
   const theme = useTheme();
-  const paint = useMemo(() => globePaint(theme.name), [theme.name]);
+  const paint = useMemo(() => globePaint(theme.name, theme.colors.bg), [theme.name, theme.colors.bg]);
   const paintSV = useSharedValue(paint);
   useEffect(() => {
     paintSV.value = paint;

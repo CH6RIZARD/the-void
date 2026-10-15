@@ -842,15 +842,16 @@ export function startWorkletGlobe(
 
       // ─── draw ────────────────────────────────────────────────────────────
       gl.viewport(0, 0, renderW, renderH);
-      const P = sv.paintSV.value, lt = P.length > 0;
-      if (lt) gl.clearColor(P[0], P[1], P[2], 1);
+      // P: [] night on space; [page] night globe on a light page; 21 = the cream regrade
+      const P = sv.paintSV.value, lt = P.length > 3, onPage = P.length > 0 && P[0] + P[1] + P[2] > 1.5;
+      if (P.length) gl.clearColor(P[0], P[1], P[2], 1);
       else gl.clearColor(4 / 255, 2 / 255, 12 / 255, 1);
       gl.disable(gl.DEPTH_TEST);
       gl.depthMask(false);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-      // 1. stars (opaque, behind everything by draw order); cream: tinted from space toward high
-      {
+      // 1. stars (opaque, behind everything by draw order); cream: tinted from space toward high; none on a light page
+      if (!onPage) {
       gl.useProgram(starProg);
       gl.uniformMatrix4fv(sU.proj, false, projM);
       gl.uniform1f(sU.zoom, globeZoom);

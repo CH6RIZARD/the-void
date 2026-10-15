@@ -979,6 +979,20 @@ let slop = { generated: '', items: [] };
 // results back into this server through /curated/ingest and /slop/ingest like before.
 // ponytail: state lives in /tmp, so a redeploy relabels the last 72 h once; persist if that costs too much.
 let curatorRun = null; // { started, child }
+
+// The live stream list (GET /streams/pool). Apps used to carry it only inside each release,
+// so fixing it took a rebuild. Seeded from iptv-pool.json (copied in by scripts/inject-iptv.js,
+// so every deploy ships the list current at that commit), replaced by POST /streams/pool/ingest
+// after each probe run, kept in /tmp across restarts. A push under half the current count is
+// refused: that is an outage at the prober, not half the world's channels dying.
+const POOL_TMP = '/tmp/void-iptv-pool.json';
+const poolCount = (src) => Object.values(src || {}).reduce((n, l) => n + (Array.isArray(l) ? l.length : 0), 0);
+let iptvPool = (() => {
+  for (const f of [POOL_TMP, require('path').join(__dirname, 'iptv-pool.json')]) {
+    try { const d = JSON.parse(require('fs').readFileSync(f, 'utf8')); if (poolCount(d.sources)) return { generated: d.generated || '', count: poolCount(d.sources), sources: d.sources }; } catch { /* next */ }
+  }
+  return { generated: '', count: 0, sources: {} };
+})();
 function startCurator() {
   if (curatorRun) return false;
   const env = { ...process.env, CURATOR_DIR: process.env.CURATOR_DIR || '/tmp/void-curator', PROXY_BASE: 'http://127.0.0.1:' + PORT };
@@ -1157,6 +1171,26 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { ok: true, count: items.length });
     }
     if (path === '/slop') return sendJson(res, 200, slop, FEED_CACHE_HEADERS);
+    if (path === '/streams/pool') return sendJson(res, 200, iptvPool, { 'Cache-Control': 'public, max-age=300, stale-while-revalidate=3600' });
+    if (path === '/streams/pool/ingest') {
+      if (req.method !== 'POST') return sendJson(res, 405, { error: 'POST only' });
+      if (!curatorKeyOk(req.headers['x-curator-key'])) return sendJson(res, 401, { error: 'bad key' });
+      let body;
+      try { body = JSON.parse(await readBody(req, 4 * 1024 * 1024)); } catch (_) { return sendJson(res, 400, { error: 'bad body' }); }
+      const src = body && body.sources;
+      if (!src || typeof src !== 'object') return sendJson(res, 400, { error: 'sources: object' });
+      const sources = {};
+      for (const [k, list] of Object.entries(src)) {
+        if (!Array.isArray(list)) continue;
+        sources[String(k).slice(0, 60)] = list.filter((s) => s && /^https:\/\//.test(String(s.url || ''))).slice(0, 80)
+          .map((s) => ({ type: 'hls', url: String(s.url), label: String(s.label || '').slice(0, 80) }));
+      }
+      const count = poolCount(sources);
+      if (count < iptvPool.count * 0.5 && !(body && body.force)) return sendJson(res, 409, { error: 'refused: ' + count + ' vs ' + iptvPool.count + ' current' });
+      iptvPool = { generated: String(body.generated || new Date().toISOString()), count, sources };
+      try { require('fs').writeFileSync(POOL_TMP, JSON.stringify(iptvPool)); } catch { /* memory still has it */ }
+      return sendJson(res, 200, { ok: true, count });
+    }
     if (path === '/curator/run') {
       if (req.method !== 'POST') return sendJson(res, 405, { error: 'POST only' });
       if (!curatorKeyOk(req.headers['x-curator-key'])) return sendJson(res, 401, { error: 'bad key' });
@@ -1316,7 +1350,7 @@ const server = http.createServer(async (req, res) => {
     if (path === '/' || path === '/health') {
       return sendJson(res, 200, {
         ok: true,
-        endpoints: ['/feed?mode=tension&limit=40', '/social?country=<name>&mode=tension&limit=30', '/reels?limit=30', '/curated?limit=30', '/bsky/videos?limit=300&before=<ms>', 'POST /curated/ingest {generated, items:[...]} (x-curator-key)', '/slop', 'POST /slop/ingest {generated, items:[{k,s}]} (x-curator-key)', 'POST /curator/run (x-curator-key)', '/hls?u=<m3u8 url>', '/streams/health', 'POST /streams/report {reports:[{u,ok,v,ms}]}', 'POST /translate {texts:[...], target:"en"}'],
+        endpoints: ['/feed?mode=tension&limit=40', '/social?country=<name>&mode=tension&limit=30', '/reels?limit=30', '/curated?limit=30', '/bsky/videos?limit=300&before=<ms>', 'POST /curated/ingest {generated, items:[...]} (x-curator-key)', '/slop', 'POST /slop/ingest {generated, items:[{k,s}]} (x-curator-key)', 'POST /curator/run (x-curator-key)', '/streams/pool', 'POST /streams/pool/ingest {generated, sources} (x-curator-key)', '/hls?u=<m3u8 url>', '/streams/health', 'POST /streams/report {reports:[{u,ok,v,ms}]}', 'POST /translate {texts:[...], target:"en"}'],
         providers: PROVIDERS.map((p) => ({ platform: p.platform, enabled: p.enabled !== false })),
         reddit: { auth: redditAuthed() ? 'oauth' : 'keyless', userAgent: REDDIT_UA },
         bskyVideos: { held: bskyVideos.length, eventsSeen: jsSeen, cursorLagS: jsCursor ? Math.round(Date.now() / 1000 - jsCursor / 1e6) : null },

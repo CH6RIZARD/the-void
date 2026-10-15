@@ -116,7 +116,7 @@ function GlobeSurfaces({
   appActive: boolean;
   bottomInset: number;
 }) {
-  const { name: themeName } = useTheme();
+  const { name: themeName, colors } = useTheme();
   const insets = useSafeAreaInsets();
   // Pull-to-refresh on the wall rebuilds the globe above it: they are one screen.
   const [globeNonce, setGlobeNonce] = useState(0);
@@ -308,7 +308,7 @@ function GlobeSurfaces({
                 {globeSeen ? (
                   <GlobeCanvas running={globeVisible} onOpenCountry={openCountry} refreshNonce={globeNonce} gestureRef={globeGesture} onTouching={markGlobeTouching} onSearch={setSearching} />
                 ) : (
-                  <View style={{ height: globeH, backgroundColor: globeSpace(themeName) }} />
+                  <View style={{ height: globeH, backgroundColor: globeSpace(themeName, colors.bg) }} />
                 )}
                 {/* Built the first time GLOBE is shown (web: buildGlobeGrid inside setGlobeMode). */}
                 <LiveWall ref={wallRef} active={globeVisible && !sliding} grid3={grid3} bottomInset={bottomInset} quiet={globeTouching} />

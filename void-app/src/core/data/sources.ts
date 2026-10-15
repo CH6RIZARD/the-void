@@ -14,9 +14,19 @@ _mark('data:sources');
 
 export { CAM_SOURCES, COUNTRY_CH, GLOBAL_POOL, LIVE_CHANNELS, NEWS_SOURCES, RAW_FOOTAGE, VOID_LIVE, IPTV_POOL, LIFE_POOL };
 
+// The live list (streams/health.ts fetches GET /streams/pool and keeps the last good copy);
+// null = the list built into this release.
+let liveIptv: Record<string, StreamSource[]> | null = null;
+export function setLiveIptv(pool: Record<string, StreamSource[]> | null): void { liveIptv = pool; _hlsAll = null; }
+/** Streams in a pool, across every country. */
+export const poolCount = (pool: Record<string, StreamSource[]>) => Object.values(pool).reduce((n, l) => n + (Array.isArray(l) ? l.length : 0), 0);
+/** The list in force: the live one once it has landed, else the built-in one. */
+export const iptvPool = (): Record<string, StreamSource[]> => liveIptv || IPTV_POOL;
+
 /** Verified IPTV (HLS) pool for a country. Always a fresh copy; [] when none. */
 export function iptvFor(country: string): StreamSource[] {
-  const a = Object.prototype.hasOwnProperty.call(IPTV_POOL, country) ? IPTV_POOL[country] : undefined;
+  const pool = iptvPool();
+  const a = Object.prototype.hasOwnProperty.call(pool, country) ? pool[country] : undefined;
   return Array.isArray(a) ? a.slice() : [];
 }
 /** LIFE pool (walks / day-in-the-life / live cams). Always a fresh copy. */
