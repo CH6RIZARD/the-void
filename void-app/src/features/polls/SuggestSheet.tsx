@@ -7,6 +7,7 @@
 //          voted on. Up or down both count. "K more to go" -> "Publish for review".
 //   sent   confirmation; the question joins the floor under Mine with 0/0.
 // Closing after Sent resets the flow; closing mid-flow keeps the draft.
+import { useCreamInk } from '../../theme/ink';
 import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { useTheme } from '../../theme/ThemeProvider';
@@ -23,6 +24,7 @@ const GOLD = '#c9a84c';
 
 export function SuggestSheet({ visible, onClose, draft, setDraft }: { visible: boolean; onClose: () => void; draft: string; setDraft: (s: string) => void }) {
   const { colors } = useTheme();
+  const creamInk = useCreamInk();
   const ink = useInk();
   usePolls();
   const [step, setStep] = useState<Step>('write');
@@ -111,7 +113,7 @@ export function SuggestSheet({ visible, onClose, draft, setDraft }: { visible: b
                   <VText style={[styles.btnT, { color: '#1a1030' }]}>Up</VText>
                 </Pressable>
                 <Pressable onPress={() => gv(-1)} style={[styles.voteBtn, styles.btnOff]} accessibilityLabel="Down">
-                  <Icon name="arrowDown" size={16} color="#8d7cc0" />
+                  <Icon name="arrowDown" size={16} color={creamInk.muted} />
                   <VText style={[styles.btnT, { color: ink.muted }]}>Down</VText>
                 </Pressable>
               </View>

@@ -17,7 +17,7 @@ export const fmt = (n: number) => (n >= 1000 ? (n / 1000).toFixed(1) + 'k' : Str
 export const NationCards = memo(function NationCards({ iso, trending, about, onOpen }: { iso: string; trending: Post | null; about: Post | null; onOpen: (postId: string) => void }) {
   const { name, colors, isLight } = useTheme();
   if (!trending && !about) return null;
-  const aboutColor = name === 'dark' ? '#9d9aa3' : isLight ? colors.purple : '#a78bfa';
+  const aboutColor = name === 'dark' ? '#9d9aa3' : isLight || name === 'creamDark' ? colors.purple : '#a78bfa';
   return (
     <View style={styles.row}>
       {trending ? <NationCard eyebrow="TRENDING" eyebrowColor={colors.gold} post={trending} onOpen={onOpen} /> : null}

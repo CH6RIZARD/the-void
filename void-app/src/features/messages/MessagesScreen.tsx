@@ -1,5 +1,6 @@
 // #screen-messages — the conversation list (a tab). One field searches both ways:
 // people on The Void (starts a DM) and message bodies already loaded.
+import { useCreamInk } from '../../theme/ink';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
@@ -81,6 +82,7 @@ function PinnedRow({ convs, msgs, onOpen }: { convs: DmConv[]; msgs: Record<stri
 
 export default function MessagesScreen() {
   const { colors } = useTheme();
+  const creamInk = useCreamInk();
   const ink = useInk();
   const insets = useSafeAreaInsets();
   const navSpace = useBottomNavSpace();
@@ -182,7 +184,7 @@ export default function MessagesScreen() {
         </Pressable>
       </View>
       <View style={st.badgeRow}>
-        <Icon name="unlock" size={11} color="#6a58a0" />
+        <Icon name="unlock" size={11} color={creamInk.dim} />
         <VText style={{ fontFamily: FONTS.mono, fontSize: 7, letterSpacing: em(7, 0.2), color: ink.dim }}>NOT ENCRYPTED</VText>
       </View>
       <View style={st.searchWrap}>

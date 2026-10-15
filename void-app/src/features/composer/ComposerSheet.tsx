@@ -1,6 +1,7 @@
 // COMPOSER v2 (patch3 §3) — #composer-overlay / .composer-sheet, CSS 1:1 from
 // void2-final.html 1015-1059 (+ .au-* 288-296). Logic from openComposer /
 // setComposerType / composerFilesPicked / start|stopComposerRecording / submitComposerPost.
+import { useCreamInk } from '../../theme/ink';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
@@ -73,6 +74,7 @@ function Thumb({ m, onRemove }: { m: PickedMedia; onRemove: () => void }) {
 function TakePill({ take, onRedo }: { take: DraftAudio; onRedo: () => void }) {
   const { colors } = useTheme();
   const ink = useInk();
+  const creamInk = useCreamInk();
   const player = useAudioPlayer(take.uri);
   const status = useAudioPlayerStatus(player);
   const owner = useSafeClaimAudio();
@@ -109,7 +111,7 @@ function TakePill({ take, onRedo }: { take: DraftAudio; onRedo: () => void }) {
             <View key={j} style={[st.bar, { height: h, backgroundColor: j < played ? '#c9a84c' : '#3b2a6a' }]} />
           ))}
         </Pressable>
-        <VText style={{ fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.08), color: '#6a58a0' }}>
+        <VText style={{ fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.08), color: creamInk.dim }}>
           {auFmt(t)}
           <VText style={{ fontFamily: FONTS.mono, fontSize: 8, color: '#3b2a6a' }}>{' / ' + auFmt(dur)}</VText>
         </VText>
@@ -128,6 +130,7 @@ export interface ComposerSheetProps {
 
 export default function ComposerSheet({ onClosed }: ComposerSheetProps) {
   const { colors } = useTheme();
+  const creamInk = useCreamInk();
   const { user } = useIdentity();
   const d = useDraft();
   const [open, setOpen] = useState(true);
@@ -321,7 +324,7 @@ export default function ComposerSheet({ onClosed }: ComposerSheetProps) {
                     <View key={k} style={[st.bar, { height: h, backgroundColor: '#c9a84c' }]} />
                   ))}
                 </View>
-                <VText style={{ fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.08), color: '#6a58a0' }}>{auFmt((rec.durationMillis || 0) / 1000)}</VText>
+                <VText style={{ fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.08), color: creamInk.dim }}>{auFmt((rec.durationMillis || 0) / 1000)}</VText>
               </View>
             ) : d.audio ? (
               <TakePill take={d.audio} onRedo={startRecording} />

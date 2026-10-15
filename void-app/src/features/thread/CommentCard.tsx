@@ -62,7 +62,7 @@ export interface CommentCardProps extends DealProps {
 }
 
 export const CommentCard = memo(function CommentCard({ c, opAuthor, kidsN, parent, nested, onOpen, onReply, onBolt, onMore, deal, delay = 0, closing, closeDelay = 0, peekOf, peekMore = 0, kidsLabel, kidsOn, noEdges, width }: CommentCardProps) {
-  const { colors, isLight } = useTheme();
+  const { colors, isLight, name: themeName } = useTheme();
   const tk = useThreadTokens();
   const v = useSharedValue(deal ? 0 : 1);
   const [imgShown, setImgShown] = useState(false);
@@ -110,7 +110,7 @@ export const CommentCard = memo(function CommentCard({ c, opAuthor, kidsN, paren
         <VText onPress={toUser ? () => openUser(toUser) : undefined} style={[styles.name, { fontSize: nested ? 10.5 : 11, color: colors.white }]}>
           {c.author || 'anon'}
           {isOp ? ' ' : ''}
-          {isOp ? <VText style={[styles.op, isLight && { color: colors.purple, backgroundColor: colors.pdim }]}>{' OP '}</VText> : null}
+          {isOp ? <VText style={[styles.op, (isLight || themeName === 'creamDark') && { color: colors.purple, backgroundColor: colors.pdim }]}>{' OP '}</VText> : null}
           <VText style={[styles.time, { color: colors.navDim }]}>{' · ' + ago(c.time)}</VText>
         </VText>
         {kidsLabel ? <VText style={[styles.parentTag, { color: kidsOn ? colors.gold : colors.navDim }]}>{kidsLabel}</VText> : parent ? <VText style={[styles.parentTag, { color: colors.gold }]}>PARENT</VText> : null}

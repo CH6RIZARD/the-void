@@ -550,7 +550,7 @@ export function startWorkletGlobe(
       }`,
       `precision highp float;
       uniform sampler2D uMap; uniform float uZoom;
-      uniform float uLight; uniform sampler2D uMask; uniform vec3 uOcean; uniform vec3 uLand; uniform vec3 uHigh; uniform vec3 uCity; uniform vec2 uGain;
+      uniform float uLight; uniform sampler2D uMask; uniform vec3 uC[9]; uniform float uK[16];
       varying vec2 vUv; varying vec3 vN; varying vec3 vPos;
       void main(){
         vec3 texel = texture2D(uMap, vUv).rgb;
@@ -592,12 +592,29 @@ export function startWorkletGlobe(
         }
         vec3 col = emissive + indirect * texel + outD + outS;
         if (uLight > 0.5) {
-          // CREAM: this same night globe regraded - its brightness runs ocean -> land -> high,
-          // land lifted over ocean by the mask, the city lights in uCity.
+          // CREAM: this same night globe regraded, as the Cream Globe artifact. uC: deep, shallow,
+          // sheen, land shadow, land, high, city, coast, atmo. uK: CREAM_NUMS in globePaint.ts.
           float m = texture2D(uMask, vUv).r;
-          float l = clamp(dot(col, vec3(0.299, 0.587, 0.114)) * uGain.x + m * uGain.y, 0.0, 1.0);
-          vec3 g = l < 0.5 ? mix(uOcean, uLand, l * 2.0) : mix(uLand, uHigh, l * 2.0 - 1.0);
-          col = mix(g, uCity, smoothstep(0.18, 0.55, max(texel.r, texel.g) - texel.b * 0.5));
+          // continental shelf: how much land is near, from a ring of mask samples
+          float nb = 0.0;
+          for (int i = 0; i < 8; i++) { float a = float(i) * 0.785398; vec2 o = vec2(cos(a), sin(a) * 2.0);
+            nb += texture2D(uMask, vUv + o * 0.006).r + texture2D(uMask, vUv + o * 0.016).r; }
+          float shelf = clamp(nb / 16.0 * 1.6, 0.0, 1.0) * (1.0 - m);
+          float lum = dot(col, vec3(0.299, 0.587, 0.114));
+          float sunL = max(dot(N, vec3(0.745356, 0.298142, 0.596285)), 0.0);
+          float l = pow(clamp(lum * uK[1] + uK[2], 0.0, 1.0), uK[3]);
+          vec3 landC = l < 0.5 ? mix(uC[3], uC[4], l * 2.0) : mix(uC[4], uC[5], l * 2.0 - 1.0);
+          vec3 oceanC = mix(uC[0], uC[1], clamp(shelf * uK[13] + (lum * uK[1] * 1.4 + sunL * 0.25) * uK[5], 0.0, 1.0));
+          oceanC += uC[2] * pow(dot(outS, vec3(0.333)), 0.8) * uK[6] * 1.6;
+          vec3 g = mix(oceanC, landC, m);
+          g = mix(g, uC[7], clamp(m * (1.0 - m) * 4.0, 0.0, 1.0) * uK[7]);
+          float city = smoothstep(uK[8], uK[8] + 0.25, max(texel.r, texel.g) - texel.b * 0.5);
+          city *= mix(1.0, smoothstep(0.55, 0.0, sunL), 1.0 - uK[11]);
+          g = mix(g, uC[6], city * uK[9]) + uC[6] * city * uK[10];
+          float fr = pow(1.0 - max(dot(N, V), 0.0), 3.0);
+          g *= 1.0 - uK[4] * fr;
+          g += uC[8] * fr * uK[12];
+          col = g;
         }
         gl_FragColor = vec4(col, 1.0);
       }`,
@@ -617,7 +634,7 @@ export function startWorkletGlobe(
         gl_Position = uProjM * vec4(vp, 1.0);
       }`,
       `precision highp float;
-      uniform float uZoom; uniform float uLight; uniform vec4 uAtmo;
+      uniform float uZoom; uniform float uLight; uniform vec4 uAtmo; uniform float uRimSoft;
       varying vec3 vN; varying vec3 vPos;
       void main(){
         // ray from camera through this fragment vs the unit planet
@@ -626,7 +643,7 @@ export function startWorkletGlobe(
         float b = dot(d, uCtr);
         float c = dot(uCtr, uCtr) - 1.0;
         if (b * b - c > 0.0) discard;
-        if (uLight > 0.5) { gl_FragColor = uAtmo; return; }
+        if (uLight > 0.5) { float p = sqrt(max(c - b * b + 1.0, 1.0)); float t = clamp((p - 1.0) / 0.06, 0.0, 1.0); gl_FragColor = vec4(uAtmo.rgb, uAtmo.a * pow(1.0 - t, uRimSoft)); return; }
         vec3 texel = vec3(59.0,30.0,138.0)/255.0;   // diffuse color
         vec3 emissive = vec3(26.0,8.0,64.0)/255.0;
         vec3 indirect = vec3(10.0,6.0,32.0)/255.0 * 3.0;
@@ -713,13 +730,12 @@ export function startWorkletGlobe(
       proj: gl.getUniformLocation(earthProg, 'uProjM'), rot: gl.getUniformLocation(earthProg, 'uRot'),
       zoom: gl.getUniformLocation(earthProg, 'uZoom'), map: gl.getUniformLocation(earthProg, 'uMap'),
       light: gl.getUniformLocation(earthProg, 'uLight'), mask: gl.getUniformLocation(earthProg, 'uMask'),
-      ocean: gl.getUniformLocation(earthProg, 'uOcean'), land: gl.getUniformLocation(earthProg, 'uLand'), city: gl.getUniformLocation(earthProg, 'uCity'),
-      high: gl.getUniformLocation(earthProg, 'uHigh'), gain: gl.getUniformLocation(earthProg, 'uGain'),
+      cols: gl.getUniformLocation(earthProg, 'uC'), nums: gl.getUniformLocation(earthProg, 'uK'),
       pos: gl.getAttribLocation(earthProg, 'position'), uv: gl.getAttribLocation(earthProg, 'uv'),
     };
     const aU = {
       proj: gl.getUniformLocation(atmoProg, 'uProjM'), zoom: gl.getUniformLocation(atmoProg, 'uZoom'),
-      light: gl.getUniformLocation(atmoProg, 'uLight'), atmo: gl.getUniformLocation(atmoProg, 'uAtmo'),
+      light: gl.getUniformLocation(atmoProg, 'uLight'), atmo: gl.getUniformLocation(atmoProg, 'uAtmo'), rimSoft: gl.getUniformLocation(atmoProg, 'uRimSoft'),
       pos: gl.getAttribLocation(atmoProg, 'position'),
     };
     const sU = {
@@ -861,13 +877,13 @@ export function startWorkletGlobe(
       gl.bindBuffer(gl.ARRAY_BUFFER, stars1);
       gl.vertexAttribPointer(sU.pos, 3, gl.FLOAT, false, 0, 0);
       gl.uniform1f(sU.size, 0.04);
-      if (lt) gl.uniform3f(sU.color, P[0] + (P[9] - P[0]) * 0.12, P[1] + (P[10] - P[1]) * 0.12, P[2] + (P[11] - P[2]) * 0.12);
+      if (lt) gl.uniform3f(sU.color, P[0] + (P[18] - P[0]) * 0.4 * P[45], P[1] + (P[19] - P[1]) * 0.4 * P[45], P[2] + (P[20] - P[2]) * 0.4 * P[45]);
       else gl.uniform3f(sU.color, 13 / 255, 8 / 255, 53 / 255);
       gl.drawArrays(gl.POINTS, 0, 3000);
       gl.bindBuffer(gl.ARRAY_BUFFER, stars2);
       gl.vertexAttribPointer(sU.pos, 3, gl.FLOAT, false, 0, 0);
       gl.uniform1f(sU.size, 0.07);
-      if (lt) gl.uniform3f(sU.color, P[0] + (P[9] - P[0]) * 0.35, P[1] + (P[10] - P[1]) * 0.35, P[2] + (P[11] - P[2]) * 0.35);
+      if (lt) gl.uniform3f(sU.color, P[0] + (P[18] - P[0]) * P[45], P[1] + (P[19] - P[1]) * P[45], P[2] + (P[20] - P[2]) * P[45]);
       else gl.uniform3f(sU.color, 30 / 255, 18 / 255, 112 / 255);
       gl.drawArrays(gl.POINTS, 0, 400);
       gl.disableVertexAttribArray(sU.pos);
@@ -886,11 +902,8 @@ export function startWorkletGlobe(
         gl.activeTexture(gl.TEXTURE1);
         gl.bindTexture(gl.TEXTURE_2D, maskTex);
         gl.uniform1i(eU.mask, 1);
-        gl.uniform3f(eU.ocean, P[3], P[4], P[5]);
-        gl.uniform3f(eU.land, P[6], P[7], P[8]);
-        gl.uniform3f(eU.high, P[9], P[10], P[11]);
-        gl.uniform3f(eU.city, P[12], P[13], P[14]);
-        gl.uniform2f(eU.gain, P[19], P[20]);
+        gl.uniform3fv(eU.cols, new Float32Array(P.slice(3, 30)));
+        gl.uniform1fv(eU.nums, new Float32Array(P.slice(30, 46)));
         gl.activeTexture(gl.TEXTURE0);
       }
       gl.enableVertexAttribArray(eU.pos);
@@ -911,7 +924,7 @@ export function startWorkletGlobe(
       gl.uniformMatrix4fv(aU.proj, false, projM);
       gl.uniform1f(aU.zoom, globeZoom);
       gl.uniform1f(aU.light, lt ? 1 : 0);
-      if (lt) gl.uniform4f(aU.atmo, P[15], P[16], P[17], P[18]);
+      if (lt) { gl.uniform4f(aU.atmo, P[27], P[28], P[29], P[30]); gl.uniform1f(aU.rimSoft, P[44]); }
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       gl.cullFace(gl.FRONT);

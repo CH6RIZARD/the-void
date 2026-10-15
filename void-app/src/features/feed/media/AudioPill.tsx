@@ -12,7 +12,7 @@ import type { Post } from '../../../core';
 import { Icon } from '../../../ui/icons';
 import { VText } from '../../../ui/Text';
 import { FONTS, em } from '../../../theme/palettes';
-import { useInk } from '../../../theme/ink';
+import { useCreamInk, useInk } from '../../../theme/ink';
 import { useClaimAudio } from '../../live/AudioOwner';
 import { auBars, auDuration, auFmt } from '../format';
 import { auScrub, auToggle, restingTime, usePill, usePillTick } from '../audioStore';
@@ -36,6 +36,7 @@ export interface AudioPillProps {
 export const AudioPill = memo(function AudioPill({ post: p, index, style }: AudioPillProps) {
   const pill = usePill(p.id);
   const ink = useInk();
+  const creamInk = useCreamInk();
   usePillTick();
   const claim = useSafeClaim();
   const width = useRef(1);
@@ -82,9 +83,9 @@ export const AudioPill = memo(function AudioPill({ post: p, index, style }: Audi
             );
           })}
         </Pressable>
-        <VText style={styles.time}>
+        <VText style={[styles.time, { color: creamInk.dim }]}>
           {auFmt(t)}
-          <VText style={[styles.time, { color: '#3b2a6a' }]}>{' / ' + auFmt(dur)}</VText>
+          <VText style={[styles.time, { color: creamInk.dim === '#6a58a0' ? '#3b2a6a' : creamInk.faint }]}>{' / ' + auFmt(dur)}</VText>
         </VText>
       </LinearGradient>
     </Pressable>

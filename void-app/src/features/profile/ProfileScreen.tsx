@@ -4,6 +4,7 @@
 // With no prop, a `handle` route param is honoured, so A's /u/[handle] route can render it bare.
 // DROPS render as <PostCard surface="profile"> in a FlatList with usePostViewability('profile')
 // and one <ModerationHost/> for the ⋯ sheets.
+import { useCreamInk } from '../../theme/ink';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Image, Pressable, RefreshControl, Share, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
@@ -139,6 +140,7 @@ const ProfileTile = React.memo(function ProfileTile({ post, size, onPress }: { p
 export default function ProfileScreen({ handle: handleProp }: { handle?: string }) {
   const params = useLocalSearchParams<{ handle?: string }>();
   const { colors, name: themeName, isLight } = useTheme();
+  const creamInk = useCreamInk();
   const insets = useSafeAreaInsets();
   const navSpace = useBottomNavSpace();
   const { user } = useIdentity();
@@ -325,7 +327,7 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
                 style={({ pressed }) => [st.stat, { opacity: pressed ? 0.72 : 1 }]}
               >
                 <VText style={{ fontFamily: FONTS.sansExtraBold, fontSize: 22, color: colors.white }}>{(i === 0 ? drops : counts) === null ? '–' : fmt(stats[i])}</VText>
-                <VText style={{ fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.14), color: '#8d7cc0', marginTop: 3 }}>{lbl}</VText>
+                <VText style={{ fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.14), color: creamInk.muted, marginTop: 3 }}>{lbl}</VText>
               </Pressable>
             ))}
           </View>
@@ -333,11 +335,11 @@ export default function ProfileScreen({ handle: handleProp }: { handle?: string 
 
         {/* Name, bio, and the two lines that say how long and how far. */}
         <VText style={{ fontFamily: FONTS.sansBold, fontSize: 19, color: colors.white, marginTop: 14 }}>{name}</VText>
-        {bio ? <VText style={{ fontFamily: FONTS.sans, fontSize: 13.5, color: '#c9bfe8', marginTop: 5 }}>{bio}</VText> : null}
+        {bio ? <VText style={{ fontFamily: FONTS.sans, fontSize: 13.5, color: creamInk.lilac, marginTop: 5 }}>{bio}</VText> : null}
         {/* The row only exists if there is something true to put in it. A bare
             word JOINED with no date is worse than no line at all. */}
         {joinedLabel || nationCount ? (
-          <VText style={{ fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.16), color: '#6a58a0', marginTop: 8 }}>
+          <VText style={{ fontFamily: FONTS.mono, fontSize: 8, letterSpacing: em(8, 0.16), color: creamInk.dim, marginTop: 8 }}>
             {joinedLabel}
             {joinedLabel && nationCount ? '  ·  ' : ''}
             {nationCount ? nationCount + ' NATIONS' : ''}

@@ -132,7 +132,7 @@ export const PostCard = memo(function PostCard({ post: p, index: i, onOpenThread
         {highlight ? (
           <LinearGradient
             pointerEvents="none"
-            colors={isCreamTheme(theme.name) && isLight ? [colors.gglow, colors.card] : isLight ? ['rgba(124,58,237,0.14)', colors.card] : ['rgba(124,58,237,0.14)', 'rgba(13,8,32,0.9)']}
+            colors={isCreamTheme(theme.name) ? [colors.gglow, colors.card] : isLight ? ['rgba(124,58,237,0.14)', colors.card] : ['rgba(124,58,237,0.14)', 'rgba(13,8,32,0.9)']}
             locations={[0, 0.6]}
             start={{ x: 0.33, y: 0 }}
             end={{ x: 0.67, y: 1 }}
@@ -176,7 +176,7 @@ export const PostCard = memo(function PostCard({ post: p, index: i, onOpenThread
             <VText style={[take ? styles.bodyTake : styles.body, { color: colors.white }]}>
               {tr.text != null ? tr.text : p.body || ''}
               {tr.text != null ? (
-                <VText style={[styles.trBadge, { color: colors.purple }]}>{'  ↺ ' + tr.lang.toUpperCase() + ' '}</VText>
+                <VText style={[styles.trBadge, { color: colors.purple }, isCreamTheme(theme.name) && { backgroundColor: `rgba(${rgbOf(colors.purple)},0.12)` }]}>{'  ↺ ' + tr.lang.toUpperCase() + ' '}</VText>
               ) : null}
             </VText>
           )}

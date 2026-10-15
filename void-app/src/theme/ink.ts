@@ -24,6 +24,14 @@ export function inkFor(name: ThemeName, isLight: boolean, c: Palette): Ink {
     glass: `rgba(${rgbOf(c.card)},0.9)`, gold: c.gold, goldHi: c.gold, muted: c.dim, dim: c.navDim, hi: c.white, lilac: c.white, card: c.card, card2: c.card2, cardTop: c.bg2, scrim: `rgba(${rgbOf(c.bg)},0)`, faint: c.muted, shade: [`rgba(${rgbOf(c.bg)},0.7)`, `rgba(${rgbOf(c.bg)},0)`] };
 }
 
+/** The night inks everywhere except the cream themes, which get their palette. Swapping a
+ *  hard-coded '#8d7cc0' / '#6a58a0' / '#c9bfe8' for creamInk.muted / .dim / .lilac leaves
+ *  VOID, DARK and LIGHT exactly as they were and takes the purple out of CREAM and CREAM DARK. */
+export function useCreamInk(): Ink {
+  const t = useTheme();
+  return t.name === 'cream' || t.name === 'creamDark' ? inkFor(t.name, t.isLight, t.colors) : NIGHT;
+}
+
 export function useInk(): Ink {
   const t = useTheme();
   return inkFor(t.name, t.isLight, t.colors);

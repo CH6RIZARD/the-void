@@ -18,10 +18,11 @@ import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withDelay, wi
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Rect } from 'react-native-svg';
 import { WEB } from '../../theme/motion';
+import { useTheme } from '../../theme/ThemeProvider';
 
-const INK = '#c9bfe8';
-const MID = '#9f93c9';
-const SHADE = '#6f62a3';
+const INK_N = '#c9bfe8';
+const MID_N = '#9f93c9';
+const SHADE_N = '#6f62a3';
 const GOLD = '#c9a84c';
 const EASE = WEB.SHEET; // cubic-bezier(.32,.72,.28,1)
 const RM = ReduceMotion.System;
@@ -50,6 +51,10 @@ function L({ children }: { children: React.ReactNode }) {
 }
 
 export function Mailbox({ unread, open, onPress, hidden }: { unread: number; open: boolean; onPress: () => void; hidden: boolean }) {
+  // CREAM: brown hull on the light page; CREAM DARK: cream hull. Everything else keeps the lilac.
+  const { name: theme, colors: c } = useTheme();
+  const { INK, MID, SHADE } = theme === 'cream' ? { INK: c.purple, MID: c.dim, SHADE: '#3d2616' }
+    : theme === 'creamDark' ? { INK: c.white, MID: c.dim, SHADE: c.navDim } : { INK: INK_N, MID: MID_N, SHADE: SHADE_N };
   const full = unread > 0;
   const b = useSharedValue(open ? 1 : 0); // back
   const f = useSharedValue(full && !open ? 1 : 0); // full and showing the box
