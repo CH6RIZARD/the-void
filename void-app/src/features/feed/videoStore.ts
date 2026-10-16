@@ -9,6 +9,7 @@
 // Players are ref-counted and released a beat after the last user lets go, so the
 // card -> thread hand-off (unmount + mount in the same frame) never recreates one.
 import { useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 import { createVideoPlayer, type VideoPlayer } from 'expo-video';
 import { mark } from '../../core/slow';
 import { enqueueCreate, releasePaced } from '../live/pacedPlayer';
@@ -23,6 +24,13 @@ import { enqueueCreate, releasePaced } from '../live/pacedPlayer';
 export const CLIP_BUFFER = { preferredForwardBufferDuration: 8, minBufferForPlayback: 0.25, waitsToMinimizeStalling: false } as const;
 /** One disk cache serves prefetch and playback (report A.4 #4); size set at boot in app/_layout. */
 export const CLIP_CACHE_BYTES = 150 * 1024 * 1024;
+/**
+ * Disk-cache this clip? Android only: Media3's SimpleCache sits under the player.
+ * iOS caching goes through expo-video's AVAssetResourceLoaderDelegate proxy, which
+ * bypasses AVFoundation's native loader and made reels stutter on the iPhone (2026-10-16).
+ * Never HLS (iOS cannot cache it at all).
+ */
+export const clipCaching = (uri: string): boolean => Platform.OS === 'android' && !/\.m3u8(\?|$)/i.test(uri);
 
 interface Entry {
   /** null until the paced builder has run its job. */
@@ -53,7 +61,7 @@ function acquire(postId: string, uri: string): Entry {
     const entry: Entry = { player: null, uri, refs: 0, releaseT: null, job: null, waiters: new Set() };
     entry.job = enqueueCreate(() => {
       mark('feed:player');
-      const player = createVideoPlayer({ uri, useCaching: !/\.m3u8(\?|$)/i.test(uri) });
+      const player = createVideoPlayer({ uri, useCaching: clipCaching(uri) });
       try {
         player.bufferOptions = CLIP_BUFFER;
       } catch {}

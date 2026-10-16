@@ -359,9 +359,13 @@ export const ReelsView = memo(function ReelsView({ active, nation, postId, overl
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     setSoundOn(next);
   }, [soundId, stopSound]);
-  // stopGlobeReels / closeReel: pause everything and give the slot back.
+  // Live: reels open AUDIBLE and the first tap mutes (the web's muted default was a
+  // browser autoplay rule, not a choice). stopGlobeReels / closeReel: give the slot back.
   useEffect(() => {
-    if (!live && soundOn) {
+    if (live) {
+      audioRef.current?.claimAudio({ id: soundId, stop: stopSound });
+      setSoundOn(true);
+    } else if (soundOn) {
       setSoundOn(false);
       audio?.releaseAudio(soundId);
     }

@@ -14,7 +14,7 @@ import React, { memo, useEffect } from 'react';
 import { StyleSheet } from 'react-native';
 import { VideoView } from 'expo-video';
 import { isReleasedPlayer, usePacedPlayer } from '../live/pacedPlayer';
-import { CLIP_BUFFER } from '../feed/videoStore';
+import { CLIP_BUFFER, clipCaching } from '../feed/videoStore';
 
 export interface ReelVideoProps {
   uri: string;
@@ -36,10 +36,9 @@ export const WIDE_ASPECT = 0.8;
 
 export const ReelVideo = memo(function ReelVideo({ uri, want, wide, muted, onMediaReady, onFirstFrame, onWide }: ReelVideoProps) {
   const hls = /\.m3u8(\?|$)/i.test(uri);
-  // useCaching: a warm neighbour's bytes survive its release, so a card scrolled
-  // back to (or one that was N+2, then N+1) replays from disk. Not for HLS (iOS
-  // cannot cache it).
-  const player = usePacedPlayer({ uri, contentType: hls ? 'hls' : 'auto', useCaching: !hls } as any, (p) => {
+  // useCaching (Android, MP4): a warm neighbour's bytes survive its release, so a
+  // card scrolled back to (or one that was N+2, then N+1) replays from disk.
+  const player = usePacedPlayer({ uri, contentType: hls ? 'hls' : 'auto', useCaching: clipCaching(uri) } as any, (p) => {
     p.muted = true; // v.muted = v.defaultMuted = true
     p.loop = true;
     try {
