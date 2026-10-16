@@ -52,7 +52,7 @@
  * same trap resolve-live.js warns about.
  *
  *   node scripts/build-iptv-sources.js
- *   node scripts/build-iptv-sources.js --target 800 --per-country 8
+ *   node scripts/build-iptv-sources.js --target 1500 --per-country 12
  *   node scripts/build-iptv-sources.js --only "Kenya,Serbia"   # re-probe some nations, merge into existing file
  *   node scripts/build-iptv-sources.js --cache probe-cache.json --cache-hours 3   # reuse recent successful probes
  */
@@ -68,8 +68,8 @@ const arg = (k, d) => {
   const i = process.argv.indexOf('--' + k);
   return i > -1 && process.argv[i + 1] ? process.argv[i + 1] : d;
 };
-const TARGET        = parseInt(arg('target', '800'), 10);
-const PER_COUNTRY   = parseInt(arg('per-country', '8'), 10);
+const TARGET        = parseInt(arg('target', '1500'), 10);
+const PER_COUNTRY   = parseInt(arg('per-country', '12'), 10);
 const CANDIDATES    = parseInt(arg('candidates', '40'), 10);   // channels probed per country
 const CONCURRENCY   = parseInt(arg('concurrency', '24'), 10);
 const PROBE_MS      = parseInt(arg('timeout', '6000'), 10);
