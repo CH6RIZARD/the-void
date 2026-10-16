@@ -58,3 +58,7 @@ scripts/slop.json
 scripts/.curator.lock
 
 .claude/settings.local.json
+
+# local build outputs (IPAs/APKs)
+void-app/build/
+.claude/worktrees/

@@ -1,7 +1,7 @@
 {
- "generated": "2026-10-16T13:08:24.036Z",
+ "generated": "2026-10-16T20:38:22.722Z",
  "note": "Union of the re-check from 10 regions; a stream stays if it played from any of them. · scout+47@2026-10-16",
- "count": 1331,
+ "count": 1302,
  "countries": 156,
  "sources": {
   "Netherlands": [
@@ -85,8 +85,7 @@
    {
     "type": "hls",
     "url": "https://stream8.cinerama.uz/1021/tracks-v1a1/mono.m3u8",
-    "label": "Russia-24",
-    "w": 1920
+    "label": "Russia-24"
    },
    {
     "type": "hls",
@@ -97,8 +96,7 @@
    {
     "type": "hls",
     "url": "https://stream8.cinerama.uz/1231/tracks-v1a1/mono.m3u8",
-    "label": "Da Vinci",
-    "w": 1920
+    "label": "Da Vinci"
    },
    {
     "type": "hls",
@@ -207,12 +205,6 @@
     "type": "hls",
     "url": "https://dash2.antik.sk/live/test_uatv/playlist.m3u8",
     "label": "FREEDOM"
-   },
-   {
-    "type": "hls",
-    "url": "https://cdn15.live-tv.cloud/ua_infinitas_tv/hrpl-abr/playlist.m3u8",
-    "label": "PTV",
-    "w": 720
    },
    {
     "type": "hls",
@@ -560,12 +552,14 @@
    {
     "type": "hls",
     "url": "https://dfk2a268yviz9.cloudfront.net/v1/master/3722c60a815c199d9c0ef36c5b73da68a62b09d1/cc-ddiii1m6jt6of/CanalSurAndaluciaES.m3u8",
-    "label": "Canal Sur Andalucia"
+    "label": "Canal Sur Andalucia",
+    "w": 640
    },
    {
     "type": "hls",
     "url": "https://s.emisoras.tv:8081/sierradecadiz/index.m3u8",
-    "label": "Canal Sierra de Cadiz"
+    "label": "Canal Sierra de Cadiz",
+    "w": 1920
    },
    {
     "type": "hls",
@@ -575,7 +569,8 @@
    {
     "type": "hls",
     "url": "https://canalmalaga-tv-live.flumotion.com/playlist.m3u8",
-    "label": "Canal Malaga RTV"
+    "label": "Canal Malaga RTV",
+    "w": 1280
    }
   ],
   "Thailand": [
@@ -855,11 +850,6 @@
    },
    {
     "type": "hls",
-    "url": "https://video.hostingcaaguazu.com:19360/regionaltv/regionaltv.m3u8",
-    "label": "Regional TV Yaguaron"
-   },
-   {
-    "type": "hls",
     "url": "https://video.wilohosting.com:19360/oviedotv/oviedotv.m3u8",
     "label": "Oviedo TV"
    },
@@ -1128,17 +1118,20 @@
    {
     "type": "hls",
     "url": "https://live-20minutestv.digiteka.com/1961167769/index.m3u8",
-    "label": "20 Minutes TV"
+    "label": "20 Minutes TV",
+    "w": 426
    },
    {
     "type": "hls",
     "url": "https://edge13.vedge.infomaniak.com/livecast/ik:adhtv/manifest.m3u8",
-    "label": "Alpe d'Huez TV"
+    "label": "Alpe d'Huez TV",
+    "w": 1920
    },
    {
     "type": "hls",
     "url": "https://stream2.mandarine.media/brionnaistv/brionnaistv/playlist.m3u8",
-    "label": "Brionnais TV"
+    "label": "Brionnais TV",
+    "w": 1280
    }
   ],
   "India": [
@@ -1315,7 +1308,8 @@
    {
     "type": "hls",
     "url": "https://d2l4ar6y3mrs4k.cloudfront.net/live-streaming/ananda-livetv/master.m3u8",
-    "label": "ABP Ananda"
+    "label": "ABP Ananda",
+    "w": 320
    }
   ],
   "Turkey": [
@@ -1401,7 +1395,8 @@
    {
     "type": "hls",
     "url": "https://live.artidijitalmedya.com/artidijital_astv/astv/playlist.m3u8",
-    "label": "AS TV"
+    "label": "AS TV",
+    "w": 1920
    },
    {
     "type": "hls",
@@ -1411,7 +1406,8 @@
    {
     "type": "hls",
     "url": "https://cdn-alanyatv.yayin.com.tr/alanyatv/alanyatv/playlist.m3u8",
-    "label": "ATV Alanya"
+    "label": "ATV Alanya",
+    "w": 1280
    }
   ],
   "Myanmar": [
@@ -1559,12 +1555,14 @@
    {
     "type": "hls",
     "url": "https://617c5175c970b.streamlock.net:4444/tvcinco/live1/playlist.m3u8",
-    "label": "5tv"
+    "label": "5tv",
+    "w": 1080
    },
    {
     "type": "hls",
     "url": "https://stream.arcast.net:4443/gualeguay/gualeguay/playlist.m3u8",
-    "label": "Canal 2 Gualeguay"
+    "label": "Canal 2 Gualeguay",
+    "w": 1280
    }
   ],
   "United Kingdom": [
@@ -1777,7 +1775,8 @@
    {
     "type": "hls",
     "url": "https://cdn3.wowza.com/5/cXdyRHF0Z3kxN0k2/brevardfl/G2111_002/playlist.m3u8",
-    "label": "Brevard Government Access TV"
+    "label": "Brevard Government Access TV",
+    "w": 1280
    }
   ],
   "Italy": [
@@ -1861,17 +1860,20 @@
    {
     "type": "hls",
     "url": "https://58f12ffd2447a.streamlock.net/Antenna2/livestream/playlist.m3u8",
-    "label": "Antenna 2 TV"
+    "label": "Antenna 2 TV",
+    "w": 1280
    },
    {
     "type": "hls",
     "url": "https://5f204aff97bee.streamlock.net/AltoAdigeTV/livestream/playlist.m3u8",
-    "label": "AltoAdige TV"
+    "label": "AltoAdige TV",
+    "w": 1920
    },
    {
     "type": "hls",
     "url": "https://59d7d6f47d7fc.streamlock.net/canale2/canale2/playlist.m3u8",
-    "label": "Canale 2 Altamura"
+    "label": "Canale 2 Altamura",
+    "w": 1024
    }
   ],
   "Cote d": [
@@ -2094,12 +2096,14 @@
    {
     "type": "hls",
     "url": "https://cloudfront44.lexanetwork.com:1344/freerelay/bpetv.sdp/playlist.m3u8",
-    "label": "Budapest Europa Televizio"
+    "label": "Budapest Europa Televizio",
+    "w": 720
    },
    {
     "type": "hls",
     "url": "https://cloudfront44.lexanetwork.com:1344/freerelay/16tv.sdp/playlist.m3u8",
-    "label": "16tv Budapest"
+    "label": "16tv Budapest",
+    "w": 640
    }
   ],
   "Mexico": [
@@ -2187,7 +2191,8 @@
    {
     "type": "hls",
     "url": "https://5ca9af4645e15.streamlock.net/grd/videogrd/playlist.m3u8",
-    "label": "Antena TV"
+    "label": "Antena TV",
+    "w": 1920
    }
   ],
   "Chile": [
@@ -2275,7 +2280,8 @@
    {
     "type": "hls",
     "url": "https://v1.tustreaming.cl/canal30loncomilla/index.m3u8",
-    "label": "Canal 30 Loncomilla"
+    "label": "Canal 30 Loncomilla",
+    "w": 1280
    }
   ],
   "Kazakhstan": [
@@ -2304,7 +2310,8 @@
    {
     "type": "hls",
     "url": "https://qazaqstantv-stream.qazcdn.com/qazaqstantv/qazaqstantv/playlist.m3u8",
-    "label": "Qazaqstan"
+    "label": "Qazaqstan",
+    "w": 640
    }
   ],
   "Peru": [
@@ -2407,17 +2414,14 @@
    {
     "type": "hls",
     "url": "https://cloudpro.servidoresdestream.com:8081/8010/index.m3u8",
-    "label": "Antena SUR"
+    "label": "Antena SUR",
+    "w": 1920
    },
    {
     "type": "hls",
     "url": "https://live-evg11.tv360.bitel.com.pe/bitel/mastvSRT/playlist.m3u8",
-    "label": "Canal Mas TV"
-   },
-   {
-    "type": "hls",
-    "url": "https://live-evg10.tv360.bitel.com.pe/bitel/anqaratv/playlist.m3u8",
-    "label": "CANAL M Television"
+    "label": "Canal Mas TV",
+    "w": 1920
    }
   ],
   "Iran": [
@@ -2690,12 +2694,14 @@
    {
     "type": "hls",
     "url": "https://ss2.tvrdomi.com:1936/ame47/ame47/playlist.m3u8",
-    "label": "Ame 47"
+    "label": "Ame 47",
+    "w": 720
    },
    {
     "type": "hls",
     "url": "https://live20.bozztv.com/akamaissh101/ssh101/canalmulti24/playlist.m3u8",
-    "label": "Canal Multivision"
+    "label": "Canal Multivision",
+    "w": 1280
    }
   ],
   "Romania": [
@@ -2791,7 +2797,8 @@
    {
     "type": "hls",
     "url": "https://a7tvlive.ro/A7TV/A7TV/playlist.m3u8",
-    "label": "A7TV"
+    "label": "A7TV",
+    "w": 1920
    }
   ],
   "Philippines": [
@@ -2976,11 +2983,6 @@
    },
    {
     "type": "hls",
-    "url": "https://streamtv.intervenhosting.net:3529/live/tvmparatilive.m3u8",
-    "label": "TVM para ti"
-   },
-   {
-    "type": "hls",
     "url": "https://vcp.myplaytv.com/promar/promar/playlist.m3u8",
     "label": "PromarTV",
     "w": 1080
@@ -2995,16 +2997,6 @@
     "url": "https://vcp6.myplaytv.com/unitv/unitv/playlist.m3u8",
     "label": "UniTV",
     "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://vs20.live.opencaster.com/grande41_0b593479/index.m3u8",
-    "label": "Grande TV"
-   },
-   {
-    "type": "hls",
-    "url": "https://streamtv.intervenhosting.net:3789/live/portutvlive.m3u8",
-    "label": "Portuguesa Television"
    }
   ],
   "South Korea": [
@@ -3310,7 +3302,8 @@
    {
     "type": "hls",
     "url": "https://alphatvlive2.siliconweb.com/alphatvlive/live_abr/playlist.m3u8",
-    "label": "Alpha TV"
+    "label": "Alpha TV",
+    "w": 854
    }
   ],
   "Nigeria": [
@@ -3419,12 +3412,6 @@
     "url": "https://viewmedia7219.bozztv.com/wmedia/viewmedia100/web_023/Stream/playlist.m3u8",
     "label": "Nigbati",
     "w": 426
-   },
-   {
-    "type": "hls",
-    "url": "https://acasmedia3.acangroup.org/qausaintv/qausaintv_output/playlist.m3u8",
-    "label": "Qausain TV",
-    "w": 1280
    }
   ],
   "Belgium": [
@@ -3512,11 +3499,6 @@
     "url": "https://cdn140m.panaccess.com/HLS/Espoir47/index.m3u8",
     "label": "Television Espoir 47",
     "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://kali.vdopanel.com:3660/live/vj6jlam1rlive.m3u8",
-    "label": "Chandel TV"
    },
    {
     "type": "hls",
@@ -3672,27 +3654,9 @@
    },
    {
     "type": "hls",
-    "url": "https://raw.githubusercontent.com/thomraider12/canaistvpt/main/m3u8s/vmaistvi.m3u8",
-    "label": "V+ TVI",
-    "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://raw.githubusercontent.com/thomraider12/canaistvpt/main/m3u8s/tvi.m3u8",
-    "label": "TVI",
-    "w": 1280
-   },
-   {
-    "type": "hls",
     "url": "https://w1.manasat.com/tvmana-espanol/smil:tvmana-espanol.smil/playlist.m3u8",
     "label": "TV Mana Espanhol",
     "w": 640
-   },
-   {
-    "type": "hls",
-    "url": "https://raw.githubusercontent.com/thomraider12/canaistvpt/main/m3u8s/tvireality.m3u8",
-    "label": "TVI Reality",
-    "w": 1280
    },
    {
     "type": "hls",
@@ -3857,22 +3821,26 @@
    {
     "type": "hls",
     "url": "https://v-us-01.wisestream.io/memfs/e4ade538-7924-4359-81ef-b9d4dd229e91.m3u8",
-    "label": "Canal FDR"
+    "label": "Canal FDR",
+    "w": 1920
    },
    {
     "type": "hls",
     "url": "https://cdn.jmvstream.com/w/LVW-9715/LVW9715_12B26T62tm/playlist.m3u8",
-    "label": "Adesso TV"
+    "label": "Adesso TV",
+    "w": 1280
    },
    {
     "type": "hls",
     "url": "https://canalgov-stream.ebc.com.br/index.m3u8",
-    "label": "Canal Gov"
+    "label": "Canal Gov",
+    "w": 640
    },
    {
     "type": "hls",
     "url": "https://video05.logicahost.com.br/ararunatv/ararunatv/playlist.m3u8",
-    "label": "Araruna TV"
+    "label": "Araruna TV",
+    "w": 1920
    }
   ],
   "Ghana": [
@@ -3946,12 +3914,6 @@
    },
    {
     "type": "hls",
-    "url": "https://5bf7b725107e5.streamlock.net/bungotv/bungotv/playlist.m3u8",
-    "label": "Bungo TV",
-    "w": 1280
-   },
-   {
-    "type": "hls",
     "url": "https://5bf7b725107e5.streamlock.net/bmstv/bmstv/playlist.m3u8",
     "label": "BMS TV",
     "w": 1280
@@ -4019,12 +3981,6 @@
    },
    {
     "type": "hls",
-    "url": "https://kemettv.cm/memfs/b6d60ea7-18b4-4afb-b84f-bd082ed7f74f.m3u8",
-    "label": "Kemet TV",
-    "w": 854
-   },
-   {
-    "type": "hls",
     "url": "https://stream.it-innov.com/tr24/index.m3u8",
     "label": "TR24 Television",
     "w": 1280
@@ -4064,11 +4020,6 @@
    },
    {
     "type": "hls",
-    "url": "https://stream.soporteccrtv.xyz/live/elimtv/main_stream.m3u8",
-    "label": "Elim TV"
-   },
-   {
-    "type": "hls",
     "url": "https://serversv.com:8080/hls/tvgetsemani.m3u8",
     "label": "TV Getsemani"
    },
@@ -4104,7 +4055,8 @@
    {
     "type": "hls",
     "url": "https://5ca3e84a76d30.streamlock.net/tves/videotves/playlist.m3u8",
-    "label": "Canal 10"
+    "label": "Canal 10",
+    "w": 1920
    }
   ],
   "Lebanon": [
@@ -4635,7 +4587,8 @@
    {
     "type": "hls",
     "url": "https://stv2.boliviaplay.com.bo/hls/stream.m3u8",
-    "label": "Amitel TV"
+    "label": "Amitel TV",
+    "w": 1280
    }
   ],
   "Colombia": [
@@ -4661,12 +4614,6 @@
     "url": "https://inforedvos.lcdn.claro.net.co/Content/HLS_HLS_DIR/Live/channel(REDMASHDWEB)/master.m3u8",
     "label": "Red+",
     "w": 366
-   },
-   {
-    "type": "hls",
-    "url": "https://live20.bozztv.com/akamaissh101/ssh101/pyctelevision/playlist.m3u8",
-    "label": "Canal PyC",
-    "w": 1280
    },
    {
     "type": "hls",
@@ -4749,12 +4696,14 @@
    {
     "type": "hls",
     "url": "https://viewhn.com/amagatelevision/sdfUYWKegHKRPpSirG/playlist.m3u8",
-    "label": "Amaga Television"
+    "label": "Amaga Television",
+    "w": 1920
    },
    {
     "type": "hls",
     "url": "https://barinaslive1.boldmss.com/RCN/RCN.isml/RCN.m3u8",
-    "label": "Canal RCN"
+    "label": "Canal RCN",
+    "w": 1280
    }
   ],
   "Honduras": [
@@ -4803,12 +4752,6 @@
    },
    {
     "type": "hls",
-    "url": "https://amixtv.com:8081/talangavision/index.m3u8",
-    "label": "Canal 7 Talanga Vision",
-    "w": 1280
-   },
-   {
-    "type": "hls",
     "url": "https://s.emisoras.tv:8081/atv/index.m3u8",
     "label": "Alsacias Television",
     "w": 1280
@@ -4837,12 +4780,14 @@
    {
     "type": "hls",
     "url": "https://redirector.rudo.video/hls-video/c54ac2799874375c81c1672abb700870537c5223/canal11hn/canal11hn.smil/playlist.m3u8",
-    "label": "Canal 11"
+    "label": "Canal 11",
+    "w": 426
    },
    {
     "type": "hls",
     "url": "https://tv.webmedialive.com/azatvhn/live/playlist.m3u8",
-    "label": "AZA TV HD"
+    "label": "AZA TV HD",
+    "w": 1920
    }
   ],
   "Jordan": [
@@ -5380,8 +5325,7 @@
    {
     "type": "hls",
     "url": "https://tvsen6.aynaott.com/Epm7WrFa/index.m3u8",
-    "label": "Nexus TV",
-    "w": 1280
+    "label": "Nexus TV"
    },
    {
     "type": "hls",
@@ -5399,12 +5343,6 @@
     "type": "hls",
     "url": "https://stream.shariarsuvo.com/hls5/rajdhanicable.m3u8",
     "label": "Rajdhani TV"
-   },
-   {
-    "type": "hls",
-    "url": "https://app.ncare.live/c3VydmVyX8RpbEU9Mi8xNy8yMDE0GIDU6RgzQ6NTAgdEoaeFzbF92YWxIZTO0U0ezN1IzMyfvcGVMZEJCTEFWeVN3PTOmdFsaWRtaW51aiPhnPTI2/mytv-up-off.stream/live-orgin/mytv-up-off.stream/playlist.m3u8",
-    "label": "My TV",
-    "w": 720
    },
    {
     "type": "hls",
@@ -5527,17 +5465,6 @@
     "url": "https://vtvgolive-sctvdrm.vtvdigital.vn/manifest/sctv6/master.m3u8",
     "label": "SCTV6",
     "w": 640
-   },
-   {
-    "type": "hls",
-    "url": "https://live.canthotv.vn/cs3/tv/chunklist.m3u8",
-    "label": "Can Tho TV 3",
-    "w": 1920
-   },
-   {
-    "type": "hls",
-    "url": "https://live.baolaocai.vn/channel2/stream.m3u8",
-    "label": "Lao Cai TV"
    },
    {
     "type": "hls",
@@ -5745,7 +5672,7 @@
     "type": "hls",
     "url": "https://cloudvideo.servers10.com:8081/8118/index.m3u8",
     "label": "Nuka TV",
-    "w": 1280
+    "w": 640
    },
    {
     "type": "hls",
@@ -5858,11 +5785,6 @@
     "url": "https://n11.stv.livebox.sk/stv-tv/stv4.stream/playlist.m3u8",
     "label": "TV NRSR",
     "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://dash4.antik.sk/live/test_nitricka/playlist.m3u8",
-    "label": "TV Nitricka"
    },
    {
     "type": "hls",
@@ -6118,12 +6040,6 @@
     "type": "hls",
     "url": "https://cdn4.skygo.mn/live/disk1/MN25/HLSv3-FTA/MN25.m3u8",
     "label": "TV 25",
-    "w": 854
-   },
-   {
-    "type": "hls",
-    "url": "https://cdn4.skygo.mn/live/disk1/Star/HLSv3-FTA/Star.m3u8",
-    "label": "Star TV",
     "w": 854
    },
    {
@@ -6512,12 +6428,6 @@
     "url": "https://1601580044.rsc.cdn77.org/live/_jcn_/amlst:Italiasette/playlist.m3u8",
     "label": "Maria+Vision Medjugorje",
     "w": 360
-   },
-   {
-    "type": "hls",
-    "url": "https://pluslive.rtrs.tv/plus/plus/playlist.m3u8",
-    "label": "RTRS plus",
-    "w": 1280
    }
   ],
   "Uzbekistan": [
@@ -6525,11 +6435,6 @@
     "type": "hls",
     "url": "https://stream8.cinerama.uz/1011/tracks-v1a1/playlist.m3u8",
     "label": "O'zbekiston 24"
-   },
-   {
-    "type": "hls",
-    "url": "https://stream8.cinerama.uz/1015/tracks-v1a1/playlist.m3u8",
-    "label": "UzReport TV"
    },
    {
     "type": "hls",
@@ -6553,11 +6458,6 @@
    },
    {
     "type": "hls",
-    "url": "https://stream8.cinerama.uz/1204/tracks-v1a1/mono.m3u8",
-    "label": "Taraqqiyot TV"
-   },
-   {
-    "type": "hls",
     "url": "https://stream8.cinerama.uz/1008/tracks-v1a1/playlist.m3u8",
     "label": "Navo"
    },
@@ -6566,11 +6466,6 @@
     "url": "https://stream8.cinerama.uz/1013/tracks-v1a1/playlist.m3u8",
     "label": "Mahalla",
     "w": 1920
-   },
-   {
-    "type": "hls",
-    "url": "https://stream8.cinerama.uz/1006/tracks-v1a1/playlist.m3u8",
-    "label": "Dunyo bo'ylab"
    }
   ],
   "Trinidad and Tobago": [
@@ -6732,11 +6627,6 @@
    },
    {
     "type": "hls",
-    "url": "https://sistemastr.tropicalmoonmedia.com/live/7FFCFEC3978B68D1A2ED0A38DE96AF76/12.m3u8",
-    "label": "Corazon TV"
-   },
-   {
-    "type": "hls",
     "url": "https://movil.ejeserver.com/live/mas23tv.m3u8",
     "label": "Mas23 TV"
    }
@@ -6818,12 +6708,6 @@
     "type": "hls",
     "url": "https://realitatealive.md/tv/rlive.m3u8",
     "label": "Realitatea TV"
-   },
-   {
-    "type": "hls",
-    "url": "https://cachestar.privesc.eu/liniar/moldova/playlist.m3u8",
-    "label": "Privesc.Eu TV",
-    "w": 1920
    },
    {
     "type": "hls",
@@ -7057,12 +6941,6 @@
     "url": "https://vod2live.univtec.com/manifest/a99a1804-dc83-411f-8c1c-b62f08cdfa59.m3u8",
     "label": "TVJ",
     "w": 640
-   },
-   {
-    "type": "hls",
-    "url": "https://rjrfame-ioriver-cdn.encoders.immergo.tv/master.m3u8",
-    "label": "Fame95 FM",
-    "w": 1092
    },
    {
     "type": "hls",
@@ -7482,12 +7360,6 @@
    },
    {
     "type": "hls",
-    "url": "https://streamer.radiotaajuus.fi/memfs/47f113bf-04ea-493b-a9d4-52945fd9db31.m3u8",
-    "label": "JRTV Jarviradio",
-    "w": 1920
-   },
-   {
-    "type": "hls",
     "url": "https://vod.tv7.fi/tv7-se/smil:tv7-se.smil/playlist.m3u8",
     "label": "Himlen TV7",
     "w": 427
@@ -7627,7 +7499,7 @@
     "type": "hls",
     "url": "https://5cf4a2c2512a2.streamlock.net/tvmuzangala/tvmuzangala/playlist.m3u8",
     "label": "Muzangala TV",
-    "w": 1280
+    "w": 1920
    },
    {
     "type": "hls",

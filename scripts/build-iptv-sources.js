@@ -224,7 +224,10 @@ async function pool(items, worker, n) {
   return out;
 }
 
-(async () => {
+// regions/recheck.js reuses the probe; the full build runs only when called directly.
+module.exports = { probe, pool };
+
+if (require.main === module) (async () => {
   const iso2name = appCountries();
   const name2iso = {}; for (const [iso, n] of Object.entries(iso2name)) if (iso !== 'UK') name2iso[n] = iso;
   console.log('app countries mapped from C array :', Object.keys(name2iso).length);

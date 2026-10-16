@@ -50,36 +50,6 @@
   "since": 1791742084965,
   "why": "status 403"
  },
- "https://rds3.desdeparaguay.net/4dmasnoticiastv/4dmasnoticiastv/playlist.m3u8": {
-  "country": "Paraguay",
-  "src": {
-   "type": "hls",
-   "url": "https://rds3.desdeparaguay.net/4dmasnoticiastv/4dmasnoticiastv/playlist.m3u8",
-   "label": "4Dmas Noticias TV"
-  },
-  "since": 1790905643271,
-  "why": "error"
- },
- "https://64b16f23efbee.streamlock.net/telegela/telegela/playlist.m3u8": {
-  "country": "Italy",
-  "src": {
-   "type": "hls",
-   "url": "https://64b16f23efbee.streamlock.net/telegela/telegela/playlist.m3u8",
-   "label": "Telegela 647"
-  },
-  "since": 1790905643272,
-  "why": "status 404"
- },
- "https://5ff3d9babae13.streamlock.net/wympnqeqts/wympnqeqts/playlist.m3u8": {
-  "country": "Chile",
-  "src": {
-   "type": "hls",
-   "url": "https://5ff3d9babae13.streamlock.net/wympnqeqts/wympnqeqts/playlist.m3u8",
-   "label": "Rocco TV"
-  },
-  "since": 1790905643272,
-  "why": "status 403"
- },
  "https://5c3639aa99149.streamlock.net/live_TV/tv/playlist.m3u8": {
   "country": "South Korea",
   "src": {
@@ -89,16 +59,6 @@
   },
   "since": 1792104336270,
   "why": "error"
- },
- "https://wazobia.live:8333/channel/wmaxph.m3u8": {
-  "country": "Nigeria",
-  "src": {
-   "type": "hls",
-   "url": "https://wazobia.live:8333/channel/wmaxph.m3u8",
-   "label": "Wazobia Max TV Port-Harcourt"
-  },
-  "since": 1790905643272,
-  "why": "status 404"
  },
  "https://peer2.tdiradio.com/static/streaming-playlists/hls/7c3ea8d3-49dc-4e1b-8b1e-dc6fab71f5cf/0.m3u8": {
   "country": "Serbia",
@@ -128,16 +88,6 @@
    "label": "Radio Hit FM TV"
   },
   "since": 1792104336276,
-  "why": "error"
- },
- "https://live-fi.tvkaista.net/eveo/live.m3u8?hd=true": {
-  "country": "Finland",
-  "src": {
-   "type": "hls",
-   "url": "https://live-fi.tvkaista.net/eveo/live.m3u8?hd=true",
-   "label": "Eveo"
-  },
-  "since": 1790905643273,
   "why": "error"
  },
  "https://video.hostingcaaguazu.com:19360/oasistv/oasistv.m3u8": {
@@ -177,7 +127,7 @@
    "url": "https://stream2.nmih.hu:4102/live.m3u8",
    "label": "TV Panon"
   },
-  "since": 1792111098401,
+  "since": 1792114707155,
   "why": "status 404"
  },
  "https://shift03.isp.bg/RTVi/index.m3u8": {
@@ -390,8 +340,8 @@
    "url": "https://dash2.antik.sk/live/test_kuskus_tv_atktv/playlist.m3u8",
    "label": "Kus-Kus"
   },
-  "since": 1792104333738,
-  "why": "error"
+  "since": 1792118293048,
+  "why": "segment-error"
  },
  "https://dash2.antik.sk/live/telekanal_dim/playlist.m3u8": {
   "country": "Ukraine",
@@ -410,8 +360,8 @@
    "url": "https://ztnr.rtve.es/ztnr/1694255.m3u8",
    "label": "24 Horas"
   },
-  "since": 1791558574489,
-  "why": "segment 404"
+  "since": 1792114707152,
+  "why": "segment-error"
  },
  "https://limited31.todostreaming.es/live/noroestetv-livestream.m3u8": {
   "country": "Spain",
@@ -440,7 +390,7 @@
    "url": "https://cldf-hlsgw.r53.cdn.tv1.eu/1000153copo/hk1.m3u8",
    "label": "Parlamentsfernsehen 1"
   },
-  "since": 1792111098396,
+  "since": 1792114707152,
   "why": "segment 404"
  },
  "https://dash4.antik.sk/live/test_hr_tizen/playlist.m3u8": {
@@ -512,10 +462,9 @@
   "src": {
    "type": "hls",
    "url": "https://copacogen.desdeparaguay.net/monumentaltv/monumentaltv_alta/playlist.m3u8?admin=tvaccion",
-   "label": "Monumental TV",
-   "w": 1920
+   "label": "Monumental TV"
   },
-  "since": 1791480413850,
+  "since": 1792116496271,
   "why": "segment-error"
  },
  "https://stream.paraguaytv.gov.py/memfs/bbe36fed-9b49-4d1d-adaa-4bd6d1b2e386.m3u8": {
@@ -822,7 +771,7 @@
    "url": "https://edge.medcom.id/live-edge/smil:metro.smil/playlist.m3u8",
    "label": "Metro TV"
   },
-  "since": 1792111098398,
+  "since": 1792114707154,
   "why": "error"
  },
  "https://rinjanitv.cloud/hls/tvkabel.m3u8": {
@@ -875,7 +824,7 @@
    "label": "Kemet TV",
    "w": 854
   },
-  "since": 1791480413853,
+  "since": 1792163278595,
   "why": "status 404"
  },
  "https://s2.tvdatta.com:3307/hybrid/play.m3u8": {
@@ -928,7 +877,7 @@
    "url": "https://stream.syritv.al/live/syritv/playlist.m3u8",
    "label": "Syri"
   },
-  "since": 1792111098399,
+  "since": 1792138083522,
   "why": "segment-error"
  },
  "https://59d39900ebfb8.streamlock.net/vostv/vostv/playlist.m3u8": {
@@ -990,10 +939,9 @@
   "src": {
    "type": "hls",
    "url": "https://canal.aupurtv.co/live/stream/index.m3u8",
-   "label": "Aupur Television",
-   "w": 1920
+   "label": "Aupur Television"
   },
-  "since": 1791480413854,
+  "since": 1792114707154,
   "why": "segment-error"
  },
  "https://amixtv.com:8081/talangavision/index.m3u8": {
@@ -1004,8 +952,8 @@
    "label": "Canal 7 Talanga Vision",
    "w": 1280
   },
-  "since": 1791480413854,
-  "why": "error"
+  "since": 1792175884736,
+  "why": "status 503"
  },
  "https://live20.bozztv.com/giatv/giatv-canal9/canal9/chunks.m3u8": {
   "country": "Honduras",
@@ -1024,7 +972,7 @@
    "url": "https://jrtv-live.ercdn.net/jordanhd/jordanhd.m3u8",
    "label": "Jordan TV"
   },
-  "since": 1792111098399,
+  "since": 1792114707154,
   "why": "segment 404"
  },
  "https://ammantv-live.ercdn.net/ammantvhd/ammantvhd.m3u8": {
@@ -1034,7 +982,7 @@
    "url": "https://ammantv-live.ercdn.net/ammantvhd/ammantvhd.m3u8",
    "label": "Amman TV"
   },
-  "since": 1792111098399,
+  "since": 1792114707154,
   "why": "segment 404"
  },
  "https://halabtoday-live.lg.mncdn.com/halabtoday/livestream/playlist.m3u8": {
@@ -1044,7 +992,7 @@
    "url": "https://halabtoday-live.lg.mncdn.com/halabtoday/livestream/playlist.m3u8",
    "label": "Halab Today TV"
   },
-  "since": 1792111098399,
+  "since": 1792114707154,
   "why": "segment-error"
  },
  "https://app.ncare.live/c3VydmVyX8RpbEU9Mi8xNy8yMDE0GIDU6RgzQ6NTAgdEoaeFzbF92YWxIZTO0U0ezN1IzMyfvcGVMZEJCTEFWeVN3PTOmdFsaWRtaW51aiPhnPTI2/gazibdz.stream/live-orgin/gazibdz.stream/playlist.m3u8": {
@@ -1054,8 +1002,8 @@
    "url": "https://app.ncare.live/c3VydmVyX8RpbEU9Mi8xNy8yMDE0GIDU6RgzQ6NTAgdEoaeFzbF92YWxIZTO0U0ezN1IzMyfvcGVMZEJCTEFWeVN3PTOmdFsaWRtaW51aiPhnPTI2/gazibdz.stream/live-orgin/gazibdz.stream/playlist.m3u8",
    "label": "Gazi TV"
   },
-  "since": 1792111098399,
-  "why": "variant 404"
+  "since": 1792114707154,
+  "why": "status 404"
  },
  "https://hls-qhmh.lanzhousobey.cn/qhmh/mhds.m3u8": {
   "country": "China",
@@ -1094,8 +1042,8 @@
    "url": "https://dash4.antik.sk/live/test_infokanal_tizen/playlist.m3u8",
    "label": "Antik Info TV"
   },
-  "since": 1792104336274,
-  "why": "error"
+  "since": 1792116496273,
+  "why": "segment-error"
  },
  "https://dash3.antik.sk/live/test_povazie/playlist.m3u8": {
   "country": "Slovakia",
@@ -1104,7 +1052,7 @@
    "url": "https://dash3.antik.sk/live/test_povazie/playlist.m3u8",
    "label": "TV Povazie"
   },
-  "since": 1791480413855,
+  "since": 1792114707155,
   "why": "segment-error"
  },
  "https://dash2.antik.sk/live/test_zapadoslovenska/playlist.m3u8": {
@@ -1114,8 +1062,8 @@
    "url": "https://dash2.antik.sk/live/test_zapadoslovenska/playlist.m3u8",
    "label": "Zapadoslovenska TV"
   },
-  "since": 1792104336274,
-  "why": "error"
+  "since": 1792116496273,
+  "why": "segment-error"
  },
  "https://dash3.antik.sk/live/turbo_tv_avc_25p/playlist.m3u8": {
   "country": "Slovakia",
@@ -1134,7 +1082,7 @@
    "url": "https://dash2.antik.sk/live/test_nove_zamky/playlist.m3u8",
    "label": "NZTV"
   },
-  "since": 1791480413855,
+  "since": 1792121886641,
   "why": "segment-error"
  },
  "https://cdnsk003.panaccess.com/local/Ruzomberok/index.m3u8": {
@@ -1142,9 +1090,10 @@
   "src": {
    "type": "hls",
    "url": "https://cdnsk003.panaccess.com/local/Ruzomberok/index.m3u8",
-   "label": "MTR"
+   "label": "MTR",
+   "w": 1920
   },
-  "since": 1792111098400,
+  "since": 1792120087990,
   "why": "segment-error"
  },
  "https://live.eac-news.com/LiveApp/streams/eacnews.m3u8": {
@@ -1172,10 +1121,11 @@
   "src": {
    "type": "hls",
    "url": "https://stream.berosat.live:19360/rlpro-tv/rlpro-tv.m3u8",
-   "label": "RL PRO TV"
+   "label": "RL PRO TV",
+   "w": 854
   },
-  "since": 1792111098400,
-  "why": "variant-no-cors"
+  "since": 1792156104033,
+  "why": "no-cors"
  },
  "https://n105.quickmedia.tv/noetv/live/noetv/Ifd4_1_4/chunks_dvr_timeshift-0-7200.m3u8": {
   "country": "Czechia",
@@ -1184,7 +1134,7 @@
    "url": "https://n105.quickmedia.tv/noetv/live/noetv/Ifd4_1_4/chunks_dvr_timeshift-0-7200.m3u8",
    "label": "TV Noe"
   },
-  "since": 1791480413855,
+  "since": 1792114707155,
   "why": "segment 404"
  },
  "https://lnmlive.com/live/lnmtv.m3u8": {
@@ -1212,9 +1162,10 @@
   "src": {
    "type": "hls",
    "url": "https://lifetv.bitflip.ee/live/stream1.m3u8",
-   "label": "Life TV"
+   "label": "Life TV",
+   "w": 480
   },
-  "since": 1792111098400,
+  "since": 1792123679227,
   "why": "segment 404"
  },
  "https://stream8.cinerama.uz/1014/tracks-v1a1/playlist.m3u8": {
@@ -1222,10 +1173,9 @@
   "src": {
    "type": "hls",
    "url": "https://stream8.cinerama.uz/1014/tracks-v1a1/playlist.m3u8",
-   "label": "Milliy",
-   "w": 1920
+   "label": "Milliy"
   },
-  "since": 1791480413855,
+  "since": 1792141679907,
   "why": "segment-error"
  },
  "https://stream8.cinerama.uz/1206/tracks-v1a1/playlist.m3u8": {
@@ -1236,7 +1186,7 @@
    "label": "Dasturxon TV",
    "w": 1920
   },
-  "since": 1791480413855,
+  "since": 1792120087991,
   "why": "segment-error"
  },
  "https://stream8.cinerama.uz/1017/tracks-v1a1/playlist.m3u8": {
@@ -1279,7 +1229,7 @@
    "url": "https://i24newsenglish-cdn.encoders.immergo.tv/master.m3u8",
    "label": "i24NEWS English World"
   },
-  "since": 1792111098401,
+  "since": 1792114707155,
   "why": "segment 404"
  },
  "https://diadoratv.stream/live/diadora/playlist.m3u8": {
@@ -1299,7 +1249,7 @@
    "url": "https://stream-live.lrt.lt/lituanica/master.m3u8",
    "label": "LRT Lituanica"
   },
-  "since": 1792111098401,
+  "since": 1792114707155,
   "why": "segment 404"
  },
  "https://webcam.mosaiquefm.net/mosatv/_definst_/studio/playlist.m3u8?DVR": {
@@ -1319,7 +1269,7 @@
    "url": "https://yletvworld.akamaized.net/hls/live/622541/yletv2w/index.m3u8",
    "label": "Yle TV2"
   },
-  "since": 1792111098401,
+  "since": 1792114707155,
   "why": "segment 404"
  },
  "https://yletvworld.akamaized.net/hls/live/622540/yletv1w/index.m3u8": {
@@ -1329,7 +1279,7 @@
    "url": "https://yletvworld.akamaized.net/hls/live/622540/yletv1w/index.m3u8",
    "label": "Yle TV1"
   },
-  "since": 1792111098401,
+  "since": 1792114707155,
   "why": "segment 404"
  },
  "https://live-fi.tvkaista.net/mtv3/live.m3u8": {
@@ -1339,8 +1289,8 @@
    "url": "https://live-fi.tvkaista.net/mtv3/live.m3u8",
    "label": "MTV3"
   },
-  "since": 1792104336276,
-  "why": "error"
+  "since": 1792118293051,
+  "why": "status 404"
  },
  "https://yletvworld.akamaized.net/hls/live/622547/yletvteemafemw/index.m3u8": {
   "country": "Finland",
@@ -1349,7 +1299,7 @@
    "url": "https://yletvworld.akamaized.net/hls/live/622547/yletvteemafemw/index.m3u8",
    "label": "Yle Teema & Fem"
   },
-  "since": 1792111098401,
+  "since": 1792114707155,
   "why": "segment 404"
  },
  "https://live-fi.tvkaista.net/nelonen/live.m3u8": {
@@ -1359,7 +1309,7 @@
    "url": "https://live-fi.tvkaista.net/nelonen/live.m3u8",
    "label": "Nelonen"
   },
-  "since": 1792111098401,
+  "since": 1792114707156,
   "why": "status 404"
  },
  "https://live-tvkrasnodar.cdnvideo.ru/tvkrasnodar/tvkrasnodar.sdp/playlist.m3u8": {
@@ -1510,20 +1460,22 @@
   "src": {
    "type": "hls",
    "url": "https://raw.githubusercontent.com/thomraider12/canaistvpt/main/m3u8s/vmaistvi.m3u8",
-   "label": "V+ TVI"
+   "label": "V+ TVI",
+   "w": 1280
   },
-  "since": 1792104336272,
-  "why": "error"
+  "since": 1792174079995,
+  "why": "variant 403"
  },
  "https://raw.githubusercontent.com/thomraider12/canaistvpt/main/m3u8s/tvi.m3u8": {
   "country": "Portugal",
   "src": {
    "type": "hls",
    "url": "https://raw.githubusercontent.com/thomraider12/canaistvpt/main/m3u8s/tvi.m3u8",
-   "label": "TVI"
+   "label": "TVI",
+   "w": 1280
   },
-  "since": 1792104336272,
-  "why": "error"
+  "since": 1792174079995,
+  "why": "variant 403"
  },
  "https://raw.githubusercontent.com/thomraider12/canaistvpt/main/m3u8s/tvireality.m3u8": {
   "country": "Portugal",
@@ -1533,7 +1485,7 @@
    "label": "TVI Reality",
    "w": 1280
   },
-  "since": 1791483061547,
+  "since": 1792174079995,
   "why": "variant 403"
  },
  "https://tvstream.upea.bo/hls/oSs0jSWumTFIIVY97559.m3u8": {
@@ -1551,20 +1503,20 @@
   "src": {
    "type": "hls",
    "url": "https://htvmada.mada.ps:4443/wattan/index.m3u8",
-   "label": "Wattan TV"
+   "label": "Wattan TV",
+   "w": 1280
   },
-  "since": 1792104336273,
-  "why": "error"
+  "since": 1792134479839,
+  "why": "segment-error"
  },
  "https://app24.jagobd.com.bd/c3VydmVyX8RpbEU9Mi8xNy8yMFDEEHGcfRgzQ6NTAgdEoaeFzbF92YWxIZTO0U0ezN1IzMyfvcEdsEfeDeKiNkVN3PTOmdFseWRtaW51aiPhnPTI2/rtv-sg.stream/index.m3u8": {
   "country": "Bangladesh",
   "src": {
    "type": "hls",
    "url": "https://app24.jagobd.com.bd/c3VydmVyX8RpbEU9Mi8xNy8yMFDEEHGcfRgzQ6NTAgdEoaeFzbF92YWxIZTO0U0ezN1IzMyfvcEdsEfeDeKiNkVN3PTOmdFseWRtaW51aiPhnPTI2/rtv-sg.stream/index.m3u8",
-   "label": "RTV (BD)",
-   "w": 1280
+   "label": "RTV"
   },
-  "since": 1791483061550,
+  "since": 1792116496273,
   "why": "error"
  },
  "https://dash4.antik.sk/live/test_central/playlist.m3u8": {
@@ -1604,7 +1556,7 @@
    "url": "https://dash3.antik.sk/live/test_mistral_atktv/playlist.m3u8",
    "label": "TV Mistral"
   },
-  "since": 1792111098400,
+  "since": 1792120087990,
   "why": "segment-error"
  },
  "https://dash3.antik.sk/live/test_osem/playlist.m3u8": {
@@ -1614,7 +1566,7 @@
    "url": "https://dash3.antik.sk/live/test_osem/playlist.m3u8",
    "label": "TV8 (SK)"
   },
-  "since": 1792111098400,
+  "since": 1792114707155,
   "why": "segment-error"
  },
  "https://dash4.antik.sk/live/test_ocko_star/playlist.m3u8": {
@@ -1634,8 +1586,8 @@
    "url": "https://stream8.cinerama.uz/1015/tracks-v1a1/playlist.m3u8",
    "label": "UzReport TV"
   },
-  "since": 1792104336275,
-  "why": "error"
+  "since": 1792163278596,
+  "why": "segment-error"
  },
  "https://stream8.cinerama.uz/1003/tracks-v1a1/playlist.m3u8": {
   "country": "Uzbekistan",
@@ -1664,7 +1616,7 @@
    "url": "https://stream8.cinerama.uz/1221/tracks-v1a1/playlist.m3u8",
    "label": "Renessans TV"
   },
-  "since": 1791483061550,
+  "since": 1792145272835,
   "why": "segment-error"
  },
  "https://stream8.cinerama.uz/1220/tracks-v1a1/mono.m3u8": {
@@ -1684,7 +1636,7 @@
    "url": "https://stream8.cinerama.uz/1204/tracks-v1a1/mono.m3u8",
    "label": "Taraqqiyot TV"
   },
-  "since": 1791483061550,
+  "since": 1792163278596,
   "why": "segment-error"
  },
  "https://stream8.cinerama.uz/1008/tracks-v1a1/playlist.m3u8": {
@@ -1789,18 +1741,19 @@
    "label": "360°",
    "w": 1024
   },
-  "since": 1791485579400,
-  "why": "error"
+  "since": 1792120087987,
+  "why": "segment-error"
  },
  "https://cdn15.live-tv.cloud/ua_infinitas_tv/hrpl-abr/playlist.m3u8": {
   "country": "Ukraine",
   "src": {
    "type": "hls",
    "url": "https://cdn15.live-tv.cloud/ua_infinitas_tv/hrpl-abr/playlist.m3u8",
-   "label": "PTV"
+   "label": "PTV",
+   "w": 720
   },
-  "since": 1792104333737,
-  "why": "error"
+  "since": 1792179487068,
+  "why": "status 404"
  },
  "https://dash2.antik.sk/live/test_one_plus_one_int_tizen/playlist.m3u8": {
   "country": "Ukraine",
@@ -1958,11 +1911,10 @@
   "src": {
    "type": "hls",
    "url": "https://copacotf.desdeparaguay.net/latele/latele_py_alta/playlist.m3u8?admin=tvaccion",
-   "label": "Latele",
-   "w": 1280
+   "label": "Latele"
   },
-  "since": 1791485579401,
-  "why": "error"
+  "since": 1792114707152,
+  "why": "segment-error"
  },
  "https://tvregfull.mailfull.pl/tvregfull/memfs/e64b3e05-649c-4939-9ff6-584e79285ccd_output_0.m3u8": {
   "country": "Poland",
@@ -2035,8 +1987,8 @@
    "label": "Zindagi TV",
    "w": 320
   },
-  "since": 1791485579402,
-  "why": "error"
+  "since": 1792127282887,
+  "why": "status 403"
  },
  "https://g4wlkwx8l23a-hls-live.5centscdn.com/HUM/271ddf829afeece44d8732757fba1a66.sdp/playlist_dvr.m3u8": {
   "country": "Pakistan",
@@ -2068,7 +2020,7 @@
    "label": "RPP TV",
    "w": 426
   },
-  "since": 1791485579402,
+  "since": 1792127282888,
   "why": "segment-error"
  },
  "https://tv2.bitstreaming.net:3539/live/deltanetlive.m3u8": {
@@ -2244,10 +2196,11 @@
   "src": {
    "type": "hls",
    "url": "https://live20.bozztv.com/akamaissh101/ssh101/tvcaelsalvador/playlist.m3u8",
-   "label": "TVCa"
+   "label": "TVCa",
+   "w": 1920
   },
-  "since": 1792104336272,
-  "why": "error"
+  "since": 1792130882013,
+  "why": "status 404"
  },
  "https://edge.enhdtv.com/8026/index.m3u8": {
   "country": "Bolivia",
@@ -2391,10 +2344,11 @@
   "src": {
    "type": "hls",
    "url": "https://htvmada.mada.ps:4443/maannews/index.m3u8",
-   "label": "Ma'an TV"
+   "label": "Ma'an TV",
+   "w": 1280
   },
-  "since": 1792104336273,
-  "why": "error"
+  "since": 1792152479495,
+  "why": "segment-error"
  },
  "https://live20.bozztv.com/giatv/giatv-Infinittyott/Infinittyott/playlist.m3u8": {
   "country": "Canada",
@@ -2549,8 +2503,8 @@
    "url": "https://stream8.cinerama.uz/1005/tracks-v1a1/playlist.m3u8",
    "label": "Madaniyat va ma'rifat"
   },
-  "since": 1791488346904,
-  "why": "segment-error"
+  "since": 1792141679907,
+  "why": "error"
  },
  "https://stream8.cinerama.uz/1016/tracks-v1a1/mono.m3u8": {
   "country": "Uzbekistan",
@@ -2661,9 +2615,10 @@
   "src": {
    "type": "hls",
    "url": "https://mrtvott.com/cache/MRTV-Ent-HD/master.m3u8",
-   "label": "MRTV Entertainment"
+   "label": "MRTV Entertainment",
+   "w": 720
   },
-  "since": 1792111098397,
+  "since": 1792120087988,
   "why": "error"
  },
  "https://redirector.rudo.video/hls-video/567ffde3fa319fadf3419efda25619456231dfea/latina/latina.smil/playlist.m3u8": {
@@ -2829,7 +2784,7 @@
    "url": "https://edge.essastream.com/televisiondeleste/tracks-v1a1/mono.m3u8",
    "label": "Television del Este"
   },
-  "since": 1792104336270,
+  "since": 1792118293049,
   "why": "error"
  },
  "https://edge.essastream.com/informetv/tracks-v1a1/mono.m3u8": {
@@ -2921,10 +2876,11 @@
   "src": {
    "type": "hls",
    "url": "https://live20.bozztv.com/akamaissh101/ssh101/pyctelevision/playlist.m3u8",
-   "label": "Canal PyC"
+   "label": "Canal PyC",
+   "w": 1280
   },
-  "since": 1792104336272,
-  "why": "error"
+  "since": 1792165081741,
+  "why": "status 404"
  },
  "https://play.cdn.enetres.net/621B146D29C541AFB1507809F038F471021/021/playlist.m3u8": {
   "country": "Colombia",
@@ -2985,18 +2941,19 @@
    "url": "https://sistemastr.tropicalmoonmedia.com/live/7FFCFEC3978B68D1A2ED0A38DE96AF76/12.m3u8",
    "label": "Corazon TV"
   },
-  "since": 1792104336275,
-  "why": "error"
+  "since": 1792174079997,
+  "why": "segment-error"
  },
  "https://uni01rtmp.tulix.tv/4vehtv/4vehtv-firetv/playlist.m3u8": {
   "country": "Haiti",
   "src": {
    "type": "hls",
    "url": "https://uni01rtmp.tulix.tv/4vehtv/4vehtv-firetv/playlist.m3u8",
-   "label": "Radio Tele 4VEH"
+   "label": "Radio Tele 4VEH",
+   "w": 1280
   },
-  "since": 1792104336277,
-  "why": "error"
+  "since": 1792130882015,
+  "why": "status 404"
  },
  "https://stream01.msolutionbrasil.com.br/hls/tvitape/live.m3u8": {
   "country": "Brazil",
@@ -3024,9 +2981,10 @@
   "src": {
    "type": "hls",
    "url": "https://stream-live.lrt.lt/radijas/master.m3u8",
-   "label": "LRT Radijas"
+   "label": "LRT Radijas",
+   "w": 960
   },
-  "since": 1792111098401,
+  "since": 1792121886642,
   "why": "segment 404"
  },
  "https://cdn.freevisiontv.co.za/sttv/smil:1kzn.stream.smil/playlist.m3u8": {
@@ -3345,7 +3303,7 @@
    "label": "TVS",
    "w": 1920
   },
-  "since": 1791512596735,
+  "since": 1792138083521,
   "why": "status 404"
  },
  "https://tv.centaurychile.com/imperial/streams/EnCyCiwNLsqEQ2kv2852222720686498.m3u8": {
@@ -3355,7 +3313,7 @@
    "url": "https://tv.centaurychile.com/imperial/streams/EnCyCiwNLsqEQ2kv2852222720686498.m3u8",
    "label": "Imperial TV"
   },
-  "since": 1791512596736,
+  "since": 1792125484905,
   "why": "status 404"
  },
  "https://live.amelbatv.co:81/telemocoalive/index.m3u8": {
@@ -3387,8 +3345,8 @@
    "url": "https://playtv4k.live/live/EVTELE/index.m3u8",
    "label": "Ev-tele"
   },
-  "since": 1792104336274,
-  "why": "error"
+  "since": 1792118293051,
+  "why": "status 404"
  },
  "https://5c46fa289c89f.streamlock.net/pub1live/mystream/playlist.m3u8": {
   "country": "Rwanda",
@@ -3417,8 +3375,8 @@
    "url": "https://mediaserver1.castpin.com/hls/telesahel/index.m3u8",
    "label": "Tele Sahel"
   },
-  "since": 1792104336276,
-  "why": "error"
+  "since": 1792116496274,
+  "why": "segment-error"
  },
  "https://takeoff.jetstre.am/?account=nhnieuws&file=live&output=playlist.m3u8&protocol=https&service=wowza&type=live": {
   "country": "Netherlands",
@@ -3545,7 +3503,7 @@
    "label": "Latest TV",
    "w": 640
   },
-  "since": 1791515468724,
+  "since": 1792120087988,
   "why": "error"
  },
  "https://lds-wonder-samsungau.amagi.tv/playlist.m3u8": {
@@ -3577,7 +3535,7 @@
    "label": "Canal 10 Durango",
    "w": 1920
   },
-  "since": 1791517080982,
+  "since": 1792121886640,
   "why": "status 404"
  },
  "https://servilive.com:3380/live/v3n6thy7glive.m3u8": {
@@ -3619,7 +3577,7 @@
    "label": "Canal 10 (SV)",
    "w": 1920
   },
-  "since": 1791518882657,
+  "since": 1792123679226,
   "why": "status 404"
  },
  "https://cloudstreamhntv.tek4tv.vn/live/smil:HN2.smil/playlist.m3u8": {
@@ -3651,7 +3609,7 @@
    "url": "https://cdn-us-east-prod-ingest-infra-dacast-com.akamaized.net/8424fb7f-99a9-87ae-3861-f0620849d11c/source/index.m3u8",
    "label": "HGPTV"
   },
-  "since": 1791518882659,
+  "since": 1792123679227,
   "why": "status 404"
  },
  "https://player.qtv.gm/hls/live.stream.m3u8": {
@@ -3705,7 +3663,7 @@
    "label": "CEACOM TV",
    "w": 1920
   },
-  "since": 1791522478236,
+  "since": 1792127282889,
   "why": "status 404"
  },
  "https://c.mjh.nz/abc-act.m3u8": {
@@ -3759,7 +3717,7 @@
    "label": "Television Olanchana",
    "w": 1280
   },
-  "since": 1791524279341,
+  "since": 1792129089360,
   "why": "status 404"
  },
  "https://5caf24a595d94.streamlock.net:1937/8142/8142/playlist.m3u8": {
@@ -3781,7 +3739,7 @@
    "label": "Cadena A",
    "w": 1280
   },
-  "since": 1791526127117,
+  "since": 1792130882014,
   "why": "status 404"
  },
  "https://5dcab9aed5331.streamlock.net/mrcompas1/livestream/playlist.m3u8": {
@@ -3789,10 +3747,11 @@
   "src": {
    "type": "hls",
    "url": "https://5dcab9aed5331.streamlock.net/mrcompas1/livestream/playlist.m3u8",
-   "label": "Radio Tele Planet Compas"
+   "label": "Radio Tele Planet Compas",
+   "w": 1280
   },
-  "since": 1792104336277,
-  "why": "error"
+  "since": 1792134479840,
+  "why": "status 404"
  },
  "https://stream.it-innov.com/cam10tv/index.m3u8": {
   "country": "Cameroon",
@@ -4008,7 +3967,7 @@
    "url": "https://tv.centaurychile.com/interactiva/streams/KIgB6QvZ0L8XaSLd3211668845221245.m3u8",
    "label": "Red Uno"
   },
-  "since": 1791536886727,
+  "since": 1792125484905,
   "why": "status 404"
  },
  "https://streams.playtv.com.ng/Tele-Regency_TRTV/index.m3u8": {
@@ -4247,8 +4206,8 @@
    "url": "https://lives.atv.az:5443/KANAL-S/streams/kanals.m3u8",
    "label": "Kanal S"
   },
-  "since": 1791560495723,
-  "why": "error"
+  "since": 1792129089360,
+  "why": "status 404"
  },
  "https://vdopanel.jlahozconsulting.com:3648/live/atabaltvlive.m3u8": {
   "country": "Dominican Republic",
@@ -4278,7 +4237,7 @@
    "url": "https://video2.getstreamhosting.com:19360/8216/8216.m3u8",
    "label": "CAtv"
   },
-  "since": 1792111098400,
+  "since": 1792114707155,
   "why": "status 403"
  },
  "https://edge.enhdtv.com/litustv/index.m3u8": {
@@ -4423,10 +4382,11 @@
   "src": {
    "type": "hls",
    "url": "https://live.paltodaytv.com/paltv/live/playlist.m3u8",
-   "label": "Palestine Today"
+   "label": "Palestine Today",
+   "w": 1280
   },
-  "since": 1792104336273,
-  "why": "error"
+  "since": 1792123679226,
+  "why": "status 404"
  },
  "https://stream1.kanald.ro/iphone/knd-live.m3u8": {
   "country": "Romania",
@@ -4500,7 +4460,7 @@
    "url": "https://live.alarabiya.net/alarabiapublish/english/playlist_dvr.m3u8",
    "label": "Al Arabiya English"
   },
-  "since": 1792111098398,
+  "since": 1792114707153,
   "why": "segment 404"
  },
  "https://load-balancer.azotosolutions.com/cdnedge19/smil:live19.smil/playlist.m3u8": {
@@ -4521,7 +4481,7 @@
    "url": "https://edge.medcom.id/live-edge/smil:magna.smil/playlist.m3u8",
    "label": "Magna Channel"
   },
-  "since": 1792111098398,
+  "since": 1792114707154,
   "why": "error"
  },
  "https://video1.getstreamhosting.com:1936/8306/8306/playlist.m3u8": {
@@ -4531,7 +4491,7 @@
    "url": "https://video1.getstreamhosting.com:1936/8306/8306/playlist.m3u8",
    "label": "Afro Magic Channel"
   },
-  "since": 1792111098397,
+  "since": 1792114707152,
   "why": "status 404"
  },
  "https://video1.getstreamhosting.com:1936/8250/8250/manifest.m3u8": {
@@ -4645,8 +4605,8 @@
    "url": "https://fs.uplink.kz/24KZ/mono.m3u8?token=onlinetv",
    "label": "24KZ"
   },
-  "since": 1792104336269,
-  "why": "error"
+  "since": 1792129089359,
+  "why": "status 403"
  },
  "https://fs.uplink.kz/ntk/mono.m3u8?token=onlinetv": {
   "country": "Kazakhstan",
@@ -4655,8 +4615,8 @@
    "url": "https://fs.uplink.kz/ntk/mono.m3u8?token=onlinetv",
    "label": "NTK"
   },
-  "since": 1792104336269,
-  "why": "error"
+  "since": 1792129089359,
+  "why": "status 403"
  },
  "https://fs.uplink.kz/ktk/mono.m3u8?token=onlinetv": {
   "country": "Kazakhstan",
@@ -4665,8 +4625,8 @@
    "url": "https://fs.uplink.kz/ktk/mono.m3u8?token=onlinetv",
    "label": "KTK"
   },
-  "since": 1792104336269,
-  "why": "error"
+  "since": 1792129089359,
+  "why": "status 403"
  },
  "https://fs.uplink.kz/31kanal/mono.m3u8?token=onlinetv": {
   "country": "Kazakhstan",
@@ -4675,8 +4635,8 @@
    "url": "https://fs.uplink.kz/31kanal/mono.m3u8?token=onlinetv",
    "label": "31 Kanal"
   },
-  "since": 1791922764298,
-  "why": "error"
+  "since": 1792129089359,
+  "why": "status 403"
  },
  "https://fs.uplink.kz/habar/mono.m3u8?token=onlinetv": {
   "country": "Kazakhstan",
@@ -4685,8 +4645,8 @@
    "url": "https://fs.uplink.kz/habar/mono.m3u8?token=onlinetv",
    "label": "Khabar"
   },
-  "since": 1792104336269,
-  "why": "error"
+  "since": 1792129089359,
+  "why": "status 403"
  },
  "https://fs.uplink.kz/7_kanal/mono.m3u8?token=onlinetv": {
   "country": "Kazakhstan",
@@ -4695,8 +4655,8 @@
    "url": "https://fs.uplink.kz/7_kanal/mono.m3u8?token=onlinetv",
    "label": "Channel 7"
   },
-  "since": 1792104336269,
-  "why": "error"
+  "since": 1792129089359,
+  "why": "status 403"
  },
  "https://fs.uplink.kz/almaty/mono.m3u8?token=onlinetv": {
   "country": "Kazakhstan",
@@ -4705,8 +4665,8 @@
    "url": "https://fs.uplink.kz/almaty/mono.m3u8?token=onlinetv",
    "label": "Almaty TV"
   },
-  "since": 1791922764298,
-  "why": "error"
+  "since": 1792129089359,
+  "why": "status 403"
  },
  "https://fs.uplink.kz/atameken/mono.m3u8?token=onlinetv": {
   "country": "Kazakhstan",
@@ -4715,8 +4675,8 @@
    "url": "https://fs.uplink.kz/atameken/mono.m3u8?token=onlinetv",
    "label": "Atameken Business"
   },
-  "since": 1791599991896,
-  "why": "error"
+  "since": 1792129089359,
+  "why": "status 403"
  },
  "https://fs.uplink.kz/astana/mono.m3u8?token=onlinetv": {
   "country": "Kazakhstan",
@@ -4725,8 +4685,8 @@
    "url": "https://fs.uplink.kz/astana/mono.m3u8?token=onlinetv",
    "label": "Astana TV"
   },
-  "since": 1791922764298,
-  "why": "error"
+  "since": 1792129089359,
+  "why": "status 403"
  },
  "https://ss2.tvrdomi.com:1936/colometv/colometv/playlist.m3u8": {
   "country": "Dominican Republic",
@@ -4894,10 +4854,11 @@
   "src": {
    "type": "hls",
    "url": "https://5bf7b725107e5.streamlock.net/kstv/kstv/playlist.m3u8",
-   "label": "Kilisuci TV"
+   "label": "Kilisuci TV",
+   "w": 640
   },
-  "since": 1792104336272,
-  "why": "error"
+  "since": 1792136278305,
+  "why": "status 404"
  },
  "https://gjirafa-video-live.gjirafa.net/gjvideo-live/j3a-n14-2pf-g3s/index.m3u8": {
   "country": "Serbia",
@@ -4990,7 +4951,7 @@
    "url": "https://fort.co-works.org/memfs/87017643-274a-4bc0-a786-7767a0d159c2.m3u8",
    "label": "FORT TV"
   },
-  "since": 1792111098398,
+  "since": 1792114707153,
   "why": "status 404"
  },
  "https://air.star.lv/TV_Jurmala_multistream/index.m3u8": {
@@ -5042,7 +5003,7 @@
    "label": "JRTV Jarviradio",
    "w": 1920
   },
-  "since": 1791630530870,
+  "since": 1792179487072,
   "why": "error"
  },
  "https://cdn-cloudfront.eu-central-1.prod.ingest.aws-infra.dacast.com/live/bff8bd53-ee89-2c76-6a51-95a0003f7d96/master.m3u8": {
@@ -5072,8 +5033,8 @@
    "url": "https://mediaserver1.castpin.com/hls/taltv/index.m3u8",
    "label": "Tal TV"
   },
-  "since": 1792104336276,
-  "why": "error"
+  "since": 1792116496274,
+  "why": "segment-error"
  },
  "https://lsm.eu.cdns-redge.media/livehls/o2/lsm-live/live/ltv1_pasaule/live.livx/playlist.m3u8": {
   "country": "Latvia",
@@ -5363,7 +5324,7 @@
    "url": "https://www.xezerxeber.az/stream/index.m3u8",
    "label": "Xezer TV"
   },
-  "since": 1792111098399,
+  "since": 1792114707154,
   "why": "segment 403"
  },
  "https://wifispeed.trapemn.tv:1936/comunales/autonoma-tv/playlist.m3u8": {
@@ -5474,10 +5435,11 @@
   "src": {
    "type": "hls",
    "url": "https://live20.bozztv.com/akamaissh101/ssh101/cncvalledupar1/playlist.m3u8",
-   "label": "CNC Valledupar"
+   "label": "CNC Valledupar",
+   "w": 1280
   },
-  "since": 1792104336272,
-  "why": "error"
+  "since": 1792130882014,
+  "why": "variant 503"
  },
  "https://rtmp.baku.tv/hls/bakutv.m3u8": {
   "country": "Azerbaijan",
@@ -5707,8 +5669,8 @@
    "url": "https://www.streaming507.net:19360/videotropiq/videotropiq.m3u8",
    "label": "Tropi Q 99.7 FM"
   },
-  "since": 1791707881733,
-  "why": "error"
+  "since": 1792139878256,
+  "why": "status 404"
  },
  "https://www.streaming507.net:19360/anconvideo/anconvideo.m3u8": {
   "country": "Panama",
@@ -5850,7 +5812,7 @@
    "url": "https://streamtv.cmediahosthosting.net:3836/live/myafroculturelive.m3u8",
    "label": "Afroculture TV"
   },
-  "since": 1792111098397,
+  "since": 1792114707152,
   "why": "status 404"
  },
  "https://x.streamablecloud.com/stream/hls/jeremiahtv/index.m3u8": {
@@ -7121,8 +7083,8 @@
    "url": "https://vod1.laki.eu/live/hram/index.m3u8",
    "label": "TV Hram"
   },
-  "since": 1791823638181,
-  "why": "error"
+  "since": 1792136278307,
+  "why": "status 404"
  },
  "https://dcur8bjarl5c2.cloudfront.net/live/rijnmond/tv/index.m3u8": {
   "country": "Netherlands",
@@ -7606,8 +7568,8 @@
    "url": "https://fs.uplink.kz/perviy_kanal_sng/mono.m3u8?token=onlinetv",
    "label": "Channel One CIS"
   },
-  "since": 1791825181639,
-  "why": "error"
+  "since": 1792129089358,
+  "why": "status 403"
  },
  "https://fs.uplink.kz/ren/mono.m3u8?token=onlinetv": {
   "country": "Russia",
@@ -10158,8 +10120,8 @@
    "url": "https://stream-server9-jupiter.muxlive.com/hls/gctvghana/index.m3u8",
    "label": "Great Commission TV"
   },
-  "since": 1791861484234,
-  "why": "error"
+  "since": 1792148879319,
+  "why": "status 404"
  },
  "https://goliveafrica.media:9998/live/6257fbe7383d6/index.m3u8": {
   "country": "Kenya",
@@ -10856,8 +10818,8 @@
    "url": "https://live.knou.ac.kr/knou1/live1/playlist.m3u8",
    "label": "OUN"
   },
-  "since": 1791861484236,
-  "why": "error"
+  "since": 1792118293049,
+  "why": "segment-error"
  },
  "https://viewmedia7219.bozztv.com/wmedia/viewmedia100/web_040/Stream/playlist.m3u8": {
   "country": "Iraq",
@@ -11118,10 +11080,9 @@
   "src": {
    "type": "hls",
    "url": "https://fr.crystalweb.net:1936/aigaiotv/aigaiotv/playlist.m3u8",
-   "label": "Aigaio TV",
-   "w": 1280
+   "label": "Aigaio TV"
   },
-  "since": 1792109299513,
+  "since": 1792114707153,
   "why": "error"
  },
  "https://live.neatv.gr:8888/hls/neatv.m3u8": {
@@ -11391,8 +11352,8 @@
    "label": "Qausain TV",
    "w": 1280
   },
-  "since": 1791861484236,
-  "why": "error"
+  "since": 1792179487070,
+  "why": "status 404"
  },
  "https://wazobia.live:8333/channel/wmax.m3u8": {
   "country": "Nigeria",
@@ -11677,7 +11638,7 @@
    "url": "https://ip.pdtvhd.com/Khmer/streams/Bayonhd.m3u8",
    "label": "Bayon TV"
   },
-  "since": 1792111098400,
+  "since": 1792114707155,
   "why": "error"
  },
  "https://video.primexsports.com/suchnews/live/playlist.m3u8": {
@@ -11730,7 +11691,7 @@
    "url": "https://stream.hrbtv.net/xwzh/playlist.m3u8?_upt=ef41dd531755913594",
    "label": "Harbin Comprehensive News Channel"
   },
-  "since": 1792104336273,
+  "since": 1792125484906,
   "why": "error"
  },
  "https://s5.mexside.net:1936/elsonorense/elsonorense/playlist.m3u8": {
@@ -11793,8 +11754,8 @@
    "url": "https://kali.vdopanel.com:3660/live/vj6jlam1rlive.m3u8",
    "label": "Chandel TV"
   },
-  "since": 1792104336272,
-  "why": "error"
+  "since": 1792166880174,
+  "why": "status 404"
  },
  "https://lbgo.bozztv.com/ssh101/ssh101/d3tvnet/playlist.m3u8": {
   "country": "Mali",
@@ -12452,8 +12413,8 @@
    "label": "6 TV Telugu",
    "w": 512
   },
-  "since": 1791922764296,
-  "why": "error"
+  "since": 1792145272832,
+  "why": "variant 404"
  },
  "https://d1msejlow1t3l4.cloudfront.net/fta/jaimaharashtra/playlist.m3u8": {
   "country": "India",
@@ -13051,8 +13012,8 @@
    "label": "Life TV (TR)",
    "w": 1920
   },
-  "since": 1791922764296,
-  "why": "error"
+  "since": 1792145272832,
+  "why": "status 404"
  },
  "https://turkmedya-live.ercdn.net/tv4/tv4.m3u8": {
   "country": "Turkey",
@@ -16344,10 +16305,11 @@
   "src": {
    "type": "hls",
    "url": "https://redirector.rudo.video/hls-video/931b584451fa6dd1313ee66efbfd5802e3f3bcea/adntv/adntv.smil/playlist.m3u8",
-   "label": "ADN TV"
+   "label": "ADN TV",
+   "w": 426
   },
-  "since": 1792104336269,
-  "why": "error"
+  "since": 1792132680997,
+  "why": "status 404"
  },
  "https://fs.uplink.kz/turan_tv/mono.m3u8?token=onlinetv": {
   "country": "Kazakhstan",
@@ -16356,8 +16318,8 @@
    "url": "https://fs.uplink.kz/turan_tv/mono.m3u8?token=onlinetv",
    "label": "Turan TV"
   },
-  "since": 1792104336269,
-  "why": "error"
+  "since": 1792129089359,
+  "why": "status 403"
  },
  "https://hlspackager.akamaized.net/live/DB/SILKWAY/SILKWAY/SILKWAY.m3u8": {
   "country": "Kazakhstan",
@@ -16408,8 +16370,8 @@
    "url": "https://fs.uplink.kz/perviy_kanal_evrasia/mono.m3u8?token=onlinetv",
    "label": "Channel One Eurasia"
   },
-  "since": 1792104336269,
-  "why": "error"
+  "since": 1792129089359,
+  "why": "status 403"
  },
  "https://live.zhanafm.kz:8181/memfs/fd715789-382f-4ec6-b4ba-d8e2fde59c7b.m3u8": {
   "country": "Kazakhstan",
@@ -18088,10 +18050,11 @@
   "src": {
    "type": "hls",
    "url": "https://stream8.cinerama.uz/1448/playlist.m3u8",
-   "label": "KBS World"
+   "label": "KBS World",
+   "w": 1920
   },
-  "since": 1792104336271,
-  "why": "error"
+  "since": 1792145272833,
+  "why": "segment-error"
  },
  "https://amdlive-ch02-ctnd-com.akamaized.net/arirang_3ch/smil:arirang_3ch.smil/playlist.m3u8": {
   "country": "South Korea",
@@ -18468,8 +18431,8 @@
    "url": "https://channels.ad-ug.com/live/ch03/index.m3u8",
    "label": "KRC TV"
   },
-  "since": 1792104336272,
-  "why": "error"
+  "since": 1792136278304,
+  "why": "status 404"
  },
  "https://stream.hydeinnovations.com/arktv-international/index.fmp4.m3u8": {
   "country": "Uganda",
@@ -18497,10 +18460,11 @@
   "src": {
    "type": "hls",
    "url": "https://yayin1.canlitv.fun/live/kibrisadatv.stream/playlist.m3u8",
-   "label": "Ada TV"
+   "label": "Ada TV",
+   "w": 1920
   },
-  "since": 1792104336272,
-  "why": "error"
+  "since": 1792121886640,
+  "why": "status 404"
  },
  "https://sl2.sigmatv.com/hls/live.m3u8": {
   "country": "Cyprus",
@@ -18825,7 +18789,7 @@
    "url": "https://jambitv.globaldigitalcore.com/hls/sah5tu7Eiveepohyieyie3OoteL2anga.m3u8",
    "label": "Jambi TV"
   },
-  "since": 1791924397381,
+  "since": 1792127282889,
   "why": "error"
  },
  "https://banjartv.siar.us/banjartv/live/playlist.m3u8": {
@@ -19993,11 +19957,10 @@
   "src": {
    "type": "hls",
    "url": "https://live.kwikmotion.com/qtv1live/qtv1.smil/playlist.m3u8",
-   "label": "Qatar Television",
-   "w": 426
+   "label": "Qatar Television"
   },
-  "since": 1791924397382,
-  "why": "error"
+  "since": 1792116496273,
+  "why": "status 404"
  },
  "https://alrayyancdn.vidgyor.com/pub-nooldraybinbdh/liveabr/playlist_dvr.m3u8": {
   "country": "Qatar",
@@ -22573,10 +22536,11 @@
   "src": {
    "type": "hls",
    "url": "https://h056.video-stream-hosting.de/easycast8-live/_definst_/mp4:livestreamhd4/playlist.m3u8?ref=",
-   "label": "Steiermark TV"
+   "label": "Steiermark TV",
+   "w": 1280
   },
-  "since": 1792104336274,
-  "why": "error"
+  "since": 1792129089361,
+  "why": "status 403"
  },
  "https://ms01.w24.at/W24/smil:liveevent.smil/playlist.m3u8": {
   "country": "Austria",
@@ -22712,8 +22676,8 @@
    "url": "https://dash4.antik.sk/live/test_nitricka/playlist.m3u8",
    "label": "TV Nitricka"
   },
-  "since": 1792104336274,
-  "why": "error"
+  "since": 1792179487071,
+  "why": "segment-error"
  },
  "https://dash3.antik.sk/live/test_vita/playlist.m3u8": {
   "country": "Slovakia",
@@ -23277,29 +23241,27 @@
    "label": "Qaraqalpaqstan",
    "w": 1024
   },
-  "since": 1791927584867,
-  "why": "error"
+  "since": 1792141679907,
+  "why": "segment-error"
  },
  "https://stream8.cinerama.uz/1006/tracks-v1a1/playlist.m3u8": {
   "country": "Uzbekistan",
   "src": {
    "type": "hls",
    "url": "https://stream8.cinerama.uz/1006/tracks-v1a1/playlist.m3u8",
-   "label": "Dunyo bo'ylab",
-   "w": 1920
+   "label": "Dunyo bo'ylab"
   },
-  "since": 1791927584867,
-  "why": "error"
+  "since": 1792183102720,
+  "why": "segment-error"
  },
  "https://stream8.cinerama.uz/1458/tracks-v1a1/mono.m3u8": {
   "country": "Uzbekistan",
   "src": {
    "type": "hls",
    "url": "https://stream8.cinerama.uz/1458/tracks-v1a1/mono.m3u8",
-   "label": "Farg'ona MTRK",
-   "w": 1920
+   "label": "Farg'ona MTRK"
   },
-  "since": 1791927584867,
+  "since": 1792141679907,
   "why": "error"
  },
  "https://stream.bizzmedia.biz/bizz_tv/index.m3u8": {
@@ -23603,9 +23565,10 @@
   "src": {
    "type": "hls",
    "url": "https://cachestar.privesc.eu/liniar/moldova/playlist.m3u8",
-   "label": "Privesc.Eu TV"
+   "label": "Privesc.Eu TV",
+   "w": 1920
   },
-  "since": 1792104336275,
+  "since": 1792179487072,
   "why": "error"
  },
  "https://tvr-moldova.lg.mncdn.com/tvrmoldova/smil:tvrmoldova.smil/chunklist.m3u8": {
@@ -24249,8 +24212,8 @@
    "url": "https://mahaasintv.livebox.co.in/mahaasintvhls/mahaasintv.m3u8",
    "label": "Mahaasin TV"
   },
-  "since": 1792104336276,
-  "why": "error"
+  "since": 1792154279196,
+  "why": "status 404"
  },
  "https://cdnapi.kaltura.com/p/2158211/sp/327418300/playManifest/entryId/1_24gfa7qq/protocol/https/format/applehttp/a.m3u8": {
   "country": "Denmark",
@@ -24534,7 +24497,7 @@
    "url": "https://stream.tvm.co.mz/hls/tvm/playlist.m3u8",
    "label": "TVM"
   },
-  "since": 1792104336277,
+  "since": 1792141679908,
   "why": "error"
  },
  "https://webtv.monacoinfo.com/live/prod/index.m3u8": {
@@ -24738,7 +24701,7 @@
    "label": "My TV",
    "w": 720
   },
-  "since": 1791959811258,
+  "since": 1792175884736,
   "why": "status 500"
  },
  "https://dunyanhls.wns.live/hls/stream.m3u8": {
@@ -24997,7 +24960,7 @@
    "url": "https://kwtktv2ta.cdn.mangomolo.com/ktv2/smil:ktv2.stream.smil/chunklist.m3u8",
    "label": "KTV 2"
   },
-  "since": 1792104336275,
+  "since": 1792118293051,
   "why": "error"
  },
  "https://contact.gostreaming.tv/Con-11/index.m3u8": {
@@ -25090,7 +25053,7 @@
    "url": "https://jtvs.ncare.live/Gznr84Woj7UEye3OPVeWq2ForboWAgdV/jonmobhumitv.stream/playlist.m3u8",
    "label": "JonmoBhumi TV"
   },
-  "since": 1792111098396,
+  "since": 1792114707152,
   "why": "status 404"
  },
  "https://cdn.streamhispanatv.net:3210/live/nimtvgtlive.m3u8": {
@@ -25100,7 +25063,7 @@
    "url": "https://cdn.streamhispanatv.net:3210/live/nimtvgtlive.m3u8",
    "label": "Nim TV"
   },
-  "since": 1792111098399,
+  "since": 1792114707154,
   "why": "status 404"
  },
  "https://playtv4k.live/live/kassouatv/index.m3u8": {
@@ -25110,7 +25073,7 @@
    "url": "https://playtv4k.live/live/kassouatv/index.m3u8",
    "label": "KassouaTV"
   },
-  "since": 1792111098400,
+  "since": 1792114707155,
   "why": "status 404"
  },
  "https://livestreaming.b67buv2.tweedekamer.nl/live/suzegroenewegzaal/index.m3u8?hd=1&keyframes=1&subtitles=live": {
@@ -25120,7 +25083,7 @@
    "url": "https://livestreaming.b67buv2.tweedekamer.nl/live/suzegroenewegzaal/index.m3u8?hd=1&keyframes=1&subtitles=live",
    "label": "Tweede Kamer: Suze Groenewegzaal"
   },
-  "since": 1792112891314,
+  "since": 1792114707151,
   "why": "segment 403"
  },
  "https://livestreaming.b67buv2.tweedekamer.nl/live/maxvanderstoelzaal/index.m3u8?hd=1&keyframes=1&subtitles=live": {
@@ -25130,7 +25093,7 @@
    "url": "https://livestreaming.b67buv2.tweedekamer.nl/live/maxvanderstoelzaal/index.m3u8?hd=1&keyframes=1&subtitles=live",
    "label": "Tweede Kamer: Max van der Stoelzaal"
   },
-  "since": 1792112891314,
+  "since": 1792114707151,
   "why": "segment 403"
  },
  "https://livestreaming.b67buv2.tweedekamer.nl/live/groenvanprinstererzaal/index.m3u8?hd=1&keyframes=1&subtitles=live": {
@@ -25140,7 +25103,7 @@
    "url": "https://livestreaming.b67buv2.tweedekamer.nl/live/groenvanprinstererzaal/index.m3u8?hd=1&keyframes=1&subtitles=live",
    "label": "Tweede Kamer: Groen van Prinstererzaal"
   },
-  "since": 1792112891314,
+  "since": 1792114707151,
   "why": "segment 403"
  },
  "https://livestreaming.b67buv2.tweedekamer.nl/live/evenementenkanaal/index.m3u8?hd=1&keyframes=1&subtitles=live": {
@@ -25150,7 +25113,7 @@
    "url": "https://livestreaming.b67buv2.tweedekamer.nl/live/evenementenkanaal/index.m3u8?hd=1&keyframes=1&subtitles=live",
    "label": "Tweede Kamer: Actualiteitenkanaal"
   },
-  "since": 1792112891314,
+  "since": 1792114707151,
   "why": "segment 403"
  },
  "https://livestreaming.b67buv2.tweedekamer.nl/live/plenairezaal/index.m3u8?hd=1&keyframes=1&subtitles=live": {
@@ -25160,7 +25123,7 @@
    "url": "https://livestreaming.b67buv2.tweedekamer.nl/live/plenairezaal/index.m3u8?hd=1&keyframes=1&subtitles=live",
    "label": "Tweede Kamer: Plenaire zaal"
   },
-  "since": 1792112891314,
+  "since": 1792114707151,
   "why": "segment 403"
  },
  "https://livestreaming.b67buv2.tweedekamer.nl/live/alettajacobszaal/index.m3u8?hd=1&keyframes=1&subtitles=live": {
@@ -25170,7 +25133,7 @@
    "url": "https://livestreaming.b67buv2.tweedekamer.nl/live/alettajacobszaal/index.m3u8?hd=1&keyframes=1&subtitles=live",
    "label": "Tweede Kamer: Aletta Jacobszaal"
   },
-  "since": 1792112891314,
+  "since": 1792114707151,
   "why": "segment 403"
  },
  "https://livestreaming.b67buv2.tweedekamer.nl/live/thorbeckezaal/index.m3u8?hd=1&keyframes=1&subtitles=live": {
@@ -25180,7 +25143,7 @@
    "url": "https://livestreaming.b67buv2.tweedekamer.nl/live/thorbeckezaal/index.m3u8?hd=1&keyframes=1&subtitles=live",
    "label": "Tweede Kamer: Thorbeckezaal"
   },
-  "since": 1792112891314,
+  "since": 1792114707151,
   "why": "segment 403"
  },
  "https://rtvelivestream.rtve.es/rtvesec/cat/la1_cat_main.m3u8": {
@@ -25190,7 +25153,7 @@
    "url": "https://rtvelivestream.rtve.es/rtvesec/cat/la1_cat_main.m3u8",
    "label": "La 1 Catalunya"
   },
-  "since": 1792112891314,
+  "since": 1792114707152,
   "why": "segment 403"
  },
  "https://rtvelivestream.rtve.es/rtvesec/can/la1_can_main.m3u8": {
@@ -25200,7 +25163,7 @@
    "url": "https://rtvelivestream.rtve.es/rtvesec/can/la1_can_main.m3u8",
    "label": "La 1 Canarias"
   },
-  "since": 1792112891314,
+  "since": 1792114707152,
   "why": "segment 403"
  },
  "https://cdnapisec.kaltura.com/p/2288691/sp/228869100/playManifest/entryId/1_gnz6ity9/protocol/https/format/applehttp/flavorIds/1_a9gxgxzy,1_v71ryg4b,1_vbfvtjw6,1_obo1bqsx,1_3shk3s5d/a.m3u8": {
@@ -25210,7 +25173,7 @@
    "url": "https://cdnapisec.kaltura.com/p/2288691/sp/228869100/playManifest/entryId/1_gnz6ity9/protocol/https/format/applehttp/flavorIds/1_a9gxgxzy,1_v71ryg4b,1_vbfvtjw6,1_obo1bqsx,1_3shk3s5d/a.m3u8",
    "label": "CMM TV"
   },
-  "since": 1792112891314,
+  "since": 1792114707152,
   "why": "segment 403"
  },
  "https://cdn-apse1-prod.tsv2.amagi.tv/linear/amg01821-lovetvfast-nachrichten360-samsungde/playlist.m3u8": {
@@ -25220,7 +25183,7 @@
    "url": "https://cdn-apse1-prod.tsv2.amagi.tv/linear/amg01821-lovetvfast-nachrichten360-samsungde/playlist.m3u8",
    "label": "Nachrichten 360"
   },
-  "since": 1792112891314,
+  "since": 1792114707152,
   "why": "segment 403"
  },
  "https://mcdn.ndr.de/ndr/hls/ndr_fs/ndr_hh/master.m3u8": {
@@ -25230,7 +25193,7 @@
    "url": "https://mcdn.ndr.de/ndr/hls/ndr_fs/ndr_hh/master.m3u8",
    "label": "NDR Fernsehen"
   },
-  "since": 1792112891314,
+  "since": 1792114707152,
   "why": "segment 400"
  },
  "https://edge06.cdn.emitel.pl/bpk-tv/Puls2_HD/hbbtv-hls/index.m3u8": {
@@ -25240,7 +25203,7 @@
    "url": "https://edge06.cdn.emitel.pl/bpk-tv/Puls2_HD/hbbtv-hls/index.m3u8",
    "label": "TV Puls"
   },
-  "since": 1792112891314,
+  "since": 1792114707152,
   "why": "segment 400"
  },
  "https://raw.githubusercontent.com/Paradise-91/ParaTV/main/streams/publicsenat/publicsenat-dm.m3u8": {
@@ -25250,7 +25213,7 @@
    "url": "https://raw.githubusercontent.com/Paradise-91/ParaTV/main/streams/publicsenat/publicsenat-dm.m3u8",
    "label": "LCP"
   },
-  "since": 1792112891314,
+  "since": 1792114707152,
   "why": "segment 404"
  },
  "https://raw.githubusercontent.com/Paradise-91/ParaTV/main/streams/francetv/franceinfo.m3u8": {
@@ -25260,7 +25223,7 @@
    "url": "https://raw.githubusercontent.com/Paradise-91/ParaTV/main/streams/francetv/franceinfo.m3u8",
    "label": "Franceinfo"
   },
-  "since": 1792112891314,
+  "since": 1792114707152,
   "why": "segment 503"
  },
  "https://raw.githubusercontent.com/Paradise-91/ParaTV/main/streams/misc/europe-1-tv-dm.m3u8": {
@@ -25270,7 +25233,7 @@
    "url": "https://raw.githubusercontent.com/Paradise-91/ParaTV/main/streams/misc/europe-1-tv-dm.m3u8",
    "label": "Europe 1 TV"
   },
-  "since": 1792112891314,
+  "since": 1792114707152,
   "why": "segment 404"
  },
  "https://rtmp-live-ingest-us-east-1-universe-dacast-com.akamaized.net/transmuxv1/streams/2095a288-1384-ed2e-5da0-278ccbb72295.m3u8": {
@@ -25280,7 +25243,7 @@
    "url": "https://rtmp-live-ingest-us-east-1-universe-dacast-com.akamaized.net/transmuxv1/streams/2095a288-1384-ed2e-5da0-278ccbb72295.m3u8",
    "label": "tv9 Telemaremma"
   },
-  "since": 1792112891315,
+  "since": 1792114707152,
   "why": "segment 503"
  },
  "https://stream.sen-gt.com/A2iMusic/myStream/playlist.m3u8": {
@@ -25290,7 +25253,7 @@
    "url": "https://stream.sen-gt.com/A2iMusic/myStream/playlist.m3u8",
    "label": "A2i Music"
   },
-  "since": 1792112891315,
+  "since": 1792114707153,
   "why": "status 404"
  },
  "https://rotana.hibridcdn.net/rotananet/lbc_net-7Y83PP5adWixDF93/playlist.m3u8": {
@@ -25300,7 +25263,7 @@
    "url": "https://rotana.hibridcdn.net/rotananet/lbc_net-7Y83PP5adWixDF93/playlist.m3u8",
    "label": "LBC"
   },
-  "since": 1792112891315,
+  "since": 1792114707153,
   "why": "status 403"
  },
  "https://rotana.hibridcdn.net/rotananet/clip_net-7Y83PP5adWixDF93/playlist.m3u8": {
@@ -25310,7 +25273,7 @@
    "url": "https://rotana.hibridcdn.net/rotananet/clip_net-7Y83PP5adWixDF93/playlist.m3u8",
    "label": "Rotana Clip"
   },
-  "since": 1792112891315,
+  "since": 1792114707153,
   "why": "status 403"
  },
  "https://live.channel8.com/Channel8-Kurdish/index.fmp4.m3u8": {
@@ -25320,7 +25283,7 @@
    "url": "https://live.channel8.com/Channel8-Kurdish/index.fmp4.m3u8",
    "label": "Channel8"
   },
-  "since": 1792112891315,
+  "since": 1792114707153,
   "why": "segment 403"
  },
  "https://d1hz1p2gea2zy4.cloudfront.net/live/rmgtv/RMG-TRENDSZNL-LIVE/index.m3u8": {
@@ -25330,7 +25293,7 @@
    "url": "https://d1hz1p2gea2zy4.cloudfront.net/live/rmgtv/RMG-TRENDSZNL-LIVE/index.m3u8",
    "label": "Kanaal Z"
   },
-  "since": 1792112891315,
+  "since": 1792114707153,
   "why": "status 403"
  },
  "https://cdn.catiacast.video/abr/ed8f807e2548db4507d2a6f4ba0c4a06/playlist.m3u8": {
@@ -25340,7 +25303,7 @@
    "url": "https://cdn.catiacast.video/abr/ed8f807e2548db4507d2a6f4ba0c4a06/playlist.m3u8",
    "label": "Tele Liban"
   },
-  "since": 1792112891315,
+  "since": 1792114707154,
   "why": "status 401"
  },
  "https://alwasattv.hibridcdn.net/alwasattv/alwasat_abr/playlist.m3u8": {
@@ -25350,7 +25313,7 @@
    "url": "https://alwasattv.hibridcdn.net/alwasattv/alwasat_abr/playlist.m3u8",
    "label": "Wasat TV"
   },
-  "since": 1792112891316,
+  "since": 1792114707154,
   "why": "segment 403"
  },
  "https://ip.pdtvhd.com/Khmer/streams/CTV5.m3u8": {
@@ -25360,7 +25323,7 @@
    "url": "https://ip.pdtvhd.com/Khmer/streams/CTV5.m3u8",
    "label": "TV5 Cambodia"
   },
-  "since": 1792112891316,
+  "since": 1792114707155,
   "why": "error"
  },
  "https://cdn010.panaccess.com/5677_streams/TVMODUM/index.m3u8": {
@@ -25370,7 +25333,7 @@
    "url": "https://cdn010.panaccess.com/5677_streams/TVMODUM/index.m3u8",
    "label": "TVModum"
   },
-  "since": 1792112891317,
+  "since": 1792114707155,
   "why": "segment 404"
  },
  "https://live.creacast.com/cna/stream/playlist.m3u8": {
@@ -25380,7 +25343,677 @@
    "url": "https://live.creacast.com/cna/stream/playlist.m3u8",
    "label": "CNA (DZ)"
   },
-  "since": 1792112891317,
+  "since": 1792114707156,
   "why": "status 403"
+ },
+ "https://livestreaming.b67buv2.tweedekamer.nl/live/enquetezaal/index.m3u8?hd=1&keyframes=1&subtitles=live": {
+  "country": "Netherlands",
+  "src": {
+   "type": "hls",
+   "url": "https://livestreaming.b67buv2.tweedekamer.nl/live/enquetezaal/index.m3u8?hd=1&keyframes=1&subtitles=live",
+   "label": "Tweede Kamer: Enquetezaal"
+  },
+  "since": 1792114707151,
+  "why": "segment 403"
+ },
+ "https://livestreaming.b67buv2.tweedekamer.nl/live/wttewaallvanstoetwegenzaal/index.m3u8?hd=1&keyframes=1&subtitles=live": {
+  "country": "Netherlands",
+  "src": {
+   "type": "hls",
+   "url": "https://livestreaming.b67buv2.tweedekamer.nl/live/wttewaallvanstoetwegenzaal/index.m3u8?hd=1&keyframes=1&subtitles=live",
+   "label": "Tweede Kamer: Wttewaall van Stoetwegenzaal"
+  },
+  "since": 1792114707151,
+  "why": "segment 403"
+ },
+ "https://livestreaming.b67buv2.tweedekamer.nl/live/troelstrazaal/index.m3u8?hd=1&keyframes=1&subtitles=live": {
+  "country": "Netherlands",
+  "src": {
+   "type": "hls",
+   "url": "https://livestreaming.b67buv2.tweedekamer.nl/live/troelstrazaal/index.m3u8?hd=1&keyframes=1&subtitles=live",
+   "label": "Tweede Kamer: Troelstrazaal"
+  },
+  "since": 1792114707151,
+  "why": "segment 403"
+ },
+ "https://rt-srb.rttv.com/dvr/rtbalkan/playlist.m3u8": {
+  "country": "Russia",
+  "src": {
+   "type": "hls",
+   "url": "https://rt-srb.rttv.com/dvr/rtbalkan/playlist.m3u8",
+   "label": "RT Balkan"
+  },
+  "since": 1792114707151,
+  "why": "segment 404"
+ },
+ "https://9now-livestreams-fhd-t.akamaized.net/u/prod/simulcast/syd/ch9/hls/r1/index.m3u8": {
+  "country": "Australia",
+  "src": {
+   "type": "hls",
+   "url": "https://9now-livestreams-fhd-t.akamaized.net/u/prod/simulcast/syd/ch9/hls/r1/index.m3u8",
+   "label": "Channel 9 (AU)"
+  },
+  "since": 1792114707152,
+  "why": "no-cors"
+ },
+ "https://rtvelivestream.rtve.es/rtvesec/la1/la1_main.m3u8": {
+  "country": "Spain",
+  "src": {
+   "type": "hls",
+   "url": "https://rtvelivestream.rtve.es/rtvesec/la1/la1_main.m3u8",
+   "label": "La 1"
+  },
+  "since": 1792114707152,
+  "why": "segment 403"
+ },
+ "https://ztnr.rtve.es/ztnr/3987218.m3u8": {
+  "country": "Spain",
+  "src": {
+   "type": "hls",
+   "url": "https://ztnr.rtve.es/ztnr/3987218.m3u8",
+   "label": "La 2 Catalunya"
+  },
+  "since": 1792114707152,
+  "why": "bad-segment-url"
+ },
+ "https://mdstrm.com/live-stream-playlist/610178c7db32a4112d994650.m3u8": {
+  "country": "Mexico",
+  "src": {
+   "type": "hls",
+   "url": "https://mdstrm.com/live-stream-playlist/610178c7db32a4112d994650.m3u8",
+   "label": "Milenio Television"
+  },
+  "since": 1792114707153,
+  "why": "status 403"
+ },
+ "https://ccstreaming.packet.mx/WebRTCAppEE/streams/45.1_kd5oiNTTWO0gEOFc431277834.m3u8": {
+  "country": "Mexico",
+  "src": {
+   "type": "hls",
+   "url": "https://ccstreaming.packet.mx/WebRTCAppEE/streams/45.1_kd5oiNTTWO0gEOFc431277834.m3u8",
+   "label": "Canal del Congreso 45.1"
+  },
+  "since": 1792114707153,
+  "why": "error"
+ },
+ "https://origin-us.streaminghd.cl/telecanal/telecanal/playlist.m3u8": {
+  "country": "Chile",
+  "src": {
+   "type": "hls",
+   "url": "https://origin-us.streaminghd.cl/telecanal/telecanal/playlist.m3u8",
+   "label": "Telecanal Santa Cruz"
+  },
+  "since": 1792114707153,
+  "why": "status 403"
+ },
+ "https://d1hz1p2gea2zy4.cloudfront.net/live/rmgtv/RMG-TRENDSZFR-LIVE/index.m3u8": {
+  "country": "Belgium",
+  "src": {
+   "type": "hls",
+   "url": "https://d1hz1p2gea2zy4.cloudfront.net/live/rmgtv/RMG-TRENDSZFR-LIVE/index.m3u8",
+   "label": "Canal Z"
+  },
+  "since": 1792114707153,
+  "why": "status 403"
+ },
+ "https://vietanhtv.id.vn/sctv/sctv-4k/index.m3u8": {
+  "country": "Vietnam",
+  "src": {
+   "type": "hls",
+   "url": "https://vietanhtv.id.vn/sctv/sctv-4k/index.m3u8",
+   "label": "SCTV4K"
+  },
+  "since": 1792114707154,
+  "why": "segment-error"
+ },
+ "https://live-evg2.tv360.metfone.com.kh/livebayontv/bayontvhd.stream/playlist.m3u8": {
+  "country": "Cambodia",
+  "src": {
+   "type": "hls",
+   "url": "https://live-evg2.tv360.metfone.com.kh/livebayontv/bayontvhd.stream/playlist.m3u8",
+   "label": "Bayon TV"
+  },
+  "since": 1792114707155,
+  "why": "error"
+ },
+ "https://np.truestreamz.com/broadcaster/INDIGENOUSmob.stream/playlist.m3u8": {
+  "country": "Nepal",
+  "src": {
+   "type": "hls",
+   "url": "https://np.truestreamz.com/broadcaster/INDIGENOUSmob.stream/playlist.m3u8",
+   "label": "Indigenous Television"
+  },
+  "since": 1792114707155,
+  "why": "status 403"
+ },
+ "https://i24newshebrew-cdn.encoders.immergo.tv/master.m3u8": {
+  "country": "Israel",
+  "src": {
+   "type": "hls",
+   "url": "https://i24newshebrew-cdn.encoders.immergo.tv/master.m3u8",
+   "label": "i24NEWS Hebrew"
+  },
+  "since": 1792114707155,
+  "why": "segment 404"
+ },
+ "https://sw1.tanitweb.net/TunisiaTV/_definst_/watania1/playlist.m3u8?DVR": {
+  "country": "Tunisia",
+  "src": {
+   "type": "hls",
+   "url": "https://sw1.tanitweb.net/TunisiaTV/_definst_/watania1/playlist.m3u8?DVR",
+   "label": "El Watania 1"
+  },
+  "since": 1792114707155,
+  "why": "segment-error"
+ },
+ "https://live-fi.tvkaista.net/jim/live.m3u8?hd=true": {
+  "country": "Finland",
+  "src": {
+   "type": "hls",
+   "url": "https://live-fi.tvkaista.net/jim/live.m3u8?hd=true",
+   "label": "Jim"
+  },
+  "since": 1792114707156,
+  "why": "status 404"
+ },
+ "https://petclub-samsungaus.amagi.tv/playlist.m3u8": {
+  "country": "Hong Kong",
+  "src": {
+   "type": "hls",
+   "url": "https://petclub-samsungaus.amagi.tv/playlist.m3u8",
+   "label": "Pet Club TV"
+  },
+  "since": 1792114707156,
+  "why": "no-cors"
+ },
+ "https://dumatv.iptv2022.com/playlist.m3u8": {
+  "country": "Russia",
+  "src": {
+   "type": "hls",
+   "url": "https://dumatv.iptv2022.com/playlist.m3u8",
+   "label": "Duma TV"
+  },
+  "since": 1792116496270,
+  "why": "status 418"
+ },
+ "https://live.kwikmotion.com/qtv2live/qtv2.smil/playlist.m3u8": {
+  "country": "Qatar",
+  "src": {
+   "type": "hls",
+   "url": "https://live.kwikmotion.com/qtv2live/qtv2.smil/playlist.m3u8",
+   "label": "Qatar Television 2"
+  },
+  "since": 1792116496273,
+  "why": "status 404"
+ },
+ "https://cd-live-stream.news.cctvplus.com/live/smil:CHANNEL1.smil/playlist.m3u8": {
+  "country": "China",
+  "src": {
+   "type": "hls",
+   "url": "https://cd-live-stream.news.cctvplus.com/live/smil:CHANNEL1.smil/playlist.m3u8",
+   "label": "CCTV+ 1"
+  },
+  "since": 1792116496273,
+  "why": "segment 404"
+ },
+ "https://wapa-updater.onrender.com/WAPA-TV-4-1.m3u8": {
+  "country": "Puerto Rico",
+  "src": {
+   "type": "hls",
+   "url": "https://wapa-updater.onrender.com/WAPA-TV-4-1.m3u8",
+   "label": "WAPA-TV 4.1"
+  },
+  "since": 1792116496274,
+  "why": "status 403"
+ },
+ "https://9now-livestreams-fhd-t.akamaized.net/u/prod/simulcast/adl/ch9/hls/r1/index.m3u8": {
+  "country": "Australia",
+  "src": {
+   "type": "hls",
+   "url": "https://9now-livestreams-fhd-t.akamaized.net/u/prod/simulcast/adl/ch9/hls/r1/index.m3u8",
+   "label": "Channel 9 (AU)"
+  },
+  "since": 1792118293048,
+  "why": "no-cors"
+ },
+ "https://rotana.hibridcdn.net/rotananet/comedy_net-7Y83PP5adWixDF93/playlist.m3u8": {
+  "country": "Saudi Arabia",
+  "src": {
+   "type": "hls",
+   "url": "https://rotana.hibridcdn.net/rotananet/comedy_net-7Y83PP5adWixDF93/playlist.m3u8",
+   "label": "Rotana Comedy"
+  },
+  "since": 1792118293049,
+  "why": "status 403"
+ },
+ "https://rotana.hibridcdn.net/rotananet/classical_net-7Y83PP5adWixDF93/playlist.m3u8": {
+  "country": "Saudi Arabia",
+  "src": {
+   "type": "hls",
+   "url": "https://rotana.hibridcdn.net/rotananet/classical_net-7Y83PP5adWixDF93/playlist.m3u8",
+   "label": "Rotana Classic"
+  },
+  "since": 1792118293049,
+  "why": "status 403"
+ },
+ "https://rotana.hibridcdn.net/rotananet/khaleejiya_net-7Y83PP5adWixDF93/playlist.m3u8": {
+  "country": "Saudi Arabia",
+  "src": {
+   "type": "hls",
+   "url": "https://rotana.hibridcdn.net/rotananet/khaleejiya_net-7Y83PP5adWixDF93/playlist.m3u8",
+   "label": "Rotana Khalijia"
+  },
+  "since": 1792118293049,
+  "why": "status 403"
+ },
+ "https://rotana.hibridcdn.net/rotananet/music_net-7Y83PP5adWixDF93/playlist.m3u8": {
+  "country": "Saudi Arabia",
+  "src": {
+   "type": "hls",
+   "url": "https://rotana.hibridcdn.net/rotananet/music_net-7Y83PP5adWixDF93/playlist.m3u8",
+   "label": "Rotana Music"
+  },
+  "since": 1792118293049,
+  "why": "status 403"
+ },
+ "https://fr.crystalweb.net:1936/lepantotv/lepantotv/playlist.m3u8": {
+  "country": "Greece",
+  "src": {
+   "type": "hls",
+   "url": "https://fr.crystalweb.net:1936/lepantotv/lepantotv/playlist.m3u8",
+   "label": "Lepanto TV"
+  },
+  "since": 1792118293049,
+  "why": "error"
+ },
+ "https://kwtktv1ta.cdn.mangomolo.com/ktv1/smil:ktv1.stream.smil/chunklist.m3u8": {
+  "country": "Kuwait",
+  "src": {
+   "type": "hls",
+   "url": "https://kwtktv1ta.cdn.mangomolo.com/ktv1/smil:ktv1.stream.smil/chunklist.m3u8",
+   "label": "KTV 1"
+  },
+  "since": 1792118293051,
+  "why": "error"
+ },
+ "https://live-fi.tvkaista.net/liv/live.m3u8?hd=true": {
+  "country": "Finland",
+  "src": {
+   "type": "hls",
+   "url": "https://live-fi.tvkaista.net/liv/live.m3u8?hd=true",
+   "label": "Liv"
+  },
+  "since": 1792118293051,
+  "why": "status 404"
+ },
+ "https://live-vgtrksmotrim.cdnvideo.ru/vgtrksmotrim/smotrim-live-03-srt.smil/playlist.m3u8": {
+  "country": "Russia",
+  "src": {
+   "type": "hls",
+   "url": "https://live-vgtrksmotrim.cdnvideo.ru/vgtrksmotrim/smotrim-live-03-srt.smil/playlist.m3u8",
+   "label": "360° News",
+   "w": 1024
+  },
+  "since": 1792120087987,
+  "why": "segment-error"
+ },
+ "https://cdn.live.easybroadcast.io/abr_corp/83_medi1tv-arabic_g90v4ec/playlist_dvr.m3u8": {
+  "country": "Morocco",
+  "src": {
+   "type": "hls",
+   "url": "https://cdn.live.easybroadcast.io/abr_corp/83_medi1tv-arabic_g90v4ec/playlist_dvr.m3u8",
+   "label": "Medi1TV Arabic",
+   "w": 426
+  },
+  "since": 1792121886639,
+  "why": "segment 404"
+ },
+ "https://streamingcws30.com/tn8/videotn8/playlist.m3u8": {
+  "country": "Nicaragua",
+  "src": {
+   "type": "hls",
+   "url": "https://streamingcws30.com/tn8/videotn8/playlist.m3u8",
+   "label": "TN8",
+   "w": 1280
+  },
+  "since": 1792121886642,
+  "why": "status 404"
+ },
+ "https://stream.ontvmx.com/ontv/CNMLXR0Z6FPtGdjcI4/playlist.m3u8": {
+  "country": "El Salvador",
+  "src": {
+   "type": "hls",
+   "url": "https://stream.ontvmx.com/ontv/CNMLXR0Z6FPtGdjcI4/playlist.m3u8",
+   "label": "Canal TRV",
+   "w": 1280
+  },
+  "since": 1792123679226,
+  "why": "status 404"
+ },
+ "https://app24.jagobd.com.bd/c3VydmVyX8RpbEU9Mi8xNy8yMFDEEHGcfRgzQ6NTAgdEoaeFzbF92YWxIZTO0U0ezN1IzMyfvcEdsEfeDeKiNkVN3PTOmdFseWRtaW51aiPhnPTI2/ruposhibangla.stream/playlist.m3u8": {
+  "country": "Bangladesh",
+  "src": {
+   "type": "hls",
+   "url": "https://app24.jagobd.com.bd/c3VydmVyX8RpbEU9Mi8xNy8yMFDEEHGcfRgzQ6NTAgdEoaeFzbF92YWxIZTO0U0ezN1IzMyfvcEdsEfeDeKiNkVN3PTOmdFseWRtaW51aiPhnPTI2/ruposhibangla.stream/playlist.m3u8",
+   "label": "Rupashi Bangla TV",
+   "w": 1280
+  },
+  "since": 1792123679226,
+  "why": "error"
+ },
+ "https://n105.quickmedia.tv/noetvplus/live/noetvplus/Shz3_1_1/chunks_dvr_timeshift-0-7200.m3u8": {
+  "country": "Czechia",
+  "src": {
+   "type": "hls",
+   "url": "https://n105.quickmedia.tv/noetvplus/live/noetvplus/Shz3_1_1/chunks_dvr_timeshift-0-7200.m3u8",
+   "label": "TV Noe+"
+  },
+  "since": 1792123679227,
+  "why": "segment 403"
+ },
+ "https://sw1.tanitweb.net/TunisiaTV/_definst_/watania2/playlist.m3u8?DVR": {
+  "country": "Tunisia",
+  "src": {
+   "type": "hls",
+   "url": "https://sw1.tanitweb.net/TunisiaTV/_definst_/watania2/playlist.m3u8?DVR",
+   "label": "El Watania 2",
+   "w": 1920
+  },
+  "since": 1792125484907,
+  "why": "segment-error"
+ },
+ "https://lbgo.bozztv.com/ssh101/ssh101/telecauquenestv/playlist.m3u8": {
+  "country": "Chile",
+  "src": {
+   "type": "hls",
+   "url": "https://lbgo.bozztv.com/ssh101/ssh101/telecauquenestv/playlist.m3u8",
+   "label": "TeleCauquenes",
+   "w": 1280
+  },
+  "since": 1792127282888,
+  "why": "status 404"
+ },
+ "https://fs.uplink.kz/da_vinci/mono.m3u8?token=onlinetv": {
+  "country": "Russia",
+  "src": {
+   "type": "hls",
+   "url": "https://fs.uplink.kz/da_vinci/mono.m3u8?token=onlinetv",
+   "label": "Da Vinci"
+  },
+  "since": 1792129089358,
+  "why": "status 403"
+ },
+ "https://dutatv.siar.us/dutatv/live/playlist.m3u8": {
+  "country": "Indonesia",
+  "src": {
+   "type": "hls",
+   "url": "https://dutatv.siar.us/dutatv/live/playlist.m3u8",
+   "label": "Duta TV"
+  },
+  "since": 1792129089360,
+  "why": "status 404"
+ },
+ "https://goliveafrica.media:9998/live/625965017ed69/index.m3u8": {
+  "country": "Tanzania",
+  "src": {
+   "type": "hls",
+   "url": "https://goliveafrica.media:9998/live/625965017ed69/index.m3u8",
+   "label": "Dodoma TV"
+  },
+  "since": 1792129089362,
+  "why": "status 404"
+ },
+ "https://rtvelivestream.rtve.es/rtvesec/la2/la2_main.m3u8": {
+  "country": "Spain",
+  "src": {
+   "type": "hls",
+   "url": "https://rtvelivestream.rtve.es/rtvesec/la2/la2_main.m3u8",
+   "label": "La 2",
+   "w": 320
+  },
+  "since": 1792130882012,
+  "why": "segment 403"
+ },
+ "https://ztnr.rtve.es/ztnr/5468585.m3u8": {
+  "country": "Spain",
+  "src": {
+   "type": "hls",
+   "url": "https://ztnr.rtve.es/ztnr/5468585.m3u8",
+   "label": "La 2 Canarias",
+   "w": 640
+  },
+  "since": 1792130882012,
+  "why": "segment 403"
+ },
+ "https://cd-live-stream.news.cctvplus.com/live/smil:CHANNEL2.smil/playlist.m3u8": {
+  "country": "China",
+  "src": {
+   "type": "hls",
+   "url": "https://cd-live-stream.news.cctvplus.com/live/smil:CHANNEL2.smil/playlist.m3u8",
+   "label": "CCTV+ 2",
+   "w": 360
+  },
+  "since": 1792132680998,
+  "why": "segment 404"
+ },
+ "https://vs20.live.opencaster.com/planetachannel_089eff6d/index.m3u8": {
+  "country": "Ecuador",
+  "src": {
+   "type": "hls",
+   "url": "https://vs20.live.opencaster.com/planetachannel_089eff6d/index.m3u8",
+   "label": "Planeta Channel"
+  },
+  "since": 1792134479839,
+  "why": "status 404"
+ },
+ "https://raw.githubusercontent.com/racitonsen/RacIPTV/refs/heads/main/streams/english-club-global.m3u8": {
+  "country": "United Kingdom",
+  "src": {
+   "type": "hls",
+   "url": "https://raw.githubusercontent.com/racitonsen/RacIPTV/refs/heads/main/streams/english-club-global.m3u8",
+   "label": "English Club Global"
+  },
+  "since": 1792138083521,
+  "why": "status 404"
+ },
+ "https://rthktv31-live.akamaized.net/hls/live/2036818/RTHKTV31/master.m3u8": {
+  "country": "Hong Kong",
+  "src": {
+   "type": "hls",
+   "url": "https://rthktv31-live.akamaized.net/hls/live/2036818/RTHKTV31/master.m3u8",
+   "label": "RTHK TV 31",
+   "w": 432
+  },
+  "since": 1792138083523,
+  "why": "status 403"
+ },
+ "https://ngtrk.dc.beltelecom.by/ngtrk/smil:belarus1.smil/playlist.m3u8": {
+  "country": "Belarus",
+  "src": {
+   "type": "hls",
+   "url": "https://ngtrk.dc.beltelecom.by/ngtrk/smil:belarus1.smil/playlist.m3u8",
+   "label": "Belarus-1",
+   "w": 640
+  },
+  "since": 1792139878256,
+  "why": "error"
+ },
+ "https://www.streaming507.net:19360/videofabulosa/videofabulosa.m3u8": {
+  "country": "Panama",
+  "src": {
+   "type": "hls",
+   "url": "https://www.streaming507.net:19360/videofabulosa/videofabulosa.m3u8",
+   "label": "Fabulosa Estereo 100.5 FM",
+   "w": 428
+  },
+  "since": 1792139878256,
+  "why": "status 404"
+ },
+ "https://stream8.cinerama.uz/1214/tracks-v1a1/mono.m3u8": {
+  "country": "Russia",
+  "src": {
+   "type": "hls",
+   "url": "https://stream8.cinerama.uz/1214/tracks-v1a1/mono.m3u8",
+   "label": "Channel One"
+  },
+  "since": 1792141679904,
+  "why": "error"
+ },
+ "https://htvint.mada.ps/orient/index.m3u8": {
+  "country": "Palestine",
+  "src": {
+   "type": "hls",
+   "url": "https://htvint.mada.ps/orient/index.m3u8",
+   "label": "Watar TV",
+   "w": 1280
+  },
+  "since": 1792145272834,
+  "why": "segment-error"
+ },
+ "https://live.saharamedias.net:3317/live/shara24live.m3u8": {
+  "country": "Mauritania",
+  "src": {
+   "type": "hls",
+   "url": "https://live.saharamedias.net:3317/live/shara24live.m3u8",
+   "label": "Sahara 24"
+  },
+  "since": 1792145272835,
+  "why": "status 404"
+ },
+ "https://copacogen.desdeparaguay.net/npy/npy_py_alta/playlist.m3u8?admin=tvaccion": {
+  "country": "Paraguay",
+  "src": {
+   "type": "hls",
+   "url": "https://copacogen.desdeparaguay.net/npy/npy_py_alta/playlist.m3u8?admin=tvaccion",
+   "label": "NPY",
+   "w": 1920
+  },
+  "since": 1792148879319,
+  "why": "segment-error"
+ },
+ "https://streamtv.intervenhosting.net:3529/live/tvmparatilive.m3u8": {
+  "country": "Venezuela",
+  "src": {
+   "type": "hls",
+   "url": "https://streamtv.intervenhosting.net:3529/live/tvmparatilive.m3u8",
+   "label": "TVM para ti"
+  },
+  "since": 1792157877105,
+  "why": "status 404"
+ },
+ "https://live.baolaocai.vn/channel2/stream.m3u8": {
+  "country": "Vietnam",
+  "src": {
+   "type": "hls",
+   "url": "https://live.baolaocai.vn/channel2/stream.m3u8",
+   "label": "Lao Cai TV"
+  },
+  "since": 1792161486629,
+  "why": "segment 404"
+ },
+ "https://pluslive.rtrs.tv/plus/plus/playlist.m3u8": {
+  "country": "Bosnia and Herzegovina",
+  "src": {
+   "type": "hls",
+   "url": "https://pluslive.rtrs.tv/plus/plus/playlist.m3u8",
+   "label": "RTRS plus",
+   "w": 1280
+  },
+  "since": 1792161486629,
+  "why": "variant 403"
+ },
+ "https://live-evg10.tv360.bitel.com.pe/bitel/anqaratv/playlist.m3u8": {
+  "country": "Peru",
+  "src": {
+   "type": "hls",
+   "url": "https://live-evg10.tv360.bitel.com.pe/bitel/anqaratv/playlist.m3u8",
+   "label": "CANAL M Television"
+  },
+  "since": 1792163278594,
+  "why": "status 403"
+ },
+ "https://streamtv.intervenhosting.net:3789/live/portutvlive.m3u8": {
+  "country": "Venezuela",
+  "src": {
+   "type": "hls",
+   "url": "https://streamtv.intervenhosting.net:3789/live/portutvlive.m3u8",
+   "label": "Portuguesa Television"
+  },
+  "since": 1792165081740,
+  "why": "status 404"
+ },
+ "https://vs20.live.opencaster.com/grande41_0b593479/index.m3u8": {
+  "country": "Venezuela",
+  "src": {
+   "type": "hls",
+   "url": "https://vs20.live.opencaster.com/grande41_0b593479/index.m3u8",
+   "label": "Grande TV"
+  },
+  "since": 1792166880174,
+  "why": "status 404"
+ },
+ "https://live.canthotv.vn/cs3/tv/chunklist.m3u8": {
+  "country": "Vietnam",
+  "src": {
+   "type": "hls",
+   "url": "https://live.canthotv.vn/cs3/tv/chunklist.m3u8",
+   "label": "Can Tho TV 3",
+   "w": 1920
+  },
+  "since": 1792172289726,
+  "why": "status 404"
+ },
+ "https://rjrfame-ioriver-cdn.encoders.immergo.tv/master.m3u8": {
+  "country": "Jamaica",
+  "src": {
+   "type": "hls",
+   "url": "https://rjrfame-ioriver-cdn.encoders.immergo.tv/master.m3u8",
+   "label": "Fame95 FM",
+   "w": 1092
+  },
+  "since": 1792172289727,
+  "why": "variant 404"
+ },
+ "https://video.hostingcaaguazu.com:19360/regionaltv/regionaltv.m3u8": {
+  "country": "Paraguay",
+  "src": {
+   "type": "hls",
+   "url": "https://video.hostingcaaguazu.com:19360/regionaltv/regionaltv.m3u8",
+   "label": "Regional TV Yaguaron"
+  },
+  "since": 1792174079993,
+  "why": "status 404"
+ },
+ "https://cdn4.skygo.mn/live/disk1/Star/HLSv3-FTA/Star.m3u8": {
+  "country": "Mongolia",
+  "src": {
+   "type": "hls",
+   "url": "https://cdn4.skygo.mn/live/disk1/Star/HLSv3-FTA/Star.m3u8",
+   "label": "Star TV",
+   "w": 854
+  },
+  "since": 1792174079996,
+  "why": "status 404"
+ },
+ "https://5bf7b725107e5.streamlock.net/bungotv/bungotv/playlist.m3u8": {
+  "country": "Indonesia",
+  "src": {
+   "type": "hls",
+   "url": "https://5bf7b725107e5.streamlock.net/bungotv/bungotv/playlist.m3u8",
+   "label": "Bungo TV",
+   "w": 1280
+  },
+  "since": 1792175884735,
+  "why": "status 404"
+ },
+ "https://stream.soporteccrtv.xyz/live/elimtv/main_stream.m3u8": {
+  "country": "El Salvador",
+  "src": {
+   "type": "hls",
+   "url": "https://stream.soporteccrtv.xyz/live/elimtv/main_stream.m3u8",
+   "label": "Elim TV"
+  },
+  "since": 1792183102718,
+  "why": "status 530"
  }
 }
