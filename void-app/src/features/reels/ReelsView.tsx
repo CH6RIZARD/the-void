@@ -20,6 +20,7 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from '
 import { AppState, FlatList, Pressable, Share, StyleSheet, Text, View, type LayoutChangeEvent, type ViewToken } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VoidAPI, moderation, onPostsChanged, findPost } from '../../core';
 import type { Post } from '../../core';
@@ -72,6 +73,8 @@ const nearEnd = (idx: number, len: number) => len - idx < 3;
 const NEIGHBOUR_HOLD_MS = 900;
 /** Momentum end is the settle. This is only the net under it (a programmatic scroll, a missed event). */
 const SETTLE_FALLBACK_MS = 700;
+/** Posters fetched ahead of the heavy window on each settle. */
+const POSTER_BURST = 6;
 /** Nothing to show after this long: say NO SIGNAL and offer a retry (never a spinner forever). */
 const STALL_MS = 12000;
 const STALL_RETRY_MS = 15000;
@@ -177,6 +180,12 @@ export const ReelsView = memo(function ReelsView({ active, nation, postId, overl
     settleT.current = null;
     setWin(curRef.current);
     topUpRef.current();
+    // Posters for the next cards in one burst (report A.4 #8: 5-8 ahead), so a
+    // card past the heavy window opens on its picture, not its gradient. The
+    // placeholders already load ±1; this covers the fling.
+    const from = curRef.current + 2;
+    const urls = itemsRef.current.slice(from, from + POSTER_BURST).map((p) => p._img).filter((u): u is string => !!u);
+    if (urls.length) Image.prefetch(urls, 'memory-disk').catch(() => {});
   }, []);
   const settleRef = useRef(settle);
   settleRef.current = settle;

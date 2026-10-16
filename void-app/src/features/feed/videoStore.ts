@@ -13,6 +13,17 @@ import { createVideoPlayer, type VideoPlayer } from 'expo-video';
 import { mark } from '../../core/slow';
 import { enqueueCreate, releasePaced } from '../live/pacedPlayer';
 
+// SHORT CLIPS START ON A QUARTER SECOND, NOT TWO.
+// expo-video's Android defaults are a 20s target buffer and 2s before the first
+// frame may play; the reverse-engineered apps run a 5s target and 250ms start
+// (report A.4 #2, bufferForPlaybackMs=250 / afterRebuffer=250), and raise the
+// after-rebuffer figure only when stutter telemetry says so. iOS: don't wait to
+// minimise stalling on a clip that is already cached or 8s buffered.
+// ponytail: one profile for feed and reels; split them if rebuffer counts differ.
+export const CLIP_BUFFER = { preferredForwardBufferDuration: 8, minBufferForPlayback: 0.25, waitsToMinimizeStalling: false } as const;
+/** One disk cache serves prefetch and playback (report A.4 #4); size set at boot in app/_layout. */
+export const CLIP_CACHE_BYTES = 150 * 1024 * 1024;
+
 interface Entry {
   /** null until the paced builder has run its job. */
   player: VideoPlayer | null;
@@ -42,7 +53,10 @@ function acquire(postId: string, uri: string): Entry {
     const entry: Entry = { player: null, uri, refs: 0, releaseT: null, job: null, waiters: new Set() };
     entry.job = enqueueCreate(() => {
       mark('feed:player');
-      const player = createVideoPlayer({ uri });
+      const player = createVideoPlayer({ uri, useCaching: !/\.m3u8(\?|$)/i.test(uri) });
+      try {
+        player.bufferOptions = CLIP_BUFFER;
+      } catch {}
       player.muted = true; // muted + loop, like the feed <video muted loop playsinline>
       player.loop = true;
       entry.player = player;

@@ -74,6 +74,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { FONT_ASSETS, ThemeProvider, useTheme } from '../src/theme/tokens';
 import { ToastHost } from '../src/ui/Toast';
 import { bootCore } from '../src/lib/core';
+import { setVideoCacheSizeAsync } from 'expo-video';
+import { CLIP_CACHE_BYTES } from '../src/features/feed/videoStore';
 import { AuthProvider } from '../src/lib/auth';
 import { SensingProvider } from '../src/lib/sensing';
 import { AudioOwnerProvider } from '../src/features/live';
@@ -89,6 +91,8 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 Observe.configure({ integrations: { 'expo-router': true } });
 // configureCore + initAuth + loadModeration start before React renders anything.
 const corePromise = bootCore();
+// Must run before the first VideoPlayer exists (expo-video rule). Default is 1 GB.
+setVideoCacheSizeAsync(CLIP_CACHE_BYTES).catch(() => {});
 // Image taps anywhere (feed, carousel, thread OP) open /photo instead of the thread.
 registerPhotoViewer();
 
