@@ -17,7 +17,7 @@
 // mounted; the only exception is the documented far-offscreen memory guard.
 import React, { memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, forwardRef } from 'react';
 import { mark } from '../../core/slow';
-import { AppState, Pressable, StyleSheet, Text, View, useWindowDimensions, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import { AppState, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { Image } from 'expo-image';
 import { LiveDot, TileLabel, TileLoader } from './TileChrome';
@@ -41,6 +41,7 @@ import {
   WALL_HEAL_COOLDOWN,
   WALL_HEAL_MAX,
   WALL_LANES,
+  WALL_LANES_IOS,
   WATCHDOG_MS,
 } from './constants';
 import { useAudioOwner } from './AudioOwner';
@@ -172,7 +173,7 @@ export const LiveWall = memo(forwardRef<LiveWallHandle, LiveWallProps>(function 
     // True from MomentumScrollBegin to MomentumScrollEnd: with fingerDown it
     // extends the placement holiday across the whole fling, not just the drag.
     momentum: false,
-    lanes: new Lanes(WALL_LANES),
+    lanes: new Lanes(Platform.OS === 'ios' ? WALL_LANES_IOS : WALL_LANES),
     activeRef: active,
     asleepRef: false,
     gen: 0,

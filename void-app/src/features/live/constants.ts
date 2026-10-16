@@ -45,6 +45,13 @@ export const WALL_HEAL_COOLDOWN = 12000;
  */
 export const WALL_LANES = 4;
 /**
+ * iPhone lanes. Four was sized for a Helio P35; with eight visible tiles it fills in two
+ * waves, and a dead source in the first wave holds the second back by its timeout. The
+ * iPhone decodes ~16 AVPlayers before -11839, so the visible row connects at once.
+ * ponytail: a knob - drop to 6 if the globe's first frames slip on an older iPhone.
+ */
+export const WALL_LANES_IOS = 8;
+/**
  * First wall batch waits this long after the build, so the globe paints first.
  *
  * 800ms meant the tiles did not EXIST yet, so their loaders could not move -
@@ -182,7 +189,9 @@ export const EVICT_MARGIN_SCREENS = 0;
 // 4s/4MB starved live HLS on real networks - the user: "they just keep
 // buffering, not a single smooth stream". 8s/8MB still halves Android's
 // defaults, and parked tiles hand their buffers back.
-export const WALL_BUFFER = { preferredForwardBufferDuration: 8, minBufferForPlayback: 2, maxBufferBytes: 8 << 20 };
+// Start at 1s, not 2s: the FAST-TV app in the RE report ships bufferForPlaybackMs=1000
+// (Media3 default 2500) and rebuffers to 5000 - a tile shows a second sooner.
+export const WALL_BUFFER = { preferredForwardBufferDuration: 8, minBufferForPlayback: 1, maxBufferBytes: 8 << 20 };
 
 // ─── One stream, one place on screen (web claimLiveKey/releaseLiveKey) ───────
 // Claimed by URL *and* by channel, because the same feed reaches the wall under more

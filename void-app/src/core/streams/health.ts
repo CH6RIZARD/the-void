@@ -33,6 +33,24 @@ type H = [number, number, number, number]; // [okPct, viaPct, reports, medMs]
 let map: Record<string, H> = {};
 let fetchedAt = 0;
 let inflight = false;
+// THE FIRST FILL USED TO BE BLIND. The map started empty on every launch and the
+// fetch is fire-and-forget, so the cold-launch wallSlots() ordered sources with no
+// health at all: every dead stream in the lead burned a 5.5s lane and the grid took
+// 6-7s to fill (iPhone, 2026-10-16) when the user wants 2-3. The last fetched map is
+// kept in storage and read back synchronously before the first build, like the pool.
+const HEALTH_KEY = 'void_stream_health_v1';
+let healthLoaded = false;
+function loadKeptHealth(): void {
+  if (healthLoaded) return;
+  healthLoaded = true;
+  try {
+    const kept = env.storage.getItem(HEALTH_KEY);
+    if (kept) {
+      const d = JSON.parse(kept);
+      if (d && d.h && typeof d.h === 'object') map = d.h;
+    }
+  } catch {}
+}
 
 // THE STREAM LIST ITSELF, LIVE. It used to exist only as iptv.generated.ts inside each
 // release, so a fix or a new stream needed a rebuild, and on 2026-10-14 an empty list made
@@ -69,6 +87,7 @@ function ensurePool(base: string): void {
 }
 
 export function ensureHealth(): void {
+  loadKeptHealth();
   const base = proxyBase();
   if (base) ensurePool(base);
   if (!base || inflight || Date.now() - fetchedAt < 10 * 60_000) return;
@@ -79,6 +98,7 @@ export function ensureHealth(): void {
       if (d && d.h) {
         map = d.h;
         fetchedAt = Date.now();
+        try { env.storage.setItem(HEALTH_KEY, JSON.stringify({ h: d.h })); } catch {}
       }
     })
     .catch(() => {})
