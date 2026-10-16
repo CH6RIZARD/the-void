@@ -1,0 +1,26 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.thevoid.media'
+version = '0.1.0'
+
+android {
+  namespace 'com.thevoid.media'
+  defaultConfig {
+    versionCode 1
+    versionName '0.1.0'
+  }
+  lint { abortOnError false }
+}
+
+dependencies {
+  // The SAME cache instance the players read (expo.modules.video.managers.VideoManager.cache).
+  implementation project(':expo-video')
+  // Keep in sync with node_modules/expo-video/android/build.gradle (androidxMedia3Version).
+  def androidxMedia3Version = "1.9.0"
+  implementation "androidx.media3:media3-exoplayer:${androidxMedia3Version}"
+  implementation "androidx.media3:media3-datasource:${androidxMedia3Version}"
+  implementation "androidx.media3:media3-datasource-okhttp:${androidxMedia3Version}"
+}

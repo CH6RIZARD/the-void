@@ -76,6 +76,7 @@ import { ToastHost } from '../src/ui/Toast';
 import { bootCore } from '../src/lib/core';
 import { setVideoCacheSizeAsync } from 'expo-video';
 import { CLIP_CACHE_BYTES } from '../src/features/feed/videoStore';
+import { warmCodecs } from '../modules/expo-void-media';
 import { AuthProvider } from '../src/lib/auth';
 import { SensingProvider } from '../src/lib/sensing';
 import { AudioOwnerProvider } from '../src/features/live';
@@ -125,6 +126,8 @@ function Shell() {
     SplashScreen.hideAsync().catch(() => {});
     // The first frame of the real app. Everything before this was a dark view.
     mark('boot:ready');
+    // Decoder list + one real decoder, off the first frame (report A.4 #6).
+    InteractionManager.runAfterInteractions(() => warmCodecs());
     try {
       console.warn('[boot] ready after ' + (Date.now() - BOOT_T0) + 'ms (core ' + coreReady + ', theme ' + theme.ready + ', fonts ' + (fontsLoaded || !!fontError) + ')');
     } catch {}

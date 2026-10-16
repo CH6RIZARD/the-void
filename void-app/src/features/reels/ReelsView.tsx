@@ -21,6 +21,7 @@ import { AppState, FlatList, Pressable, Share, StyleSheet, Text, View, type Layo
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
+import { prefetchHead } from '../../../modules/expo-void-media';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VoidAPI, moderation, onPostsChanged, findPost } from '../../core';
 import type { Post } from '../../core';
@@ -75,6 +76,9 @@ const NEIGHBOUR_HOLD_MS = 900;
 const SETTLE_FALLBACK_MS = 700;
 /** Posters fetched ahead of the heavy window on each settle. */
 const POSTER_BURST = 6;
+/** Clip heads fetched past the warm neighbour, and how much of each (App S2: 800 KB x 4). */
+const HEAD_BURST = 4;
+const HEAD_BYTES = 800 * 1024;
 /** Nothing to show after this long: say NO SIGNAL and offer a retry (never a spinner forever). */
 const STALL_MS = 12000;
 const STALL_RETRY_MS = 15000;
@@ -186,6 +190,14 @@ export const ReelsView = memo(function ReelsView({ active, nation, postId, overl
     const from = curRef.current + 2;
     const urls = itemsRef.current.slice(from, from + POSTER_BURST).map((p) => p._img).filter((u): u is string => !!u);
     if (urls.length) Image.prefetch(urls, 'memory-disk').catch(() => {});
+    // Heads of the clips behind them (report A.4 #5: N+1 whole via the warm player,
+    // N+2..N+5 first 800 KB). Range requests into expo-video's own cache; a player
+    // created later for the same uri reads them from disk. MP4 only.
+    itemsRef.current
+      .slice(from, from + HEAD_BURST)
+      .map((p) => p._video)
+      .filter((v): v is string => !!v && !/\.m3u8(\?|$)/i.test(v))
+      .forEach((v) => prefetchHead(v, HEAD_BYTES));
   }, []);
   const settleRef = useRef(settle);
   settleRef.current = settle;

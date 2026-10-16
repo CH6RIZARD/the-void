@@ -1,0 +1,10 @@
+{
+  "name": "expo-void-media",
+  "version": "0.1.0",
+  "description": "Short-clip warm-up for The Void: range-request head prefetch into expo-video's cache, decoder warm-up.",
+  "main": "index.ts",
+  "types": "index.ts",
+  "sideEffects": false,
+  "keywords": ["expo", "expo-module"],
+  "peerDependencies": { "expo": "*", "react": "*", "react-native": "*" }
+}
