@@ -12,7 +12,7 @@ try {
 } catch {
   /* no native LiveKit module in this binary: rebuild the dev client */
 }
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, InteractionManager, StyleSheet, View } from 'react-native';
 import { mark, startHeartbeat } from '../src/core/slow';
 import { earthAstcAsync } from '../src/features/globe/astcMap';
@@ -84,6 +84,8 @@ import { registerPhotoViewer } from '../src/features/photo';
 import { IncomingCallHost } from '../src/features/calls/IncomingCallSheet';
 import { Image as ExpoImage } from 'expo-image';
 import { Observe, ObserveRoot } from 'expo-observe';
+import { LoadingScreen } from '../src/features/loading/LoadingScreen';
+import { LOADING } from '../src/features/loading/arrivals';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 // EAS Observe: launch time, per-screen time-to-render/interactive and slow/frozen frames,
@@ -116,6 +118,21 @@ function Shell() {
   const coreReady = useCoreReady();
   const [fontsLoaded, fontError] = useFonts(FONT_ASSETS);
   const ready = coreReady && theme.ready && (fontsLoaded || !!fontError);
+  // THE LOADING SCREEN (the user's Void Loading Lab, 2026-10-17) plays while the core boots and
+  // for at least LOADING.minMs, so its arrivals finish even when boot is quick.
+  const [held, setHeld] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setHeld(false), LOADING.minMs);
+    return () => clearTimeout(t);
+  }, []);
+  const show = ready && !held;
+  // The native splash gives way the moment the loading screen has drawn its first frame.
+  const splashGone = useRef(false);
+  const onLoadingFrame = useCallback(() => {
+    if (splashGone.current) return;
+    splashGone.current = true;
+    SplashScreen.hideAsync().catch(() => {});
+  }, []);
 
   useEffect(() => {
     SystemUI.setBackgroundColorAsync(theme.colors.bg).catch(() => {});
@@ -195,7 +212,7 @@ function Shell() {
     };
   }, []);
 
-  if (!ready) return <View style={[styles.fill, { backgroundColor: '#04020c' }]} />;
+  if (!show) return <LoadingScreen fontsReady={fontsLoaded || !!fontError} onFirstFrame={onLoadingFrame} />;
 
   const bg = theme.colors.bg;
   return (
