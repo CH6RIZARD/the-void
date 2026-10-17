@@ -1,5 +1,5 @@
 {
-  "_about": "THE VOID character: locked head + face from the Void Face Lab artifact (https://claude.ai/artifact/KwDBRre3JryXC6AQdDz2EC), set by the user 2026-10-16. Units ~ metres, Z up, face points -Y. Head: pebble (sphere scaled width/depth/height, value-noise lumps, flat seat at -height*flat for the neck, pinched lower-front corner, rolled by roll degrees). Eyes: solid white discs, no iris. Brows: black parallelogram slabs over the upper quarter of each eye. Neck: the Head Lab scribble, unchanged.",
+  "_about": "THE VOID character: locked head + face from the Void Face Lab artifact (https://claude.ai/artifact/KwDBRre3JryXC6AQdDz2EC), set by the user 2026-10-16. Units ~ metres, Z up, face points -Y. Head: pebble (sphere scaled width/depth/height, value-noise lumps, flat seat at -height*flat for the neck, pinched lower-front corner, rolled by roll degrees). Eyes: solid white discs, no iris. Brows: black parallelogram slabs over the upper quarter of each eye. Neck: the Head Lab scribble, unchanged. Neck scribble height locked at 0.18 (neckHeight).",
   "look": "studio",
   "headColor": "#b7ae9a",
   "browColor": "#121015",
@@ -26,5 +26,6 @@
   "eyeX": 0.121,
   "eyeZ": 0.069,
   "eyeR": 0.082,
-  "eyeDepth": 0.021
+  "eyeDepth": 0.021,
+  "neckHeight": 0.18
 }
