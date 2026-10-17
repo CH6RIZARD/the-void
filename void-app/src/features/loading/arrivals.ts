@@ -37,7 +37,7 @@ export const LOADING = {
   char: { style: 'pop', delay: 0.1, dur: 0.55, amt: 1 } as Arrival,
   word: { style: 'fade', delay: 0.65, dur: 0.6, amt: 1 } as Arrival,
   // the character in the void: nudges in band heights, size, fall speed, the loop phase he arrives in, his angle
-  lx: 0, ly: -0.07, lz: 0, ls: 1, speed: 0.2, phase: 0, pitch: 0, yaw: 0, roll: 0,
+  lx: 0, ly: -0.09, lz: 0, ls: 1, speed: 0.23, phase: 0.37, pitch: 2, yaw: -9, roll: 4,
   // sparkles, the void band, the word
   sw: 0.5, sspread: 1.34, srise: 0.9, bm: 0.03, tr: 0.06, wsize: 1, wshow: true,
   motion: { mix: [0.4, 0, 0.25, 0, 0.7, 0.6, 0, 0, 0, 0, 0, 0], intensity: 1, variance: 0.25, arms: 1, legs: 1.15, sway: 1, cap: 1, bob: 1 },
