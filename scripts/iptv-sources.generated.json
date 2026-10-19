@@ -1,159 +1,80 @@
 {
- "generated": "2026-10-17T13:11:01.275Z",
- "note": "Union of the re-check from 10 regions; a stream stays if it played from any of them. · scout+82@2026-10-17",
- "count": 321,
+ "generated": "2026-10-17T19:09:03.701Z",
+ "note": "Union of the re-check from 10 regions; a stream stays if it played from any of them. · scout+43@2026-10-19",
+ "count": 43,
  "countries": 157,
  "sources": {
   "Netherlands": [],
   "Russia": [
    {
     "type": "hls",
-    "url": "https://streaming.astrakhan.ru/astrakhan24/playlist.m3u8",
-    "label": "Astrahan 24"
+    "url": "https://streaming.thestream.cyou/live/210-req_offset_28000000-req_window_0-1k_v5.m3u8",
+    "label": "Channel One"
    },
    {
     "type": "hls",
-    "url": "https://edge-tv-ll.facecast.io/evacoder_hls_hi/UBZfFgtKB1JwTwoDERNQVGGs/index.m3u8",
-    "label": "360° News"
+    "url": "https://tshift-1.telecoma.tv/8channel/tracks-v1a1/mono.ts.m3u8",
+    "label": "Channel 8 Krasnoyarsk"
+   },
+   {
+    "type": "hls",
+    "url": "https://live-8knsk.cdnvideo.ru/8knsk/stream1/playlist.m3u8",
+    "label": "Channel 8 Novosibirsk"
+   },
+   {
+    "type": "hls",
+    "url": "https://zabava-htlive.cdn.ngenix.net/hls/CH_5TV/variant.m3u8",
+    "label": "Channel 5"
    }
   ],
-  "South Africa": [
-   {
-    "type": "hls",
-    "url": "https://sabctretalh.cdn.mangomolo.com/lehae/smil:lehae.stream.smil/master.m3u8",
-    "label": "SABC Lehae",
-    "w": 426
-   },
-   {
-    "type": "hls",
-    "url": "https://cdn.freevisiontv.co.za/sttv/smil:1kzn.stream.smil/playlist.m3u8",
-    "label": "1KZN TV",
-    "w": 320
-   },
-   {
-    "type": "hls",
-    "url": "https://cdn.freevisiontv.co.za/sttv/smil:brics.stream.smil/playlist.m3u8",
-    "label": "TV BRICS Africa",
-    "w": 320
-   },
-   {
-    "type": "hls",
-    "url": "https://cdn.freevisiontv.co.za/sttv/smil:tshwane.stream.smil/playlist.m3u8",
-    "label": "Tshwane TV",
-    "w": 320
-   },
-   {
-    "type": "hls",
-    "url": "https://cdn.freevisiontv.co.za/sttv/smil:ctv.stream.smil/playlist.m3u8",
-    "label": "Cape Town TV",
-    "w": 320
-   },
-   {
-    "type": "hls",
-    "url": "https://viewmedia7219.bozztv.com/wmedia/viewmedia100/web_012/Stream/playlist.m3u8",
-    "label": "ROV TV",
-    "w": 426
-   },
-   {
-    "type": "hls",
-    "url": "https://cdnstack.internetmultimediaonline.org/ln24/ln24.stream/playlist.m3u8",
-    "label": "LN24SA",
-    "w": 1920
-   },
-   {
-    "type": "hls",
-    "url": "https://viewmedia7219.bozztv.com/wmedia/viewmedia100/web_022/Stream/playlist.m3u8",
-    "label": "Homebase TV",
-    "w": 426
-   },
-   {
-    "type": "hls",
-    "url": "https://cdn.freevisiontv.co.za/sttv/smil:soweto.stream.smil/playlist.m3u8",
-    "label": "Soweto TV",
-    "w": 320
-   },
-   {
-    "type": "hls",
-    "url": "https://viewmedia7219.bozztv.com/wmedia/viewmedia100/web_002/Stream/playlist.m3u8",
-    "label": "NuView TV",
-    "w": 426
-   },
-   {
-    "type": "hls",
-    "url": "https://cdn.freevisiontv.co.za/sttv/smil:faith.stream.smil/playlist.m3u8",
-    "label": "Faith Africa",
-    "w": 320
-   }
-  ],
+  "South Africa": [],
   "Ukraine": [
    {
     "type": "hls",
-    "url": "https://dash2.antik.sk/live/test_uatv/playlist.m3u8",
-    "label": "FREEDOM"
-   },
-   {
-    "type": "hls",
-    "url": "https://cdn15.live-tv.cloud/ua_infinitas_tv/news24-abr/playlist.m3u8",
-    "label": "10 Bold"
+    "url": "https://cdn15.live-tv.cloud/ua_infinitas_tv/7tvod-abr/playlist.m3u8",
+    "label": "Channel 7 Ukraine"
    }
   ],
-  "Georgia": [
-   {
-    "type": "hls",
-    "url": "https://tv.cdn.xsg.ge/imedihd/index.m3u8",
-    "label": "Imedi TV",
-    "w": 640
-   },
-   {
-    "type": "hls",
-    "url": "https://tv.cdn.xsg.ge/gpb-2tv/index.m3u8",
-    "label": "2TV"
-   },
-   {
-    "type": "hls",
-    "url": "https://tv.cdn.xsg.ge/gpb-1tv/index.m3u8",
-    "label": "1TV"
-   }
-  ],
+  "Georgia": [],
   "Australia": [
    {
     "type": "hls",
-    "url": "https://abc-news-dmd-streams-1.akamaized.net/out/v1/701126012d044971b3fa89406a440133/index.m3u8",
-    "label": "ABC News"
+    "url": "https://d1k6kax80wecy5.cloudfront.net/WFqZJc/index.m3u8",
+    "label": "Channel 44"
+   }
+  ],
+  "Morocco": [
+   {
+    "type": "hls",
+    "url": "https://edge13.vedge.infomaniak.com/livecast/ik:chadatv/manifest.m3u8",
+    "label": "Chada TV"
+   }
+  ],
+  "Spain": [],
+  "Thailand": [
+   {
+    "type": "hls",
+    "url": "https://live-us1.thaimomo.com/live-as/ch7hd-3/playlist.m3u8",
+    "label": "Channel 7"
    },
    {
     "type": "hls",
-    "url": "https://dce3793146fef017.mediapackage.us-west-2.amazonaws.com/out/v1/55cdf73af7894775ba6de8f57482b66a/CMAF_HLS/index.m3u8",
-    "label": "24 Kanal"
+    "url": "https://live-us1.thaimomo.com/live-as/cheight-3/playlist.m3u8",
+    "label": "Channel 8"
    },
    {
     "type": "hls",
-    "url": "https://d1k6kax80wecy5.cloudfront.net/RLnAKY/index.m3u8",
-    "label": "C31 Melbourne"
+    "url": "https://live-us1.thaimomo.com/live-as/ch5hd-2/playlist.m3u8",
+    "label": "Channel 5"
    }
   ],
-  "Morocco": [],
-  "Spain": [
-   {
-    "type": "hls",
-    "url": "https://amg01821-lovetv-amg01821c27-lg-es-6726.playouts.now.amagi.tv/playlist/amg01821-lovetvfast-lovenews-lges/playlist.m3u8",
-    "label": "Actualidad 360"
-   }
-  ],
-  "Thailand": [],
-  "Germany": [
-   {
-    "type": "hls",
-    "url": "https://stream02.welocal.stream/stream/fhd-augsburgtv_104951/ngrp:stream_all/playlist.m3u8",
-    "label": "Augsburg TV"
-   }
-  ],
+  "Germany": [],
   "Kenya": [],
   "Paraguay": [
    {
     "type": "hls",
-    "url": "https://www.desde-paraguay.com/pro.m3u8",
-    "label": "Canal Pro"
+    "url": "https://rds3.desdeparaguay.net/brunomasitv/brunomasitv/playlist.m3u8",
+    "label": "Bruno Masi TV"
    }
   ],
   "Poland": [],
@@ -161,240 +82,118 @@
   "India": [
    {
     "type": "hls",
-    "url": "https://yupprestreamliveus.akamaized.net/vglive-sk-355289/majha/master.m3u8",
-    "label": "ABP Majha"
+    "url": "https://chardikalagurbanitv.gigabitcdn.net/in-chardikala/chardikala-timetv/playlist.m3u8",
+    "label": "Chardikla Time TV"
    },
    {
     "type": "hls",
-    "url": "https://amg13737-amg13737c1-amgplt0016.playout.now3.amagi.tv/playlist/amg13737-amg13737c1-amgplt0016/playlist.m3u8",
-    "label": "Asianet News"
+    "url": "https://chardikalatimestv.gigabitcdn.net/in-chardikala/chardikala-gurbani-tv/playlist.m3u8",
+    "label": "Chardikla Gurbaani TV"
    },
    {
     "type": "hls",
-    "url": "https://asianetnews.vgcdn.net/vglive-sk-335835/playlist.m3u8",
-    "label": "Asianet Suvarna News"
-   },
-   {
-    "type": "hls",
-    "url": "https://stream.ottlive.co.in/aajkikhabar/index.m3u8",
-    "label": "Aaj Ki Khabar"
+    "url": "https://5a1178b42cc03.streamlock.net/8212/8212/playlist.m3u8",
+    "label": "CCV"
    }
   ],
-  "Turkey": [
-   {
-    "type": "hls",
-    "url": "https://tv.ensonhaber.com/tv24/tv24.m3u8",
-    "label": "24 TV"
-   },
-   {
-    "type": "hls",
-    "url": "https://turkmedya-live.ercdn.net/tv360/tv360.m3u8",
-    "label": "360"
-   }
-  ],
+  "Turkey": [],
   "Myanmar": [],
-  "Argentina": [
-   {
-    "type": "hls",
-    "url": "https://videostream.shockmedia.com.ar/hls/abtvbariloche/abtvbariloche.m3u8",
-    "label": "Actualidad 360"
-   },
-   {
-    "type": "hls",
-    "url": "https://stream1.sersat.com/hls/argentinisima.m3u8",
-    "label": "Argentinisima Satelital"
-   },
-   {
-    "type": "hls",
-    "url": "https://tdcserver.com:19360/tdconlione-2/tdconlione-2.m3u8",
-    "label": "Canal TDC"
-   },
-   {
-    "type": "hls",
-    "url": "https://stream-gtlc.telecentro.net.ar/hls/canal26hls/main.m3u8",
-    "label": "Canal 26"
-   }
-  ],
+  "Argentina": [],
   "United Kingdom": [
    {
     "type": "hls",
-    "url": "https://vs-hls-push-ww-live.akamaized.net/x=4/i=urn:bbc:pips:service:bbc_news_channel_hd/mobile_wifi_main_hd_abr_v2.m3u8",
-    "label": "Barbe TV"
+    "url": "https://app.ncare.live/c3VydmVyX8RpbEU9Mi8xNy8yMDE0GIDU6RgzQ6NTAgdEoaeFzbF92YWxIZTO0U0ezN1IzMyfvcGVMZEJCTEFWeVN3PTOmdFsaWRtaW51aiPhnPTI/chsukoff.stream/playlist.m3u8",
+    "label": "Channel S"
    }
   ],
   "United States": [
    {
     "type": "hls",
-    "url": "https://reflect-stream-bronxnet.cablecast.tv/live-8/live/stream-4/live.m3u8",
-    "label": "BX Inform"
+    "url": "https://lineup.cbsivideo.com/playout/c1ed69db-6b71-4581-a937-a70ab4089f8a/index.m3u8",
+    "label": "CBS News Sacramento"
    },
    {
     "type": "hls",
-    "url": "https://blacknewschannel-vizio.amagi.tv/playlist.m3u8",
-    "label": "Black News Channel"
+    "url": "https://dai.google.com/linear/hls/event/dHA193vxQ_WqZNVoC-W5MA/master.m3u8",
+    "label": "CBS News Boston"
    },
    {
     "type": "hls",
-    "url": "https://pb-0n3n2ej0w8pl9.akamaized.net/ABCNewsLive_Disney.m3u8",
-    "label": "ABC News Live"
+    "url": "https://champaign-cablecast.cablecast.tv/live/stream-2/live.m3u8",
+    "label": "CGTV"
    },
    {
     "type": "hls",
-    "url": "https://cantv.streamguys1.com/cantv/cantv36hls/playlist.m3u8",
-    "label": "CAN TV36"
+    "url": "https://reflect-channel18vod-springfield-il-us.cablecast.tv/live-13/live/stream-1/live.m3u8",
+    "label": "Channel 18 GAC"
    }
   ],
-  "Italy": [
-   {
-    "type": "hls",
-    "url": "https://video-ar.radioradicale.it/diretta/camera2/playlist.m3u8",
-    "label": "Camera dei Deputati"
-   },
-   {
-    "type": "hls",
-    "url": "https://64b16f23efbee.streamlock.net/calabriatv/calabriatv/playlist.m3u8",
-    "label": "Calabria TV"
-   }
-  ],
+  "Italy": [],
   "Cote d": [],
-  "Pakistan": [
-   {
-    "type": "hls",
-    "url": "https://lbgo.bozztv.com/ssh101/ssh101/bstv/playlist.m3u8",
-    "label": "BSTV"
-   },
-   {
-    "type": "hls",
-    "url": "https://cdn4.mjunoon.tv:8087/streamtest/111M/chunks.m3u8",
-    "label": "Capital TV"
-   }
-  ],
+  "Pakistan": [],
   "Hungary": [],
   "Mexico": [
    {
     "type": "hls",
-    "url": "https://5e50264bd6766.streamlock.net/mexiquense2/videomexiquense2/playlist.m3u8",
-    "label": "AMX Noticias"
+    "url": "https://5ca3e84a76d30.streamlock.net/cbtv/videoc3b3t3v3/playlist.m3u8",
+    "label": "CB TV Michoacan"
    },
    {
     "type": "hls",
-    "url": "https://5f2c1b0d880e5.streamlock.net/canal33tijuana/videocanal33tijuana/playlist.m3u8",
-    "label": "Canal 33 Tijuana"
+    "url": "https://60417ddeaf0d9.streamlock.net/ntv/videontv/playlist.m3u8",
+    "label": "8NTV"
    },
    {
     "type": "hls",
-    "url": "https://60417ddeaf0d9.streamlock.net/srtc/smil:srtc.smil/playlist.m3u8",
-    "label": "Canal Parlamento del Congreso de Jalisco"
+    "url": "https://s5.mexside.net:1936/lsac/lsac/playlist.m3u8",
+    "label": "B15 Fresnillo"
    }
   ],
   "Chile": [
    {
     "type": "hls",
-    "url": "https://v2.tustreaming.cl/canallocalcl/index.m3u8",
-    "label": "Canal Local"
+    "url": "https://freya.mivideo.pro/centraltv/video.m3u8",
+    "label": "Central TV"
    }
   ],
   "Kazakhstan": [],
   "Peru": [
    {
     "type": "hls",
-    "url": "https://play.agenciastreaming.com:8081/tvwanka/tracks-v1/index.fmp4.m3u8",
-    "label": "Canal 21 Huancayo"
-   },
-   {
-    "type": "hls",
-    "url": "https://live.obslivestream.com/canal8/index.m3u8",
-    "label": "Canal 8 Catacaos"
-   },
-   {
-    "type": "hls",
-    "url": "https://play.agenciastreaming.com:8081/tvalturalimalive/video.m3u8",
-    "label": "Altura TV"
+    "url": "https://live-evg10.tv360.bitel.com.pe/bitel/charapatvSRT/playlist.m3u8",
+    "label": "Charapa TV"
    }
   ],
   "Iran": [],
-  "Costa Rica": [
-   {
-    "type": "hls",
-    "url": "https://video1.azulstream.com:8081/antenaseistv/index.m3u8",
-    "label": "Antena Seis TV"
-   },
-   {
-    "type": "hls",
-    "url": "https://acceso.mediosdecostarica.com:3606/hybrid/play.m3u8",
-    "label": "Canal 10"
-   }
-  ],
+  "Costa Rica": [],
   "Senegal": [],
   "Dominican Republic": [
    {
     "type": "hls",
-    "url": "https://cdn.streamingcpanel.com:3545/live/canangatlive.m3u8",
-    "label": "Cana TV Digital"
+    "url": "https://5790d294af2dc.streamlock.net/cenovision/cenovision/playlist.m3u8",
+    "label": "Cenovision HD"
    }
   ],
-  "Romania": [
-   {
-    "type": "hls",
-    "url": "https://hls02ns.antenaplay.ro/hls/b1-tv-hd/index.m3u8",
-    "label": "B1"
-   },
-   {
-    "type": "hls",
-    "url": "https://live4dai.antenaplay.ro/live2_sdi14/live2_sdi14_600k.m3u8",
-    "label": "Antena 1"
-   },
-   {
-    "type": "hls",
-    "url": "https://stream-aleph.m.ro/Aleph/ngrp:Alephnewsmain.stream_all/playlist.m3u8",
-    "label": "Aleph News"
-   }
-  ],
-  "Philippines": [
-   {
-    "type": "hls",
-    "url": "https://amg19223-amg19223c12-amgplt0352.playout.now3.amagi.tv/playlist/amg19223-amg19223c12-amgplt0352/playlist.m3u8",
-    "label": "Abante TV"
-   },
-   {
-    "type": "hls",
-    "url": "https://amg19223-amg19223c11-amgplt0352.playout.now3.amagi.tv/playlist/amg19223-amg19223c11-amgplt0352/playlist.m3u8",
-    "label": "Bilyonaryo News Channel"
-   }
-  ],
-  "Saudi Arabia": [
-   {
-    "type": "hls",
-    "url": "https://av.alarabiya.net/alarabiapublish/alhadath.smil/playlist.m3u8",
-    "label": "Al Hadath"
-   },
-   {
-    "type": "hls",
-    "url": "https://live-news.asharq.com/asharq.m3u8",
-    "label": "Asharq News"
-   },
-   {
-    "type": "hls",
-    "url": "https://svs.itworkscdn.net/asharqradiovlive/asharqradiov/playlist.m3u8",
-    "label": "Asharq Radio"
-   },
-   {
-    "type": "hls",
-    "url": "https://cdn-globecast.akamaized.net/live/eds/al_ekhbariya/hls_roku/index.m3u8",
-    "label": "Al Ekhbariya"
-   }
-  ],
+  "Romania": [],
+  "Philippines": [],
+  "Saudi Arabia": [],
   "Venezuela": [],
   "South Korea": [],
-  "Iraq": [],
-  "Greece": [],
-  "Nigeria": [
+  "Iraq": [
    {
     "type": "hls",
-    "url": "https://viewmedia7219.bozztv.com/wmedia/viewmedia100/web_001/Stream/playlist.m3u8",
-    "label": "BCS StarCross TV"
+    "url": "https://live.channel8.com/Channel8-Kurdish/index.fmp4.m3u8",
+    "label": "Channel8"
    }
   ],
+  "Greece": [
+   {
+    "type": "hls",
+    "url": "https://eu1.streams.gr:8081/centertv/index.m3u8",
+    "label": "Center TV"
+   }
+  ],
+  "Nigeria": [],
   "Belgium": [],
   "Togo": [],
   "Uganda": [],
@@ -403,1599 +202,179 @@
   "Brazil": [
    {
     "type": "hls",
-    "url": "https://cdn.live.br1.jmvstream.com/w/LVW-9359/LVW9359_XSyReL0QVf/playlist.m3u8",
-    "label": "Aratu On"
+    "url": "https://5b33b873179a2.streamlock.net:1443/mastertv/livestream/playlist.m3u8",
+    "label": "Catve Master TV"
    },
    {
     "type": "hls",
-    "url": "https://stmv5.samcast.com.br/claudio8701/claudio8701/playlist.m3u8",
-    "label": "Canal Metropolitano de Noticias"
+    "url": "https://5b33b873179a2.streamlock.net:1443/radiocamera/livestream/playlist.m3u8",
+    "label": "Catve FM"
+   },
+   {
+    "type": "hls",
+    "url": "https://5b33b873179a2.streamlock.net:1443/catve2/catve2/playlist.m3u8",
+    "label": "Catve2"
    }
   ],
   "Ghana": [],
   "Indonesia": [
    {
     "type": "hls",
-    "url": "https://banjartv.siar.us/banjartv/live/playlist.m3u8",
-    "label": "Bansal News"
+    "url": "https://lnd0t3b922.tenbytecdn.com/ta-sg1/90369cf5-6ac2-411d-b3d0-15fae10a2e2c/master.m3u8",
+    "label": "BTV"
    }
   ],
   "Guinea": [],
   "Cameroon": [],
-  "El Salvador": [
-   {
-    "type": "hls",
-    "url": "https://stream.giostreaming.app/canal11/canal11.m3u8",
-    "label": "Canal 11 TuTV"
-   },
-   {
-    "type": "hls",
-    "url": "https://5fc584f3f19c9.streamlock.net/agape/smil:agape.smil/playlist.m3u8",
-    "label": "Ajman TV"
-   },
-   {
-    "type": "hls",
-    "url": "https://cloud2.streaminglivehd.com:2020/hls/8036/8036.m3u8",
-    "label": "Canal 3 Impresionante"
-   }
-  ],
-  "Lebanon": [
-   {
-    "type": "hls",
-    "url": "https://svs.itworkscdn.net/alimanlive/imantv.smil/playlist.m3u8",
-    "label": "Al-Iman TV"
-   }
-  ],
-  "Egypt": [
-   {
-    "type": "hls",
-    "url": "https://5b622f07944df.streamlock.net/aghapy.tv/aghapy.smil/playlist.m3u8",
-    "label": "Aghapy TV"
-   },
-   {
-    "type": "hls",
-    "url": "https://eazyvwqssi.erbvr.com/alghadtv/alghadtv.m3u8",
-    "label": "Al Ghad TV"
-   }
-  ],
-  "Bulgaria": [
-   {
-    "type": "hls",
-    "url": "https://restr2.bgtv.bg/agro/hls/agro.m3u8",
-    "label": "Agro TV"
-   }
-  ],
-  "United Arab Emirates": [
-   {
-    "type": "hls",
-    "url": "https://svs.itworkscdn.net/kablatvlive/kabtv1.smil/playlist.m3u8",
-    "label": "Al Sharqiya Min Kabla"
-   },
-   {
-    "type": "hls",
-    "url": "https://amg01480-alshallalfze-alshallal-ono-q0hfg.amagi.tv/playlist.m3u8",
-    "label": "Al Shallal TV"
-   }
-  ],
-  "Qatar": [
-   {
-    "type": "hls",
-    "url": "https://live-hls-apps-aja-fa.getaj.net/AJA/01.m3u8",
-    "label": "Al Jazeera"
-   },
-   {
-    "type": "hls",
-    "url": "https://live.kwikmotion.com/alaraby2live/alaraby2.smil/playlist.m3u8",
-    "label": "Al Araby TV 2"
-   },
-   {
-    "type": "hls",
-    "url": "https://live-hls-apps-ajm24-fa.getaj.net/AJM24/index.m3u8",
-    "label": "Al Jazeera Mubasher 24"
-   },
-   {
-    "type": "hls",
-    "url": "https://bucharest.zeuscdn724.com/lb0/CH-AL-MA/index.m3u8",
-    "label": "Al Maaref TV"
-   }
-  ],
+  "El Salvador": [],
+  "Lebanon": [],
+  "Egypt": [],
+  "Bulgaria": [],
+  "United Arab Emirates": [],
+  "Qatar": [],
   "Albania": [],
   "Bolivia": [],
-  "Colombia": [
-   {
-    "type": "hls",
-    "url": "https://stmv4.voxtvhd.com.br/canicatv/canicatv/playlist.m3u8",
-    "label": "Canica TV"
-   },
-   {
-    "type": "hls",
-    "url": "https://streaming.rtvc.gov.co/TV_CanalInstitucional_live/smil:live.smil/playlist.m3u8",
-    "label": "Canal Institucional"
-   }
-  ],
+  "Colombia": [],
   "Honduras": [
    {
     "type": "hls",
-    "url": "https://servilive.com:3508/stream/play.m3u8",
-    "label": "Buendia TV"
+    "url": "https://s.emisoras.tv:8081/atv/index.m3u8",
+    "label": "Alsacias Television"
    }
   ],
-  "Jordan": [
-   {
-    "type": "hls",
-    "url": "https://ghaasiflu.online/alhqeqa/index.m3u8",
-    "label": "Alhaqeqa Aldawlia"
-   },
-   {
-    "type": "hls",
-    "url": "https://jmc-live.ercdn.net/altaghier/altaghier.m3u8",
-    "label": "Altaghier TV"
-   }
-  ],
+  "Jordan": [],
   "Oman": [],
-  "Palestine": [
-   {
-    "type": "hls",
-    "url": "https://streaming.najah.edu:8443/hls/AlNajah.m3u8",
-    "label": "Al Najah News"
-   }
-  ],
-  "Libya": [
-   {
-    "type": "hls",
-    "url": "https://starmenajo.com/hls/almasar/index.m3u8",
-    "label": "Al Masar TV"
-   }
-  ],
-  "Yemen": [
-   {
-    "type": "hls",
-    "url": "https://live.cdnbridge.tv/Almasirah/Almasirah_all/playlist.m3u8",
-    "label": "Al Masirah"
-   },
-   {
-    "type": "hls",
-    "url": "https://live2.cdnbridge.tv/AlmasirahMubasher/Mubasher_All/playlist.m3u8",
-    "label": "Al Masirah Mubacher"
-   }
-  ],
+  "Palestine": [],
+  "Libya": [],
+  "Yemen": [],
   "North Macedonia": [],
-  "Syria": [
-   {
-    "type": "hls",
-    "url": "https://live.kwikmotion.com/syriatv02live/syriatv02.smil/playlist.m3u8",
-    "label": "Althania"
-   }
-  ],
+  "Syria": [],
   "Iceland": [],
-  "Azerbaijan": [
-   {
-    "type": "hls",
-    "url": "https://janya-ayaztv.vgcdn.net/ptnr-WebApp/title-Ayaz_TV/v1/vglive-sk-934820/main.m3u8",
-    "label": "Ayaz TV"
-   }
-  ],
+  "Azerbaijan": [],
   "Canada": [],
   "Afghanistan": [],
   "Guatemala": [],
-  "Bangladesh": [],
+  "Bangladesh": [
+   {
+    "type": "hls",
+    "url": "https://tvsen5.aynaott.com/banglavision/index.m3u8",
+    "label": "Bangla Vision"
+   }
+  ],
   "Andorra": [],
-  "Vietnam": [
+  "Vietnam": [],
+  "China": [
    {
     "type": "hls",
-    "url": "https://live.canthotv.vn/cs2/live.stream/playlist.m3u8",
-    "label": "Can Tho TV 2"
+    "url": "https://h5cul1yar48um3t.wcetv.com/hls/cgtn.m3u8",
+    "label": "CGTN"
    },
    {
     "type": "hls",
-    "url": "https://live.canthotv.vn/cs3/tv/chunklist.m3u8",
-    "label": "Can Tho TV 3"
+    "url": "https://dash4.antik.sk/live/test_cgtn_esp_tizen/playlist.m3u8",
+    "label": "CGTN Spanish"
+   },
+   {
+    "type": "hls",
+    "url": "https://dash4.antik.sk/live/test_cgtn_fra_tizen/playlist.m3u8",
+    "label": "CGTN French"
+   },
+   {
+    "type": "hls",
+    "url": "https://dash3.antik.sk/live/test_cgtn_rus_tizen/playlist.m3u8",
+    "label": "CGTN Russian"
    }
   ],
-  "China": [],
   "Ecuador": [],
-  "Austria": [
-   {
-    "type": "hls",
-    "url": "https://60efd7a2b4d02.streamlock.net/a_kaernten/ngrp:livestream_all/playlist.m3u8",
-    "label": "Antenne Kaernten"
-   },
-   {
-    "type": "hls",
-    "url": "https://60efd7a2b4d02.streamlock.net/a_steiermark/ngrp:livestream_all/playlist.m3u8",
-    "label": "Antenne Steiermark"
-   }
-  ],
-  "Slovakia": [
-   {
-    "type": "hls",
-    "url": "https://dash2.antik.sk/live/test_regio_tv/playlist.m3u8",
-    "label": "Regio TV"
-   },
-   {
-    "type": "hls",
-    "url": "https://dash3.antik.sk/live/turbo_tv_avc_25p/playlist.m3u8",
-    "label": "Turbo TV"
-   },
-   {
-    "type": "hls",
-    "url": "https://dash3.antik.sk/live/test_vita/playlist.m3u8",
-    "label": "TV Vita"
-   },
-   {
-    "type": "hls",
-    "url": "https://arenasportslovakia.ddns.net/hls/cetv2.m3u8",
-    "label": "TV Central"
-   },
-   {
-    "type": "hls",
-    "url": "https://stream.tvlux.sk/luxtv/luxtv-livestream/chunklist_w617812057.m3u8",
-    "label": "TV Lux (SK)"
-   }
-  ],
-  "Luxembourg": [
-   {
-    "type": "hls",
-    "url": "https://live-edge.rtl.lu/channel2/smil:channel2/playlist.m3u8",
-    "label": "RTL Zwee",
-    "w": 640
-   },
-   {
-    "type": "hls",
-    "url": "https://stream.eldo.lu/data/live/tele/eldotv/1080p.m3u8",
-    "label": "eldo.TV"
-   },
-   {
-    "type": "hls",
-    "url": "https://streamer20.multimedia.blue/Eltrona/DudelangeTV/playlist.m3u8",
-    "label": "Dudelange TV",
-    "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://live-edge.rtl.lu/channel1/smil:channel1/playlist.m3u8",
-    "label": "RTL Tele Letzebuerg",
-    "w": 640
-   },
-   {
-    "type": "hls",
-    "url": "https://2-fss-2.streamhoster.com/pl_124/206820-4338160-1/playlist.m3u8",
-    "label": "apart TV",
-    "w": 1920
-   },
-   {
-    "type": "hls",
-    "url": "https://stream.rtl.lu/data/live/tele/rtltodayradio/playlist.m3u8",
-    "label": "Today Radio",
-    "w": 640
-   },
-   {
-    "type": "hls",
-    "url": "https://streamer20.multimedia.blue/Post/MerschTV_IPTV/playlist.m3u8",
-    "label": "MierschTV",
-    "w": 1920
-   },
-   {
-    "type": "hls",
-    "url": "https://rtlradio-streaming.rtl.lu/rtlradiowebtv/smil:rtlradiowebtv/playlist.m3u8",
-    "label": "RTL Web Radio TV",
-    "w": 640
-   },
-   {
-    "type": "hls",
-    "url": "https://stream.rtl.lu/data/live/tele/rtlgold/playlist.m3u8",
-    "label": "RTL Gold (LU)",
-    "w": 640
-   }
-  ],
-  "Cambodia": [
-   {
-    "type": "hls",
-    "url": "https://live.kh.malimarcdn.com/live/tvk.stream/playlist.m3u8",
-    "label": "TVK",
-    "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://stream.pdtvhd.com/live/streams/ctv9_hd_playlist.m3u8",
-    "label": "CTV 9"
-   },
-   {
-    "type": "hls",
-    "url": "https://stream.pdtvhd.com/LiveApp/streams/Townfullhd.m3u8",
-    "label": "Town TV"
-   },
-   {
-    "type": "hls",
-    "url": "https://iptv.ebc.edu.kh/iptv/channel/1.m3u8",
-    "label": "EBC General Education",
-    "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://live.kh.malimarcdn.com/live/tvk2.stream/playlist.m3u8",
-    "label": "TVK 2",
-    "w": 1280
-   }
-  ],
-  "Somalia": [
-   {
-    "type": "hls",
-    "url": "https://cd198.anystream.uk:9092/iqapp/s03btv/playlist.m3u8",
-    "label": "Saab TV",
-    "w": 1024
-   }
-  ],
-  "Armenia": [
-   {
-    "type": "hls",
-    "url": "https://amtvusdvr.tulix.tv/am3abr/index.m3u8",
-    "label": "First Channel News",
-    "w": 640
-   },
-   {
-    "type": "hls",
-    "url": "https://amtvusdvr.tulix.tv/am4abr/index.m3u8",
-    "label": "Armenia 1",
-    "w": 640
-   }
-  ],
-  "Sweden": [
-   {
-    "type": "hls",
-    "url": "https://cdn0-03837-liveedge0.dna.ip-only.net/03837-liveedge0/smil:03837-tx4/playlist.m3u8",
-    "label": "Di TV",
-    "w": 426
-   },
-   {
-    "type": "hls",
-    "url": "https://cdn0-03837-liveedge0.dna.ip-only.net/03837-liveedge0/smil:03837-tx2/playlist.m3u8",
-    "label": "Expressen TV",
-    "w": 426
-   },
-   {
-    "type": "hls",
-    "url": "https://komhls.wns.live/hls/stream.m3u8",
-    "label": "Komala TV"
-   }
-  ],
+  "Austria": [],
+  "Slovakia": [],
+  "Luxembourg": [],
+  "Cambodia": [],
+  "Somalia": [],
+  "Armenia": [],
+  "Sweden": [],
   "Mongolia": [
    {
     "type": "hls",
-    "url": "https://cdn4.skygo.mn/live/disk1/Parlament/HLSv3-FTA/Parlament.m3u8",
-    "label": "Parliament TV (MN)",
-    "w": 853
+    "url": "https://cdn4.skygo.mn/live/disk1/Channel11/HLSv3-FTA/Channel11.m3u8",
+    "label": "Channel 11"
    },
    {
     "type": "hls",
-    "url": "https://cdn4.skygo.mn/live/disk1/ETV/HLSv3-FTA/ETV.m3u8",
-    "label": "ETV (MN)",
-    "w": 854
-   },
-   {
-    "type": "hls",
-    "url": "https://cdn4.skygo.mn/live/disk1/Eagle/HLSv3-FTA/Eagle.m3u8",
-    "label": "Eagle News",
-    "w": 854
-   },
-   {
-    "type": "hls",
-    "url": "https://cdn4.skygo.mn/live/disk1/MNCTV/HLSv3-FTA/MNCTV.m3u8",
-    "label": "Mongolian News Channel",
-    "w": 854
-   },
-   {
-    "type": "hls",
-    "url": "https://cdn4.skygo.mn/live/disk1/SoyonGegeeruulegch/HLSv3-FTA/SoyonGegeeruulegch.m3u8",
-    "label": "Soyon Gegeeruulegch TV",
-    "w": 854
-   },
-   {
-    "type": "hls",
-    "url": "https://cdn4.skygo.mn/live/disk1/ONTV/HLSv3-FTA/ONTV.m3u8",
-    "label": "ONTV",
-    "w": 854
-   },
-   {
-    "type": "hls",
-    "url": "https://cdn4.skygo.mn/live/disk1/TV8HD/HLSv3-FTA/TV8HD.m3u8",
-    "label": "TV8 (MN)",
-    "w": 854
-   },
-   {
-    "type": "hls",
-    "url": "https://cdn4.skygo.mn/live/disk1/TV5HD/HLSv3-FTA/TV5HD.m3u8",
-    "label": "TV5",
-    "w": 854
-   },
-   {
-    "type": "hls",
-    "url": "https://cdn4.skygo.mn/live/disk1/NTVHD/HLSv3-FTA/NTVHD.m3u8",
-    "label": "NTV (MN)",
-    "w": 854
-   },
-   {
-    "type": "hls",
-    "url": "https://cdn4.skygo.mn/live/disk1/SuldTV/HLSv3-FTA/SuldTV.m3u8",
-    "label": "Suld TV",
-    "w": 854
-   },
-   {
-    "type": "hls",
-    "url": "https://cdn4.skygo.mn/live/disk1/VTV/HLSv3-FTA/VTV.m3u8",
-    "label": "TenGer TV",
-    "w": 854
-   },
-   {
-    "type": "hls",
-    "url": "https://cdn4.skygo.mn/live/disk1/MN25/HLSv3-FTA/MN25.m3u8",
-    "label": "TV 25",
-    "w": 854
-   },
-   {
-    "type": "hls",
-    "url": "https://cdn4.skygo.mn/live/disk1/TM/HLSv3-FTA/TM.m3u8",
-    "label": "TM TV",
-    "w": 854
-   },
-   {
-    "type": "hls",
-    "url": "https://cdn4.skygo.mn/live/disk1/UlziiTV/HLSv3-FTA/UlziiTV.m3u8",
-    "label": "Ulzii TV",
-    "w": 854
-   },
-   {
-    "type": "hls",
-    "url": "https://cdn4.skygo.mn/live/disk1/Education/HLSv3-FTA/Education.m3u8",
-    "label": "Edutainment TV",
-    "w": 854
-   },
-   {
-    "type": "hls",
-    "url": "https://cdn4.skygo.mn/live/disk1/TV9HD/HLSv3-FTA/TV9HD.m3u8",
-    "label": "TV9 (MN)",
-    "w": 854
-   },
-   {
-    "type": "hls",
-    "url": "https://cdn4.skygo.mn/live/disk1/Malchin/HLSv3-FTA/Malchin.m3u8",
-    "label": "Malchin TV",
-    "w": 854
-   },
-   {
-    "type": "hls",
-    "url": "https://cdn4.skygo.mn/live/disk1/SBN/HLSv3-FTA/SBN.m3u8",
-    "label": "SBN",
-    "w": 854
+    "url": "https://cdn4.skygo.mn/live/disk1/Ekh_Oron/HLSv3-FTA/Ekh_Oron.m3u8",
+    "label": "Central TV"
    }
   ],
-  "Singapore": [
-   {
-    "type": "hls",
-    "url": "https://amg01082-cna-amg01082c1-rlaxx-us-11304.playouts.now.amagi.tv/playlist.m3u8",
-    "label": "CNA Originals",
-    "w": 426
-   },
-   {
-    "type": "hls",
-    "url": "https://d2e1asnsl7br7b.cloudfront.net/7782e205e72f43aeb4a48ec97f66ebbe/index.m3u8",
-    "label": "CNA (SG)",
-    "w": 480
-   },
-   {
-    "type": "hls",
-    "url": "https://freem3u.xyz/api/live/play.m3u8?vid=215",
-    "label": "Asian Food Network",
-    "w": 854
-   }
-  ],
-  "Sri Lanka": [
-   {
-    "type": "hls",
-    "url": "https://rpn.bozztv.com/slrclive/slrc/slrclive/index.m3u8",
-    "label": "Rupavahini",
-    "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://video-eu1.streamerr.co/hls/scb80244b91/live.m3u8",
-    "label": "Verbum TV"
-   },
-   {
-    "type": "hls",
-    "url": "https://tv.hiruhost.com:1936/8012/8012/playlist.m3u8",
-    "label": "Hiru TV",
-    "w": 640
-   }
-  ],
-  "Bahrain": [
-   {
-    "type": "hls",
-    "url": "https://5c7b683162943.streamlock.net/live/ngrp:bahrainquran_all/playlist.m3u8",
-    "label": "Bahrain Quran",
-    "w": 640
-   },
-   {
-    "type": "hls",
-    "url": "https://5c7b683162943.streamlock.net/live/ngrp:bahraintvmain_all/playlist.m3u8",
-    "label": "Bahrain TV",
-    "w": 640
-   },
-   {
-    "type": "hls",
-    "url": "https://5c7b683162943.streamlock.net/live/ngrp:bahraininternational_all/playlist.m3u8",
-    "label": "Bahrain International",
-    "w": 640
-   }
-  ],
-  "DR Congo": [
-   {
-    "type": "hls",
-    "url": "https://mistserver.evi-tv.com/hls/evi_tv_live/index.m3u8",
-    "label": "EVI TV",
-    "w": 1920
-   }
-  ],
-  "Czechia": [
-   {
-    "type": "hls",
-    "url": "https://dash2.antik.sk/live/ct24_avc_25p/playlist.m3u8",
-    "label": "CT24"
-   },
-   {
-    "type": "hls",
-    "url": "https://rfe-ingest.akamaized.net/hls/live/2033043/tvmc05/master.m3u8",
-    "label": "Current Time TV",
-    "w": 426
-   },
-   {
-    "type": "hls",
-    "url": "https://vysilani.zaktv.cz/broadcast/hls/utv/index.m3u8",
-    "label": "UTV"
-   },
-   {
-    "type": "hls",
-    "url": "https://dash4.antik.sk/live/test_barrandov_plus_atk_1200/playlist.m3u8",
-    "label": "Barrandov Krimi"
-   },
-   {
-    "type": "hls",
-    "url": "https://vysilani.zaktv.cz/broadcast/hls/ptv/index.m3u8",
-    "label": "Plzen TV"
-   },
-   {
-    "type": "hls",
-    "url": "https://stream.jc1.cz/hls/jc1.m3u8",
-    "label": "JC1"
-   },
-   {
-    "type": "hls",
-    "url": "https://vysilani.zaktv.cz/broadcast/hls/jtv/index.m3u8",
-    "label": "Jihoceska televize"
-   },
-   {
-    "type": "hls",
-    "url": "https://dash.antik.sk/live/test_upnetwork/playlist.m3u8",
-    "label": "Up Network"
-   },
-   {
-    "type": "hls",
-    "url": "https://stream.polar.cz/tvbrno1/tvbrno1live-1/playlist.m3u8",
-    "label": "TV Brno 1",
-    "w": 1920
-   },
-   {
-    "type": "hls",
-    "url": "https://5ca49f2417d90.streamlock.net/mnau/livestream/playlist.m3u8",
-    "label": "Mnau TV",
-    "w": 1920
-   },
-   {
-    "type": "hls",
-    "url": "https://stream.polar.cz/polar/polarlive-1/playlist.m3u8",
-    "label": "Polar TV",
-    "w": 1920
-   },
-   {
-    "type": "hls",
-    "url": "https://antik.streaming.tivio.studio/channels/IxLi19VRasgu94bIaXbH/index.m3u8",
-    "label": "DVTV Extra",
-    "w": 1920
-   },
-   {
-    "type": "hls",
-    "url": "https://stream.polar.cz/vctv/vctvlive-1/playlist.m3u8",
-    "label": "Vychodoceska TV",
-    "w": 1920
-   },
-   {
-    "type": "hls",
-    "url": "https://rtmp.elektrika.cz/live/myStream.sdp/playlist.m3u8",
-    "label": "Elektrika TV",
-    "w": 1920
-   }
-  ],
-  "Taiwan": [
-   {
-    "type": "hls",
-    "url": "https://streamipcfapp.akamaized.net/live/_definst_/live_720/key_b1500.m3u8",
-    "label": "Taiwan Indigenous TV",
-    "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://mobile.ccdntech.com/transcoder/_definst_/vod164_Live/live/chunklist_w1177047531.m3u8",
-    "label": "WXTV"
-   },
-   {
-    "type": "hls",
-    "url": "https://5ddce30eb4b55.streamlock.net/bltvhd/bltv1/playlist.m3u8",
-    "label": "Beautiful Life TV",
-    "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://live.streamingfast.net/osmflivech1.m3u8",
-    "label": "Good TV",
-    "w": 854
-   },
-   {
-    "type": "hls",
-    "url": "https://live.streamingfast.net/osmflivech2.m3u8",
-    "label": "Good 2",
-    "w": 854
-   }
-  ],
+  "Singapore": [],
+  "Sri Lanka": [],
+  "Bahrain": [],
+  "DR Congo": [],
+  "Czechia": [],
+  "Taiwan": [],
   "Congo": [],
-  "Belarus": [
-   {
-    "type": "hls",
-    "url": "https://ngtrk.dc.beltelecom.by/ngtrk/smil:informacionnyy.smil/playlist.m3u8",
-    "label": "Perviy Informationniy",
-    "w": 640
-   },
-   {
-    "type": "hls",
-    "url": "https://ctv.dc.beltelecom.by/ctv/ctv.stream/playlist.m3u8",
-    "label": "STV",
-    "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://ngtrk.dc.beltelecom.by/ngtrk/smil:belarus24.smil/playlist.m3u8",
-    "label": "Belarus-24",
-    "w": 640
-   },
-   {
-    "type": "hls",
-    "url": "https://stream1.dc.beltelecom.by/radiomir/studio.stream/playlist.m3u8",
-    "label": "Radio Mir",
-    "w": 1280
-   }
-  ],
-  "Benin": [
-   {
-    "type": "hls",
-    "url": "https://rtmp.edentv.bj/hls/stream.m3u8",
-    "label": "Eden TV"
-   },
-   {
-    "type": "hls",
-    "url": "https://lnmlive.com/live/lnmtv.m3u8",
-    "label": "Le Nouveau Manager TV"
-   },
-   {
-    "type": "hls",
-    "url": "https://live.tvcbenin.com/direct/729c37a1d3319ee21991227b1f84c687.sdp/playlist.m3u8",
-    "label": "TVC Benin",
-    "w": 1280
-   }
-  ],
-  "Estonia": [
-   {
-    "type": "hls",
-    "url": "https://hls.vantagetv.ee/vmusic_stream/main_stream.m3u8",
-    "label": "Vantage Music"
-   },
-   {
-    "type": "hls",
-    "url": "https://sb.err.ee/live/etv.m3u8",
-    "label": "ETV (EE)"
-   },
-   {
-    "type": "hls",
-    "url": "https://hls.vantagetv.ee/vclassic_stream/index.m3u8",
-    "label": "Vantage Classic",
-    "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://hls.vantagetv.ee/vdance_stream/main_stream.m3u8",
-    "label": "Vantage Dance"
-   },
-   {
-    "type": "hls",
-    "url": "https://m1b2.worldcast.tv/dancetelevisiontwo/dancetelevisiontwo.m3u8",
-    "label": "DanceTV Deep House District",
-    "w": 1920
-   },
-   {
-    "type": "hls",
-    "url": "https://m2b2.worldcast.tv:7443/dancetelevisionthree/dancetelevisionthree.m3u8",
-    "label": "DanceTV Techno Warehouse",
-    "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://m2b2.worldcast.tv:7443/dancetelevisionfive/dancetelevisionfive.m3u8",
-    "label": "DanceTV House Floor",
-    "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://m2b2.worldcast.tv:7443/dancetelevisionfour/dancetelevisionfour.m3u8",
-    "label": "DanceTV Algorhythm",
-    "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://m1b2.worldcast.tv/dancetelevisionone/dancetelevisionone.m3u8",
-    "label": "Best of Dance TV",
-    "w": 1920
-   },
-   {
-    "type": "hls",
-    "url": "https://hls.vantagetv.ee/vrock_stream/index.m3u8",
-    "label": "Vantage Rock",
-    "w": 1280
-   }
-  ],
-  "Bosnia and Herzegovina": [
-   {
-    "type": "hls",
-    "url": "https://balkanmedia.dynu.net/hls/tv5web.m3u8",
-    "label": "Televizija 5"
-   },
-   {
-    "type": "hls",
-    "url": "https://prd-hometv-live-open.spectar.tv/ERO_1_083/playlist.m3u8",
-    "label": "RTV HB"
-   },
-   {
-    "type": "hls",
-    "url": "https://stream.rtvze.ba/live/123/123.m3u8",
-    "label": "RTV Zenica"
-   },
-   {
-    "type": "hls",
-    "url": "https://1601580044.rsc.cdn77.org/live/_jcn_/amlst:Italiasette/playlist.m3u8",
-    "label": "Maria+Vision Medjugorje",
-    "w": 360
-   }
-  ],
-  "Uzbekistan": [
-   {
-    "type": "hls",
-    "url": "https://stream8.cinerama.uz/1011/tracks-v1a1/playlist.m3u8",
-    "label": "O'zbekiston 24",
-    "w": 1920
-   },
-   {
-    "type": "hls",
-    "url": "https://stream8.cinerama.uz/1002/tracks-v1a1/playlist.m3u8",
-    "label": "Yoshlar",
-    "w": 1920
-   },
-   {
-    "type": "hls",
-    "url": "https://stream8.cinerama.uz/1460/tracks-v1a1/mono.m3u8",
-    "label": "Navoiy MTRK",
-    "w": 1920
-   }
-  ],
-  "Trinidad and Tobago": [
-   {
-    "type": "hls",
-    "url": "https://stream.bizzmedia.biz/bizz_tv/index.m3u8",
-    "label": "Bizz TV",
-    "w": 1920
-   },
-   {
-    "type": "hls",
-    "url": "https://video1.getstreamhosting.com:1936/8322/8322/playlist.m3u8",
-    "label": "The Islamic Network",
-    "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://6zklxwavdw9b-hls-live.5centscdn.com/RIDDIMNHOPE/0954119dc19d9003dd5f4bb37b3f559e.sdp/playlist.m3u8",
-    "label": "Riddim & Hope TV",
-    "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://w6oy7x7jlxrg-hls-live.5centscdn.com/MandETV/955ad3298db330b5ee880c2c9e6f23a0.sdp/playlist.m3u8",
-    "label": "Scorch TV",
-    "w": 1920
-   },
-   {
-    "type": "hls",
-    "url": "https://5c59fd5680a05.streamlock.net/live/_definst_/ngrp:SANKHYATV.stream_all/playlist.m3u8",
-    "label": "Sankhya TV",
-    "w": 426
-   }
-  ],
-  "Laos": [
-   {
-    "type": "hls",
-    "url": "https://livefta.malimarcdn.com/ftaedge00/briantv.sdp/playlist.m3u8",
-    "label": "Brian TV",
-    "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://livefta.malimarcdn.com/ftaedge00/ohmuanglao.stream/playlist.m3u8",
-    "label": "Oh Muang Lao TV",
-    "w": 1920
-   },
-   {
-    "type": "hls",
-    "url": "https://livefta.malimarcdn.com/ftaedge00/laonet.sdp/playlist.m3u8",
-    "label": "Lao Net TV",
-    "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://livefta.malimarcdn.com/ftaedge00/khaomwungmai.sdp/playlist.m3u8",
-    "label": "Dao Lane Xang TV",
-    "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://livefta.malimarcdn.com/ftaedge00/ichannel.sdp/playlist.m3u8",
-    "label": "ISTV",
-    "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://livefta.malimarcdn.com/ftaedge00/ningtv.sdp/playlist.m3u8",
-    "label": "Ning TV",
-    "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://livefta.malimarcdn.com/ftaedge00/vatilaotv.stream/playlist.m3u8",
-    "label": "Vati Lao",
-    "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://livefta.malimarcdn.com/ftaedge00/lookthoongtv.sdp/playlist.m3u8",
-    "label": "Look Thoong TV",
-    "w": 1280
-   }
-  ],
-  "Rwanda": [
-   {
-    "type": "hls",
-    "url": "https://5c46fa289c89f.streamlock.net/rtv25/rtv/playlist.m3u8",
-    "label": "Rwanda TV",
-    "w": 1920
-   },
-   {
-    "type": "hls",
-    "url": "https://5c46fa289c89f.streamlock.net/pub1live/mystream/playlist.m3u8",
-    "label": "TV10",
-    "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://5c46fa289c89f.streamlock.net/pub2live/myStream/playlist.m3u8",
-    "label": "Isibo TV",
-    "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://5c46fa289c89f.streamlock.net/kc2/kc2/chunklist.m3u8",
-    "label": "KC2",
-    "w": 854
-   }
-  ],
-  "Panama": [
-   {
-    "type": "hls",
-    "url": "https://movil.ejeserver.com/live/nextv.m3u8",
-    "label": "Nex TV Canal 21"
-   },
-   {
-    "type": "hls",
-    "url": "https://sistemastr.tropicalmoonmedia.com/live/7C452409423F57ADC960F6405635267F/7.m3u8",
-    "label": "Pindin TV"
-   },
-   {
-    "type": "hls",
-    "url": "https://streamlov.alsolnet.com/planet1009fm/live/playlist.m3u8",
-    "label": "Planet 100.9 FM",
-    "w": 1920
-   },
-   {
-    "type": "hls",
-    "url": "https://cdn-cloudfront.us-east-1.prod.ingest.aws-infra.dacast.com/live/64917431-2f51-0a46-d4d0-04d111b2393f/master.m3u8",
-    "label": "Vision Latina",
-    "w": 1920
-   },
-   {
-    "type": "hls",
-    "url": "https://www.streaming507.net:19360/videoradiohogar/videoradiohogar.m3u8",
-    "label": "Radio Hogar"
-   },
-   {
-    "type": "hls",
-    "url": "https://www.streaming507.net:19360/anconvideo/anconvideo.m3u8",
-    "label": "Radio Ancon"
-   },
-   {
-    "type": "hls",
-    "url": "https://movil.ejeserver.com/live/mas23tv.m3u8",
-    "label": "Mas23 TV"
-   }
-  ],
-  "Puerto Rico": [
-   {
-    "type": "hls",
-    "url": "https://5bf8041cb3fed.streamlock.net/mastvpr/mastvpr/playlist.m3u8",
-    "label": "WXWZ-LD 23.1",
-    "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://amg01529-defiancetv-defiancemedia-glewed-tre8x.amagi.tv/playlist.m3u8",
-    "label": "DeFiance Media",
-    "w": 384
-   },
-   {
-    "type": "hls",
-    "url": "https://live.11-cdn.com/TeleOnce/3fc63fe00050c646635f16b071cd33e2.sdp/playlist.m3u8",
-    "label": "TeleOnce",
-    "w": 1920
-   },
-   {
-    "type": "hls",
-    "url": "https://nbculocallive.akamaized.net/hls/live/2037499/puertorico/stream2/master.m3u8",
-    "label": "WKAQ-TV 2.2",
-    "w": 426
-   },
-   {
-    "type": "hls",
-    "url": "https://627bb251f23c7.streamlock.net:444/TopRadioTV/TopRadioTV/playlist.m3u8",
-    "label": "Telenorte",
-    "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://59825a54e4454.streamlock.net:8443/william233/william233/playlist.m3u8",
-    "label": "Pura Palabra",
-    "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://ott3.streann.com/loadbalancer/services/public/channels-secure/6273ffeae4b037870081ff51/playlist.m3u8",
-    "label": "WIPR-TV 6.1",
-    "w": 1920
-   },
-   {
-    "type": "hls",
-    "url": "https://59825a54e4454.streamlock.net:8443/pastorairisn394/pastorairisn394/chunklist_w239411719.m3u8",
-    "label": "WECN"
-   },
-   {
-    "type": "hls",
-    "url": "https://6110f70ea8d0e.streamlock.net/1689/1689/playlist.m3u8",
-    "label": "Candelita TV",
-    "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://59825a54e4454.streamlock.net:8443/william652/william652/playlist.m3u8",
-    "label": "Triunfo 96.9 FM",
-    "w": 1920
-   },
-   {
-    "type": "hls",
-    "url": "https://stream.nuevavidafm.net:3937/live/nuevavidalive.m3u8",
-    "label": "Nueva Vida FM"
-   },
-   {
-    "type": "hls",
-    "url": "https://video1.getstreamhosting.com:1936/8226/8226/playlist.m3u8",
-    "label": "WELU 8.1",
-    "w": 1280
-   }
-  ],
-  "Moldova": [
-   {
-    "type": "hls",
-    "url": "https://realitatealive.md/tv/rlive.m3u8",
-    "label": "Realitatea TV"
-   },
-   {
-    "type": "hls",
-    "url": "https://tvr-moldova.lg.mncdn.com/tvrmoldova/smil:tvrmoldova.smil/chunklist.m3u8",
-    "label": "TVR Moldova",
-    "w": 426
-   },
-   {
-    "type": "hls",
-    "url": "https://radiolive.trm.md:8001/hls_rmt/tineret.m3u8",
-    "label": "Radio Moldova Tineret"
-   },
-   {
-    "type": "hls",
-    "url": "https://v0.trm.md/static/streaming-playlists/hls/d5fafab0-9c37-4746-9e7a-b2d6c0427015/master.m3u8",
-    "label": "Moldova 2",
-    "w": 1920
-   },
-   {
-    "type": "hls",
-    "url": "https://hitfm.nfthost.net/hls/hitfm/live_all/playlist.m3u8",
-    "label": "Hit FM",
-    "w": 640
-   },
-   {
-    "type": "hls",
-    "url": "https://radiolive.trm.md:8001/hls_rmm/muzical.m3u8",
-    "label": "Radio Moldova Muzical"
-   },
-   {
-    "type": "hls",
-    "url": "https://tezaurtv.md/stream/index.m3u8",
-    "label": "Tezaur TV",
-    "w": 640
-   },
-   {
-    "type": "hls",
-    "url": "https://v0.trm.md/static/streaming-playlists/hls/9b79338b-1870-4cd7-91d4-0f6ce5cac7ca/master.m3u8",
-    "label": "Moldova 1",
-    "w": 1920
-   }
-  ],
-  "Burkina Faso": [
-   {
-    "type": "hls",
-    "url": "https://d2iqjnqfr8pv3b.cloudfront.net/out/v1/d09d2fc718404cd8bccd3eba2444dd70/index.m3u8",
-    "label": "Filinfo TV",
-    "w": 426
-   }
-  ],
-  "Nicaragua": [
-   {
-    "type": "hls",
-    "url": "https://cootv.cootel.com.ni:8095/Canal40_WTV/playlist.m3u8",
-    "label": "WTV Canal 20"
-   },
-   {
-    "type": "hls",
-    "url": "https://netzerstreaming.com:4433/hls/olammetro/index.m3u8",
-    "label": "Olam Metro TV",
-    "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://stmv1.transmissaodigital.com/pedro9800/pedro9800/playlist.m3u8",
-    "label": "Escuchame Radio TV"
-   }
-  ],
-  "Switzerland": [
-   {
-    "type": "hls",
-    "url": "https://amg00735-videosolutions-amg00735c15-wedotv-eu-1915.playouts.now.amagi.tv/playlist/amg00735-videosolutionsagfast-wedoamor-wedotveu/playlist.m3u8",
-    "label": "Wedo TV Amor",
-    "w": 640
-   },
-   {
-    "type": "hls",
-    "url": "https://cdn.katapy.io/cache/stream/katapytv/dieu/playlist.m3u8",
-    "label": "Max TV",
-    "w": 384
-   },
-   {
-    "type": "hls",
-    "url": "https://vstream-cdn.ch/hls/teleticino.m3u8",
-    "label": "TeleTicino",
-    "w": 426
-   },
-   {
-    "type": "hls",
-    "url": "https://canalalpha.vedge.infomaniak.com/livecast/ik:canalalpha/playlist.m3u8",
-    "label": "Canal Alpha Neuchatel",
-    "w": 640
-   },
-   {
-    "type": "hls",
-    "url": "https://edge13.vedge.infomaniak.com/livecast/ik:event/manifest.m3u8",
-    "label": "Carac 1",
-    "w": 1920
-   },
-   {
-    "type": "hls",
-    "url": "https://canalalphaju.vedge.infomaniak.com/livecast/ik:canalalphaju/playlist.m3u8",
-    "label": "Canal Alpha Jura",
-    "w": 640
-   },
-   {
-    "type": "hls",
-    "url": "https://livevideo.infomaniak.com/streaming/livecast/tvm3/playlist.m3u8",
-    "label": "TVM 3",
-    "w": 1920
-   },
-   {
-    "type": "hls",
-    "url": "https://amg01415-waterbearnetwor-waterbear-samsunguk-1h0y8.amagi.tv/playlist/amg01415-waterbearnetwor-waterbear-samsunguk/playlist.m3u8",
-    "label": "WaterBear",
-    "w": 640
-   },
-   {
-    "type": "hls",
-    "url": "https://vstream-cdn.ch/hls/radio3i.m3u8",
-    "label": "Radio 3i",
-    "w": 426
-   },
-   {
-    "type": "hls",
-    "url": "https://amg00735-videosolutionsa-wedobigdocs-ono-0urlz.amagi.tv/playlist/amg00735-videosolutionsa-wedobigdocs-ono/playlist.m3u8",
-    "label": "Wedo Big Stories",
-    "w": 426
-   },
-   {
-    "type": "hls",
-    "url": "https://585b674743bbb.streamlock.net/9030/9030/playlist.m3u8",
-    "label": "RADIO DISCOunt TV",
-    "w": 1920
-   },
-   {
-    "type": "hls",
-    "url": "https://bild-und-ton.stream/die-neue-zeit-tv-live/smil:dnz-de.smil/playlist.m3u8",
-    "label": "Die Neue Zeit TV"
-   },
-   {
-    "type": "hls",
-    "url": "https://www.rtvpendimi.com:19360/tvpendimi/tvpendimi.m3u8",
-    "label": "RTV Pendimi"
-   },
-   {
-    "type": "hls",
-    "url": "https://g5nl63z8lpq6-hls-live.5centscdn.com/tvistream/a5586d8ea3b7b021120a05c60dc59876.sdp/playlist.m3u8",
-    "label": "Immaculata TV",
-    "w": 1280
-   }
-  ],
-  "Cuba": [
-   {
-    "type": "hls",
-    "url": "https://eu1.servers10.com:8081/8192/index.m3u8",
-    "label": "Prensa Latina TV",
-    "w": 1920
-   }
-  ],
-  "Uruguay": [
-   {
-    "type": "hls",
-    "url": "https://canalmasuruguay.com/hls/master-abr.m3u8",
-    "label": "Canal Mas",
-    "w": 854
-   },
-   {
-    "type": "hls",
-    "url": "https://livedelta.cdn.antel.net.uy/out/u/url_canalu.m3u8",
-    "label": "UCL",
-    "w": 416
-   }
-  ],
-  "Norway": [
-   {
-    "type": "hls",
-    "url": "https://streamnorge.com:8088/hls/tvo.m3u8",
-    "label": "TV Ostfold"
-   },
-   {
-    "type": "hls",
-    "url": "https://frikanalen.no/stream/index.m3u8",
-    "label": "Frikanalen",
-    "w": 1280
-   }
-  ],
-  "Nepal": [
-   {
-    "type": "hls",
-    "url": "https://streaming.tvnepal.com:19360/raynewsdaily/720p.m3u8",
-    "label": "Ray TV HD"
-   },
-   {
-    "type": "hls",
-    "url": "https://streaming.tvnepal.com:19360/capitaltv/720p.m3u8",
-    "label": "Capital TV HD"
-   },
-   {
-    "type": "hls",
-    "url": "https://ktvhdsg.ekantipur.com:8443/high_quality_85840165/hd/kantipurtv/hd_1080/chunks.m3u8",
-    "label": "Kantipur TV"
-   },
-   {
-    "type": "hls",
-    "url": "https://ktvhdsg.ekantipur.com:8443/high_quality_85840165/hd/playlist.m3u8",
-    "label": "Kantipur TV",
-    "w": 1280
-   }
-  ],
-  "Jamaica": [
-   {
-    "type": "hls",
-    "url": "https://vod2live.univtec.com/manifest/a99a1804-dc83-411f-8c1c-b62f08cdfa59.m3u8",
-    "label": "TVJ",
-    "w": 640
-   },
-   {
-    "type": "hls",
-    "url": "https://angel.btbn.tv:5443/mtmtv/streams/live.m3u8",
-    "label": "Mercy and Truth Ministries Television"
-   },
-   {
-    "type": "hls",
-    "url": "https://na.linear.zype.com/bf94f9f4-383c-40e0-9d49-279a4f33ab8d/f29b8836-d990-4c8d-b421-192a8f43edc4-zype/live.m3u8",
-    "label": "GNN TV",
-    "w": 426
-   },
-   {
-    "type": "hls",
-    "url": "https://25466019af9b7aed.servers.dvcloud.tv/hls/iptv_providers/fhvtgifbqbcjp0g19mdd76t18tpalu4k.m3u8",
-    "label": "Caribbean Gospel TV"
-   }
-  ],
+  "Belarus": [],
+  "Benin": [],
+  "Estonia": [],
+  "Bosnia and Herzegovina": [],
+  "Uzbekistan": [],
+  "Trinidad and Tobago": [],
+  "Laos": [],
+  "Rwanda": [],
+  "Panama": [],
+  "Puerto Rico": [],
+  "Moldova": [],
+  "Burkina Faso": [],
+  "Nicaragua": [],
+  "Switzerland": [],
+  "Cuba": [],
+  "Uruguay": [],
+  "Norway": [],
+  "Nepal": [],
+  "Jamaica": [],
   "Saint Lucia": [
    {
     "type": "hls",
-    "url": "https://stream.dbstvstlucia.com/hls/dbstv_main.m3u8",
-    "label": "DBS TV"
-   },
-   {
-    "type": "hls",
     "url": "https://vids1.intacs.com/caribbeanhot7tv/ch7-1.stream/playlist.m3u8",
-    "label": "Caribbean Hot 7 TV",
-    "w": 1280
+    "label": "Caribbean Hot 7 TV"
    }
   ],
-  "Kuwait": [
-   {
-    "type": "hls",
-    "url": "https://kwtkbta.cdn.mangomolo.com/kb/smil:kb.stream.smil/chunklist.m3u8",
-    "label": "KTV News",
-    "w": 426
-   },
-   {
-    "type": "hls",
-    "url": "https://kwtethta.cdn.mangomolo.com/eth/smil:eth.stream.smil/chunklist.m3u8",
-    "label": "KTV Ethraa",
-    "w": 426
-   },
-   {
-    "type": "hls",
-    "url": "https://kwtktvaqta.cdn.mangomolo.com/ktvaq/smil:tktvaq.stream.smil/chunklist.m3u8",
-    "label": "KTV Al Qurain",
-    "w": 426
-   },
-   {
-    "type": "hls",
-    "url": "https://kwtktvata.cdn.mangomolo.com/ktva/smil:tktva.stream.smil/chunklist.m3u8",
-    "label": "KTV Arabe",
-    "w": 426
-   },
-   {
-    "type": "hls",
-    "url": "https://cdn-globecast.akamaized.net/live/eds/kuwait_tv1/hls_roku/index.m3u8",
-    "label": "KTV 1",
-    "w": 320
-   }
-  ],
+  "Kuwait": [],
   "Israel": [
    {
     "type": "hls",
     "url": "https://contact.gostreaming.tv/Con-11/index.m3u8",
-    "label": "Channel 9",
-    "w": 1920
+    "label": "Channel 9"
    },
    {
     "type": "hls",
-    "url": "https://stream.panet.com/edge/halaTV/playlist.m3u8",
-    "label": "Hala TV",
-    "w": 1920
-   },
-   {
-    "type": "hls",
-    "url": "https://r.il.cdn-redge.media/livehls/oil/ch14/live/ch14/live.livx/playlist.m3u8",
-    "label": "Now 14",
-    "w": 960
-   },
-   {
-    "type": "hls",
-    "url": "https://1247634592.rsc.cdn77.org/1247634592/playlist.m3u8",
-    "label": "Shelanu.TV",
-    "w": 640
-   },
-   {
-    "type": "hls",
-    "url": "https://kancdn.medonecdn.net/livehls/oil/kancdn-live/live/makan/live.livx/playlist.m3u8",
-    "label": "Makan 33",
-    "w": 640
-   },
-   {
-    "type": "hls",
-    "url": "https://d1yd8hohnldm33.cloudfront.net/out/v1/19dee23c2cc24f689bd4e1288661ee0c/index_2.m3u8",
-    "label": "Vacation Channel"
-   },
-   {
-    "type": "hls",
-    "url": "https://d2dffl3588mvfk.cloudfront.net/out/v1/d8e15050ca4148aab0ee387a5e2eb46b/index_1.m3u8",
-    "label": "Reality Channel"
-   },
-   {
-    "type": "hls",
-    "url": "https://edge3.uk.kab.tv/live/tv66-heb-high/playlist.m3u8",
-    "label": "Kabbalah for the People Israel",
-    "w": 896
-   },
-   {
-    "type": "hls",
-    "url": "https://cdn.cybercdn.live/HidabrootIL/Live97/playlist.m3u8",
-    "label": "Hidabroot",
-    "w": 426
+    "url": "https://d2xg1g9o5vns8m.cloudfront.net/out/v1/0855d703f7d5436fae6a9c7ce8ca5075/index.m3u8",
+    "label": "Channel 13"
    }
   ],
   "Maldives": [
    {
     "type": "hls",
-    "url": "https://sunplay-cdn.bitratelabs.com/live/local-channel/vtv-7a0f24809c234ea78d972b1f336ac1b9/index.m3u8",
-    "label": "VTV"
-   },
-   {
-    "type": "hls",
     "url": "https://sunplay-cdn.bitratelabs.com/live/local-channel-fhd/ch13-28754fda0a7f338e8fccfe7206ab9be8_1080p/index.m3u8",
     "label": "Channel 13"
-   },
-   {
-    "type": "hls",
-    "url": "https://sunplay-cdn.bitratelabs.com/live/local-channel/ntv-e3d4300b49c8c901e9339174215d7580/index.m3u8",
-    "label": "NTV (MV)"
-   },
-   {
-    "type": "hls",
-    "url": "https://sendlive.online/hls/mmtv.m3u8",
-    "label": "MMTV"
    }
   ],
-  "New Zealand": [
-   {
-    "type": "hls",
-    "url": "https://ptvlive.kordia.net.nz/out/v1/daf20b9a9ec5449dadd734e50ce52b74/index.m3u8",
-    "label": "Parliament TV (NZ)",
-    "w": 384
-   },
-   {
-    "type": "hls",
-    "url": "https://ptvlive.kordia.net.nz/out/v1/3fc2254c865a457c8d7fbbce227a2aae/index.m3u8",
-    "label": "Kordia TV",
-    "w": 640
-   },
-   {
-    "type": "hls",
-    "url": "https://stream.wairarapatv.co.nz/Broadband_High/playlist.m3u8",
-    "label": "Wairarapa TV"
-   },
-   {
-    "type": "hls",
-    "url": "https://i.mjh.nz/.r/te-reo.m3u8",
-    "label": "Te Reo",
-    "w": 480
-   },
-   {
-    "type": "hls",
-    "url": "https://uni01rtmp.tulix.tv/firstlight/firstlight.smil/playlist.m3u8",
-    "label": "Firstlight"
-   },
-   {
-    "type": "hls",
-    "url": "https://i.mjh.nz/.r/maori-tv.m3u8",
-    "label": "Whakaata Maori",
-    "w": 480
-   }
-  ],
-  "Croatia": [
-   {
-    "type": "hls",
-    "url": "https://tvjadran.stream.agatin.hr:3412/live/tvjadranlive.m3u8",
-    "label": "TV Jadran"
-   },
-   {
-    "type": "hls",
-    "url": "https://diadoratv.stream/live/diadora/playlist.m3u8",
-    "label": "Diadora TV",
-    "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://live.leveex.hr/hls/live.m3u8",
-    "label": "SBTV"
-   },
-   {
-    "type": "hls",
-    "url": "https://stream.cmctv.hr:49998/kit/live.m3u8",
-    "label": "Klape i Tambure TV"
-   },
-   {
-    "type": "hls",
-    "url": "https://stream.cmctv.hr:49998/cmc/live.m3u8",
-    "label": "CMC TV"
-   },
-   {
-    "type": "hls",
-    "url": "https://pool.alter-media.hr:1936/live/myStream/playlist.m3u8?DVR=",
-    "label": "Radio Televizija Banovina",
-    "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://stream.agatin.hr:3727/live/tvnovalive.m3u8",
-    "label": "TV Nova"
-   },
-   {
-    "type": "hls",
-    "url": "https://hls.shift.tv/live/shifttv/playlist.m3u8",
-    "label": "Shift TV",
-    "w": 426
-   }
-  ],
-  "Mali": [
-   {
-    "type": "hls",
-    "url": "https://lbgo.bozztv.com/ssh101/ssh101/d3tvnet/playlist.m3u8",
-    "label": "D3 TV",
-    "w": 1280
-   }
-  ],
-  "Sudan": [
-   {
-    "type": "hls",
-    "url": "https://hls.dabangasudan.org/hls/stream.m3u8",
-    "label": "Dabanga TV"
-   },
-   {
-    "type": "hls",
-    "url": "https://cdn-globecast.akamaized.net/live/eds/sudan_tv/hls_roku/index.m3u8",
-    "label": "Sudan TV",
-    "w": 320
-   }
-  ],
-  "Lithuania": [
-   {
-    "type": "hls",
-    "url": "https://stream-live.lrt.lt/klasika/master.m3u8",
-    "label": "LRT Klasika",
-    "w": 960
-   },
-   {
-    "type": "hls",
-    "url": "https://m-1.data.lt/m-1/smil:m-1.smil/playlist.m3u8",
-    "label": "M-1",
-    "w": 854
-   },
-   {
-    "type": "hls",
-    "url": "https://stream-live.lrt.lt/opus/master.m3u8",
-    "label": "LRT Opus",
-    "w": 960
-   }
-  ],
-  "Serbia": [
-   {
-    "type": "hls",
-    "url": "https://webtvstream.bhtelecom.ba/rts2.m3u8",
-    "label": "RTS 2",
-    "w": 480
-   },
-   {
-    "type": "hls",
-    "url": "https://tv.rtvnp.rs/stream.m3u8",
-    "label": "RTV Novi Pazar"
-   },
-   {
-    "type": "hls",
-    "url": "https://gjirafa-video-live.gjirafa.net/gjvideo-live/j3a-n14-2pf-g3s/index.m3u8",
-    "label": "ZICO TV",
-    "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://peer2.tdiradio.com/static/streaming-playlists/hls/7c3ea8d3-49dc-4e1b-8b1e-dc6fab71f5cf/0.m3u8",
-    "label": "Radio Lola TV"
-   },
-   {
-    "type": "hls",
-    "url": "https://peer2.tdiradio.com/static/streaming-playlists/hls/4207de1d-52e8-4591-ad9e-218069b864d1/0.m3u8",
-    "label": "Radio Karolina TV"
-   },
-   {
-    "type": "hls",
-    "url": "https://peer2.tdiradio.com/static/streaming-playlists/hls/8f5d84ce-e8ac-4109-9975-9665f5605557/master.m3u8",
-    "label": "TDI Radio TV",
-    "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://peer2.tdiradio.com/static/streaming-playlists/hls/bab99862-ec1c-474f-9a02-4f8c8677d565/0.m3u8",
-    "label": "Radio Hit FM TV"
-   },
-   {
-    "type": "hls",
-    "url": "https://shift03.isp.bg/DMSat/index.m3u8",
-    "label": "DM Sat",
-    "w": 768
-   }
-  ],
-  "Tanzania": [
-   {
-    "type": "hls",
-    "url": "https://stream-134630.castr.net/5fe35eae8c53540cab83659a/live_44ed95e05b6d11f18d5d85805abbdd6f/index.m3u8",
-    "label": "TBC2",
-    "w": 1920
-   }
-  ],
+  "New Zealand": [],
+  "Croatia": [],
+  "Mali": [],
+  "Sudan": [],
+  "Lithuania": [],
+  "Serbia": [],
+  "Tanzania": [],
   "Niger": [],
-  "Denmark": [
-   {
-    "type": "hls",
-    "url": "https://cdnapi.kaltura.com/p/2158211/sp/327418300/playManifest/entryId/1_24gfa7qq/protocol/https/format/applehttp/a.m3u8",
-    "label": "TV from the Danish Parliament",
-    "w": 1920
-   },
-   {
-    "type": "hls",
-    "url": "https://drlivedrtvahls.akamaized.net/hls/live/2113613/drlivedrtva/master.m3u8",
-    "label": "DRTV",
-    "w": 640
-   },
-   {
-    "type": "hls",
-    "url": "https://livecdn.euw1-0005.jwplive.com/live/sites/J42OBHtp/media/vvNWt4O9/live.isml/.m3u8",
-    "label": "TV 2/Bornholm",
-    "w": 480
-   }
-  ],
+  "Denmark": [],
   "Guyana": [],
   "Tunisia": [],
   "Eritrea": [],
-  "Finland": [
-   {
-    "type": "hls",
-    "url": "https://virta2.nopolanews.fi:8443/live/smil:Stream1.smil/playlist.m3u8",
-    "label": "Nopola News",
-    "w": 640
-   },
-   {
-    "type": "hls",
-    "url": "https://hls.navahang.live/hls/stream.m3u8",
-    "label": "Navahang TV"
-   }
-  ],
+  "Finland": [],
   "Slovenia": [],
   "Belize": [],
   "Latvia": [],
-  "Bahamas": [
-   {
-    "type": "hls",
-    "url": "https://zns-edge1.streamcomedia.cloud/znstv13/zns1080p_stream/playlist.m3u8",
-    "label": "ZNS-TV",
-    "w": 1920
-   }
-  ],
+  "Bahamas": [],
   "Haiti": [],
   "Hong Kong": [],
   "Angola": [],
@@ -2020,12 +399,6 @@
   "Cape Verde": [],
   "Zimbabwe": [],
   "Algeria": [],
-  "Cote d'Ivoire": [
-   {
-    "type": "hls",
-    "url": "https://video1.getstreamhosting.com:1936/8042/8042/playlist.m3u8",
-    "label": "7News"
-   }
-  ]
+  "Cote d'Ivoire": []
  }
 }
