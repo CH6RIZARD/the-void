@@ -1,15 +1,16 @@
 // THE LOADING SCREEN: the void band, the character falling through sparkles, the words "Void Archive".
-// A port of the Void Loading Lab artifact; every number comes from LOADING in ./arrivals.ts.
+// A port of the Void Loading Lab artifact; every number comes from one of LOADING_SETS in ./arrivals.ts.
 //
 // The band, the figure and the sparkles are drawn in one expo-gl surface (three.js), so nothing
 // needs a transparent GL layer. The word is a native Text above it, moved by Reanimated.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import { GLView, type ExpoWebGLRenderingContext } from 'expo-gl';
 import Animated, { useAnimatedStyle, useFrameCallback, useSharedValue } from 'react-native-reanimated';
 import * as THREE from 'three';
 import { FONTS, useTheme } from '../../theme/tokens';
-import { arrive, LOADING, LOADING_THEMES } from './arrivals';
+import { arrive, LOADING_RUN, LOADING_SETS, LOADING_THEMES, type LoadingSet } from './arrivals';
 import { applyPose, buildFigure, PERIOD, posed, setFigureAlpha, viewLock, type Rig } from './voidFigure';
 
 type LT = keyof typeof LOADING_THEMES;
@@ -28,7 +29,25 @@ function dotTexture() {
 const gauss = () => { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
 const d2r = THREE.MathUtils.degToRad;
 
-export function LoadingScreen({ fontsReady, onFirstFrame }: { fontsReady: boolean; onFirstFrame?: () => void }) {
+const OPENS_KEY = 'void.loading.opens';
+/** Picks the look for this open: the same one for LOADING_RUN opens in a row, then the next. */
+export function LoadingScreen(props: { fontsReady: boolean; onFirstFrame?: () => void }) {
+  const theme = useTheme();
+  const T = LOADING_THEMES[themeKey(theme.name)];
+  const [L, setL] = useState<LoadingSet | null>(null);
+  useEffect(() => {
+    let on = true;
+    AsyncStorage.getItem(OPENS_KEY).then((v) => {
+      const n = Math.max(0, parseInt(v || '0', 10) || 0);
+      AsyncStorage.setItem(OPENS_KEY, String(n + 1)).catch(() => {});
+      if (on) setL(LOADING_SETS[Math.floor(n / LOADING_RUN) % LOADING_SETS.length]);
+    }, () => { if (on) setL(LOADING_SETS[0]); });
+    return () => { on = false; };
+  }, []);
+  return L ? <LoadingScene L={L} {...props} /> : <View style={[styles.fill, { backgroundColor: T.page }]} />;
+}
+
+function LoadingScene({ L, fontsReady, onFirstFrame }: { L: LoadingSet; fontsReady: boolean; onFirstFrame?: () => void }) {
   const theme = useTheme();
   const T = LOADING_THEMES[themeKey(theme.name)];
   const themeRef = useRef(T); themeRef.current = T;
@@ -39,11 +58,11 @@ export function LoadingScreen({ fontsReady, onFirstFrame }: { fontsReady: boolea
   useFrameCallback(() => { clock.value = (Date.now() - t0.current) / 1000; });
 
   // The band in screen px, for the word; the GL side computes the same band in world units.
-  const bw = size.w * (1 - 2 * LOADING.bm), bh = bw / 3, fs = bh * 0.3 * LOADING.wsize;
+  const bw = size.w * (1 - 2 * L.bm), bh = bw / 3, fs = bh * 0.3 * L.wsize;
   const wordStyle = useAnimatedStyle(() => {
-    const p = arrive(LOADING.word, clock.value);
+    const p = arrive(L.word, clock.value);
     return { opacity: p.alpha, transform: [{ translateX: p.dx * bw * 0.5 + (p.jit ? (Math.random() - 0.5) * 18 * p.jit : 0) }, { translateY: p.dy * bh * 0.5 }, { rotate: p.rot + 'deg' }, { scaleX: p.sx }, { scaleY: p.sy }] };
-  }, [bw, bh]);
+  }, [bw, bh, L]);
 
   const gen = useRef(0);
   const firstFrame = useRef(onFirstFrame); firstFrame.current = onFirstFrame;
@@ -72,7 +91,7 @@ export function LoadingScreen({ fontsReady, onFirstFrame }: { fontsReady: boolea
     const camera = new THREE.PerspectiveCamera(40, aspect, 0.1, 100);
     camera.up.set(0, 0, 1); camera.position.set(0, -10, CZ); camera.lookAt(0, 0, CZ); camera.updateProjectionMatrix();
     const visH = 2 * 10 * Math.tan(d2r(20)), visW = visH * aspect;
-    const band = { tw: visW * (1 - 2 * LOADING.bm), th: 0 }; band.th = band.tw / 3;
+    const band = { tw: visW * (1 - 2 * L.bm), th: 0 }; band.th = band.tw / 3;
 
     // lights: the lab's studio look
     scene.add(new THREE.HemisphereLight(0xffffff, 0x221a33, 0.9));
@@ -81,7 +100,7 @@ export function LoadingScreen({ fontsReady, onFirstFrame }: { fontsReady: boolea
     const rimR = new THREE.DirectionalLight(0xffc76b, 0.6); rimR.position.set(5, 4, 3); scene.add(rimR);
 
     // the band: a rounded rectangle on the y = 0 plane, facing the camera
-    const r = band.th * LOADING.tr, hw = band.tw / 2, hh = band.th / 2, sh = new THREE.Shape();
+    const r = band.th * L.tr, hw = band.tw / 2, hh = band.th / 2, sh = new THREE.Shape();
     sh.moveTo(-hw + r, -hh); sh.lineTo(hw - r, -hh); sh.quadraticCurveTo(hw, -hh, hw, -hh + r); sh.lineTo(hw, hh - r); sh.quadraticCurveTo(hw, hh, hw - r, hh);
     sh.lineTo(-hw + r, hh); sh.quadraticCurveTo(-hw, hh, -hw, hh - r); sh.lineTo(-hw, -hh + r); sh.quadraticCurveTo(-hw, -hh, -hw + r, -hh);
     const bandGeo = new THREE.ShapeGeometry(sh, 12).rotateX(Math.PI / 2);
@@ -95,7 +114,7 @@ export function LoadingScreen({ fontsReady, onFirstFrame }: { fontsReady: boolea
     const bandTop = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0), bandBot = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
     const dot = dotTexture();
     const swarm = [0, 1].map((k) => {
-      const n = Math.round(110 * LOADING.sw), pos = new Float32Array(n * 3), geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      const n = Math.round(110 * L.sw), pos = new Float32Array(n * 3), geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
       const mat = new THREE.PointsMaterial({ size: (k ? 0.028 : 0.04) * (bufH / 852), map: dot, color: themeRef.current.spark[k], transparent: true, depthWrite: false, opacity: 0.95,
         blending: themeRef.current.add ? THREE.AdditiveBlending : THREE.NormalBlending, clippingPlanes: [bandTop, bandBot] });
       const pts = new THREE.Points(geo, mat); scene.add(pts);
@@ -111,7 +130,7 @@ export function LoadingScreen({ fontsReady, onFirstFrame }: { fontsReady: boolea
       if (TT !== lastTheme) { lastTheme = TT; bandMat.color.set(TT.band); swarm.forEach((s, k) => { s.mat.color.set(TT.spark[k]); s.mat.blending = TT.add ? THREE.AdditiveBlending : THREE.NormalBlending; s.mat.needsUpdate = true; }); }
       renderer.setClearColor(new THREE.Color(TT.page), 1);
       // the band
-      const pb = arrive(LOADING.band, t);
+      const pb = arrive(L.band, t);
       bandMesh.scale.set(Math.max(0.001, pb.sx), 1, Math.max(0.001, pb.sy));
       bandMesh.position.x = pb.dx * band.tw + (pb.jit ? (Math.random() - 0.5) * 0.3 * pb.jit : 0);
       bandMesh.position.z = CZ - pb.dy * band.th;
@@ -119,23 +138,23 @@ export function LoadingScreen({ fontsReady, onFirstFrame }: { fontsReady: boolea
       bandMat.opacity = pb.alpha;
       wipePlane.constant = CZ - band.th / 2 + band.th * pb.wipe; // clips what is above the wipe line
       // the character: his drift clock starts the moment he arrives, at the loop phase chosen in the lab
-      const pc = arrive(LOADING.char, t), cs = Math.min(pc.sx, pc.sy);
-      const clockC = LOADING.phase * PERIOD + Math.max(0, t - LOADING.char.delay) * LOADING.speed;
-      applyPose(rig, posed(clockC, LOADING.motion));
-      const sc = band.th * 0.2 * LOADING.ls, root = rig.root; root.scale.setScalar(sc * Math.max(0.001, cs));
-      root.position.x = band.tw * (0.317 + LOADING.lx * 0.2) + pc.dx * band.th * 0.8;
-      root.position.y = LOADING.lz * band.th * 0.8;
-      root.position.z = CZ + 0.25 * sc + LOADING.ly * band.th * 0.4 + (root.position.z - rig.baseZ) * sc - pc.dy * band.th * 0.8 + (pc.jit ? (Math.random() - 0.5) * 0.04 * pc.jit : 0);
-      root.rotation.x += d2r(LOADING.pitch); root.rotation.y += d2r(LOADING.yaw + pc.rot); root.rotation.z += d2r(LOADING.roll);
+      const pc = arrive(L.char, t), cs = Math.min(pc.sx, pc.sy);
+      const clockC = L.phase * PERIOD + Math.max(0, t - L.char.delay) * L.speed;
+      applyPose(rig, posed(clockC, L.motion));
+      const sc = band.th * 0.2 * L.ls, root = rig.root; root.scale.setScalar(sc * Math.max(0.001, cs));
+      root.position.x = band.tw * (0.317 + L.lx * 0.2) + pc.dx * band.th * 0.8;
+      root.position.y = L.lz * band.th * 0.8;
+      root.position.z = CZ + 0.25 * sc + L.ly * band.th * 0.4 + (root.position.z - rig.baseZ) * sc - pc.dy * band.th * 0.8 + (pc.jit ? (Math.random() - 0.5) * 0.04 * pc.jit : 0);
+      root.rotation.x += d2r(L.pitch); root.rotation.y += d2r(L.yaw + pc.rot); root.rotation.z += d2r(L.roll);
       viewLock(rig, camera);
       setFigureAlpha(pc.alpha);
       charCenter.set(root.position.x, root.position.y, root.position.z - 0.2 * sc);
       // sparkles
       bandTop.constant = CZ + (band.th / 2) * pb.sy; bandBot.constant = -(CZ - (band.th / 2) * pb.sy);
-      const size = sc * 3 * Math.max(0.05, cs), spread = size * 0.32 * LOADING.sspread;
+      const size = sc * 3 * Math.max(0.05, cs), spread = size * 0.32 * L.sspread;
       for (const s of swarm) {
         s.data.forEach((q, i) => {
-          q.z += dt * q.v * 0.35 * LOADING.srise;
+          q.z += dt * q.v * 0.35 * L.srise;
           if (q.z > 1) { q.z = -1; q.x = gauss(); q.y = gauss() * 0.4; }
           const sway = Math.sin(t * 1.3 + q.w) * 0.06;
           s.pos[i * 3] = charCenter.x + (q.x * 0.55 + sway) * spread; s.pos[i * 3 + 1] = charCenter.y + q.y * spread; s.pos[i * 3 + 2] = charCenter.z + q.z * size * 0.6;
@@ -154,7 +173,7 @@ export function LoadingScreen({ fontsReady, onFirstFrame }: { fontsReady: boolea
   return (
     <View style={[styles.fill, { backgroundColor: T.page }]} onLayout={onLayout}>
       {size.w > 0 ? <GLView style={StyleSheet.absoluteFill} onContextCreate={onContextCreate} msaaSamples={0} /> : null}
-      {LOADING.wshow && size.w > 0 ? (
+      {L.wshow && size.w > 0 ? (
         <Animated.Text
           style={[wordStyle, { position: 'absolute', left: (size.w - bw) / 2 + bh * 0.22, top: (size.h - bh) / 2 + bh * 0.56 - fs * 0.78, fontSize: fs, lineHeight: fs * 1.05, color: T.word, fontStyle: fontsReady ? 'normal' : 'italic' },
             fontsReady ? { fontFamily: FONTS.serifItalic } : null]}

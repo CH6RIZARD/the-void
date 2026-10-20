@@ -31,19 +31,31 @@ export function arrive(c: Arrival, t: number, rnd: () => number = Math.random): 
   return p;
 }
 
-/** The user's loading-screen settings (Void Loading Lab, 2026-10-17). Change them in the lab, then here. */
-export const LOADING = {
-  band: { style: 'fade', delay: 0, dur: 0.45, amt: 1 } as Arrival,
-  char: { style: 'pop', delay: 0.1, dur: 0.55, amt: 1 } as Arrival,
-  word: { style: 'fade', delay: 0.65, dur: 0.6, amt: 1 } as Arrival,
-  // the character in the void: nudges in band heights, size, fall speed, the loop phase he arrives in, his angle
-  lx: 0, ly: -0.09, lz: 0, ls: 1, speed: 0.23, phase: 0.37, pitch: 2, yaw: -9, roll: 4,
-  // sparkles, the void band, the word
-  sw: 0.5, sspread: 1.34, srise: 0.9, bm: 0.03, tr: 0.06, wsize: 1, wshow: true,
-  motion: { mix: [0.4, 0, 0.25, 0, 0.7, 0.6, 0, 0, 0, 0, 0, 0], intensity: 1, variance: 0.25, arms: 1, legs: 1.15, sway: 1, cap: 1, bob: 1 },
+/** One loading-screen look, as tuned in the Void Loading Lab. */
+export interface LoadingSet {
+  band: Arrival; char: Arrival; word: Arrival;
+  lx: number; ly: number; lz: number; ls: number; speed: number; phase: number; pitch: number; yaw: number; roll: number;
+  sw: number; sspread: number; srise: number; bm: number; tr: number; wsize: number; wshow: boolean;
+  motion: { mix: number[]; intensity: number; variance: number; arms: number; legs: number; sway: number; cap: number; bob: number };
   /** How long the screen stays up at minimum, so the arrivals finish even on a fast boot. */
+  minMs: number;
+}
+const BASE = {
+  lx: 0, ly: -0.09, lz: 0, ls: 1, phase: 0.37, pitch: -5, yaw: 4, roll: 4,
+  sw: 0.5, bm: 0.03, tr: 0.06, wsize: 1, wshow: true,
+  motion: { mix: [0.4, 0, 0.25, 0, 0.7, 0.6, 0, 0, 0, 0, 0, 0], intensity: 1, variance: 0.25, arms: 1, legs: 1.15, sway: 1, cap: 1, bob: 1 },
   minMs: 2200,
 };
+/** The user's four saved looks (Void Loading Lab, 2026-10-19). Change them in the lab, then here. */
+export const LOADING_SETS: LoadingSet[] = [
+  { ...BASE, band: { style: 'fade', delay: 0, dur: 0.45, amt: 0.2 }, char: { style: 'pop', delay: 0.4, dur: 0.55, amt: 1 }, word: { style: 'fade', delay: 0.7, dur: 0.7, amt: 1 }, speed: 0.22, sspread: 1.24, srise: 0.9 },
+  { ...BASE, band: { style: 'fade', delay: 0, dur: 0.45, amt: 0.2 }, char: { style: 'pop', delay: 0.4, dur: 0.55, amt: 1 }, word: { style: 'fade', delay: 0.7, dur: 0.7, amt: 1 }, speed: 0.23, sspread: 1.34, srise: 0.9 },
+  { ...BASE, band: { style: 'fade', delay: 0, dur: 0.5, amt: 1 }, char: { style: 'pop', delay: 0.1, dur: 0.55, amt: 1 }, word: { style: 'fade', delay: 0.65, dur: 0.6, amt: 1 }, speed: 0.23, sspread: 1.34, srise: 0.7 },
+  { ...BASE, band: { style: 'fade', delay: 0, dur: 0.5, amt: 1 }, char: { style: 'pop', delay: 0.1, dur: 0.55, amt: 1 }, word: { style: 'fade', delay: 0.65, dur: 0.6, amt: 1 }, speed: 0.23, sspread: 1.34, srise: 0.9 },
+];
+/** A look is kept for this many app opens before the next one takes over. */
+export const LOADING_RUN = 7;
+export const LOADING = LOADING_SETS[0];
 // The four appearance settings (void-app/src/theme/palettes.ts), as the lab draws them.
 export const LOADING_THEMES = {
   dark: { page: '#04020c', band: '#0b0620', word: '#c9a84c', spark: ['#c9a84c', '#8c73ff'], add: true, light: false },

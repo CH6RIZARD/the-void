@@ -90,7 +90,7 @@
     "android": {
       "package": "com.thevoid.app",
       "adaptiveIcon": {
-        "backgroundColor": "#04020c",
+        "backgroundColor": "#0b0620",
         "foregroundImage": "./assets/brand/adaptive-icon-foreground.png",
         "backgroundImage": "./assets/brand/adaptive-icon-background.png",
         "monochromeImage": "./assets/brand/adaptive-icon-monochrome.png"
@@ -130,9 +130,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#04020c",
+          "backgroundColor": "#0b0620",
           "image": "./assets/brand/splash-icon.png",
-          "imageWidth": 120
+          "imageWidth": 220
         }
       ],
       "expo-font",
