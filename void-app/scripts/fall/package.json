@@ -1,0 +1,7 @@
+{
+  "name": "void-fall-render",
+  "private": true,
+  "type": "module",
+  "description": "Bakes the camera-fall sprite sheets, paths and header icons from src/features/loading/voidFigure.ts. node render.mjs [--gpu]",
+  "dependencies": { "esbuild": "0.25.10", "puppeteer": "24.22.0" }
+}

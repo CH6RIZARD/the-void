@@ -1,0 +1,21 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Watcher demo</title>
+<style>
+  body { margin: 0; background: #04020c; color: #e9e3d3; font: 15px/1.4 system-ui, sans-serif; display: grid; grid-template-columns: 1fr 1fr; min-height: 100vh; }
+  .hero { display: grid; place-items: center; }
+  .hero span { width: 260px; color: #c9a84c; }
+  .feed { padding: 60px 48px; display: grid; gap: 18px; align-content: center; }
+  .card { background: #0d0920; border: 1px solid #1d1838; border-radius: 14px; padding: 16px 18px; }
+  .card b { color: #fff; } .meta { margin-top: 10px; display: flex; align-items: center; gap: 8px; color: #8b84a8; font-size: 13px; }
+  .meta span[data-watcher] { width: 22px; color: #8b84a8; }
+  .meta span[data-watcher]:hover { color: #c9a84c; }
+</style>
+<div class="hero"><span data-watcher id="hero" aria-label="the watcher"></span></div>
+<div class="feed">
+  <div class="card"><b>@nadia</b> the city never sleeps, neither does the feed<div class="meta"><span data-watcher id="v1"></span>12.4k</div></div>
+  <div class="card"><b>@void</b> Tokyo at 3am, live<div class="meta"><span data-watcher id="v2"></span>3,108</div></div>
+  <div class="card"><b>@kofi</b> who else is watching this<div class="meta"><span data-watcher id="v3"></span>842</div></div>
+</div>
+<script src="watcher.js"></script>

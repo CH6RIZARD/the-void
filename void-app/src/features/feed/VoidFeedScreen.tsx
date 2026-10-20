@@ -14,6 +14,7 @@ import { AppState, BackHandler, FlatList, Pressable, RefreshControl, StyleSheet,
 import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { CameraFall } from '../../ui/CameraFall';
 import { router, useFocusEffect, useNavigation } from 'expo-router';
 import {
   FEED_MAX_AGE_H,
@@ -359,7 +360,9 @@ export default function VoidFeedScreen() {
       <PollsLayer open={section === 'polls'} width={width} onCover={setPollsCovered} backRef={pollsBack} />
       <MailLayer open={mailOpen} width={width} onTopic={openTopicFromMail} />
 
-      {/* the masthead: THE⬡ + the stagger icon that unfolds into Polls / Feed, and the mailbox */}
+      {/* pull to refresh: the character falls out of the camera while the feed reloads */}
+      <CameraFall active={refreshing} />
+      {/* the masthead: "Void Archive" (hides while he is out) + the stagger icon that unfolds into Polls / Feed, and the mailbox */}
       <Masthead
         section={section}
         onSwitch={setSection}

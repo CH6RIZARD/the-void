@@ -1,4 +1,4 @@
-// The masthead (handoff THE-VOID-22b §1): `THE⬡` + a three-line stagger icon, one
+// The masthead (handoff THE-VOID-22b §1): "Void Archive" in gold (was `THE⬡`) + a three-line stagger icon, one
 // button. Tap -> the second word (Polls on Feed, Feed on Polls) unfolds on the same
 // baseline, behind a 22px gold hairline, where the icon was. Tap the word -> switch
 // section; tap anywhere else (full-screen scrim) -> folds back.
@@ -15,6 +15,7 @@ import { useTheme } from '../../theme/ThemeProvider';
 import { FONTS, em } from '../../theme/palettes';
 import { WEB } from '../../theme/motion';
 import { VText } from '../../ui/Text';
+import { useCameraFallOut } from '../../ui/CameraFall';
 
 const CB = WEB.SHEET; // cubic-bezier(.32,.72,.28,1)
 const RM = ReduceMotion.System;
@@ -39,6 +40,8 @@ export function Masthead({ section, onSwitch, hidden, reveal, right }: MastheadP
   const { colors, isLight } = useTheme();
   const insets = useSafeAreaInsets();
   const kind = reveal || revealForNow();
+  // Owner, 2026-10-20: the header is the text only; while he is out (pull to refresh) it hides: just him.
+  const fallOut = useCameraFallOut();
   const word = section === 'feed' ? 'Polls' : 'Feed';
   const letters = useMemo(() => word.split(''), [word]);
   const [open, setOpen] = useState(false);
@@ -143,9 +146,7 @@ export function Masthead({ section, onSwitch, hidden, reveal, right }: MastheadP
           {/* the icon, centred in the header */}
           <View style={styles.center} pointerEvents="box-none">
             <Pressable onPress={open ? fold : unfold} accessibilityLabel={open ? 'Close' : 'Sections'} hitSlop={8} style={styles.mark}>
-              <VText style={[styles.logo, { color: colors.white }]}>
-                THE<VText style={[styles.logo, { color: colors.gold }]}>⬡</VText>
-              </VText>
+              <VText style={[styles.title, isLight && { color: colors.gold }, fallOut && { opacity: 0 }]}>Void Archive</VText>
             </Pressable>
           </View>
           {/* the menu (stagger icon) and the Polls / Feed word it unfolds into, on the left */}
@@ -187,8 +188,8 @@ const styles = StyleSheet.create({
   hud: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 62 },
   row: { height: 44, flexDirection: 'row', alignItems: 'center', paddingLeft: 18, paddingRight: 10 },
   center: { position: 'absolute', left: 0, right: 0, top: 0, height: 44, alignItems: 'center', justifyContent: 'center' },
-  mark: { paddingVertical: 8, paddingHorizontal: 8 },
-  logo: { fontFamily: FONTS.sansExtraBold, fontSize: 15, letterSpacing: em(15, 0.14) },
+  mark: { paddingVertical: 2, paddingHorizontal: 4 },
+  title: { fontFamily: FONTS.serifItalic, fontSize: 22, lineHeight: 28, color: '#c9a84c' },
   slot: { height: 44, minWidth: 44, justifyContent: 'center' },
   icon: { position: 'absolute', left: 0, top: 14, height: 16, justifyContent: 'space-between', alignItems: 'flex-start' },
   wordRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
