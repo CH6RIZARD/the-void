@@ -1,7 +1,7 @@
 {
- "generated": "2026-10-17T19:09:03.701Z",
+ "generated": "2026-10-21T05:36:46.278Z",
  "note": "Union of the re-check from 10 regions; a stream stays if it played from any of them. · scout+43@2026-10-19",
- "count": 43,
+ "count": 39,
  "countries": 157,
  "sources": {
   "Netherlands": [],
@@ -19,7 +19,8 @@
    {
     "type": "hls",
     "url": "https://live-8knsk.cdnvideo.ru/8knsk/stream1/playlist.m3u8",
-    "label": "Channel 8 Novosibirsk"
+    "label": "Channel 8 Novosibirsk",
+    "w": 854
    },
    {
     "type": "hls",
@@ -32,7 +33,8 @@
    {
     "type": "hls",
     "url": "https://cdn15.live-tv.cloud/ua_infinitas_tv/7tvod-abr/playlist.m3u8",
-    "label": "Channel 7 Ukraine"
+    "label": "Channel 7 Ukraine",
+    "w": 640
    }
   ],
   "Georgia": [],
@@ -40,14 +42,16 @@
    {
     "type": "hls",
     "url": "https://d1k6kax80wecy5.cloudfront.net/WFqZJc/index.m3u8",
-    "label": "Channel 44"
+    "label": "Channel 44",
+    "w": 426
    }
   ],
   "Morocco": [
    {
     "type": "hls",
     "url": "https://edge13.vedge.infomaniak.com/livecast/ik:chadatv/manifest.m3u8",
-    "label": "Chada TV"
+    "label": "Chada TV",
+    "w": 1280
    }
   ],
   "Spain": [],
@@ -55,17 +59,20 @@
    {
     "type": "hls",
     "url": "https://live-us1.thaimomo.com/live-as/ch7hd-3/playlist.m3u8",
-    "label": "Channel 7"
+    "label": "Channel 7",
+    "w": 1024
    },
    {
     "type": "hls",
     "url": "https://live-us1.thaimomo.com/live-as/cheight-3/playlist.m3u8",
-    "label": "Channel 8"
+    "label": "Channel 8",
+    "w": 1024
    },
    {
     "type": "hls",
     "url": "https://live-us1.thaimomo.com/live-as/ch5hd-2/playlist.m3u8",
-    "label": "Channel 5"
+    "label": "Channel 5",
+    "w": 1024
    }
   ],
   "Germany": [],
@@ -74,7 +81,8 @@
    {
     "type": "hls",
     "url": "https://rds3.desdeparaguay.net/brunomasitv/brunomasitv/playlist.m3u8",
-    "label": "Bruno Masi TV"
+    "label": "Bruno Masi TV",
+    "w": 1920
    }
   ],
   "Poland": [],
@@ -83,17 +91,20 @@
    {
     "type": "hls",
     "url": "https://chardikalagurbanitv.gigabitcdn.net/in-chardikala/chardikala-timetv/playlist.m3u8",
-    "label": "Chardikla Time TV"
+    "label": "Chardikla Time TV",
+    "w": 1920
    },
    {
     "type": "hls",
     "url": "https://chardikalatimestv.gigabitcdn.net/in-chardikala/chardikala-gurbani-tv/playlist.m3u8",
-    "label": "Chardikla Gurbaani TV"
+    "label": "Chardikla Gurbaani TV",
+    "w": 1920
    },
    {
     "type": "hls",
     "url": "https://5a1178b42cc03.streamlock.net/8212/8212/playlist.m3u8",
-    "label": "CCV"
+    "label": "CCV",
+    "w": 1920
    }
   ],
   "Turkey": [],
@@ -103,29 +114,34 @@
    {
     "type": "hls",
     "url": "https://app.ncare.live/c3VydmVyX8RpbEU9Mi8xNy8yMDE0GIDU6RgzQ6NTAgdEoaeFzbF92YWxIZTO0U0ezN1IzMyfvcGVMZEJCTEFWeVN3PTOmdFsaWRtaW51aiPhnPTI/chsukoff.stream/playlist.m3u8",
-    "label": "Channel S"
+    "label": "Channel S",
+    "w": 1024
    }
   ],
   "United States": [
    {
     "type": "hls",
     "url": "https://lineup.cbsivideo.com/playout/c1ed69db-6b71-4581-a937-a70ab4089f8a/index.m3u8",
-    "label": "CBS News Sacramento"
+    "label": "CBS News Sacramento",
+    "w": 320
    },
    {
     "type": "hls",
     "url": "https://dai.google.com/linear/hls/event/dHA193vxQ_WqZNVoC-W5MA/master.m3u8",
-    "label": "CBS News Boston"
+    "label": "CBS News Boston",
+    "w": 400
    },
    {
     "type": "hls",
     "url": "https://champaign-cablecast.cablecast.tv/live/stream-2/live.m3u8",
-    "label": "CGTV"
+    "label": "CGTV",
+    "w": 640
    },
    {
     "type": "hls",
     "url": "https://reflect-channel18vod-springfield-il-us.cablecast.tv/live-13/live/stream-1/live.m3u8",
-    "label": "Channel 18 GAC"
+    "label": "Channel 18 GAC",
+    "w": 400
    }
   ],
   "Italy": [],
@@ -136,61 +152,41 @@
    {
     "type": "hls",
     "url": "https://5ca3e84a76d30.streamlock.net/cbtv/videoc3b3t3v3/playlist.m3u8",
-    "label": "CB TV Michoacan"
+    "label": "CB TV Michoacan",
+    "w": 1280
    },
    {
     "type": "hls",
     "url": "https://60417ddeaf0d9.streamlock.net/ntv/videontv/playlist.m3u8",
-    "label": "8NTV"
+    "label": "8NTV",
+    "w": 1280
    },
    {
     "type": "hls",
     "url": "https://s5.mexside.net:1936/lsac/lsac/playlist.m3u8",
-    "label": "B15 Fresnillo"
+    "label": "B15 Fresnillo",
+    "w": 1920
    }
   ],
-  "Chile": [
-   {
-    "type": "hls",
-    "url": "https://freya.mivideo.pro/centraltv/video.m3u8",
-    "label": "Central TV"
-   }
-  ],
+  "Chile": [],
   "Kazakhstan": [],
-  "Peru": [
-   {
-    "type": "hls",
-    "url": "https://live-evg10.tv360.bitel.com.pe/bitel/charapatvSRT/playlist.m3u8",
-    "label": "Charapa TV"
-   }
-  ],
+  "Peru": [],
   "Iran": [],
   "Costa Rica": [],
   "Senegal": [],
-  "Dominican Republic": [
-   {
-    "type": "hls",
-    "url": "https://5790d294af2dc.streamlock.net/cenovision/cenovision/playlist.m3u8",
-    "label": "Cenovision HD"
-   }
-  ],
+  "Dominican Republic": [],
   "Romania": [],
   "Philippines": [],
   "Saudi Arabia": [],
   "Venezuela": [],
   "South Korea": [],
-  "Iraq": [
-   {
-    "type": "hls",
-    "url": "https://live.channel8.com/Channel8-Kurdish/index.fmp4.m3u8",
-    "label": "Channel8"
-   }
-  ],
+  "Iraq": [],
   "Greece": [
    {
     "type": "hls",
     "url": "https://eu1.streams.gr:8081/centertv/index.m3u8",
-    "label": "Center TV"
+    "label": "Center TV",
+    "w": 1920
    }
   ],
   "Nigeria": [],
@@ -203,17 +199,20 @@
    {
     "type": "hls",
     "url": "https://5b33b873179a2.streamlock.net:1443/mastertv/livestream/playlist.m3u8",
-    "label": "Catve Master TV"
+    "label": "Catve Master TV",
+    "w": 1280
    },
    {
     "type": "hls",
     "url": "https://5b33b873179a2.streamlock.net:1443/radiocamera/livestream/playlist.m3u8",
-    "label": "Catve FM"
+    "label": "Catve FM",
+    "w": 1280
    },
    {
     "type": "hls",
     "url": "https://5b33b873179a2.streamlock.net:1443/catve2/catve2/playlist.m3u8",
-    "label": "Catve2"
+    "label": "Catve2",
+    "w": 1280
    }
   ],
   "Ghana": [],
@@ -221,7 +220,8 @@
    {
     "type": "hls",
     "url": "https://lnd0t3b922.tenbytecdn.com/ta-sg1/90369cf5-6ac2-411d-b3d0-15fae10a2e2c/master.m3u8",
-    "label": "BTV"
+    "label": "BTV",
+    "w": 854
    }
   ],
   "Guinea": [],
@@ -239,7 +239,8 @@
    {
     "type": "hls",
     "url": "https://s.emisoras.tv:8081/atv/index.m3u8",
-    "label": "Alsacias Television"
+    "label": "Alsacias Television",
+    "w": 1280
    }
   ],
   "Jordan": [],
@@ -258,7 +259,8 @@
    {
     "type": "hls",
     "url": "https://tvsen5.aynaott.com/banglavision/index.m3u8",
-    "label": "Bangla Vision"
+    "label": "Bangla Vision",
+    "w": 1280
    }
   ],
   "Andorra": [],
@@ -297,12 +299,14 @@
    {
     "type": "hls",
     "url": "https://cdn4.skygo.mn/live/disk1/Channel11/HLSv3-FTA/Channel11.m3u8",
-    "label": "Channel 11"
+    "label": "Channel 11",
+    "w": 854
    },
    {
     "type": "hls",
     "url": "https://cdn4.skygo.mn/live/disk1/Ekh_Oron/HLSv3-FTA/Ekh_Oron.m3u8",
-    "label": "Central TV"
+    "label": "Central TV",
+    "w": 854
    }
   ],
   "Singapore": [],
@@ -335,7 +339,8 @@
    {
     "type": "hls",
     "url": "https://vids1.intacs.com/caribbeanhot7tv/ch7-1.stream/playlist.m3u8",
-    "label": "Caribbean Hot 7 TV"
+    "label": "Caribbean Hot 7 TV",
+    "w": 1280
    }
   ],
   "Kuwait": [],
@@ -343,12 +348,14 @@
    {
     "type": "hls",
     "url": "https://contact.gostreaming.tv/Con-11/index.m3u8",
-    "label": "Channel 9"
+    "label": "Channel 9",
+    "w": 1920
    },
    {
     "type": "hls",
     "url": "https://d2xg1g9o5vns8m.cloudfront.net/out/v1/0855d703f7d5436fae6a9c7ce8ca5075/index.m3u8",
-    "label": "Channel 13"
+    "label": "Channel 13",
+    "w": 1024
    }
   ],
   "Maldives": [
