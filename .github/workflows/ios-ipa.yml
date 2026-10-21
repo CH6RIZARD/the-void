@@ -1,0 +1,61 @@
+# Unsigned iPhone .ipa of the native app (void-app), built on GitHub's macOS runner: no Expo cloud,
+# no EAS credits, no Mac. Same steps as void-app/.eas/build/ios-sideload.yml; xtool (WSL) signs it
+# with the free Apple ID on install:  xtool install TheVoid-unsigned.ipa
+#
+# Run: push a tag `ios-<anything>` on the commit to build (works from any branch), or
+# `gh workflow run ios-ipa.yml --ref <branch>` once this file is on the default branch.
+# The .ipa ships as a prerelease asset "ipa-<run id>" (the artifact quota is too small).
+name: iOS IPA
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['ios-*']
+
+permissions:
+  contents: write
+
+jobs:
+  ipa:
+    runs-on: macos-latest
+    timeout-minutes: 120
+    defaults:
+      run:
+        working-directory: void-app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # EAS cloud installs with yarn 1 (no lockfile is committed); match it (android-aab.yml).
+      - name: Install dependencies
+        run: yarn install --non-interactive --network-timeout 600000
+
+      - name: Prebuild ios
+        run: CI=1 npx expo prebuild -p ios --clean --no-install
+
+      - name: Pods
+        working-directory: void-app/ios
+        run: pod install
+
+      - name: Build unsigned .ipa
+        working-directory: void-app/ios
+        run: |
+          set -eo pipefail
+          WS=$(ls -d *.xcworkspace | head -1)
+          SCHEME="${WS%.xcworkspace}"
+          xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" | tail -200
+          rm -rf Payload && mkdir Payload
+          cp -R "build/Build/Products/Release-iphoneos/$SCHEME.app" Payload/
+          zip -qry "$GITHUB_WORKSPACE/TheVoid-unsigned.ipa" Payload && ls -la "$GITHUB_WORKSPACE/TheVoid-unsigned.ipa"
+
+      - name: Publish as a prerelease asset
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "ipa-${{ github.run_id }}" TheVoid-unsigned.ipa --prerelease --target "${{ github.sha }}" --title "iPhone ${{ github.ref_name }} ${{ github.sha }}" --notes "Unsigned iPhone build from run ${{ github.run_id }} (${{ github.sha }}). Install: xtool install TheVoid-unsigned.ipa"
