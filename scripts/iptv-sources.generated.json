@@ -1,7 +1,7 @@
 {
- "generated": "2026-10-21T05:36:46.278Z",
- "note": "Union of the re-check from 10 regions; a stream stays if it played from any of them. · scout+43@2026-10-19",
- "count": 39,
+ "generated": "2026-10-21T13:06:44.466Z",
+ "note": "Union of the re-check from 10 regions; a stream stays if it played from any of them. · scout+25@2026-10-21",
+ "count": 63,
  "countries": 157,
  "sources": {
   "Netherlands": [],
@@ -26,6 +26,11 @@
     "type": "hls",
     "url": "https://zabava-htlive.cdn.ngenix.net/hls/CH_5TV/variant.m3u8",
     "label": "Channel 5"
+   },
+   {
+    "type": "hls",
+    "url": "https://cityeden.catcast.tv/content/34246/index.m3u8",
+    "label": "City Eden TV"
    }
   ],
   "South Africa": [],
@@ -54,7 +59,18 @@
     "w": 1280
    }
   ],
-  "Spain": [],
+  "Spain": [
+   {
+    "type": "hls",
+    "url": "https://cdnapisec.kaltura.com/p/2288691/sp/228869100/playManifest/entryId/1_gnz6ity9/protocol/https/format/applehttp/flavorIds/1_a9gxgxzy,1_v71ryg4b,1_vbfvtjw6,1_obo1bqsx,1_3shk3s5d/a.m3u8",
+    "label": "CMM TV"
+   },
+   {
+    "type": "hls",
+    "url": "https://streaming004.gestec-video.com/hls/7TVCORDOBA.m3u8",
+    "label": "7TV"
+   }
+  ],
   "Thailand": [
    {
     "type": "hls",
@@ -105,11 +121,28 @@
     "url": "https://5a1178b42cc03.streamlock.net/8212/8212/playlist.m3u8",
     "label": "CCV",
     "w": 1920
+   },
+   {
+    "type": "hls",
+    "url": "https://chardikalanorthamerica.gigabitcdn.net/in-chardikala/chardikala-north-usa/playlist.m3u8",
+    "label": "Chardikla Time TV North America"
    }
   ],
-  "Turkey": [],
+  "Turkey": [
+   {
+    "type": "hls",
+    "url": "https://live.artidijitalmedya.com/artidijital_ciftcitv/ciftcitv/playlist.m3u8",
+    "label": "Ciftci TV"
+   }
+  ],
   "Myanmar": [],
-  "Argentina": [],
+  "Argentina": [
+   {
+    "type": "hls",
+    "url": "https://617c5175c970b.streamlock.net:4444/chacodxdtv/livenew/playlist.m3u8",
+    "label": "Ciudad TV Resistencia"
+   }
+  ],
   "United Kingdom": [
    {
     "type": "hls",
@@ -142,6 +175,26 @@
     "url": "https://reflect-channel18vod-springfield-il-us.cablecast.tv/live-13/live/stream-1/live.m3u8",
     "label": "Channel 18 GAC",
     "w": 400
+   },
+   {
+    "type": "hls",
+    "url": "https://wurlcheddar.global.transmit.live/hls/689ceac9301c34d3919676f3/v1/Cheddar/samsung_us/latest/main/hls/playlist.m3u8",
+    "label": "Cheddar News"
+   },
+   {
+    "type": "hls",
+    "url": "https://edge-f.swagit.com/live/chinohillsca/live-1-a/playlist.m3u8",
+    "label": "City TV Channel 3/41"
+   },
+   {
+    "type": "hls",
+    "url": "https://cdn3.wowza.com/5/UWpORHhLSEs5SkJs/costamesa/G0075_002/playlist.m3u8",
+    "label": "CMTV"
+   },
+   {
+    "type": "hls",
+    "url": "https://edge-f.swagit.com/live/carlsbadca/live-3-a-1/playlist.m3u8",
+    "label": "City TV Carlsbad"
    }
   ],
   "Italy": [],
@@ -149,12 +202,6 @@
   "Pakistan": [],
   "Hungary": [],
   "Mexico": [
-   {
-    "type": "hls",
-    "url": "https://5ca3e84a76d30.streamlock.net/cbtv/videoc3b3t3v3/playlist.m3u8",
-    "label": "CB TV Michoacan",
-    "w": 1280
-   },
    {
     "type": "hls",
     "url": "https://60417ddeaf0d9.streamlock.net/ntv/videontv/playlist.m3u8",
@@ -168,15 +215,43 @@
     "w": 1920
    }
   ],
-  "Chile": [],
+  "Chile": [
+   {
+    "type": "hls",
+    "url": "https://v2.tustreaming.cl/chiloered/index.m3u8",
+    "label": "Chiloe Red 25"
+   },
+   {
+    "type": "hls",
+    "url": "https://v2.tustreaming.cl/chinachannel/index.m3u8",
+    "label": "China Channel"
+   }
+  ],
   "Kazakhstan": [],
   "Peru": [],
   "Iran": [],
   "Costa Rica": [],
   "Senegal": [],
-  "Dominican Republic": [],
+  "Dominican Republic": [
+   {
+    "type": "hls",
+    "url": "https://edge.essastream.com/citricotv/playlist.m3u8",
+    "label": "Citrico TV"
+   },
+   {
+    "type": "hls",
+    "url": "https://streamunoapp.com:3960/live/claroteledomlive.m3u8",
+    "label": "Claro Television Dominicana"
+   }
+  ],
   "Romania": [],
-  "Philippines": [],
+  "Philippines": [
+   {
+    "type": "hls",
+    "url": "https://live.cltv36.tv:5443/LiveApp/streams/cltvlive.m3u8",
+    "label": "CLTV 36"
+   }
+  ],
   "Saudi Arabia": [],
   "Venezuela": [],
   "South Korea": [],
@@ -232,7 +307,18 @@
   "Bulgaria": [],
   "United Arab Emirates": [],
   "Qatar": [],
-  "Albania": [],
+  "Albania": [
+   {
+    "type": "hls",
+    "url": "https://live1.mediadesk.al/cnatvlive.m3u8",
+    "label": "CNA"
+   },
+   {
+    "type": "hls",
+    "url": "https://tv.a2news.com/live/smil:a2cnnweb.stream.smil/playlist.m3u8",
+    "label": "A2 CNN"
+   }
+  ],
   "Bolivia": [],
   "Colombia": [],
   "Honduras": [
@@ -241,6 +327,11 @@
     "url": "https://s.emisoras.tv:8081/atv/index.m3u8",
     "label": "Alsacias Television",
     "w": 1280
+   },
+   {
+    "type": "hls",
+    "url": "https://viewhn.com/chtv/live/playlist.m3u8",
+    "label": "CHTV"
    }
   ],
   "Jordan": [],
@@ -252,7 +343,28 @@
   "Syria": [],
   "Iceland": [],
   "Azerbaijan": [],
-  "Canada": [],
+  "Canada": [
+   {
+    "type": "hls",
+    "url": "https://citynewsregional.akamaized.net/hls/live/1024054/Regional_Live_9/master.m3u8",
+    "label": "CityNews Vancouver"
+   },
+   {
+    "type": "hls",
+    "url": "https://citynewsregional.akamaized.net/hls/live/1024053/Regional_Live_8/Video-2Mbps.m3u8",
+    "label": "CityNews Edmonton"
+   },
+   {
+    "type": "hls",
+    "url": "https://citynewsregional.akamaized.net/hls/live/1024052/Regional_Live_7/master.m3u8",
+    "label": "CityNews Toronto"
+   },
+   {
+    "type": "hls",
+    "url": "https://citynewsregional.akamaized.net/hls/live/1024053/Regional_Live_8/master.m3u8",
+    "label": "CityNews Calgary"
+   }
+  ],
   "Afghanistan": [],
   "Guatemala": [],
   "Bangladesh": [
@@ -285,6 +397,11 @@
     "type": "hls",
     "url": "https://dash3.antik.sk/live/test_cgtn_rus_tizen/playlist.m3u8",
     "label": "CGTN Russian"
+   },
+   {
+    "type": "hls",
+    "url": "https://amg01314-amg01314c7-distrotv-us-10219.playouts.now.amagi.tv/playlist/amg01314-cgtn-cgtnchinatravel-distrotvus/playlist.m3u8",
+    "label": "China Travel"
    }
   ],
   "Ecuador": [],
@@ -309,7 +426,13 @@
     "w": 854
    }
   ],
-  "Singapore": [],
+  "Singapore": [
+   {
+    "type": "hls",
+    "url": "https://d2e1asnsl7br7b.cloudfront.net/7782e205e72f43aeb4a48ec97f66ebbe/index.m3u8",
+    "label": "CNA"
+   }
+  ],
   "Sri Lanka": [],
   "Bahrain": [],
   "DR Congo": [],
@@ -328,7 +451,13 @@
   "Puerto Rico": [],
   "Moldova": [],
   "Burkina Faso": [],
-  "Nicaragua": [],
+  "Nicaragua": [
+   {
+    "type": "hls",
+    "url": "https://ddycmnicl95kp.cloudfront.net/live/ja5k3h31wv9r/master.m3u8",
+    "label": "Canal 10"
+   }
+  ],
   "Switzerland": [],
   "Cuba": [],
   "Uruguay": [],
