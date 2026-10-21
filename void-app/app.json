@@ -90,7 +90,7 @@
     "android": {
       "package": "com.thevoid.app",
       "adaptiveIcon": {
-        "backgroundColor": "#0b0620",
+        "backgroundColor": "#12100d",
         "foregroundImage": "./assets/brand/adaptive-icon-foreground.png",
         "backgroundImage": "./assets/brand/adaptive-icon-background.png",
         "monochromeImage": "./assets/brand/adaptive-icon-monochrome.png"
