@@ -10,7 +10,7 @@ import * as THREE from 'three';
 import { applyPose, buildFigure, M, PERIOD, posed, viewLock, type Rig } from '../../src/features/loading/voidFigure';
 import { LOADING_SETS, LOADING_THEMES, type LoadingSet } from '../../src/features/loading/arrivals';
 
-const FPS = 30, PX = 144, CELL_DP = 56;
+const FPSF = 30, PXF = 144, CELL_DP = 56;
 const TAU = Math.PI * 2, d2r = THREE.MathUtils.degToRad;
 const sm = (x: number) => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
 
@@ -57,12 +57,12 @@ const DOT = dotTexture();
 const THEME = LOADING_THEMES.dark;
 // Dot sizes: the loading screen draws gold at ~2.8% and violet at ~1.9% of his height; 0.85x that here (the Lab thumbnails' fine glints; 1.5x read as blobs), since at
 // header size the true proportion is a pixel and reads as nothing (owner: "not seeing my sparkles").
-const figPx = (3.5 / (2 * 10 * Math.tan(d2r(13.5)))) * PX;
+const figPx = (3.5 / (2 * 10 * Math.tan(d2r(13.5)))) * PXF;
 const swarm = [0, 1].map((k) => {
   const n = Math.round(110 * LOADING_SETS[0].sw), pos = new Float32Array(n * 3), geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   const mat = new THREE.PointsMaterial({ size: figPx * (k ? 0.019 : 0.028) * 0.85, sizeAttenuation: false, map: DOT, color: THEME.spark[k], transparent: true, depthWrite: false, opacity: 1 });
   scene.add(new THREE.Points(geo, mat));
-  return { pos, geo, data: Array.from({ length: n }, () => ({ x: gauss(), y: gauss() * 0.4, z0: rnd(), v: 0.6 + rnd() * 0.9, w: rnd() * TAU })) };
+  return { mat, base: mat.size, pos, geo, data: Array.from({ length: n }, () => ({ x: gauss(), y: gauss() * 0.4, z0: rnd(), v: 0.6 + rnd() * 0.9, w: rnd() * TAU })) };
 });
 /** Sparkles at loop fraction u (any real number; whole numbers wrap). Each rises a whole number of times per loop. */
 function sparkleAt(u: number, loopS: number, L: LoadingSet) {
@@ -84,9 +84,11 @@ export const FALLS: Record<string, { name: string; set: number }> = {
   d: { name: 'saved set 4', set: 3 }, // owner, 2026-10-20: the app uses saved set 4 only
 };
 
-/** One lap of his loop at the saved speed (PERIOD / speed seconds), sparkles rising, seamless. */
-function bakeFall(id: string) {
-  const F = FALLS[id], L = LOADING_SETS[F.set];
+/** One lap of his loop at the saved speed (PERIOD / speed seconds), sparkles rising, seamless.
+ *  The loading screen bakes every saved set bigger and at 15 fps (bakeLoading). */
+function bakeFall(id: string, F = FALLS[id], PX = PXF, FPS = FPSF) {
+  const L = LOADING_SETS[F.set];
+  for (const s of swarm) s.mat.size = s.base * (PX / PXF); // sparkles keep their size against him
   const nl = Math.round((PERIOD / L.speed) * FPS), loopS = nl / FPS;
   const cols = Math.ceil(Math.sqrt(nl)), rows = Math.ceil(nl / cols);
   const sheet = document.createElement('canvas'); sheet.width = cols * PX; sheet.height = rows * PX;
@@ -107,7 +109,7 @@ function bakeFall(id: string) {
     sparkleAt(u, loopS, L);
     ctx.drawImage(shot(PX), (k % cols) * PX, Math.floor(k / cols) * PX);
   }
-  return { id, name: F.name, cell: CELL_DP, px: PX, cols, rows, nl, sheet: sheet.toDataURL('image/webp', 0.88) };
+  return { id, name: F.name, set: F.set, cell: CELL_DP, px: PX, fps: FPS, cols, rows, nl, sheet: sheet.toDataURL('image/webp', 0.88) };
 }
 
 /** Just the eyes and brows, straight on and flat: eyes white, brows black, everything else hidden (brand marks). */
@@ -136,4 +138,6 @@ function gpuInfo() {
   const gl = renderer.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info');
   return ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
 }
-Object.assign(window as any, { bakeFall, bakeEyes, gpuInfo, FALL_IDS: Object.keys(FALLS) });
+// The loading screen: every saved set, 240 px cells at 15 fps (his cell there is ~0.96 x the band's height, ~117 dp).
+const bakeLoading = (set: number) => { const r = bakeFall('l' + set, { name: 'saved set ' + (set + 1), set }, 240, 15); return r; };
+Object.assign(window as any, { bakeFall, bakeLoading, bakeEyes, gpuInfo, FALL_IDS: Object.keys(FALLS), LOADING_N: LOADING_SETS.length });
