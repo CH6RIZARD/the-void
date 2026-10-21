@@ -42,7 +42,6 @@ import { ROUTES } from '../../nav/routes';
 import { onTabReselect } from '../../nav/reselect';
 import { ModerationHost } from './ModerationSheet';
 import { PostCard } from './PostCard';
-import { PtrFlash } from './PtrFlash';
 import { isPostHidden, useModerationVersion, useTick } from './stores';
 import { usePostViewability } from './viewability';
 import { Masthead } from '../home/Masthead';
@@ -258,13 +257,9 @@ export default function VoidFeedScreen() {
   }, [focused, mailOpen, section]);
 
   // ─── pull-to-refresh ─────────────────────────────────────────────────────
-  // The wash is shown by ONE shared-value write before any work starts, and hidden
-  // by another when the work is done (web showPtrFlash(0) / hidePtrFlash): the
-  // picture never waits on a React render while the feed rebuilds.
-  const flash = useSharedValue(0);
+  // Only the character shows (CameraFall); the old sparkle wash is gone (owner, 2026-10-21).
   const onRefresh = useCallback(async () => {
     if (refreshing) return;
-    flash.value = 1;
     setRefreshing(true);
     listRef.current?.scrollToOffset({ offset: 0, animated: false });
     try {
@@ -276,7 +271,6 @@ export default function VoidFeedScreen() {
     } catch {
       voidToast('SIGNAL LOST · RETRY');
     } finally {
-      flash.value = 0;
       if (alive.current) setRefreshing(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -384,9 +378,6 @@ export default function VoidFeedScreen() {
           <VText style={styles.fabT}>+</VText>
         </LinearGradient>
       </Pressable> : null}
-
-      {/* #ptr-flash: the sparkle wash, mounted for good, shown by a shared-value write */}
-      <PtrFlash flash={flash} />
 
       <ModerationHost />
     </View>

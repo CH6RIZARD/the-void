@@ -85,7 +85,8 @@ function headGeo() {
 const OUTW = { value: 0.012 };
 export const outlineMat = new THREE.MeshBasicMaterial({ color: '#17121f', side: THREE.BackSide, transparent: true });
 outlineMat.onBeforeCompile = (sh) => { (sh.uniforms as any).outlineW = OUTW; sh.vertexShader = 'uniform float outlineW;\n' + sh.vertexShader.replace('#include <begin_vertex>', 'vec3 transformed = vec3( position ) + normal * outlineW;'); };
-const ramp = (() => { const t = new THREE.DataTexture(new Uint8Array([90, 170, 255]), 3, 1, THREE.RedFormat); t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t; })();
+// RGBA, not RedFormat: expo-gl on iPhone leaves an R8 texture incomplete and the toon body draws black.
+const ramp = (() => { const t = new THREE.DataTexture(new Uint8Array([90, 90, 90, 255, 170, 170, 170, 255, 255, 255, 255, 255]), 3, 1, THREE.RGBAFormat); t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t; })();
 const toon = (c: string) => new THREE.MeshToonMaterial({ color: c, gradientMap: ramp });
 export const M: Record<string, THREE.Material> = {
   cap: toon(LOOK.skin), neck: new THREE.MeshBasicMaterial({ color: LOOK.neckColor }), top: toon(LOOK.topColor), under: toon(LOOK.underColor),
