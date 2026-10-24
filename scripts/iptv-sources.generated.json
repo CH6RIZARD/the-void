@@ -1,10 +1,16 @@
 {
- "generated": "2026-10-23T13:06:43.944Z",
- "note": "Union of the re-check from 10 regions; a stream stays if it played from any of them. · scout+23@2026-10-23",
- "count": 112,
+ "generated": "2026-10-24T13:06:45.864Z",
+ "note": "Union of the re-check from 10 regions; a stream stays if it played from any of them. · scout+37@2026-10-24",
+ "count": 143,
  "countries": 157,
  "sources": {
-  "Netherlands": [],
+  "Netherlands": [
+   {
+    "type": "hls",
+    "url": "https://ms2.mx-cd.net/tv/228-1864150/Omroep_Helmond.smil/playlist.m3u8",
+    "label": "Dit is Helmond"
+   }
+  ],
   "Russia": [
    {
     "type": "hls",
@@ -41,6 +47,11 @@
     "url": "https://cdn15.live-tv.cloud/ua_infinitas_tv/7tvod-abr/playlist.m3u8",
     "label": "Channel 7 Ukraine",
     "w": 640
+   },
+   {
+    "type": "hls",
+    "url": "https://dash2.antik.sk/live/telekanal_dim/playlist.m3u8",
+    "label": "DIM"
    }
   ],
   "Georgia": [],
@@ -70,6 +81,21 @@
     "type": "hls",
     "url": "https://limited31.todostreaming.es/live/noroestetv-livestream.m3u8",
     "label": "Costa Noroeste TV"
+   },
+   {
+    "type": "hls",
+    "url": "https://nlb2-live.emitstream.com/hls/3mn7wpcv7hbmxmdzaxap/master.m3u8",
+    "label": "Distrito TV"
+   },
+   {
+    "type": "hls",
+    "url": "https://streaming.cloud.innovasur.es/mmj/index.m3u8",
+    "label": "Diez TV Ubeda"
+   },
+   {
+    "type": "hls",
+    "url": "https://streaming.cloud.innovasur.es/mmj2/index.m3u8",
+    "label": "Diez TV Las Villas"
    }
   ],
   "Thailand": [
@@ -96,7 +122,8 @@
    {
     "type": "hls",
     "url": "https://daserste-live.ard-mcdn.de/daserste/live/hls/int/master.m3u8",
-    "label": "Das Erste"
+    "label": "Das Erste",
+    "w": 480
    }
   ],
   "Kenya": [],
@@ -155,22 +182,46 @@
    {
     "type": "hls",
     "url": "https://d2lk5u59tns74c.cloudfront.net/out/v1/eea48c6b61074052a2fa8532ff795ff1/index.m3u8",
-    "label": "DD Mizoram"
+    "label": "DD Mizoram",
+    "w": 384
    },
    {
     "type": "hls",
     "url": "https://d3qs3d2rkhfqrt.cloudfront.net/out/v1/0811cd8c37ca4c409d5385a6cd2fa18b/index.m3u8",
-    "label": "DD News"
+    "label": "DD News",
+    "w": 384
    },
    {
     "type": "hls",
     "url": "https://cdn.pishow.tv/ott/live/425/master.m3u8",
-    "label": "CVR English"
+    "label": "CVR English",
+    "w": 424
    },
    {
     "type": "hls",
     "url": "https://live.legitpro.co.in/ctvnakdplus/index.m3u8",
-    "label": "CTVN AKD Plus"
+    "label": "CTVN AKD Plus",
+    "w": 2098
+   },
+   {
+    "type": "hls",
+    "url": "https://banglajagotv.livebox.co.in/banglajagohls/24x7.m3u8",
+    "label": "Bangla Jago"
+   },
+   {
+    "type": "hls",
+    "url": "https://samitaorigin.tangotv.in/BSTV/SAMITAORIGIN/index.m3u8",
+    "label": "BSTV"
+   },
+   {
+    "type": "hls",
+    "url": "https://newsliveindia.com:4433/atn/index.m3u8",
+    "label": "ATN Samachar"
+   },
+   {
+    "type": "hls",
+    "url": "https://server.livelegitpro.in/bhichannel/bhichannel/index.m3u8",
+    "label": "BHI Channel"
    }
   ],
   "Turkey": [
@@ -179,6 +230,16 @@
     "url": "https://live.artidijitalmedya.com/artidijital_ciftcitv/ciftcitv/playlist.m3u8",
     "label": "Ciftci TV",
     "w": 1280
+   },
+   {
+    "type": "hls",
+    "url": "https://603c568fccdf5.streamlock.net/live/dhaweb1_C5efC/playlist.m3u8",
+    "label": "DHA"
+   },
+   {
+    "type": "hls",
+    "url": "https://live.artidijitalmedya.com/artidijital_denizpostasi/denizpostasi/playlist.m3u8",
+    "label": "Deniz Postasi TV"
    }
   ],
   "Myanmar": [],
@@ -208,6 +269,16 @@
     "url": "https://amg01079-nbcuuk-amg01079c2-samsung-gb-1258.playouts.now.amagi.tv/playlist.m3u8",
     "label": "CNBC UK",
     "w": 640
+   },
+   {
+    "type": "hls",
+    "url": "https://stream.berosat.live/hls/der-tv/der-tv.m3u8",
+    "label": "Der TV"
+   },
+   {
+    "type": "hls",
+    "url": "https://cd198.anystream.uk:9092/iqapp/d33ntv/playlist.m3u8",
+    "label": "Deen TV"
    }
   ],
   "United States": [
@@ -296,15 +367,53 @@
    {
     "type": "hls",
     "url": "https://livestream-us-east-edge-2.granicusops.com/live/cypressca/live-1-a/playlist.m3u8",
-    "label": "Cypress Channel 36"
+    "label": "Cypress Channel 36",
+    "w": 1280
    },
    {
     "type": "hls",
     "url": "https://video.oct.dc.gov/out/u/DCC.m3u8",
-    "label": "DCC"
+    "label": "DCC",
+    "w": 416
+   },
+   {
+    "type": "hls",
+    "url": "https://media.streambrothers.com:1936/8276/8276/playlist.m3u8",
+    "label": "Didgah TV"
+   },
+   {
+    "type": "hls",
+    "url": "https://reflect-detroit-vod.cablecast.tv/live-9/live/stream-4/live.m3u8",
+    "label": "Detroit Channel 21"
+   },
+   {
+    "type": "hls",
+    "url": "https://reflect-detroit-vod.cablecast.tv/live-2/live/stream-6/live.m3u8",
+    "label": "Detroit Channel 10"
+   },
+   {
+    "type": "hls",
+    "url": "https://video.oct.dc.gov/out/u/DCN.m3u8",
+    "label": "District of Columbia Network"
    }
   ],
-  "Italy": [],
+  "Italy": [
+   {
+    "type": "hls",
+    "url": "https://live20.bozztv.com/giatvplayout7/giatv-211474/playlist.m3u8",
+    "label": "DellaTV"
+   },
+   {
+    "type": "hls",
+    "url": "https://4c4b867c89244861ac216426883d1ad0.msvdn.net/live/S85984808/sMO0tz9Sr2Rk/playlist.m3u8",
+    "label": "Deejay TV"
+   },
+   {
+    "type": "hls",
+    "url": "https://5f22d76e220e1.streamlock.net/ditv80/ditv80/playlist.m3u8",
+    "label": "DI.TV 80"
+   }
+  ],
   "Cote d": [],
   "Pakistan": [],
   "Hungary": [],
@@ -318,21 +427,9 @@
    },
    {
     "type": "hls",
-    "url": "https://unlimited6-cl.dps.live/cm/cm.smil/playlist.m3u8",
-    "label": "Contivision",
-    "w": 1280
-   },
-   {
-    "type": "hls",
     "url": "https://v2.tustreaming.cl/coyhaiquetv/index.m3u8",
     "label": "Coyhaique TV",
     "w": 1280
-   },
-   {
-    "type": "hls",
-    "url": "https://stream.blserver.cl/hls/ctv/index.m3u8",
-    "label": "Concepcion TV",
-    "w": 1920
    },
    {
     "type": "hls",
@@ -342,7 +439,13 @@
    {
     "type": "hls",
     "url": "https://v2.tustreaming.cl/dchtv/index.m3u8",
-    "label": "DCH TV"
+    "label": "DCH TV",
+    "w": 1280
+   },
+   {
+    "type": "hls",
+    "url": "https://unlimited2-cl-isp.dps.live/decimatv/decimatv.smil/playlist.m3u8",
+    "label": "Decima TV"
    }
   ],
   "Kazakhstan": [],
@@ -363,20 +466,10 @@
     "type": "hls",
     "url": "https://7.innovatestream.pe:19360/cvntumbes/cvntumbes.m3u8",
     "label": "CVN TV"
-   },
-   {
-    "type": "hls",
-    "url": "https://live-evg8.tv360.bitel.com.pe/bitel/dactvSRT/playlist.m3u8",
-    "label": "Dac TV"
    }
   ],
   "Iran": [],
   "Costa Rica": [
-   {
-    "type": "hls",
-    "url": "https://video0.rogohosting.com:19360/8006/8006.m3u8",
-    "label": "Costa Rica Channel"
-   },
    {
     "type": "hls",
     "url": "https://cloudvideo.servers10.com:8081/8030/index.m3u8",
@@ -416,12 +509,29 @@
    {
     "type": "hls",
     "url": "https://cdnfox.hostlagarto.com/cct49/index.m3u8",
-    "label": "CTT Canal 49"
+    "label": "CTT Canal 49",
+    "w": 1920
    },
    {
     "type": "hls",
     "url": "https://eu1.servers10.com:8081/8128/index.m3u8",
-    "label": "CV Vision TV"
+    "label": "CV Vision TV",
+    "w": 1280
+   },
+   {
+    "type": "hls",
+    "url": "https://ss2.tvrdomi.com:1936/digitalvision/digitalvision/playlist.m3u8",
+    "label": "Digital Vision 63"
+   },
+   {
+    "type": "hls",
+    "url": "https://vdopanel.jlahozconsulting.com:3869/hybrid/play.m3u8",
+    "label": "Del Pueblo TV"
+   },
+   {
+    "type": "hls",
+    "url": "https://fox.hostlagarto.com:8081/deltatv50/tracks-v1a1/mono.m3u8",
+    "label": "Delta TV Canal 50"
    }
   ],
   "Romania": [
@@ -436,7 +546,13 @@
   "Saudi Arabia": [],
   "Venezuela": [],
   "South Korea": [],
-  "Iraq": [],
+  "Iraq": [
+   {
+    "type": "hls",
+    "url": "https://ghaasiflu.online/Dijlah/index.m3u8",
+    "label": "Dijlah TV"
+   }
+  ],
   "Greece": [
    {
     "type": "hls",
@@ -485,7 +601,13 @@
    {
     "type": "hls",
     "url": "https://fpa-gateway.tvcultura.com.br:8181/memfs/606caef0-a290-413d-9f1f-8fcdb3a73831.m3u8",
-    "label": "Cultura Fast"
+    "label": "Cultura Fast",
+    "w": 1280
+   },
+   {
+    "type": "hls",
+    "url": "https://stmv1.samcast.com.br/demaistv6503/demaistv6503/playlist.m3u8",
+    "label": "Demais TV"
    }
   ],
   "Ghana": [],
@@ -495,6 +617,11 @@
     "url": "https://lnd0t3b922.tenbytecdn.com/ta-sg1/90369cf5-6ac2-411d-b3d0-15fae10a2e2c/master.m3u8",
     "label": "BTV",
     "w": 854
+   },
+   {
+    "type": "hls",
+    "url": "https://dhohotv.siar.us/dhohotv/live/playlist.m3u8",
+    "label": "Dhoho TV"
    }
   ],
   "Guinea": [],
@@ -531,6 +658,11 @@
     "url": "https://tv.mediacp.eu:8081/coraltv/index.m3u8",
     "label": "Coral TV",
     "w": 1280
+   },
+   {
+    "type": "hls",
+    "url": "https://st.deltaboliviainstitucion.org:3778/hybrid/play.m3u8",
+    "label": "Delta TV"
    }
   ],
   "Colombia": [
@@ -556,6 +688,11 @@
     "url": "https://live.amelbatv.co:81/cnctulualive/index.fmp4.m3u8",
     "label": "CNC Tulua",
     "w": 1280
+   },
+   {
+    "type": "hls",
+    "url": "https://barinaslive1.boldmss.com/CANAL1/CANAL1.isml/CANAL1.m3u8",
+    "label": "Canal 1"
    }
   ],
   "Honduras": [
@@ -610,6 +747,16 @@
     "url": "https://tvsen6.aynaott.com/cp24/index.m3u8",
     "label": "CP24",
     "w": 768
+   },
+   {
+    "type": "hls",
+    "url": "https://dbcanada.sonarbanglatv.com/deshebideshe/dbtv/index.m3u8",
+    "label": "DesheBideshe TV"
+   },
+   {
+    "type": "hls",
+    "url": "https://deshitv.deshitv24.net/live/myStream/playlist.m3u8",
+    "label": "Deshi TV"
    }
   ],
   "Afghanistan": [],
@@ -626,13 +773,8 @@
   "Vietnam": [
    {
     "type": "hls",
-    "url": "https://live.mediatech.vn/live/2859145290d0d7947ef88b6240123b62474/chunklist.m3u8",
-    "label": "Da Nang TV2"
-   },
-   {
-    "type": "hls",
-    "url": "https://live.mediatech.vn/live/285b59a111d76974225a8e3004bfc31a509/chunklist.m3u8",
-    "label": "Da Nang TV 1"
+    "url": "https://stream.langsontv.vn/live/2855dfeccb7f49a41a2b0441b3bfeda413c/playlist.m3u8",
+    "label": "Dien Bien TV"
    }
   ],
   "China": [
@@ -661,6 +803,11 @@
     "url": "https://amg01314-amg01314c7-distrotv-us-10219.playouts.now.amagi.tv/playlist/amg01314-cgtn-cgtnchinatravel-distrotvus/playlist.m3u8",
     "label": "China Travel",
     "w": 640
+   },
+   {
+    "type": "hls",
+    "url": "https://amg01314-amg01314c8-distrotv-us-10218.playouts.now.amagi.tv/playlist/amg01314-cgtn-cgtndiscoveringchina-distrotvus/playlist.m3u8",
+    "label": "Discovering China"
    }
   ],
   "Ecuador": [],
@@ -670,7 +817,13 @@
   "Cambodia": [],
   "Somalia": [],
   "Armenia": [],
-  "Sweden": [],
+  "Sweden": [
+   {
+    "type": "hls",
+    "url": "https://cdn0-03837-liveedge0.dna.ip-only.net/03837-liveedge0/smil:03837-tx4/playlist.m3u8",
+    "label": "Di TV"
+   }
+  ],
   "Mongolia": [
    {
     "type": "hls",
@@ -744,7 +897,18 @@
   ],
   "Switzerland": [],
   "Cuba": [],
-  "Uruguay": [],
+  "Uruguay": [
+   {
+    "type": "hls",
+    "url": "https://stmv1.voxtvhd.com.br/canalalmatv/canalalmatv/playlist.m3u8",
+    "label": "Canal ALMA"
+   },
+   {
+    "type": "hls",
+    "url": "https://5e50264bd6766.streamlock.net/canal11ury/videocanal11ury/playlist.m3u8",
+    "label": "Canal Once Plus"
+   }
+  ],
   "Norway": [],
   "Nepal": [],
   "Jamaica": [],
@@ -793,7 +957,13 @@
     "label": "Dabanga TV"
    }
   ],
-  "Lithuania": [],
+  "Lithuania": [
+   {
+    "type": "hls",
+    "url": "https://s1.dcdn.lt/live/televizija/playlist.m3u8",
+    "label": "Delfi TV"
+   }
+  ],
   "Serbia": [],
   "Tanzania": [],
   "Niger": [],
